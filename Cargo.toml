@@ -1,0 +1,24 @@
+cargo-features = ["resolver"]
+[workspace]
+
+members = [
+    "rust-tdshim",
+     "rust-td-payload",
+     "rust-td-tool",
+     "benchmark",
+     "fuzzing/fuzz_pe_loader",
+     "fuzzing/fuzz_elf_loader",
+     "no_std_test"
+     ]
+
+default-members = ["rust-tdshim", "rust-td-payload"]
+resolver = "2"
+
+# the profile used for `cargo build`
+[profile.dev]
+panic = "abort" # disable stack unwinding on panic
+
+# the profile used for `cargo build --release`
+[profile.release]
+panic = "abort"    # disable stack unwinding on panic
+lto = true         # Link-time optimization
