@@ -1,0 +1,7 @@
+*~
+
+# Cargo Junk
+Cargo.lock
+target/
+*.o
+*.obj

@@ -1,0 +1,40 @@
+[package]
+name = "rust-tdshim"
+version = "0.1.0"
+edition = "2018"
+
+# add build process
+build = "build.rs"
+
+[features]
+cet-ss = []
+
+[build-dependencies]
+cc = { git = "https://github.com/jyao1/cc-rs.git", branch = "uefi_support" }
+rust-td-layout = { path = "../rust-td-layout" }
+tdx-tdcall = { path = "../tdx-tdcall" }
+
+[dependencies]
+r-efi = "3.2.0"
+linked_list_allocator = "0.9.0"
+log = "0.4.13"
+elf-loader = { path = "../elf-loader" }
+pe-loader = { path = "../pe-loader" }
+r-uefi-pi =  { path = "../r-uefi-pi" }
+uefi-pi =  { path = "../uefi-pi" }
+tdx-tdcall = { path = "../tdx-tdcall" }
+tdx-logger =  { path = "../tdx-logger" }
+tdx-exception =  { path = "../tdx-exception" }
+rust-td-layout = { path = "../rust-td-layout" }
+paging = { path = "../rust-paging" }
+ring = { git = "https://github.com/jyao1/ring.git", branch = "uefi_support", default-features = false }
+scroll = { version = "0.10", default-features = false, features = ["derive"] }
+x86_64 = "0.14.4"
+x86 = "0.43.0"
+spin = "0.9.2"
+bitflags = "1.2.1"
+zerocopy = "0.6.0"
+
+[dependencies.lazy_static]
+version = "1.0"
+features = ["spin_no_std"]
