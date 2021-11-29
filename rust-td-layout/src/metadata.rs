@@ -20,6 +20,7 @@ pub const TDX_METADATA_SECTION_TYPE_PAYLOAD_PARAM: u32 = 6;
 
 pub const TDX_METADATA_ATTRIBUTES_EXTENDMR: u32 = 0x00000001;
 
+#[repr(C)]
 #[derive(Default, Pread, Pwrite)]
 pub struct TdxMetadataDescriptor {
     pub signature: u32,
@@ -28,6 +29,7 @@ pub struct TdxMetadataDescriptor {
     pub number_of_section_entry: u32,
 }
 
+#[repr(C)]
 #[derive(Default, Pwrite, Pread)]
 pub struct TdxMetadataSection {
     pub data_offset: u32,
@@ -38,6 +40,7 @@ pub struct TdxMetadataSection {
     pub attributes: u32,
 }
 
+#[repr(C)]
 #[derive(Default, Pwrite, Pread)]
 pub struct TdxMetadataGuid {
     pub data1: u32,
@@ -46,6 +49,7 @@ pub struct TdxMetadataGuid {
     pub data4: u32,
 }
 
+#[repr(C)]
 #[derive(Default, Pwrite)]
 pub struct TdxMetadata {
     pub guid: TdxMetadataGuid,
@@ -55,6 +59,7 @@ pub struct TdxMetadata {
     pub payload_sections: [TdxMetadataSection; 2],
 }
 
+#[repr(C)]
 #[derive(Default, Pwrite, Pread)]
 pub struct TdxMetadataPtr {
     pub ptr: u32,

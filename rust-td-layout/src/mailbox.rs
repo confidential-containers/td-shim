@@ -4,7 +4,7 @@
 
 use scroll::{Pread, Pwrite};
 
-// #[repr(packed)]
+#[repr(C)]
 #[derive(Default, Pwrite, Pread)]
 pub struct TdxMpWakeupMailbox {
     pub command: u16,
