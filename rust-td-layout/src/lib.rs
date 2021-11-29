@@ -26,6 +26,9 @@ pub mod mailbox;
 pub mod metadata;
 pub mod runtime;
 
+// Minimal memory size to build the runtime layout.
+const MIN_MEMORY_SIZE: u64 = 0x3000000;
+
 #[derive(Default)]
 pub struct RuntimeMemoryLayout {
     pub runtime_page_table_base: u64,
@@ -49,7 +52,11 @@ pub struct RuntimeMemoryLayout {
 impl RuntimeMemoryLayout {
     pub fn new(memory_top: u64) -> Self {
         use crate::runtime::*;
-        let current_base = memory_top;
+        let current_base = memory_top & !0xfffff;
+
+        if memory_top < MIN_MEMORY_SIZE {
+            panic!("memory_top 0x{:x} is too small", memory_top);
+        }
 
         let current_base = current_base - TD_PAYLOAD_EVENT_LOG_SIZE as u64;
         let runtime_event_log_base = current_base;
@@ -134,5 +141,25 @@ impl fmt::Debug for RuntimeMemoryLayout {
                 &format_args!("0x{:x}", self.runtime_dma_base),
             )
             .finish()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[should_panic]
+    fn test_invalid_memory_top() {
+        RuntimeMemoryLayout::new(MIN_MEMORY_SIZE - 0x100000);
+    }
+
+    #[test]
+    fn test_runtime_memory_layout_new() {
+        let layout = RuntimeMemoryLayout::new(MIN_MEMORY_SIZE + 0x1000);
+
+        assert_eq!(layout.runtime_event_log_base, MIN_MEMORY_SIZE - 0x100000);
+        assert_eq!(layout.runtime_payload_base, 0x1100000);
+        assert_eq!(layout.runtime_page_table_base, 0x800000);
     }
 }
