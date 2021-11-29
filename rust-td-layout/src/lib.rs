@@ -5,6 +5,20 @@
 #![no_std]
 #![forbid(unsafe_code)]
 
+//! Define file (build-time) and runtime layout for shim binary.
+//!
+//! Note:
+//! `repr(C)` should be used to control the exact data structure layout.
+//! - `repr(rust)`: By default, composite structures have an alignment equal to the maximum of their
+//!   fields' alignments. Rust will consequently insert padding where necessary to ensure that all
+//!   fields are properly aligned and that the overall type's size is a multiple of its alignment.
+//!   And fields may be reordered, not following the literal order of fields.
+//! - `repr(C)` is the most important repr. It has fairly simple intent: do what C does. The order,
+//!   size, and alignment of fields is exactly what you would expect from C or C++. Any type you
+//!   expect to pass through an FFI boundary should have repr(C), as C is the lingua-franca of the
+//!   programming world. This is also necessary to soundly do more elaborate tricks with data layout
+//!   such as reinterpreting values as a different type.
+
 use core::fmt;
 
 pub mod build_time;
