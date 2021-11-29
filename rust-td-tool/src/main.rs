@@ -338,21 +338,6 @@ fn build_tdx_metadata_ptr(metadata_ptr: &mut [u8]) {
 fn build_tdx_metadata(metadata: &mut [u8]) {
     let mut tdx_metadata = TdxMetadata::default();
 
-    tdx_metadata.guid.data1 = TDX_METADATA_GUID1;
-    tdx_metadata.guid.data2 = TDX_METADATA_GUID2;
-    tdx_metadata.guid.data3 = TDX_METADATA_GUID3;
-    tdx_metadata.guid.data4 = TDX_METADATA_GUID4;
-
-    tdx_metadata.descriptor.signature = TDX_METADATA_SIGNATURE;
-    tdx_metadata.descriptor.length = 0xd0;
-    tdx_metadata.descriptor.version = 1;
-    tdx_metadata.descriptor.number_of_section_entry = 6;
-    #[cfg(feature = "boot-kernel")]
-    {
-        tdx_metadata.descriptor.length += 64;
-        tdx_metadata.descriptor.number_of_section_entry += 2;
-    }
-
     // BFV
     tdx_metadata.sections[0].data_offset = TD_SHIM_PAYLOAD_OFFSET;
     tdx_metadata.sections[0].raw_data_size =
