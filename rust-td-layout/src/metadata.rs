@@ -146,3 +146,53 @@ impl Default for TdxMetadata {
 pub struct TdxMetadataPtr {
     pub ptr: u32,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use scroll::export::mem::size_of;
+
+    #[test]
+    fn ensure_data_struct_size() {
+        assert_eq!(size_of::<TdxMetadataDescriptor>(), 16);
+        assert_eq!(size_of::<TdxMetadataSection>(), 32);
+        assert_eq!(size_of::<TdxMetadataGuid>(), 16);
+        assert_eq!(size_of::<TdxMetadataPtr>(), 4);
+        #[cfg(not(feature = "boot-kernel"))]
+        assert_eq!(size_of::<TdxMetadata>(), 224);
+        #[cfg(feature = "boot-kernel")]
+        assert_eq!(size_of::<TdxMetadata>(), 256);
+    }
+
+    #[test]
+    fn test_tdx_metadata_descriptor() {
+        let mut desc = TdxMetadataDescriptor::default();
+
+        assert_eq!(desc.signature, TDX_METADATA_SIGNATURE);
+        assert_eq!(desc.length, 16);
+        assert_eq!(desc.version, 1);
+        assert_eq!(desc.number_of_section_entry, 0);
+        assert_eq!(desc.is_valid(), false);
+
+        desc.set_sections(1);
+        assert_eq!(desc.signature, TDX_METADATA_SIGNATURE);
+        assert_eq!(desc.length, 48);
+        assert_eq!(desc.version, 1);
+        assert_eq!(desc.number_of_section_entry, 1);
+        assert_eq!(desc.is_valid(), true);
+    }
+
+    #[test]
+    fn test_tdx_metadata_guid() {
+        let mut guid = TdxMetadataGuid::default();
+
+        assert_eq!(guid.data1, TDX_METADATA_GUID1);
+        assert_eq!(guid.data2, TDX_METADATA_GUID2);
+        assert_eq!(guid.data3, TDX_METADATA_GUID3);
+        assert_eq!(guid.data4, TDX_METADATA_GUID4);
+        assert_eq!(guid.is_valid(), true);
+
+        guid.data1 = 0;
+        assert_eq!(guid.is_valid(), false);
+    }
+}
