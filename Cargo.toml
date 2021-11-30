@@ -1,23 +1,22 @@
 cargo-features = ["resolver"]
-[workspace]
 
+[workspace]
+resolver = "2"
+default-members = ["rust-tdshim", "rust-td-payload"]
 members = [
     "rust-tdshim",
-     "rust-td-payload",
-     "rust-td-tool",
-     "benchmark",
-     "fuzzing/fuzz_pe_loader",
-     "fuzzing/fuzz_elf_loader",
-     "fuzzing/fuzz_fv_parser",
-     "fuzzing/fuzz_hob_parser",
-     "no_std_test",
-     "rust-tdpayload-signing",
-     "rust-tdshim-key-enroll",
-     "rust-test-payload",
-     ]
-
-default-members = ["rust-tdshim", "rust-td-payload"]
-resolver = "2"
+    "rust-td-payload",
+    "rust-td-tool",
+    "benchmark",
+    "fuzzing/fuzz_pe_loader",
+    "fuzzing/fuzz_elf_loader",
+    "fuzzing/fuzz_fv_parser",
+    "fuzzing/fuzz_hob_parser",
+    "no_std_test",
+    "rust-tdpayload-signing",
+    "rust-tdshim-key-enroll",
+    "rust-test-payload",
+]
 
 # the profile used for `cargo build`
 [profile.dev]
