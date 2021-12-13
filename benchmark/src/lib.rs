@@ -25,9 +25,9 @@ const STACK_GUARD_PAGE_SIZE: usize = 0x1000;
 const STACK_EXCEPTION_PAGE_SIZE: usize = 0x1000;
 
 // REVISIT: need a better way to determine how to adjust the stack, or remove it.
-const STACK_ADJUSTMENT_HACK : usize = 0x8;
+const STACK_ADJUSTMENT_HACK: usize = 0x8;
 
-const STACK_FILL_PATTERN : u8 = 0x5A;
+const STACK_FILL_PATTERN: u8 = 0x5A;
 
 // NOTE: Below code is NOT thread safe. Please don't use it in any AP.
 pub struct MyHeap {
@@ -93,7 +93,9 @@ impl<'a> BenchmarkContext<'a> {
     }
 
     fn runtime_stack_base(&self) -> usize {
-        self.memory_layout.runtime_stack_base as usize + STACK_GUARD_PAGE_SIZE + STACK_EXCEPTION_PAGE_SIZE
+        self.memory_layout.runtime_stack_base as usize
+            + STACK_GUARD_PAGE_SIZE
+            + STACK_EXCEPTION_PAGE_SIZE
     }
 
     pub fn bench_start(&mut self) {
@@ -150,14 +152,14 @@ impl<'a> BenchmarkContext<'a> {
 }
 
 fn detect_stack_in_buffer(buffer: &[u8]) -> Option<usize> {
-    let expected_value : u64 =  STACK_FILL_PATTERN as u64 |
-                                (STACK_FILL_PATTERN as u64) << 8 |
-                                (STACK_FILL_PATTERN as u64) << 16 |
-                                (STACK_FILL_PATTERN as u64) << 24 |
-                                (STACK_FILL_PATTERN as u64) << 32 |
-                                (STACK_FILL_PATTERN as u64) << 40 |
-                                (STACK_FILL_PATTERN as u64) << 48 |
-                                (STACK_FILL_PATTERN as u64) << 56;
+    let expected_value: u64 = STACK_FILL_PATTERN as u64
+        | (STACK_FILL_PATTERN as u64) << 8
+        | (STACK_FILL_PATTERN as u64) << 16
+        | (STACK_FILL_PATTERN as u64) << 24
+        | (STACK_FILL_PATTERN as u64) << 32
+        | (STACK_FILL_PATTERN as u64) << 40
+        | (STACK_FILL_PATTERN as u64) << 48
+        | (STACK_FILL_PATTERN as u64) << 56;
     for i in 0..(buffer.len() / 8) {
         let value: u64 = buffer.pread(i * 8).unwrap();
         if value != expected_value {

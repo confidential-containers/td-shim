@@ -303,7 +303,8 @@ pub extern "win64" fn _start(
             name: *MEMORY_ALLOCATION_STACK_GUID.as_bytes(),
             memory_base_address: td_payload_stack_base as u64,
             memory_length: TD_PAYLOAD_STACK_SIZE as u64
-                - (stack_guard::STACK_GUARD_PAGE_SIZE + stack_guard::STACK_EXCEPTION_PAGE_SIZE) as u64,
+                - (stack_guard::STACK_GUARD_PAGE_SIZE + stack_guard::STACK_EXCEPTION_PAGE_SIZE)
+                    as u64,
             memory_type: efi::MemoryType::BootServicesData as u32,
             reserved: [0u8; 4],
         },
