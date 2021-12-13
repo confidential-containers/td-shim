@@ -45,6 +45,7 @@ cmds=(
     "fuzz_elf_loader"
     "fuzz_pe_loader"
     "fuzz_fv_parser"
+    "fuzz_hob_parser"
 )
 
 buildpackage=''
