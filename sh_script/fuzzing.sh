@@ -44,6 +44,7 @@ rm -rf fuzzing/out/*
 cmds=(
     "fuzz_elf_loader"
     "fuzz_pe_loader"
+    "fuzz_fv_parser"
 )
 
 buildpackage=''

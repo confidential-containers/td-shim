@@ -36,7 +36,9 @@ pub fn get_image_from_fv(
 ) -> Option<&[u8]> {
     let fv_header: FirmwareVolumeHeader = fv_data.pread(0).ok()?;
 
-    assert!(fv_header.signature == FVH_SIGNATURE);
+    if fv_header.signature != FVH_SIGNATURE {
+        return None;
+    }
 
     let files = Files::parse(fv_data, fv_header.header_length as usize)?;
     for (file_header, file_data) in files {
@@ -71,7 +73,7 @@ impl<'a> Iterator for Sections<'a> {
         let offset = ((self.offset + 3 + base_address) & (core::usize::MAX - 3)) - base_address;
 
         let header_size = core::mem::size_of::<CommonSectionHeader>();
-        if offset > self.buffer.len() - header_size {
+        if offset > self.buffer.len().checked_sub(header_size)? {
             return None;
         }
         let bytes = &self.buffer[offset..];
@@ -79,7 +81,9 @@ impl<'a> Iterator for Sections<'a> {
         let section_size = header.size[0] as usize
             + ((header.size[1] as usize) << 8)
             + ((header.size[2] as usize) << 16);
-        assert!(section_size >= header_size);
+
+        section_size.checked_sub(header_size)?;
+        bytes.len().checked_sub(section_size)?;
 
         self.offset += section_size;
 
@@ -122,7 +126,8 @@ impl<'a> Iterator for Files<'a> {
             + ((header.size[1] as usize) << 8)
             + ((header.size[2] as usize) << 16);
 
-        assert!(data_size < self.buffer.len());
+        buffer.len().checked_sub(data_size)?;
+        data_size.checked_sub(header_size)?;
 
         self.offset = offset;
         self.offset += data_size;
