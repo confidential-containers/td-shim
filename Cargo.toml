@@ -8,6 +8,7 @@ members = [
      "benchmark",
      "fuzzing/fuzz_pe_loader",
      "fuzzing/fuzz_elf_loader",
+     "fuzzing/fuzz_fv_parser",
      "no_std_test"
      ]
 
