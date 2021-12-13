@@ -394,7 +394,7 @@ pub extern "win64" fn _start(hob: *const c_void) -> ! {
     hob_lib::dump_hob(hob_list);
 
     init_heap(
-        (hob_lib::get_system_memory_size_below_4gb(hob_list) as usize
+        (hob_lib::get_system_memory_size_below_4gb(hob_list).unwrap() as usize
             - (TD_PAYLOAD_HOB_SIZE
                 + TD_PAYLOAD_STACK_SIZE
                 + TD_PAYLOAD_SHADOW_STACK_SIZE
@@ -405,10 +405,10 @@ pub extern "win64" fn _start(hob: *const c_void) -> ! {
     );
 
     let memory_layout = rust_td_layout::RuntimeMemoryLayout::new(
-        hob_lib::get_system_memory_size_below_4gb(hob_list),
+        hob_lib::get_system_memory_size_below_4gb(hob_list).unwrap(),
     );
     assert_eq!(
-        (hob_lib::get_system_memory_size_below_4gb(hob_list) as usize
+        (hob_lib::get_system_memory_size_below_4gb(hob_list).unwrap() as usize
             - (TD_PAYLOAD_HOB_SIZE
                 + TD_PAYLOAD_STACK_SIZE
                 + TD_PAYLOAD_SHADOW_STACK_SIZE

@@ -61,17 +61,20 @@ pub fn dump_hob(hob_list: &[u8]) {
 }
 
 /// used for data storage (stack/heap/pagetable/eventlog/...)
-pub fn get_system_memory_size_below_4gb(hob_list: &[u8]) -> u64 {
+pub fn get_system_memory_size_below_4gb(hob_list: &[u8]) -> Option<u64> {
     let mut low_mem_top = 0u64; // TOLUD (top of low usable dram)
     let mut offset = 0;
 
     loop {
-        let header: Header = hob_list.pread(offset).unwrap();
+        let header: Header = hob_list.pread(offset).ok()?;
+
         match header.r#type {
             HOB_TYPE_RESOURCE_DESCRIPTOR => {
                 let resource_hob: ResourceDescription = hob_list.pread(offset).unwrap();
                 if resource_hob.resource_type == RESOURCE_SYSTEM_MEMORY {
-                    let end = resource_hob.physical_start + resource_hob.resource_length;
+                    let end = resource_hob
+                        .physical_start
+                        .checked_add(resource_hob.resource_length)?;
                     if end < SIZE_4G && end > low_mem_top {
                         low_mem_top = end;
                     }
@@ -82,10 +85,14 @@ pub fn get_system_memory_size_below_4gb(hob_list: &[u8]) -> u64 {
             }
             _ => {}
         }
-        offset += align_hob(header.length) as usize;
+        if header.length == 0 || header.length > (u16::MAX - 7) {
+            return None;
+        }
+
+        offset = offset.checked_add(align_hob(header.length) as usize)? as usize;
     }
 
-    low_mem_top
+    Some(low_mem_top)
 }
 
 /// used for page table setup
@@ -113,6 +120,9 @@ pub fn get_total_memory_top(hob_list: &[u8]) -> u64 {
             }
             _ => {}
         }
+        if header.length == 0 || header.length > (u16::MAX - 7) {
+            break;
+        }
         offset += align_hob(header.length) as usize;
     }
     mem_top
@@ -122,10 +132,11 @@ pub fn get_fv(hob_list: &[u8]) -> Option<FirmwareVolume> {
     let mut offset = 0;
 
     loop {
-        let header: Header = hob_list.pread(offset).unwrap();
+        let header: Header = hob_list.pread(offset).ok()?;
+
         match header.r#type {
             HOB_TYPE_FV => {
-                let fv_hob: FirmwareVolume = hob_list.pread(offset).unwrap();
+                let fv_hob: FirmwareVolume = hob_list.pread(offset).ok()?;
                 return Some(fv_hob);
             }
             HOB_TYPE_END_OF_HOB_LIST => {
@@ -133,24 +144,28 @@ pub fn get_fv(hob_list: &[u8]) -> Option<FirmwareVolume> {
             }
             _ => {}
         }
-        offset += align_hob(header.length) as usize;
+        if header.length == 0 || header.length > (u16::MAX - 7) {
+            return None;
+        }
+        offset = offset.checked_add(align_hob(header.length) as usize)? as usize;
     }
     None
 }
 
 pub fn get_hob_total_size(hob: &[u8]) -> Option<usize> {
     let phit: HandoffInfoTable = hob.pread(0).ok()?;
-    Some(phit.efi_end_of_hob_list as usize - hob.as_ptr() as usize)
+    Some(phit.efi_end_of_hob_list.checked_sub(hob.as_ptr() as u64)? as usize)
 }
 
 pub fn get_next_extension_guid_hob<'a>(hob_list: &'a [u8], guid: &[u8]) -> Option<&'a [u8]> {
     let mut offset = 0;
 
     loop {
-        let header: Header = hob_list.pread(offset).unwrap();
+        let header: Header = hob_list.pread(offset).ok()?;
+
         match header.r#type {
             HOB_TYPE_GUID_EXTENSION => {
-                let guid_hob: GuidExtension = hob_list.pread(offset).unwrap();
+                let guid_hob: GuidExtension = hob_list.pread(offset).ok()?;
                 if guid_hob.name == guid[0..16] {
                     return Some(&hob_list[offset..]);
                 }
@@ -160,23 +175,35 @@ pub fn get_next_extension_guid_hob<'a>(hob_list: &'a [u8], guid: &[u8]) -> Optio
             }
             _ => {}
         }
-
-        offset += align_hob(header.length) as usize;
+        if header.length == 0 || header.length > (u16::MAX - 7) {
+            return None;
+        }
+        offset = offset.checked_add(align_hob(header.length) as usize)? as usize;
     }
     None
 }
 
-pub fn get_guid_data(hob_list: &'_ [u8]) -> &'_ [u8] {
+pub fn get_guid_data(hob_list: &'_ [u8]) -> Option<&'_ [u8]> {
     let mut offset = 0;
 
-    let guid_hob: GuidExtension = hob_list.pread(offset).unwrap();
-    offset += size_of::<GuidExtension>();
+    let guid_hob: GuidExtension = hob_list.pread(offset).ok()?;
+    offset = offset.checked_add(size_of::<GuidExtension>())?;
 
-    let guid_data_len = guid_hob.header.length as usize - size_of::<GuidExtension>();
-    &hob_list[offset..offset + guid_data_len]
+    let guid_data_len = guid_hob
+        .header
+        .length
+        .checked_sub(size_of::<GuidExtension>() as u16)? as usize;
+    hob_list
+        .len()
+        .checked_sub(offset.checked_add(guid_data_len)?)?;
+    Some(&hob_list[offset..offset + guid_data_len])
 }
 
-pub fn get_nex_hob(hob_list: &'_ [u8]) -> &'_ [u8] {
-    let header: Header = hob_list.pread(0).unwrap();
-    &hob_list[align_hob(header.length) as usize..]
+pub fn get_nex_hob(hob_list: &'_ [u8]) -> Option<&'_ [u8]> {
+    let header: Header = hob_list.pread(0).ok()?;
+    (u16::MAX - 7).checked_sub(header.length)?;
+    hob_list
+        .len()
+        .checked_sub(align_hob(header.length) as usize)?;
+    Some(&hob_list[align_hob(header.length) as usize..])
 }
