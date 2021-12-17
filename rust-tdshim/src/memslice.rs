@@ -7,6 +7,7 @@ use rust_td_layout::runtime::*;
 
 #[allow(dead_code)]
 pub enum SliceType {
+    Config,
     ShimHob,
     ShimPayload,
     MailBox,
@@ -18,6 +19,10 @@ pub enum SliceType {
 pub fn get_mem_slice<'a>(t: SliceType) -> &'a [u8] {
     unsafe {
         match t {
+            SliceType::Config => core::slice::from_raw_parts(
+                TD_SHIM_CONFIG_BASE as *const u8,
+                TD_SHIM_CONFIG_SIZE as usize,
+            ),
             SliceType::ShimHob => core::slice::from_raw_parts(
                 TD_SHIM_HOB_BASE as *const u8,
                 TD_SHIM_HOB_SIZE as usize,
