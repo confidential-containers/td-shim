@@ -7,6 +7,8 @@ This is a Shim Firmware to support [Intel TDX](https://software.intel.com/conten
 
 The API specification is at [td-shim specification](https://github.com/confidential-containers/td-shim/blob/main/doc/tdshim_spec.md).
 
+The secure boot specification for td-shim is at [secure boot specification](doc/secure_boot.md)
+
 The design is at [td-shim design](https://github.com/confidential-containers/td-shim/blob/main/doc/design.md).
 
 The threat model analysis is at [td-shim threat model](https://github.com/confidential-containers/td-shim/blob/main/doc/threat_model.md).
@@ -45,6 +47,11 @@ Set env:
 set CC=clang
 set AR=llvm-ar
 ```
+
+### Secure boot support
+
+Please follow [Secure Boot Guide](doc/secure_boot_guide.md)
+
 
 ### Build TdShim
 ```
