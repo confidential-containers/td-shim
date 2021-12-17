@@ -30,9 +30,10 @@ pub fn efi_page_to_size(page: u64) -> u64 {
     page * SIZE_4KB
 }
 
-pub fn find_and_report_entry_point(mem: &mut Memory, fv_buffer: &[u8]) -> Option<(u64, u64, u64)> {
-    let image_buffer =
-        fv_lib::get_image_from_fv(fv_buffer, fv::FV_FILETYPE_DXE_CORE, fv::SECTION_PE32).unwrap();
+pub fn find_and_report_entry_point(
+    mem: &mut Memory,
+    image_buffer: &[u8],
+) -> Option<(u64, u64, u64)> {
     let loaded_buffer = memslice::get_mem_slice_mut(memslice::SliceType::Payload);
     let loaded_buffer_slice = loaded_buffer.as_ptr() as u64;
     let res = if elf::is_elf(image_buffer) {

@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use r_efi::efi::Guid;
 use r_uefi_pi::fv::{
     CommonSectionHeader, FfsFileHeader, FirmwareVolumeHeader, FvFileType, SectionType,
     FVH_SIGNATURE,
@@ -47,6 +48,27 @@ pub fn get_image_from_fv(
         }
         let section_data = get_image_from_sections(file_data, section_type)?;
         return Some(section_data);
+    }
+    None
+}
+
+pub fn get_file_from_fv(
+    fv_data: &[u8],
+    fv_file_type: FvFileType,
+    file_name: Guid,
+) -> Option<&[u8]> {
+    let fv_header: FirmwareVolumeHeader = fv_data.pread(0).ok()?;
+
+    assert!(fv_header.signature == FVH_SIGNATURE);
+
+    let files = Files::parse(fv_data, fv_header.header_length as usize)?;
+
+    for (file_header, file_data) in files {
+        if file_header.r#type != fv_file_type || &file_header.name != file_name.as_bytes() {
+            continue;
+        }
+
+        return Some(file_data);
     }
     None
 }

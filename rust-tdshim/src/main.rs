@@ -21,6 +21,7 @@ mod memslice;
 mod mp;
 mod stack_guard;
 mod tcg;
+mod verify;
 
 extern "win64" {
     fn switch_stack_call(entry_point: usize, stack_top: usize, P1: usize, P2: usize);
@@ -30,11 +31,12 @@ mod asm;
 
 use r_efi::efi;
 
+use r_uefi_pi::fv;
 use r_uefi_pi::hob::*;
 use r_uefi_pi::pi;
 use r_uefi_pi::pi::hob;
 use tdx_tdcall::tdx;
-use uefi_pi::pi::hob_lib;
+use uefi_pi::pi::{fv_lib, hob_lib};
 
 use rust_td_layout::RuntimeMemoryLayout;
 use rust_td_layout::{build_time, build_time::*};
@@ -47,6 +49,7 @@ use core::ffi::c_void;
 use crate::e820::create_e820_entries;
 use crate::memory::Memory;
 use crate::memslice::SliceType;
+use crate::verify::PayloadVerifier;
 use scroll::{Pread, Pwrite};
 use zerocopy::{AsBytes, FromBytes};
 
@@ -95,6 +98,7 @@ const TD_HOB_GUID: Guid = Guid {
 
 const EV_EFI_EVENT_BASE: u32 = 0x80000000;
 const EV_EFI_HANDOFF_TABLES2: u32 = EV_EFI_EVENT_BASE + 0xB;
+const EV_PLATFORM_CONFIG_FLAGS: u32 = 0x0000000A;
 
 #[derive(Pwrite)]
 struct ConfigurationTable {
@@ -442,8 +446,37 @@ pub extern "win64" fn _start(
         resource_length: 0x80000u64 + 0x20000u64,
     };
 
+    let mut payload =
+        fv_lib::get_image_from_fv(fv_buffer, fv::FV_FILETYPE_DXE_CORE, fv::SECTION_PE32).unwrap();
+
+    #[cfg(feature = "secure-boot")]
+    {
+        let cfv = memslice::get_mem_slice(SliceType::Config);
+        let verifier = PayloadVerifier::new(payload, cfv);
+        if let Some(verifier) = &verifier {
+            td_event_log.create_td_event(
+                4,
+                EV_PLATFORM_CONFIG_FLAGS,
+                b"td payload",
+                PayloadVerifier::get_trust_anchor(cfv),
+            );
+            verifier.verify().expect("Verification fails");
+            td_event_log.create_td_event(4, EV_PLATFORM_CONFIG_FLAGS, b"td payload", payload);
+            td_event_log.create_td_event(
+                4,
+                EV_PLATFORM_CONFIG_FLAGS,
+                b"td payload svn",
+                &u64::to_le_bytes(verifier.get_payload_svn()),
+            );
+            // Parse out the image from signed payload
+            payload = PayloadVerifier::get_payload_image(payload);
+        } else {
+            panic!("Secure Boot: Cannot read verify header from payload binary");
+        }
+    }
+
     let (entry, basefw, basefwsize) =
-        ipl::find_and_report_entry_point(&mut mem, fv_buffer).expect("Entry point not found!");
+        ipl::find_and_report_entry_point(&mut mem, payload).expect("Entry point not found!");
     let entry = entry as usize;
 
     const PAYLOAD_NAME_GUID: efi::Guid = efi::Guid::from_fields(
