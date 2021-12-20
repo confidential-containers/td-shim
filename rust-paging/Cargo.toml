@@ -8,7 +8,7 @@ edition = "2018"
 [dependencies]
 bitfield = "0.13.2"
 x86 = "0.41.0"
-x86_64 = "0.14.4"
+x86_64 = "=0.14.6"
 log = "0.4.13"
 rust-td-layout = { path = "../rust-td-layout" }
 bitmap-allocator = { git = "https://github.com/rcore-os/bitmap-allocator", rev = "03bd9909" }
