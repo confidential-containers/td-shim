@@ -308,7 +308,7 @@ TD Shim shall only NOT support UEFI interface. If the TD guest requires to boot 
 
 ### ACPI Table
 
-TD Shim shall only support static ACPI tables. TD Shim shall not report any ACPI table that contains the ASL such as DSDT or SSDT.
+TD Shim shall only support static ACPI tables. TD Shim shall not report any ACPI table that contains the ASL such as DSDT or SSDT, unless the VMM passes the DSDT or SSDT via ACPI_TABLE_HOB.
 
 The root of ACPI table is RSDP. For the payload supporting Linux Boot Protocol, the TD Shim shall report RSDP as part of boot parameter - acpi_rsdp_addr (offset 0x70) - https://github.com/torvalds/linux/blob/master/arch/x86/include/uapi/asm/bootparam.h.
 
@@ -345,7 +345,7 @@ NOTE: In TDX architecture, the VMM is not trusted. The TD does not give AP contr
 
 #### PCI Interrupt Routing
 
-Since TDShim does not report any DSDT, we need a way to replace _PRT method in ASL. This is done by Simple Static PCI Routing Table (SPRT). This table reports the PCI device routing information in legacy way, which is similar to PCI Interrupt Routing table in PCI Firmware Specification, section 2.6.2, Get PCI Interrupt Routing Expansions, and I/O Interrupt Assignment Entries in Multi-Processor Specification, 4.3.4, I/O Interrupt Assignment Entries.
+If VMM does not pass DSDT, VMM needs a way to replace _PRT method in ASL. This is done by Simple Static PCI Routing Table (SPRT). This table reports the PCI device routing information in legacy way, which is similar to PCI Interrupt Routing table in PCI Firmware Specification, section 2.6.2, Get PCI Interrupt Routing Expansions, and I/O Interrupt Assignment Entries in Multi-Processor Specification, 4.3.4, I/O Interrupt Assignment Entries.
 
 TODO: Need reserve the table signature in ACPI spec.
 
