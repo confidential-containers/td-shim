@@ -5,19 +5,13 @@
 use elf_loader::{elf, elf64::*};
 
 fn fuzz_elf_loader(data: &[u8]) {
-    // elf
-    {
-        elf::is_elf(data);
-
+    if elf::is_elf(data) {
         let mut loaded_buffer = vec![0u8; 0x800000];
 
         elf::relocate_elf_with_per_program_header(&data[..], loaded_buffer.as_mut_slice(), |_| ());
         let _ = elf::parse_init_array_section(data);
         let _ = elf::parse_finit_array_section(data);
-    }
 
-    // elf64
-    {
         if let Some(elf) = Elf::parse(data) {
             println!("{:?}\n", elf.header);
 
