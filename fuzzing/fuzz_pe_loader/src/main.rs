@@ -5,38 +5,12 @@
 use pe_loader::pe::{is_pe, relocate, relocate_pe_mem_with_per_sections, Sections};
 
 fn fuzz_pe_loader(data: &[u8]) {
-    {
-        // is pe
-        is_pe(data);
-        let image_bytes = &mut [0u8; 10][..];
-        is_pe(image_bytes);
-
-        let image_bytes = &mut [0u8; 0x55][..];
-        is_pe(image_bytes);
-
-        image_bytes[0] = 0x4du8;
-        image_bytes[1] = 0x5au8;
-        is_pe(image_bytes);
-
-        image_bytes[0x3c] = 0x10;
-        image_bytes[0x10] = 0x50;
-        image_bytes[0x11] = 0x45;
-        image_bytes[0x12] = 0x00;
-        image_bytes[0x13] = 0x00;
-        is_pe(image_bytes);
-
-        image_bytes[0x3c] = 0xAA;
-        is_pe(image_bytes);
-    }
-    {
-        // sections
-
+    if is_pe(data) {
         let sections = Sections::parse(data, 5 as usize).unwrap();
         for section in sections {
             println!("{:?}", section);
         }
-    }
-    {
+
         let mut loaded_buffer = vec![0u8; 0x200000];
 
         relocate(data, loaded_buffer.as_mut_slice(), 0x100000);
