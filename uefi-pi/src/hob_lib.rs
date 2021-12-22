@@ -22,31 +22,31 @@ pub fn align_hob(v: u16) -> u16 {
     (v + 7) / 8 * 8
 }
 
-pub fn dump_hob(hob_list: &[u8]) {
+pub fn dump_hob(hob_list: &[u8]) -> Option<()> {
     let mut offset = 0;
 
     loop {
         let hob = &hob_list[offset..];
-        let header: Header = hob.pread(0).unwrap();
+        let header: Header = hob.pread(0).ok()?;
         match header.r#type {
             HOB_TYPE_HANDOFF => {
-                let phit_hob: HandoffInfoTable = hob.pread(0).unwrap();
+                let phit_hob: HandoffInfoTable = hob.pread(0).ok()?;
                 phit_hob.dump();
             }
             HOB_TYPE_RESOURCE_DESCRIPTOR => {
-                let resource_hob: ResourceDescription = hob.pread(0).unwrap();
+                let resource_hob: ResourceDescription = hob.pread(0).ok()?;
                 resource_hob.dump();
             }
             HOB_TYPE_MEMORY_ALLOCATION => {
-                let allocation_hob: MemoryAllocation = hob.pread(0).unwrap();
+                let allocation_hob: MemoryAllocation = hob.pread(0).ok()?;
                 allocation_hob.dump();
             }
             HOB_TYPE_FV => {
-                let fv_hob: FirmwareVolume = hob.pread(0).unwrap();
+                let fv_hob: FirmwareVolume = hob.pread(0).ok()?;
                 fv_hob.dump();
             }
             HOB_TYPE_CPU => {
-                let cpu_hob: Cpu = hob.pread(0).unwrap();
+                let cpu_hob: Cpu = hob.pread(0).ok()?;
                 cpu_hob.dump();
             }
             HOB_TYPE_END_OF_HOB_LIST => {
@@ -56,8 +56,13 @@ pub fn dump_hob(hob_list: &[u8]) {
                 header.dump();
             }
         }
-        offset += align_hob(header.length) as usize;
+        if header.length == 0 || header.length > (u16::MAX - 7) {
+            return None;
+        }
+        offset = offset.checked_add(align_hob(header.length) as usize)?;
+        hob_list.len().checked_sub(offset)?;
     }
+    Some(())
 }
 
 /// used for data storage (stack/heap/pagetable/eventlog/...)
@@ -70,7 +75,7 @@ pub fn get_system_memory_size_below_4gb(hob_list: &[u8]) -> Option<u64> {
 
         match header.r#type {
             HOB_TYPE_RESOURCE_DESCRIPTOR => {
-                let resource_hob: ResourceDescription = hob_list.pread(offset).unwrap();
+                let resource_hob: ResourceDescription = hob_list.pread(offset).ok()?;
                 if resource_hob.resource_type == RESOURCE_SYSTEM_MEMORY {
                     let end = resource_hob
                         .physical_start
@@ -96,20 +101,22 @@ pub fn get_system_memory_size_below_4gb(hob_list: &[u8]) -> Option<u64> {
 }
 
 /// used for page table setup
-pub fn get_total_memory_top(hob_list: &[u8]) -> u64 {
+pub fn get_total_memory_top(hob_list: &[u8]) -> Option<u64> {
     let mut mem_top = 0; // TOM (top of memory)
 
     let mut offset = 0;
 
     loop {
-        let header: Header = hob_list.pread(offset).unwrap();
+        let header: Header = hob_list.pread(offset).ok()?;
         match header.r#type {
             HOB_TYPE_RESOURCE_DESCRIPTOR => {
-                let resource_hob: ResourceDescription = hob_list.pread(offset).unwrap();
+                let resource_hob: ResourceDescription = hob_list.pread(offset).ok()?;
                 if resource_hob.resource_type == RESOURCE_SYSTEM_MEMORY
                     || resource_hob.resource_type == RESOURCE_MEMORY_MAPPED_IO
                 {
-                    let end = resource_hob.physical_start + resource_hob.resource_length;
+                    let end = resource_hob
+                        .physical_start
+                        .checked_add(resource_hob.resource_length)?;
                     if end > mem_top {
                         mem_top = end;
                     }
@@ -123,9 +130,9 @@ pub fn get_total_memory_top(hob_list: &[u8]) -> u64 {
         if header.length == 0 || header.length > (u16::MAX - 7) {
             break;
         }
-        offset += align_hob(header.length) as usize;
+        offset = offset.checked_add(align_hob(header.length) as usize)?;
     }
-    mem_top
+    Some(mem_top)
 }
 
 pub fn get_fv(hob_list: &[u8]) -> Option<FirmwareVolume> {
