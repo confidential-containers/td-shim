@@ -229,7 +229,7 @@ A HOB may include zero or one payload Info GUID Extension HOB. If it is present,
 
 A TD Shim may support a subset of the payload type based upon its use case. For example, TD Shim for a container may only support PayloadImageTypeBzImage and PayloadImageTypeRawVmLinux. TD shim for a service TD may only support PayloadImageTypeExecutablePayload.
 
-If the VMM does not provide the payload image or the VMM does not know the payload image format, the VMM shall not create this payload info HOB. The TdShim must know the payload format and transfer to the payload in right way. By default, PayloadImageTypeExecutablePayload is used.
+If the VMM does not provide the payload image or the VMM does not know the payload image format, the VMM shall not create this payload info HOB. The TdShim must know the payload format and transfer to the payload in right way.
 
 ```
 #define HOB_PAYLOAD_INFO_GUID { \
@@ -272,6 +272,10 @@ typedef enum {
 
 #pragma pack ()
 ```
+
+If the final binary includes a payload and the TD Shim knows the payload type, then TD shim does not rely on VMM input. TD shim can boot payload directly. VMM does not need to know payload and VMM does not need detect the payload type or provide the payload type information to TD Shim.
+
+If the final binary does not include a payload and TD Shim relies on VMM to input the payload, then VMM needs to know the payload and provides the payload type information to TD Shim.
 
 ### Payload Loading
 
