@@ -142,3 +142,14 @@ reference:
 [Address Space Layout Randomization](https://techcommunity.microsoft.com/t5/windows-security/turn-on-mandatory-aslr-in-windows-security/m-p/1186989)
 
 [Mitigate threats by using Windows 10 security features](https://docs.microsoft.com/en-us/windows/security/threat-protection/overview-of-threat-mitigations-in-windows-10)
+
+## Side Channel Attack Mitigation
+
+S-1. The TD SHALL mitigate Spectre Variant 1 - Bounds Check Bypass.
+
+The TD SHALL use LFENCE after validation of untrusted data but before use.
+
+reference:
+
+[Host Firmware Speculative Side Channel Mitigation](https://www.intel.com/content/www/us/en/developer/articles/technical/software-security-guidance/technical-documentation/host-firmware-speculative-side-channel-mitigation.html)
+
