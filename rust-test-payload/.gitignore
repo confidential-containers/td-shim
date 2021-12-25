@@ -1,0 +1,7 @@
+clear-*-kvm.img*
+fat*.img
+target
+test_data
+Cargo.lock
+*.o
+*.obj
