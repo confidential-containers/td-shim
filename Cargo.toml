@@ -13,6 +13,7 @@ members = [
      "no_std_test",
      "rust-tdpayload-signing",
      "rust-tdshim-key-enroll",
+     "rust-test-payload",
      ]
 
 default-members = ["rust-tdshim", "rust-td-payload"]
