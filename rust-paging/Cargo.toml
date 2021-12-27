@@ -14,7 +14,7 @@ rust-td-layout = { path = "../rust-td-layout" }
 bitmap-allocator = { git = "https://github.com/rcore-os/bitmap-allocator", rev = "03bd9909" }
 test_lib = { path = "../test_lib" }
 spin = "0.9.2"
-bootloader = "0.10.9"
+bootloader = "=0.10.9"
 
 [package.metadata.bootloader]
 map-physical-memory = true

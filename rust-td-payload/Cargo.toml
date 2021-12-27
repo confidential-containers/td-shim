@@ -32,7 +32,7 @@ x86 = "0.41.0"
 benchmark = { path = "../benchmark", optional = true }
 test_lib = { path = "../test_lib" }
 
-bootloader = "0.10.9"
+bootloader = "=0.10.9"
 
 
 [dependencies.lazy_static]
