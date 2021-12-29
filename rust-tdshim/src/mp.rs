@@ -70,7 +70,7 @@ impl MailBox<'_> {
         MailBox { buffer }
     }
 
-    pub fn apid_id(&self) -> u32 {
+    pub fn apic_id(&self) -> u32 {
         let p_apic_id = self.buffer[mailbox::APIC_ID].as_ptr() as *const u32;
         MailBox::read_volatile(p_apic_id)
     }
@@ -96,7 +96,7 @@ impl MailBox<'_> {
         MailBox::write_volatile(p_command, command);
     }
 
-    pub fn set_apid_id(&mut self, apic_id: u32) {
+    pub fn set_apic_id(&mut self, apic_id: u32) {
         let p_apic_id = self.buffer[mailbox::APIC_ID].as_ptr() as *mut u32;
         MailBox::write_volatile(p_apic_id, apic_id);
     }
@@ -166,7 +166,7 @@ fn wait_for_ap_arrive(cpu_num: u32) {
             break;
         }
     }
-    mail_box.set_cpu_exiting(cpu_num);
+    mail_box.set_cpu_exiting(cpu_num - 1);
 }
 
 fn wait_for_ap_exit(cpu_num: u32) {
@@ -175,7 +175,7 @@ fn wait_for_ap_exit(cpu_num: u32) {
     loop {
         let cpu_exit = mail_box.cpu_exiting();
 
-        if cpu_exit == 1 {
+        if cpu_exit == 0 {
             log::info!("All APs has exited\n");
             break;
         }
@@ -187,12 +187,13 @@ pub fn ap_assign_work(apic_id: u32, stack: u64, entry: u32) {
     mail_box.set_wakeup_vector(entry);
     mail_box.set_fw_arg(0, stack);
 
-    mail_box.set_apid_id(apic_id);
+    mail_box.set_apic_id(apic_id);
     mail_box.set_command(MP_WAKEUP_COMMAND_ACCEPT_PAGES);
 
     loop {
-        let wakeup_apic_id = mail_box.apid_id();
+        let wakeup_apic_id = mail_box.apic_id();
         if wakeup_apic_id == MAILBOX_APICID_INVALID {
+            mail_box.set_command(MP_WAKEUP_COMMAND_NOOP);
             log::info!("Successfully wakeup AP #{}\n", apic_id);
             break;
         }
