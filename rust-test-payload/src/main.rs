@@ -16,11 +16,24 @@
 #![allow(unused)]
 #![feature(alloc_error_handler)]
 #[macro_use]
+
+mod lib;
+mod memslice;
+mod tdinfo;
+
 extern crate alloc;
 use core::ffi::c_void;
 use core::panic::PanicInfo;
 use linked_list_allocator::LockedHeap;
 use tdx_tdcall::tdx;
+
+use crate::lib::{TestResult, TestSuite};
+use crate::tdinfo::Tdinfo;
+use alloc::boxed::Box;
+use alloc::string::String;
+use alloc::vec::Vec;
+
+use uefi_pi::hob_lib;
 
 #[cfg(not(test))]
 #[panic_handler]
@@ -52,29 +65,55 @@ pub fn init_heap(heap_start: usize, heap_size: usize) {
 #[no_mangle]
 #[cfg_attr(target_os = "uefi", export_name = "efi_main")]
 pub extern "win64" fn _start(hob: *const c_void) -> ! {
+    use rust_td_layout::runtime::*;
+
     tdx_logger::init();
     log::info!("Starting rust-tdcall-payload hob - {:p}\n", hob);
 
-    let mut td_info = tdx::TdInfoReturnData {
-        gpaw: 0,
-        attributes: 0,
-        max_vcpus: 0,
-        num_vcpus: 0,
-        rsvd: [0; 3],
+    // init heap so that we can allocate memory
+    let hob_buffer =
+        memslice::get_dynamic_mem_slice_mut(memslice::SliceType::PayloadHob, hob as usize);
+
+    let hob_size = hob_lib::get_hob_total_size(hob_buffer).unwrap();
+    let hob_list = &hob_buffer[..hob_size];
+
+    init_heap(
+        (hob_lib::get_system_memory_size_below_4gb(hob_list).unwrap() as usize
+            - (TD_PAYLOAD_HOB_SIZE
+                + TD_PAYLOAD_STACK_SIZE
+                + TD_PAYLOAD_SHADOW_STACK_SIZE
+                + TD_PAYLOAD_ACPI_SIZE
+                + TD_PAYLOAD_EVENT_LOG_SIZE) as usize
+            - TD_PAYLOAD_HEAP_SIZE as usize),
+        TD_PAYLOAD_HEAP_SIZE as usize,
+    );
+
+    // create TestSuite to hold the test cases
+    let mut ts = TestSuite {
+        testsuite: Vec::new(),
+        done_cases: 0,
+        failed_cases: 0,
     };
-    tdx::tdcall_get_td_info(&mut td_info);
 
-    log::info!("gpaw - {:?}\n", td_info.gpaw);
-    log::info!("attributes - {:?}\n", td_info.attributes);
-    log::info!("max_vcpus - {:?}\n", td_info.max_vcpus);
-    log::info!("num_vcpus - {:?}\n", td_info.num_vcpus);
-    log::info!("rsvd - {:?}\n", td_info.rsvd);
+    // now we can create test case and put it to TestSuite
+    // test Tdinfo
+    let mut tdinfo = Tdinfo {
+        name: String::from("Tdinfo"),
+        hob: hob,
+        result: TestResult::Error,
+    };
+    ts.testsuite.push(Box::new(tdinfo));
 
-    // Page fault
-    unsafe {
-        let pointer: *const u32 = 0x10000000000usize as *const core::ffi::c_void as *const u32;
-        let data = *pointer;
-        log::info!("test - data: {:x}", data);
-    }
+    // run the TestSuite which contains the test cases
+    log::info!("Start to run tests.\n");
+    log::info!("---------------------------------------------\n");
+    ts.run();
+    log::info!(
+        "Total: {0}, Done: {1}, Failed: {2}\n",
+        ts.testsuite.len(),
+        ts.done_cases,
+        ts.failed_cases
+    );
+
     panic!("deadloop");
 }
