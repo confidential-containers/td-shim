@@ -1,7 +1,8 @@
 // Copyright (c) 2021 Intel Corporation
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
-
+extern crate alloc;
+use alloc::vec::Vec;
 use core::mem::size_of;
 use zerocopy::{AsBytes, FromBytes};
 
@@ -102,10 +103,10 @@ impl Xsdt {
         }
     }
 
-    pub fn add_table(&mut self, addr: u64) {
+    pub fn add_table(&mut self, addr: usize) {
         let table_num =
             (self.header.length as usize - size_of::<GenericSdtHeader>()) / size_of::<u64>();
-        self.tables[table_num] = addr;
+        self.tables[table_num] = addr as u64;
         self.header.length += size_of::<u64>() as u32;
     }
 
@@ -120,8 +121,9 @@ impl Xsdt {
 pub struct AcpiTables {
     acpi_memory: &'static mut [u8],
     size: usize,
-    table_addr: [u64; ACPI_TABLES_MAX_NUM],
-    table_num: usize,
+    fadt: Option<usize>, // FADT offset in acpi memory
+    dsdt: Option<usize>, // DSDT offset in acpi memory
+    table_offset: Vec<usize>,
 }
 
 impl AcpiTables {
@@ -135,8 +137,37 @@ impl AcpiTables {
     pub fn finish(&mut self) -> u64 {
         // Create XSDT
         let mut xsdt = Xsdt::new();
-        for i in 0..self.table_num {
-            xsdt.add_table(self.table_addr[i]);
+
+        // The Fixed ACPI Description Table (FADT) should
+        // always be the first table that XSDT points to.
+        //
+        if let Some(fadt) = self.fadt {
+            let fadt_header = GenericSdtHeader::read_from(
+                &self.acpi_memory[fadt..fadt + size_of::<GenericSdtHeader>()],
+            )
+            .unwrap();
+
+            // The Differentiated System Description Table (DSDT) is refered
+            // by the FADT table.
+            if let Some(dsdt) = self.dsdt {
+                let dsdt = dsdt as u32 + self.acpi_memory.as_ptr() as u32;
+                // The DSDT field of FADT [40..44]
+                // DSDT is loaded in acpi_memory which is below 4G
+                dsdt.write_to(&mut self.acpi_memory[fadt + 40..fadt + 44]);
+            }
+
+            // Update FADT checksum
+            self.acpi_memory[fadt + 9] = 0;
+            let fadt_checksum =
+                calculate_checksum(&self.acpi_memory[fadt..fadt + fadt_header.length as usize]);
+            self.acpi_memory[fadt + 9] = fadt_checksum;
+
+            let fadt = fadt + self.acpi_memory.as_ptr() as usize;
+            xsdt.add_table(fadt);
+        }
+
+        for offset in &self.table_offset {
+            xsdt.add_table(offset + self.acpi_memory.as_ptr() as usize);
         }
 
         xsdt.checksum();
@@ -153,14 +184,34 @@ impl AcpiTables {
     }
 
     pub fn install(&mut self, table: &[u8]) {
-        if self.acpi_memory.len() < self.size + table.len() || self.table_num == ACPI_TABLES_MAX_NUM
-        {
+        if self.acpi_memory.len() < self.size + table.len() {
             return;
         }
 
+        let header = GenericSdtHeader::read_from(&table[..size_of::<GenericSdtHeader>()]).unwrap();
+
+        if (&header.signature == b"FACP") {
+            self.fadt = Some(self.size);
+        } else if (&header.signature == b"DSDT") {
+            self.dsdt = Some(self.size);
+        } else {
+            for offset in &self.table_offset {
+                let table_header = GenericSdtHeader::read_from(
+                    &self.acpi_memory[*offset..offset + size_of::<GenericSdtHeader>()],
+                )
+                .unwrap();
+                if table_header.signature == header.signature {
+                    log::info!(
+                        "ACPI: {} has been installed, use first\n",
+                        core::str::from_utf8(&header.signature).unwrap()
+                    );
+                    return;
+                }
+            }
+            self.table_offset.push(self.size);
+        }
+
         self.acpi_memory[self.size..self.size + table.len()].copy_from_slice(table);
-        self.table_addr[self.table_num] = self.size as u64 + self.acpi_memory.as_ptr() as u64;
         self.size += table.len();
-        self.table_num += 1;
     }
 }
