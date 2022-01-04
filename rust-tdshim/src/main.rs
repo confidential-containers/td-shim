@@ -4,6 +4,7 @@
 
 #![allow(unused)]
 #![feature(global_asm)]
+#![feature(asm)]
 #![feature(alloc_error_handler)]
 #![cfg_attr(not(test), no_std)]
 #![cfg_attr(not(test), no_main)]

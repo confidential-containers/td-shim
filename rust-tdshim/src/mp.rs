@@ -24,6 +24,7 @@ const MP_WAKEUP_COMMAND_NOOP: u32 = 0;
 const MP_WAKEUP_COMMAND_WAKEUP: u32 = 1;
 const MP_WAKEUP_COMMAND_SLEEP: u32 = 2;
 const MP_WAKEUP_COMMAND_ACCEPT_PAGES: u32 = 3;
+const MP_WAKEUP_COMMAND_AVAILABLE: u32 = 4;
 
 const MAILBOX_APICID_INVALID: u32 = 0xffffffff;
 const MAILBOX_APICID_BROADCAST: u32 = 0xfffffffe;
@@ -70,7 +71,7 @@ impl MailBox<'_> {
         MailBox { buffer }
     }
 
-    pub fn apid_id(&self) -> u32 {
+    pub fn apic_id(&self) -> u32 {
         let p_apic_id = self.buffer[mailbox::APIC_ID].as_ptr() as *const u32;
         MailBox::read_volatile(p_apic_id)
     }
@@ -96,7 +97,7 @@ impl MailBox<'_> {
         MailBox::write_volatile(p_command, command);
     }
 
-    pub fn set_apid_id(&mut self, apic_id: u32) {
+    pub fn set_apic_id(&mut self, apic_id: u32) {
         let p_apic_id = self.buffer[mailbox::APIC_ID].as_ptr() as *mut u32;
         MailBox::write_volatile(p_apic_id, apic_id);
     }
@@ -111,11 +112,47 @@ impl MailBox<'_> {
         let p_fw_arg = self.buffer[offset..offset + 8].as_ptr() as *mut u64;
         MailBox::write_volatile(p_fw_arg, fw_arg);
     }
+}
 
-    pub fn set_cpu_exiting(&mut self, exiting: u32) {
-        let p_cpu_exiting = self.buffer[mailbox::CPU_EXITING].as_ptr() as *mut u32;
-        MailBox::write_volatile(p_cpu_exiting, exiting);
+fn cpu_pause() {
+    unsafe {
+        asm!("pause");
     }
+}
+
+// Wait for AP to responde the command set by BSP if needed.
+// Typically AP will set the APIC ID field in mailbox to be invalid
+fn wait_for_ap_responde(mail_box: &mut MailBox) {
+    loop {
+        if mail_box.apic_id() == MAILBOX_APICID_INVALID {
+            mail_box.set_command(MP_WAKEUP_COMMAND_NOOP);
+            break;
+        } else {
+            cpu_pause();
+        }
+    }
+}
+
+// Wait for APs to arrive by checking if they are available
+fn wait_for_ap_arrive(cpu_num: u32) {
+    let mut mail_box = MailBox::new(get_mem_slice_mut(SliceType::MailBox));
+    for i in 1..cpu_num {
+        mail_box.set_apic_id(i);
+        mail_box.set_command(MP_WAKEUP_COMMAND_AVAILABLE);
+        wait_for_ap_responde(&mut mail_box);
+    }
+    x86::fence::mfence();
+}
+
+pub fn ap_assign_work(apic_id: u32, stack: u64, entry: u32) {
+    let mut mail_box = MailBox::new(get_mem_slice_mut(SliceType::MailBox));
+    mail_box.set_wakeup_vector(entry);
+    mail_box.set_fw_arg(0, stack);
+
+    mail_box.set_apic_id(apic_id);
+    mail_box.set_command(MP_WAKEUP_COMMAND_ACCEPT_PAGES);
+
+    wait_for_ap_responde(&mut mail_box);
 }
 
 fn td_accept_pages(address: u64, pages: u64, page_size: u64) {
@@ -157,48 +194,6 @@ fn parallel_accept_memory(apic_id: u64) {
     }
 }
 
-fn wait_for_ap_arrive(cpu_num: u32) {
-    let mut mail_box = MailBox::new(get_mem_slice_mut(SliceType::MailBox));
-    log::info!("Waiting for APs to arrive...\n");
-    loop {
-        if mail_box.cpu_arrival() == cpu_num - 1 {
-            log::info!("All APs has arrived\n");
-            break;
-        }
-    }
-    mail_box.set_cpu_exiting(cpu_num);
-}
-
-fn wait_for_ap_exit(cpu_num: u32) {
-    let mail_box = MailBox::new(get_mem_slice_mut(SliceType::MailBox));
-    log::info!("Waiting for APs to exit...\n");
-    loop {
-        let cpu_exit = mail_box.cpu_exiting();
-
-        if cpu_exit == 1 {
-            log::info!("All APs has exited\n");
-            break;
-        }
-    }
-}
-
-pub fn ap_assign_work(apic_id: u32, stack: u64, entry: u32) {
-    let mut mail_box = MailBox::new(get_mem_slice_mut(SliceType::MailBox));
-    mail_box.set_wakeup_vector(entry);
-    mail_box.set_fw_arg(0, stack);
-
-    mail_box.set_apid_id(apic_id);
-    mail_box.set_command(MP_WAKEUP_COMMAND_ACCEPT_PAGES);
-
-    loop {
-        let wakeup_apic_id = mail_box.apid_id();
-        if wakeup_apic_id == MAILBOX_APICID_INVALID {
-            log::info!("Successfully wakeup AP #{}\n", apic_id);
-            break;
-        }
-    }
-}
-
 pub fn mp_accept_memory_resource_range(cpu_num: u32, address: u64, size: u64) {
     log::info!(
         "mp_accept_memory_resource_range: 0x{:x} - 0x{:x} ... (wait for seconds)\n",
@@ -226,7 +221,7 @@ pub fn mp_accept_memory_resource_range(cpu_num: u32, address: u64, size: u64) {
 
     wait_for_ap_arrive(cpu_num);
 
-    let mut stacks: Vec<u8> = Vec::with_capacity(0x1000 * (cpu_num as usize));
+    let mut stacks: Vec<u8> = Vec::with_capacity(0x1000 * (cpu_num as usize - 1));
     let mut mail_box = MailBox::new(get_mem_slice_mut(SliceType::MailBox));
 
     // BSP calles the same function parallel_accept_memory to accept memory,
@@ -238,8 +233,9 @@ pub fn mp_accept_memory_resource_range(cpu_num: u32, address: u64, size: u64) {
     mail_box.set_fw_arg(3, address + size);
 
     if major_part > 0 {
+        // 0 is the bootstrap processor running this code 
         for i in 1..cpu_num {
-            let ap_stack = stacks.as_ptr() as u64 + i as u64 * 0x800;
+            let ap_stack = stacks.as_ptr() as u64 + (i - 1) as u64 * 0x800;
 
             ap_assign_work(i, ap_stack, parallel_accept_memory as *const () as u32);
         }
@@ -255,7 +251,8 @@ pub fn mp_accept_memory_resource_range(cpu_num: u32, address: u64, size: u64) {
         PAGE_SIZE_4K,
     );
 
-    wait_for_ap_exit(cpu_num);
+    wait_for_ap_arrive(cpu_num);
+
     log::info!("mp_accept_memory_resource_range: done\n");
 }
 

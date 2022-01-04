@@ -240,33 +240,25 @@ ParkAp:
     mov    rax, TDCALL_TDINFO
     tdcall
 
-.do_wait_loop:
+    ;
+    ; R8  [31:0]  NUM_VCPUS
+    ;     [63:32] MAX_VCPUS
+    ; R9  [31:0]  VCPU_INDEX
+
     mov     rsp, TD_MAILBOX_BASE     ; base address
 
-    mov       rax, 1
-    lock xadd dword [rsp + CpuArrivalOffset], eax
-    inc       eax
-
-.check_arrival_cnt:
-    ; BSP won't get here, so the total count should be cpu number minus 1
-    sub       r8d, 1
-    cmp       eax, r8d
-    je        .check_command
-    mov       eax, dword[rsp + CpuArrivalOffset]
-    jmp       .check_arrival_cnt
-
-.check_command:
-    mov     eax, dword[rsp + CommandOffset]
-    cmp     eax, MpProtectedModeWakeupCommandNoop
-    je      .check_command
-
+.check_apicid:
     ; Determine if this is a broadcast or directly for my apic-id, if not, ignore
     cmp     dword[rsp + ApicidOffset], MailboxApicidBroadcast
     je      .mailbox_process_command
     cmp     dword[rsp + ApicidOffset], r9d
-    jne     .check_command
+    jne     .check_apicid
 
 .mailbox_process_command:
+    mov     eax, dword[rsp + CommandOffset]
+    cmp     eax, MpProtectedModeWakeupCommandNoop
+    je      .check_apicid
+
     cmp     eax, MpProtectedModeWakeupCommandWakeup
     je      .do_wakeup
 
@@ -278,42 +270,40 @@ ParkAp:
     cmp     eax, MpProtectedModeWakeupCommandAssignWork
     je      .set_ap_stack
 
-    jmp    .check_command
+    jmp    .check_apicid
 
 .check_avalible
     ;
     ; Set the ApicId to be invalid to show the AP is available
     mov     dword[rsp + ApicidOffset], MailboxApicIdInvalid
-    jmp     .check_command
+    jmp     .check_apicid
 
 .set_ap_stack
-    ;
-    ; Set the ApicId to be invalid to show the AP has been waked up
-    mov     dword[rsp + ApicidOffset], MailboxApicIdInvalid
     ;
     ; Read the function address which will be called
     mov     eax, dword[rsp + WakeupVectorOffset]
     ;
     ; Read the stack address from arguments and set the rsp
-    mov     rsp, [rsp + ApWorkingStackStart]
+    mov     rsi, [rsp + ApWorkingStackStart]
+    ;
+    ; Set the ApicId to be invalid to show the AP has been waked up
+    mov     dword[rsp + ApicidOffset], MailboxApicIdInvalid
+
+    mov     rsp, rsi
     ;
     ; CPU index as the first parameter
     mov     ecx, r9d
-    call    rax
 
-.do_finish_command:
+    ;
+    ; r9d contains cpu index, which needs to be saved
+    push    r9
+    call    rax
+    pop     r9
+
     ;
     ;Set rsp back to TD_MAILBOX_BASE
     mov       rsp, TD_MAILBOX_BASE     ; base address
-    mov       eax, 0FFFFFFFFh
-    lock xadd dword [rsp + CpusExitingOffset], eax
-    dec       eax
-
-.check_exiting_cnt:
-    cmp       eax, 0
-    je        .do_wait_loop
-    mov       eax, dword[rsp + CpusExitingOffset]
-    jmp       .check_exiting_cnt
+    jmp       .check_apicid
 
 .do_wakeup:
     ;
