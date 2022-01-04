@@ -237,29 +237,23 @@ ParkAp:
     ; Get vcpuid in rbp
     mov     rbp,  rax
 
-    mov     rax, TDCALL_TDINFO
+    mov    rax, TDCALL_TDINFO
     tdcall
-    ;
-    ; R8  [31:0]  NUM_VCPUS
-    ;     [63:32] MAX_VCPUS
-    ; R9  [31:0]  VCPU_INDEX
-
-    ;
-    ; get the number of AP (r8d - 1)
-    dec     r8d
 
 .do_wait_loop:
     mov     rsp, TD_MAILBOX_BASE     ; base address
 
-    mov     rax, 1
+    mov       rax, 1
     lock xadd dword [rsp + CpuArrivalOffset], eax
-    inc     eax
+    inc       eax
 
 .check_arrival_cnt:
-    cmp     eax, r8d
-    je      .check_command
-    mov     eax, dword[rsp + CpuArrivalOffset]
-    jmp     .check_arrival_cnt
+    ; BSP won't get here, so the total count should be cpu number minus 1
+    sub       r8d, 1
+    cmp       eax, r8d
+    je        .check_command
+    mov       eax, dword[rsp + CpuArrivalOffset]
+    jmp       .check_arrival_cnt
 
 .check_command:
     mov     eax, dword[rsp + CommandOffset]
@@ -284,7 +278,7 @@ ParkAp:
     cmp     eax, MpProtectedModeWakeupCommandAssignWork
     je      .set_ap_stack
 
-    jmp     .check_command
+    jmp    .check_command
 
 .check_avalible
     ;
@@ -305,11 +299,7 @@ ParkAp:
     ;
     ; CPU index as the first parameter
     mov     ecx, r9d
-    ;
-    ; r9d contains cpu index, which needs to be saved
-    push    r9
     call    rax
-    pop     r9
 
 .do_finish_command:
     ;
@@ -321,7 +311,7 @@ ParkAp:
 
 .check_exiting_cnt:
     cmp       eax, 0
-    je        .check_command
+    je        .do_wait_loop
     mov       eax, dword[rsp + CpusExitingOffset]
     jmp       .check_exiting_cnt
 
