@@ -6,9 +6,9 @@ use crate::{
     acpi::{self, GenericSdtHeader},
     memslice::{get_mem_slice_mut, SliceType},
 };
-use core::convert::TryInto;
 use core::mem::size_of;
 use core::{cmp::min, slice};
+use core::{convert::TryInto, ops::RangeInclusive};
 use tdx_tdcall::tdx;
 use zerocopy::{AsBytes, FromBytes};
 
@@ -19,6 +19,12 @@ const ACCEPT_CHUNK_SIZE: u64 = 0x2000000;
 const ACCEPT_PAGE_SIZE: u64 = 0x200000;
 const PAGE_SIZE_2M: u64 = 0x200000;
 const PAGE_SIZE_4K: u64 = 0x1000;
+
+// The count of AP to wakeup is limited by the heap size
+// that can be used for stack allocation
+// The maximum size of memory used for AP stacks is 30 KB.
+const MAX_WORKING_AP_COUNT: u32 = 15;
+const AP_TEMP_STACK_SIZE: usize = 0x800;
 
 const MP_WAKEUP_COMMAND_NOOP: u32 = 0;
 const MP_WAKEUP_COMMAND_WAKEUP: u32 = 1;
@@ -120,6 +126,13 @@ fn cpu_pause() {
     }
 }
 
+fn make_apic_range(end: u32) -> RangeInclusive<u32> {
+    // 0 is the bootstrap processor running this code
+    let start = 1;
+
+    RangeInclusive::new(start, end)
+}
+
 // Wait for AP to responde the command set by BSP if needed.
 // Typically AP will set the APIC ID field in mailbox to be invalid
 fn wait_for_ap_responde(mail_box: &mut MailBox) {
@@ -134,9 +147,9 @@ fn wait_for_ap_responde(mail_box: &mut MailBox) {
 }
 
 // Wait for APs to arrive by checking if they are available
-fn wait_for_ap_arrive(cpu_num: u32) {
+fn wait_for_ap_arrive(ap_num: u32) {
     let mut mail_box = MailBox::new(get_mem_slice_mut(SliceType::MailBox));
-    for i in 1..cpu_num {
+    for i in make_apic_range(ap_num) {
         mail_box.set_apic_id(i);
         mail_box.set_command(MP_WAKEUP_COMMAND_AVAILABLE);
         wait_for_ap_responde(&mut mail_box);
@@ -194,12 +207,18 @@ fn parallel_accept_memory(apic_id: u64) {
     }
 }
 
-pub fn mp_accept_memory_resource_range(cpu_num: u32, address: u64, size: u64) {
+pub fn mp_accept_memory_resource_range(mut cpu_num: u32, address: u64, size: u64) {
     log::info!(
         "mp_accept_memory_resource_range: 0x{:x} - 0x{:x} ... (wait for seconds)\n",
         address,
         size
     );
+
+    let active_ap_cnt = if cpu_num - 1 > MAX_WORKING_AP_COUNT {
+        MAX_WORKING_AP_COUNT
+    } else {
+        cpu_num - 1
+    };
 
     let mut align_low = if address & (ACCEPT_PAGE_SIZE - 1) == 0 {
         0
@@ -219,24 +238,23 @@ pub fn mp_accept_memory_resource_range(cpu_num: u32, address: u64, size: u64) {
         }
     }
 
-    wait_for_ap_arrive(cpu_num);
+    wait_for_ap_arrive(active_ap_cnt);
 
-    let mut stacks: Vec<u8> = Vec::with_capacity(0x1000 * (cpu_num as usize - 1));
+    let mut stacks: Vec<u8> = Vec::with_capacity(AP_TEMP_STACK_SIZE * active_ap_cnt as usize);
     let mut mail_box = MailBox::new(get_mem_slice_mut(SliceType::MailBox));
 
     // BSP calles the same function parallel_accept_memory to accept memory,
     // so set the firmware arguments here.
     // To do: Set these parameter only in ap_assign_work() when there's
     // multiple cpus.
-    mail_box.set_fw_arg(1, cpu_num as u64);
+    mail_box.set_fw_arg(1, active_ap_cnt as u64 + 1);
     mail_box.set_fw_arg(2, address + align_low);
     mail_box.set_fw_arg(3, address + size);
 
     if major_part > 0 {
-        // 0 is the bootstrap processor running this code 
-        for i in 1..cpu_num {
+        // 0 is the bootstrap processor running this code
+        for i in make_apic_range(active_ap_cnt) {
             let ap_stack = stacks.as_ptr() as u64 + (i - 1) as u64 * 0x800;
-
             ap_assign_work(i, ap_stack, parallel_accept_memory as *const () as u32);
         }
     }
@@ -251,7 +269,7 @@ pub fn mp_accept_memory_resource_range(cpu_num: u32, address: u64, size: u64) {
         PAGE_SIZE_4K,
     );
 
-    wait_for_ap_arrive(cpu_num);
+    wait_for_ap_arrive(active_ap_cnt);
 
     log::info!("mp_accept_memory_resource_range: done\n");
 }
