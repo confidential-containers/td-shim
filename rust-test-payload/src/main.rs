@@ -19,7 +19,7 @@
 
 mod lib;
 mod memslice;
-mod tdinfo;
+mod tdcall;
 
 extern crate alloc;
 use core::ffi::c_void;
@@ -28,7 +28,7 @@ use linked_list_allocator::LockedHeap;
 use tdx_tdcall::tdx;
 
 use crate::lib::{TestResult, TestSuite};
-use crate::tdinfo::Tdinfo;
+use crate::tdcall::Tdcall;
 use alloc::boxed::Box;
 use alloc::string::String;
 use alloc::vec::Vec;
@@ -96,13 +96,14 @@ pub extern "win64" fn _start(hob: *const c_void) -> ! {
     };
 
     // now we can create test case and put it to TestSuite
-    // test Tdinfo
-    let mut tdinfo = Tdinfo {
-        name: String::from("Tdinfo"),
+
+    // test Tdcall
+    let mut tdcall = Tdcall {
+        name: String::from("Tdcall"),
         hob: hob,
         result: TestResult::Error,
     };
-    ts.testsuite.push(Box::new(tdinfo));
+    ts.testsuite.push(Box::new(tdcall));
 
     // run the TestSuite which contains the test cases
     log::info!("Start to run tests.\n");

@@ -8,23 +8,24 @@ extern crate alloc;
 use crate::lib::{TestCase, TestResult};
 use alloc::string::String;
 use core::ffi::c_void;
+use tdx_tdcall::tdreport;
 use tdx_tdcall::tdx;
 
 /**
- * Test Tdinfo
+ * Test Tdcall
  */
-pub struct Tdinfo {
+pub struct Tdcall {
     pub name: String,
     pub hob: *const c_void,
     pub result: TestResult,
 }
 
 /**
- * Implement the TestCase trait for Tdinfo
+ * Implement the TestCase trait for Tdcall
  */
-impl TestCase for Tdinfo {
+impl TestCase for Tdcall {
     /**
-     * set up the Test case of Tdinfo
+     * set up the Test case of Tdcall
      */
     fn setup(&mut self) {
         self.result = TestResult::Error;
@@ -34,6 +35,7 @@ impl TestCase for Tdinfo {
      * run the test case
      */
     fn run(&mut self) {
+        log::info!("1. TDCALL: get td info\n");
         let mut td_info = tdx::TdInfoReturnData {
             gpaw: 0,
             attributes: 0,
@@ -42,12 +44,15 @@ impl TestCase for Tdinfo {
             rsvd: [0; 3],
         };
         tdx::tdcall_get_td_info(&mut td_info);
-
-        log::info!("gpaw - {:?}\n", td_info.gpaw);
         log::info!("attributes - {:?}\n", td_info.attributes);
         log::info!("max_vcpus - {:?}\n", td_info.max_vcpus);
         log::info!("num_vcpus - {:?}\n", td_info.num_vcpus);
         log::info!("rsvd - {:?}\n", td_info.rsvd);
+
+        log::info!("2. TDCALL:report\n");
+        let addtional_data: [u8; 64] = [0; 64];
+        let tdx_report = tdreport::tdcall_report(&addtional_data);
+        log::info!("{}", tdx_report);
 
         self.result = TestResult::Done;
     }
