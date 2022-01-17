@@ -242,9 +242,6 @@ typedef struct {
   EFI_HOB_GENERIC_HEADER Header; // normal GUID HOB header
   EFI_GUID               Name;   // TD_HOB_PAYLOAD_ENTRYPOINT_GUID
 
-  // TD_PAYLOAD_IMAGE_TYPE
-  UINT32                 ImageType;
-
   // Guest physical address of the payload entrypoint.
   UINT64                 Entrypoint;
 } HOB_PAYLOAD_INFO_TABLE;

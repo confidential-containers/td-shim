@@ -145,7 +145,6 @@ fn log_hob_list(hob_list: &[u8], td_event_log: &mut tcg::TdEventLog) {
 
 #[derive(Default, Clone, Copy, Pread, Pwrite)]
 pub struct PayloadInfo {
-    pub image_type: u32,
     pub entry_point: u64,
 }
 
@@ -364,9 +363,7 @@ pub extern "win64" fn _start(
 
     mem.setup_paging();
 
-    if let Some(hob) = hob_lib::get_next_extension_guid_hob(hob_list, &HOB_KERNEL_INFO_GUID) {
-        let kernel_info = hob_lib::get_guid_data(hob).unwrap();
-        let vmm_kernel = kernel_info.pread::<PayloadInfo>(0).unwrap();
+    if hob_lib::get_next_extension_guid_hob(hob_list, &HOB_KERNEL_INFO_GUID).is_some() {
         let payload = memslice::get_mem_slice_mut(memslice::SliceType::Payload);
 
         match detect_payload_type(payload) {
