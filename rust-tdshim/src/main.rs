@@ -48,6 +48,7 @@ use core::panic::PanicInfo;
 use core::ffi::c_void;
 
 use crate::e820::create_e820_entries;
+use crate::linux::kernel_param::{Elf64Header, SetupHeader};
 use crate::memory::Memory;
 use crate::memslice::SliceType;
 use crate::verify::PayloadVerifier;
@@ -155,6 +156,40 @@ const HOB_ACPI_TABLE_GUID: [u8; 16] = [
 const HOB_KERNEL_INFO_GUID: [u8; 16] = [
     0x12, 0xa4, 0x6f, 0xb9, 0x1f, 0x46, 0xe3, 0x4b, 0x8c, 0xd, 0xad, 0x80, 0x5a, 0x49, 0x7a, 0xc0,
 ];
+
+#[repr(u32)]
+#[derive(Clone, Copy, Debug)]
+enum PayloadType {
+    ExecutablePayload,
+    BzImage,
+    RawVmLinux,
+}
+
+fn detect_payload_type(payload: &[u8]) -> PayloadType {
+    let elf64_header = Elf64Header::from_file(payload);
+
+    if elf64_header.e_ident[0] == 0x7f
+        && elf64_header.e_ident[1] == 0x45
+        && elf64_header.e_ident[2] == 0x4c
+        && elf64_header.e_ident[3] == 0x46
+        && elf64_header.e_ident[5] == 0x1
+        && elf64_header.e_phentsize == 0x38
+        && elf64_header.e_phoff >= 0x40
+    {
+        return PayloadType::RawVmLinux;
+    }
+
+    let setup_header = SetupHeader::from_file(payload);
+
+    if setup_header.header == 0x5372_6448
+        && setup_header.version >= 0x0200
+        && (setup_header.loadflags & 0x1) != 0x0
+    {
+        return PayloadType::BzImage;
+    }
+
+    PayloadType::ExecutablePayload
+}
 
 #[cfg(not(test))]
 #[no_mangle]
@@ -332,10 +367,11 @@ pub extern "win64" fn _start(
     if let Some(hob) = hob_lib::get_next_extension_guid_hob(hob_list, &HOB_KERNEL_INFO_GUID) {
         let kernel_info = hob_lib::get_guid_data(hob).unwrap();
         let vmm_kernel = kernel_info.pread::<PayloadInfo>(0).unwrap();
+        let payload = memslice::get_mem_slice_mut(memslice::SliceType::Payload);
 
-        match vmm_kernel.image_type {
-            0 => {}
-            1 => {
+        match detect_payload_type(payload) {
+            PayloadType::ExecutablePayload => {}
+            PayloadType::BzImage => {
                 let acpi_slice =
                     memslice::get_dynamic_mem_slice_mut(SliceType::Acpi, td_acpi_base as usize);
 
@@ -363,14 +399,10 @@ pub extern "win64" fn _start(
                 let rsdp = acpi_tables.finish();
                 let e820_table = create_e820_entries(&runtime_memory_layout);
 
-                linux::boot::boot_kernel(
-                    memslice::get_mem_slice_mut(memslice::SliceType::Payload),
-                    rsdp,
-                    e820_table.as_slice(),
-                );
+                linux::boot::boot_kernel(payload, rsdp, e820_table.as_slice());
                 panic!("deadloop");
             }
-            _ => {
+            PayloadType::RawVmLinux => {
                 panic!("deadloop");
             }
         }

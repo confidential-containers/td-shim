@@ -8,6 +8,32 @@ use zerocopy::{AsBytes, FromBytes};
 
 #[derive(Clone, Copy, Default, Debug, AsBytes, FromBytes)]
 #[repr(C, packed)]
+pub struct Elf64Header {
+    pub e_ident: [u8; 16],
+    pub e_type: u16,
+    pub e_machine: u16,
+    pub e_version: u32,
+    pub e_entry: u64,
+    pub e_phoff: u64,
+    pub e_shoff: u64,
+    pub e_flags: u32,
+    pub e_ehsize: u16,
+    pub e_phentsize: u16,
+    pub e_phnum: u16,
+    pub e_shentsize: u16,
+    pub e_shnum: u16,
+    pub e_shstrndx: u16,
+}
+
+impl Elf64Header {
+    // Read ELF header from the beginning of a file
+    pub fn from_file(kernel_file: &[u8]) -> Self {
+        Elf64Header::read_from(&kernel_file[..size_of::<Elf64Header>()]).unwrap()
+    }
+}
+
+#[derive(Clone, Copy, Default, Debug, AsBytes, FromBytes)]
+#[repr(C, packed)]
 pub struct SetupHeader {
     pub setup_sects: u8,
     pub root_flags: u16,
