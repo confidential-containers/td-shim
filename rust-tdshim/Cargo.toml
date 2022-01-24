@@ -9,6 +9,7 @@ build = "build.rs"
 [features]
 cet-ss = []
 secure-boot = []
+boot-kernel = ["rust-td-layout/boot-kernel"]
 
 [build-dependencies]
 cc = { git = "https://github.com/jyao1/cc-rs.git", branch = "uefi_support" }
