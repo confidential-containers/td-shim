@@ -40,6 +40,17 @@ pub fn create_mapping_with_flags(
 ) {
     let allocator: &mut BMFrameAllocator = &mut FRAME_ALLOCATOR.lock();
 
+    if pa.as_u64().checked_add(sz).is_none()
+        || va.as_u64().checked_add(sz).is_none()
+        || pa.as_u64() & (ALIGN_4K - 1) != 0
+        || va.as_u64() & (ALIGN_4K - 1) != 0
+        || sz & (ALIGN_4K - 1) != 0
+        || ps.count_ones() != 1
+        || ps < ALIGN_4K as u64
+    {
+        panic!("invalid argument to create_mapping_with_flags()");
+    }
+
     while sz > 0 {
         let addr_align = min(
             ps.trailing_zeros(),
