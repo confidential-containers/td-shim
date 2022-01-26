@@ -4,10 +4,6 @@
 
 #![no_std]
 #![allow(unused)]
-#![no_main]
-#![feature(custom_test_frameworks)]
-#![test_runner(test_runner)]
-#![reexport_test_harness_main = "test_main"]
 
 mod consts;
 mod frame;
@@ -47,54 +43,4 @@ pub fn setup_paging(page_table_memory_base: u64, system_memory_size: u64) {
         system_memory_size,
     );
     page_table::cr3_write();
-}
-
-#[cfg(test)]
-use bootloader::{boot_info as info, entry_point, BootInfo};
-#[cfg(test)]
-entry_point!(kernel_main);
-#[cfg(test)]
-use test_lib::{init_heap, panic, serial_println, test_runner};
-
-#[cfg(test)]
-fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
-    use core::ops::Deref;
-    use rust_td_layout::RuntimeMemoryLayout;
-
-    // turn the screen gray
-    if let Some(framebuffer) = boot_info.framebuffer.as_mut() {
-        for byte in framebuffer.buffer_mut() {
-            *byte = 0x90;
-        }
-    }
-
-    let memoryregions = boot_info.memory_regions.deref();
-    let offset = boot_info.physical_memory_offset.into_option().unwrap();
-
-    for usable in memoryregions.iter() {
-        if usable.kind == info::MemoryRegionKind::Usable {
-            init_heap((usable.start + offset) as usize, 0x10000);
-            //     *FRAME_ALLOCATOR.lock() =
-            //     BMFrameAllocator::new(TD_PAYLOAD_PAGE_TABLE_BASE as usize, PAGE_TABLE_SIZE);
-
-            // // The first frame should've already been allocated to level 4 PT
-            // unsafe { FRAME_ALLOCATOR.lock().alloc() };
-
-            break;
-        }
-    }
-
-    #[cfg(test)]
-    test_main();
-
-    loop {}
-}
-
-#[cfg(test)]
-mod tests {
-
-    #[test_case]
-    fn test_create_paging() {
-        assert!(true);
-    }
 }
