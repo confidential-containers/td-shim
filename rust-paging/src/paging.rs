@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
 use core::cmp::min;
-use log::*;
+use log::{info, trace};
 use x86_64::{
     structures::paging::PageTableFlags as Flags,
     structures::paging::{
@@ -14,15 +14,22 @@ use x86_64::{
 };
 
 use super::frame::{BMFrameAllocator, FRAME_ALLOCATOR};
-use crate::TD_PAYLOAD_PAGE_TABLE_BASE;
+use rust_td_layout::runtime::TD_PAYLOAD_PAGE_TABLE_BASE;
 
 const ALIGN_4K_BITS: u64 = 12;
-const ALIGN_4K: u64 = 4096;
+const ALIGN_4K: u64 = 1 << ALIGN_4K_BITS;
 const ALIGN_2M_BITS: u64 = 21;
-const ALIGN_2M: u64 = 1024 * 1024 * 2;
+const ALIGN_2M: u64 = 1 << ALIGN_2M_BITS;
 const ALIGN_1G_BITS: u64 = 30;
-const ALIGN_1G: u64 = 1024 * 1024 * 1024;
+const ALIGN_1G: u64 = 1 << ALIGN_1G_BITS;
 
+/// Create page table entries to map `[va, va + sz)` to `[pa, ps + sz)` with page size `ps` and
+/// page attribute `flags`.
+///
+/// # Panic
+/// - `pa + sz` wraps around.
+/// - `va + sz` wraps around.
+/// - `pa`, `va` or `sz` is not page aligned.
 pub fn create_mapping_with_flags(
     pt: &mut OffsetPageTable,
     mut pa: PhysAddr,
@@ -90,17 +97,24 @@ pub fn create_mapping_with_flags(
             }
             S::SIZE
         };
+
         sz -= mapped_size;
         pa += mapped_size;
         va += mapped_size;
     }
 }
 
+/// Create page table entries to map `[va, va + sz)` to `[pa, ps + sz)` with page size `ps` and
+/// mark pages as `PRESENT | WRITABLE`.
+///
+/// Note: the caller must ensure `pa + sz` and `va + sz` doesn't wrap around.
 pub fn create_mapping(pt: &mut OffsetPageTable, pa: PhysAddr, va: VirtAddr, ps: u64, sz: u64) {
     let flags = Flags::PRESENT | Flags::WRITABLE;
+
     create_mapping_with_flags(pt, pa, va, ps, sz, flags)
 }
 
+/// Write physical address of level 4 page table page to `CR3`.
 pub fn cr3_write() {
     unsafe {
         x86::controlregs::cr3_write(TD_PAYLOAD_PAGE_TABLE_BASE);
@@ -108,6 +122,8 @@ pub fn cr3_write() {
     log::info!("Cr3 - {:x}\n", unsafe { x86::controlregs::cr3() });
 }
 
+/// Modify page flags for all 4K PTEs for virtual address range [va, va + sz), stops at the first
+/// whole.
 pub fn set_page_flags(pt: &mut OffsetPageTable, mut va: VirtAddr, mut size: i64, flag: Flags) {
     let mut page_size: u64;
 
@@ -128,7 +144,6 @@ pub fn set_page_flags(pt: &mut OffsetPageTable, mut va: VirtAddr, mut size: i64,
                 }
                 MappedFrame::Size1GiB(..) => {
                     type S = Size1GiB;
-                    log::info!("Size1GiB entry.\n");
                     page_size = S::SIZE;
                 }
             }

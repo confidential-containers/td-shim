@@ -2,9 +2,14 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
+/// Guest physical to virtual address mapping offset. 0 means identity mapping.
 pub const PHYS_VIRT_OFFSET: usize = 0;
+/// Page size.
 pub const PAGE_SIZE: usize = 4096;
+/// The memory size reserved for page table pages.
 pub const PAGE_TABLE_SIZE: usize = 0x100000;
 
+/// Default PTE(page table entry) size.
 pub const PAGE_SIZE_DEFAULT: usize = 0x4000_0000;
+/// Minimal PTE(page table entry) size.
 pub const PAGE_SIZE_4K: usize = 0x1000;
