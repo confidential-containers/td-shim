@@ -19,14 +19,13 @@ use x86_64::{
     PhysAddr, VirtAddr,
 };
 
-use rust_td_layout::runtime::*;
-
+/// Initialize the page table management subsystem.
 pub fn init() {
     frame::init();
 }
 
-/// page_table_memory_base: page_table_memory_base
-/// system_memory_size
+/// Build page table to map guest physical addres range [0, system_memory_size), the top page table
+/// page will be hosted at guest physical address `page_table_memory_base`.
 pub fn setup_paging(page_table_memory_base: u64, system_memory_size: u64) {
     let mut pt = unsafe {
         OffsetPageTable::new(
