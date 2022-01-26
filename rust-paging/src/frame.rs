@@ -2,8 +2,7 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
-use bitmap_allocator::BitAlloc;
-use log::*;
+use log::{info, trace};
 use spin::Mutex;
 use x86_64::{
     align_up,
@@ -12,12 +11,14 @@ use x86_64::{
 };
 
 use super::consts::{PAGE_SIZE, PAGE_TABLE_SIZE};
-use rust_td_layout::runtime::*;
+use rust_td_layout::runtime::TD_PAYLOAD_PAGE_TABLE_BASE;
 
+/// Global page table page allocator.
 pub static FRAME_ALLOCATOR: Mutex<BMFrameAllocator> = Mutex::new(BMFrameAllocator::empty());
 
 // Support max 256 * 4096 = 1MB memory.
 type FrameAlloc = bitmap_allocator::BitAlloc256;
+use bitmap_allocator::BitAlloc;
 
 pub struct BMFrameAllocator {
     base: usize,
@@ -49,42 +50,6 @@ impl BMFrameAllocator {
         trace!("Allocate frame: {:x?}\n", ret);
         ret
     }
-
-    /// # Safety
-    ///
-    /// This function is unsafe because manual deallocation is needed.
-    unsafe fn alloc_contiguous(&mut self, frame_count: usize, align_log2: usize) -> Option<usize> {
-        let ret = self
-            .inner
-            .alloc_contiguous(frame_count, align_log2)
-            .map(|idx| idx * PAGE_SIZE + self.base);
-        trace!(
-            "Allocate {} frames with alignment {}: {:x?}",
-            frame_count,
-            1 << align_log2,
-            ret
-        );
-        ret
-    }
-
-    /// # Safety
-    ///
-    /// This function is unsafe because the frame must have been allocated.
-    unsafe fn dealloc(&mut self, target: usize) {
-        trace!("Deallocate frame: {:x}", target);
-        self.inner.dealloc((target - self.base) / PAGE_SIZE)
-    }
-
-    /// # Safety
-    ///
-    /// This function is unsafe because the frames must have been allocated.
-    unsafe fn dealloc_contiguous(&mut self, target: usize, frame_count: usize) {
-        trace!("Deallocate {} frames: {:x}", frame_count, target);
-        let start_idx = (target - self.base) / PAGE_SIZE;
-        for i in start_idx..start_idx + frame_count {
-            self.inner.dealloc(i)
-        }
-    }
 }
 
 unsafe impl FrameAllocator<Size4KiB> for BMFrameAllocator {
@@ -102,6 +67,7 @@ pub(super) fn init() {
         BMFrameAllocator::new(TD_PAYLOAD_PAGE_TABLE_BASE as usize, PAGE_TABLE_SIZE);
 
     // The first frame should've already been allocated to level 4 PT
+    // Note: this has strong dependency on the implementation detail of BitAlloc.
     unsafe { FRAME_ALLOCATOR.lock().alloc() };
 
     info!(
