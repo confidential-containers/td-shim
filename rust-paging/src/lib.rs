@@ -34,6 +34,10 @@ pub fn setup_paging(page_table_memory_base: u64, system_memory_size: u64) {
             VirtAddr::new(PHYS_VIRT_OFFSET as u64),
         )
     };
+
+    frame::FRAME_ALLOCATOR
+        .lock()
+        .reserve(page_table_memory_base);
     paging::create_mapping(
         &mut pt,
         PhysAddr::new(0),
