@@ -56,7 +56,7 @@ impl<'a> Memory<'a> {
         );
 
         // 0..runtime_payload_base
-        paging::paging::create_mapping(
+        paging::create_mapping(
             &mut self.pt,
             PhysAddr::new(0),
             VirtAddr::new(0),
@@ -65,7 +65,7 @@ impl<'a> Memory<'a> {
         );
 
         // runtime_payload_base..runtime_payload_end
-        paging::paging::create_mapping(
+        paging::create_mapping(
             &mut self.pt,
             PhysAddr::new(self.layout.runtime_payload_base),
             VirtAddr::new(self.layout.runtime_payload_base),
@@ -75,7 +75,7 @@ impl<'a> Memory<'a> {
 
         let runtime_payload_end = self.layout.runtime_payload_base + TD_PAYLOAD_SIZE as u64;
         // runtime_payload_end..runtime_dma_base
-        paging::paging::create_mapping(
+        paging::create_mapping(
             &mut self.pt,
             PhysAddr::new(runtime_payload_end),
             VirtAddr::new(runtime_payload_end),
@@ -84,7 +84,7 @@ impl<'a> Memory<'a> {
         );
 
         // runtime_dma_base..runtime_heap_base with Shared flag
-        paging::paging::create_mapping_with_flags(
+        paging::create_mapping_with_flags(
             &mut self.pt,
             PhysAddr::new(self.layout.runtime_dma_base),
             VirtAddr::new(self.layout.runtime_dma_base),
@@ -96,7 +96,7 @@ impl<'a> Memory<'a> {
         let runtime_memory_top =
             self.layout.runtime_event_log_base + TD_PAYLOAD_EVENT_LOG_SIZE as u64;
         // runtime_heap_base..memory_top with NX flag
-        paging::paging::create_mapping_with_flags(
+        paging::create_mapping_with_flags(
             &mut self.pt,
             PhysAddr::new(self.layout.runtime_heap_base),
             VirtAddr::new(self.layout.runtime_heap_base),
@@ -106,7 +106,7 @@ impl<'a> Memory<'a> {
         );
 
         // runtime_memory_top..memory_size (end)
-        paging::paging::create_mapping(
+        paging::create_mapping(
             &mut self.pt,
             PhysAddr::new(runtime_memory_top),
             VirtAddr::new(runtime_memory_top),
@@ -124,25 +124,25 @@ impl<'a> Memory<'a> {
             // enable_execute_disable_bit();
         }
 
-        paging::paging::cr3_write();
+        paging::cr3_write();
     }
 
     pub fn set_write_protect(&mut self, address: u64, size: u64) {
         let flags = Flags::PRESENT | Flags::USER_ACCESSIBLE;
 
-        paging::paging::set_page_flags(&mut self.pt, VirtAddr::new(address), size as i64, flags);
+        paging::set_page_flags(&mut self.pt, VirtAddr::new(address), size as i64, flags);
     }
 
     pub fn set_nx_bit(&mut self, address: u64, size: u64) {
         let flags = Flags::PRESENT | Flags::WRITABLE | Flags::USER_ACCESSIBLE | Flags::NO_EXECUTE;
 
-        paging::paging::set_page_flags(&mut self.pt, VirtAddr::new(address), size as i64, flags);
+        paging::set_page_flags(&mut self.pt, VirtAddr::new(address), size as i64, flags);
     }
 
     pub fn set_not_present(&mut self, address: u64, size: u64) {
         let flags: Flags = Flags::empty();
 
-        paging::paging::set_page_flags(&mut self.pt, VirtAddr::new(address), size as i64, flags);
+        paging::set_page_flags(&mut self.pt, VirtAddr::new(address), size as i64, flags);
     }
 }
 
