@@ -11,8 +11,10 @@
 
 mod consts;
 mod frame;
-pub mod paging;
+mod page_table;
+
 pub use consts::*;
+pub use page_table::{cr3_write, create_mapping, create_mapping_with_flags, set_page_flags};
 
 use x86_64::{
     structures::paging::{OffsetPageTable, PageTable},
@@ -37,14 +39,14 @@ pub fn setup_paging(page_table_memory_base: u64, system_memory_size: u64) {
     frame::FRAME_ALLOCATOR
         .lock()
         .reserve(page_table_memory_base);
-    paging::create_mapping(
+    page_table::create_mapping(
         &mut pt,
         PhysAddr::new(0),
         VirtAddr::new(0),
         PAGE_SIZE_DEFAULT as u64,
         system_memory_size,
     );
-    paging::cr3_write();
+    page_table::cr3_write();
 }
 
 #[cfg(test)]
