@@ -23,6 +23,14 @@ const ALIGN_2M: u64 = 1 << ALIGN_2M_BITS;
 const ALIGN_1G_BITS: u64 = 30;
 const ALIGN_1G: u64 = 1 << ALIGN_1G_BITS;
 
+/// Write physical address of level 4 page table page to `CR3`.
+pub fn cr3_write() {
+    unsafe {
+        x86::controlregs::cr3_write(TD_PAYLOAD_PAGE_TABLE_BASE);
+    }
+    info!("Cr3 - {:x}\n", unsafe { x86::controlregs::cr3() });
+}
+
 /// Create page table entries to map `[va, va + sz)` to `[pa, ps + sz)` with page size `ps` and
 /// page attribute `flags`.
 ///
@@ -125,14 +133,6 @@ pub fn create_mapping(pt: &mut OffsetPageTable, pa: PhysAddr, va: VirtAddr, ps: 
     create_mapping_with_flags(pt, pa, va, ps, sz, flags)
 }
 
-/// Write physical address of level 4 page table page to `CR3`.
-pub fn cr3_write() {
-    unsafe {
-        x86::controlregs::cr3_write(TD_PAYLOAD_PAGE_TABLE_BASE);
-    }
-    log::info!("Cr3 - {:x}\n", unsafe { x86::controlregs::cr3() });
-}
-
 /// Modify page flags for all 4K PTEs for virtual address range [va, va + sz), stops at the first
 /// whole.
 pub fn set_page_flags(pt: &mut OffsetPageTable, mut va: VirtAddr, mut size: i64, flag: Flags) {
@@ -163,5 +163,49 @@ pub fn set_page_flags(pt: &mut OffsetPageTable, mut va: VirtAddr, mut size: i64,
         }
         size -= page_size as i64;
         va += page_size;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{frame, init, PAGE_SIZE_4K, PHYS_VIRT_OFFSET};
+    use x86_64::structures::paging::PageTable;
+
+    fn create_pt(base: u64, offset: u64) -> OffsetPageTable<'static> {
+        let pt = unsafe {
+            OffsetPageTable::new(&mut *(base as *mut PageTable), VirtAddr::new(offset as u64))
+        };
+        frame::FRAME_ALLOCATOR.lock().reserve(base);
+
+        pt
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_invalid_pa_sz() {
+        init();
+        let mut pt = create_pt(TD_PAYLOAD_PAGE_TABLE_BASE, PHYS_VIRT_OFFSET as u64);
+        create_mapping(
+            &mut pt,
+            PhysAddr::new(0x1000000),
+            VirtAddr::new(0),
+            PAGE_SIZE_4K as u64,
+            u64::MAX,
+        );
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_invalid_va_sz() {
+        init();
+        let mut pt = create_pt(TD_PAYLOAD_PAGE_TABLE_BASE, PHYS_VIRT_OFFSET as u64);
+        create_mapping(
+            &mut pt,
+            PhysAddr::new(0x0),
+            VirtAddr::new(0x1000000),
+            PAGE_SIZE_4K as u64,
+            u64::MAX,
+        );
     }
 }

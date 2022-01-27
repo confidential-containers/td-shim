@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
 #![no_std]
-
 // The `custom_test_frameworks` feature allows the use of `#[test_case]` and `#![test_runner]`.
 // Any function, const, or static can be annotated with `#[test_case]` causing it to be aggregated
 // (like #[test]) and be passed to the test runner determined by the `#![test_runner]` crate
@@ -50,16 +49,17 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 
 #[cfg(test)]
 mod tests {
-    //use rust_td_layout::RuntimeMemoryLayout;
-    //use super::*;
+    use paging::PAGE_TABLE_SIZE;
+    use rust_td_layout::runtime::TD_PAYLOAD_PAGE_TABLE_BASE;
 
     #[test_case]
     fn test_create_paging() {
-        assert!(true);
-        //     *FRAME_ALLOCATOR.lock() =
-        //     BMFrameAllocator::new(TD_PAYLOAD_PAGE_TABLE_BASE as usize, PAGE_TABLE_SIZE);
+        paging::init();
+        paging::setup_paging(
+            TD_PAYLOAD_PAGE_TABLE_BASE + 0x1000,
+            TD_PAYLOAD_PAGE_TABLE_BASE + PAGE_TABLE_SIZE as u64,
+        );
 
-        // // The first frame should've already been allocated to level 4 PT
-        // unsafe { FRAME_ALLOCATOR.lock().alloc() };
+        // TODO: add test cases for setup_paging(), create_mapping_with_flags(), set_page_flags()
     }
 }
