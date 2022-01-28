@@ -4,6 +4,7 @@ default-members = ["rust-tdshim", "rust-td-payload"]
 members = [
     "devtools/td-layout-config",
     "devtools/test-runner-server",
+    "devtools/test-runner-client",
     "rust-tdshim",
     "rust-td-payload",
     "rust-td-tool",
