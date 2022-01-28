@@ -14,10 +14,18 @@
 
 #![no_std]
 
+use core::any;
 use core::panic::PanicInfo;
-
 use linked_list_allocator::LockedHeap;
+
 pub mod serial;
+
+#[panic_handler]
+pub fn panic(info: &PanicInfo) -> ! {
+    serial_println!("[failed]\n");
+    serial_println!("Error: {}\n", info);
+    exit_qemu(QemuExitCode::Failed);
+}
 
 #[global_allocator]
 pub static ALLOCATOR: LockedHeap = LockedHeap::empty();
@@ -28,6 +36,12 @@ pub fn init_heap(heap_start: usize, heap_size: usize) {
     }
 }
 
+/// Unit test runner to hook the rust test harness.
+///
+/// The `custom_test_frameworks` feature allows the use of `#[test_case]` and `#![test_runner]`.
+/// Any function, const, or static can be annotated with `#[test_case]` causing it to be aggregated
+/// (like #[test]) and be passed to the test runner determined by the `#![test_runner]` crate
+/// attribute.
 pub fn test_runner(tests: &[&dyn Testable]) {
     serial_println!("Running {} tests", tests.len());
     for test in tests {
@@ -36,16 +50,17 @@ pub fn test_runner(tests: &[&dyn Testable]) {
     exit_qemu(QemuExitCode::Success);
 }
 
+/// Trait for unit test functions.
 pub trait Testable {
     fn run(&self);
 }
 
 impl<T> Testable for T
-    where
-        T: Fn(),
+where
+    T: Fn(),
 {
     fn run(&self) {
-        serial_print!("{}...\t", core::any::type_name::<T>());
+        serial_print!("{}...\t", any::type_name::<T>());
         self();
         serial_println!("[ok]");
     }
@@ -58,6 +73,7 @@ pub enum QemuExitCode {
     Failed = 0x11,
 }
 
+/// Notify qemu hypervisor to exit, with exit code.
 #[allow(clippy::empty_loop)]
 pub fn exit_qemu(exit_code: QemuExitCode) -> ! {
     use x86_64::instructions::port::Port;
@@ -68,11 +84,4 @@ pub fn exit_qemu(exit_code: QemuExitCode) -> ! {
     }
 
     loop {}
-}
-
-#[panic_handler]
-pub fn panic(info: &PanicInfo) -> ! {
-    serial_println!("[failed]\n");
-    serial_println!("Error: {}\n", info);
-    exit_qemu(QemuExitCode::Failed);
 }
