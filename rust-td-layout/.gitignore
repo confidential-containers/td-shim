@@ -1,9 +1,0 @@
-*~
-
-# Cargo Junk
-Cargo.lock
-target/
-src/build_time.rs
-src/runtime.rs
-*.bin
-*.obj
