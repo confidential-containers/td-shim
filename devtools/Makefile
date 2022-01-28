@@ -1,13 +1,16 @@
 build:
 	cargo build ${BUILD_TYPE_FLAG} -p td-layout-config
+	cargo build ${BUILD_TYPE_FLAG} -p test-runner-client
 	cargo build ${BUILD_TYPE_FLAG} -p test-runner-server
 
 check:
 	cargo check ${BUILD_TYPE_FLAG} -p td-layout-config
+	cargo check ${BUILD_TYPE_FLAG} -p test-runner-client
 	cargo check ${BUILD_TYPE_FLAG} -p test-runner-server
 
 clean:
 	cargo clean ${BUILD_TYPE_FLAG} -p td-layout-config
+	cargo clean ${BUILD_TYPE_FLAG} -p test-runner-client
 	cargo clean ${BUILD_TYPE_FLAG} -p test-runner-server
 
 install:
