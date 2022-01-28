@@ -12,8 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use core::fmt::Write;
 use spin::{Lazy, Mutex};
 use uart_16550::SerialPort;
+use x86_64::instructions::interrupts;
 
 pub static SERIAL1: Lazy<Mutex<SerialPort>> = Lazy::new(|| {
     let mut serial_port = unsafe { SerialPort::new(0x3F8) };
@@ -23,9 +25,6 @@ pub static SERIAL1: Lazy<Mutex<SerialPort>> = Lazy::new(|| {
 
 #[doc(hidden)]
 pub fn _print(args: ::core::fmt::Arguments) {
-    use core::fmt::Write;
-    use x86_64::instructions::interrupts;
-
     interrupts::without_interrupts(|| {
         SERIAL1
             .lock()

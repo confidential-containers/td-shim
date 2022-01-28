@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use clap::{app_from_crate, arg};
 use std::{
+    io,
     path::{Path, PathBuf},
     process::{Command, ExitStatus},
     time::Duration,
@@ -31,24 +33,35 @@ const TEST_ARGS: &[&str] = &[
 const TEST_TIMEOUT_SECS: u64 = 10;
 
 fn main() {
-    let mut args = std::env::args().skip(1); // skip executable name
+    let matches = app_from_crate!()
+        .arg(
+            arg!([kernel] "Path of kernel file be executed by the virtual machine")
+                .required(true)
+                .allow_invalid_utf8(false),
+        )
+        .arg(
+            arg!(
+              --"no-run" "Dry-run mode, do not actually spawn the virtual machine"
+            )
+            .required(false)
+            .allow_invalid_utf8(false),
+        )
+        .get_matches();
 
+    // Safe to unwrap because they are mandatory arguments.
+    let kernel = matches.value_of("kernel").unwrap();
     let kernel_binary_path = {
-        let path = PathBuf::from(args.next().unwrap());
-        path.canonicalize().unwrap()
+        let path = PathBuf::from(kernel);
+        path.canonicalize().expect(&format!(
+            "Invalid kernel file path {}: {}",
+            kernel,
+            io::Error::last_os_error()
+        ))
     };
-    let no_boot = if let Some(arg) = args.next() {
-        match arg.as_str() {
-            "--no-run" => true,
-            other => panic!("unexpected argument `{}`", other),
-        }
-    } else {
-        false
-    };
-
     let bios = create_disk_images(&kernel_binary_path);
 
-    if no_boot {
+    //let output = matches.value_of("no-run")
+    if matches.is_present("no-run") {
         println!("Created disk image at `{}`", bios.display());
         return;
     }
@@ -64,6 +77,7 @@ fn main() {
 
         let exit_status = run_test_command(run_cmd);
         match exit_status.code() {
+            // TODO: should this be QemuExitCode::Success?
             Some(33) => {} // success
             other => panic!("Test failed (exit code: {:?})", other),
         }
