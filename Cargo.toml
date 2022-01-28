@@ -3,6 +3,7 @@ resolver = "2"
 default-members = ["rust-tdshim", "rust-td-payload"]
 members = [
     "devtools/td-layout-config",
+    "devtools/test-runner-server",
     "rust-tdshim",
     "rust-td-payload",
     "rust-td-tool",
