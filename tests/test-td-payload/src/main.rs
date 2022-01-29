@@ -65,7 +65,7 @@ pub fn init_heap(heap_start: usize, heap_size: usize) {
 #[no_mangle]
 #[cfg_attr(target_os = "uefi", export_name = "efi_main")]
 pub extern "win64" fn _start(hob: *const c_void) -> ! {
-    use rust_td_layout::runtime::*;
+    use td_layout::runtime::*;
 
     tdx_logger::init();
     log::info!("Starting rust-tdcall-payload hob - {:p}\n", hob);

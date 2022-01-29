@@ -1,5 +1,5 @@
 [package]
-name = "rust-test-payload"
+name = "test-tdx-payload"
 version = "0.1.0"
 authors = [
     "grace.zhou@intel.com"
@@ -20,12 +20,12 @@ spin = "0.5.2"
 r-efi = "3.2.0"
 linked_list_allocator = "0.9.0"
 log = "0.4.13"
-r-uefi-pi =  { path = "../r-uefi-pi" }
-uefi-pi =  { path = "../uefi-pi" }
-tdx-tdcall = { path = "../tdx-tdcall" }
-tdx-logger =  { path = "../tdx-logger" }
-tdx-exception =  { path = "../tdx-exception" }
-td-layout = { path = "../td-layout" }
+r-uefi-pi =  { path = "../../r-uefi-pi" }
+uefi-pi =  { path = "../../uefi-pi" }
+tdx-tdcall = { path = "../../tdx-tdcall" }
+tdx-logger =  { path = "../../tdx-logger" }
+tdx-exception =  { path = "../../tdx-exception" }
+td-layout = { path = "../../td-layout" }
 scroll = { version = "0.10", default-features = false, features = ["derive"]}
 
 bootloader = "0.10.9"

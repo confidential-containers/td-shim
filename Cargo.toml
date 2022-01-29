@@ -15,10 +15,10 @@ members = [
     "fuzzing/fuzz_hob_parser",
     "rust-tdpayload-signing",
     "rust-tdshim-key-enroll",
-    "rust-test-payload",
     "td-layout",
     "td-paging",
     "tests/test-td-paging",
+    "tests/test-td-payload",
 ]
 
 # the profile used for `cargo build`
