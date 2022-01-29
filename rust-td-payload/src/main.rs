@@ -36,7 +36,7 @@ mod asm;
 mod memslice;
 
 #[cfg(test)]
-use test_lib::{init_heap, panic, serial_println, test_runner};
+use test_runner_client::{init_heap, panic, serial_println, test_runner};
 
 #[cfg(feature = "benches")]
 use benchmark::{BenchmarkContext, ALLOCATOR};

@@ -13,7 +13,6 @@ members = [
     "fuzzing/fuzz_elf_loader",
     "fuzzing/fuzz_fv_parser",
     "fuzzing/fuzz_hob_parser",
-    "no_std_test",
     "rust-tdpayload-signing",
     "rust-tdshim-key-enroll",
     "rust-test-payload",

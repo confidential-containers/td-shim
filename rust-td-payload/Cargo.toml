@@ -30,7 +30,7 @@ chrono = { version = "0.4.19", default-features = false, features = ["serde"]}
 scroll = { version = "0.10", default-features = false, features = ["derive"]}
 x86 = "0.41.0"
 benchmark = { path = "../benchmark", optional = true }
-test_lib = { path = "../test_lib" }
+test-runner-client = { path = "../devtools/test-runner-client" }
 
 bootloader = "=0.10.9"
 

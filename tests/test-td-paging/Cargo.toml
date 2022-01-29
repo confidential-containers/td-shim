@@ -11,7 +11,7 @@ license = "BSD-2-Clause-Patent"
 bootloader = "=0.10.9"
 td-paging = { path = "../../td-paging" }
 td-layout = { path = "../../td-layout" }
-test_lib = { path = "../../test_lib" }
+test-runner-client = { path = "../../devtools/test-runner-client" }
 
 [package.metadata.bootloader]
 map-physical-memory = true
