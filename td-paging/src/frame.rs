@@ -12,7 +12,7 @@ use x86_64::{
 };
 
 use super::consts::{PAGE_SIZE, PAGE_TABLE_SIZE};
-use rust_td_layout::runtime::TD_PAYLOAD_PAGE_TABLE_BASE;
+use td_layout::runtime::TD_PAYLOAD_PAGE_TABLE_BASE;
 
 const NUM_PAGE_TABLE_PAGES: usize = PAGE_TABLE_SIZE / PAGE_SIZE;
 const BITMAP_ALLOCATOR_ARRAY_SIZE: usize = (NUM_PAGE_TABLE_PAGES + 127) / 128;

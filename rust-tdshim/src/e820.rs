@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
-use rust_td_layout::{build_time, runtime, RuntimeMemoryLayout};
+use td_layout::{build_time, runtime, RuntimeMemoryLayout};
 
 const MAX_E820_ENTRY: usize = 128;
 

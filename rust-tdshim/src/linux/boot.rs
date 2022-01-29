@@ -5,9 +5,9 @@
 use crate::e820::E820Entry;
 use crate::linux::kernel_param::{BootParams, SetupHeader};
 use core::mem::size_of;
-use rust_td_layout as layout;
-use rust_td_layout::runtime::TD_PAYLOAD_PARAM_BASE;
 use scroll::{Pread, Pwrite};
+use td_layout as layout;
+use td_layout::runtime::TD_PAYLOAD_PARAM_BASE;
 use x86_64::{
     instructions::{segmentation::Segment, tables::lgdt},
     registers::segmentation as seg,

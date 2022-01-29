@@ -8,6 +8,6 @@ edition = "2018"
 [dependencies]
 linked_list_allocator = "0.9.0"
 log = "0.4.13"
-rust-td-layout = { path = "../rust-td-layout" }
+td-layout = { path = "../td-layout" }
 scroll = { version = "0.10", default-features = false, features = ["derive"]}
 x86 = "0.41.0"

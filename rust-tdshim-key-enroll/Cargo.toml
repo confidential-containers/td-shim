@@ -12,4 +12,4 @@ der = { version = "0.4.5", features = ["oid"]}
 r-efi = "3.2.0"
 uefi-pi =  { path = "../uefi-pi" }
 r-uefi-pi =  { path = "../r-uefi-pi" }
-rust-td-layout = { path = "../rust-td-layout" }
+td-layout = { path = "../td-layout" }

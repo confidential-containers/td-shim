@@ -14,7 +14,7 @@ use std::path::Path;
 use core::mem::size_of;
 use serde::Deserialize;
 
-use rust_td_layout::metadata::*;
+use td_layout::metadata::*;
 
 const TD_LAYOUT_BUILD_TIME_RS_OUT: &str = "build_time.rs";
 const TD_LAYOUT_RUNTIME_RS_OUT: &str = "runtime.rs";

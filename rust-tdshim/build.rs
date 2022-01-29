@@ -8,7 +8,7 @@ use std::{
     process::Command,
 };
 
-use rust_td_layout::build_time;
+use td_layout::build_time;
 
 fn nasm(file: &Path, arch: &str, out_file: &Path, args: &[&str]) -> Command {
     let oformat = match arch {

@@ -1,5 +1,5 @@
 [package]
-name = "rust-td-layout"
+name = "td-layout"
 version = "0.1.0"
 description = "Define build time and runtime layout for trusted domain"
 repository = "https://github.com/confidential-containers/td-shim"

@@ -9,11 +9,11 @@ build = "build.rs"
 [features]
 cet-ss = []
 secure-boot = []
-boot-kernel = ["rust-td-layout/boot-kernel"]
+boot-kernel = ["td-layout/boot-kernel"]
 
 [build-dependencies]
 cc = { git = "https://github.com/jyao1/cc-rs.git", branch = "uefi_support" }
-rust-td-layout = { path = "../rust-td-layout" }
+td-layout = { path = "../td-layout" }
 tdx-tdcall = { path = "../tdx-tdcall" }
 
 [dependencies]
@@ -27,8 +27,8 @@ uefi-pi =  { path = "../uefi-pi" }
 tdx-tdcall = { path = "../tdx-tdcall" }
 tdx-logger =  { path = "../tdx-logger" }
 tdx-exception =  { path = "../tdx-exception" }
-rust-td-layout = { path = "../rust-td-layout" }
-paging = { path = "../rust-paging" }
+td-layout = { path = "../td-layout" }
+td-paging = { path = "../td-paging" }
 ring = { git = "https://github.com/jyao1/ring.git", branch = "uefi_support", default-features = false, features = ["alloc"]}
 scroll = { version = "0.10", default-features = false, features = ["derive"] }
 x86_64 = "=0.14.6"

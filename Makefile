@@ -8,8 +8,8 @@ else
 	export BUILD_TYPE_FLAG=
 endif
 
-CORE_CRATES = rust-td-layout paging
-TEST_CRATES = 
+CORE_CRATES = td-layout td-paging
+TEST_CRATES = test-td-paging
 
 # Global targets
 all: devtools build test

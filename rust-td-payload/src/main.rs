@@ -44,7 +44,7 @@ use benchmark::{BenchmarkContext, ALLOCATOR};
 use linked_list_allocator::LockedHeap;
 
 use core::alloc::Layout;
-use rust_td_layout::runtime::*;
+use td_layout::runtime::*;
 use uefi_pi::pi::hob_lib;
 
 use alloc::{string::String, vec::Vec};
@@ -404,7 +404,7 @@ pub extern "win64" fn _start(hob: *const c_void) -> ! {
         TD_PAYLOAD_HEAP_SIZE as usize,
     );
 
-    let memory_layout = rust_td_layout::RuntimeMemoryLayout::new(
+    let memory_layout = td_layout::RuntimeMemoryLayout::new(
         hob_lib::get_system_memory_size_below_4gb(hob_list).unwrap(),
     );
     assert_eq!(

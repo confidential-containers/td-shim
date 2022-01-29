@@ -25,7 +25,7 @@ uefi-pi =  { path = "../uefi-pi" }
 tdx-tdcall = { path = "../tdx-tdcall" }
 tdx-logger =  { path = "../tdx-logger" }
 tdx-exception =  { path = "../tdx-exception" }
-rust-td-layout = { path = "../rust-td-layout" }
+td-layout = { path = "../td-layout" }
 scroll = { version = "0.10", default-features = false, features = ["derive"]}
 
 bootloader = "0.10.9"
