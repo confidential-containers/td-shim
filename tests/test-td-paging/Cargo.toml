@@ -4,11 +4,14 @@ version = "0.1.0"
 description = "Run td-paging unit test cases inside a VM"
 repository = "https://github.com/confidential-containers/td-shim"
 homepage = "https://github.com/confidential-containers"
-edition = "2018"
 license = "BSD-2-Clause-Patent"
+edition = "2018"
+
+[dependencies]
+# Keep it as `dependencies` to satisfy bootloader-locator's requirement, though it should be `dev-dependencies`
+bootloader = "=0.10.9"
 
 [dev-dependencies]
-bootloader = "=0.10.9"
 td-paging = { path = "../../td-paging" }
 td-layout = { path = "../../td-layout" }
 test-runner-client = { path = "../../devtools/test-runner-client" }

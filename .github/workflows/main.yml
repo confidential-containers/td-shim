@@ -73,9 +73,9 @@ jobs:
       - name: Build Elf format payload
         run: |
           pushd td-payload
-          cargo xbuild --target target.json --release
+          cargo xbuild --target ../devtools/rustc-targets/x86_64-unknown-none.json --release
           popd
-          cargo run -p rust-td-tool -- target/x86_64-unknown-uefi/release/ResetVector.bin target/x86_64-unknown-uefi/release/rust-tdshim.efi target/target//release/td-payload target/x86_64-unknown-uefi/release/final.bin
+          cargo run -p rust-td-tool -- target/x86_64-unknown-uefi/release/ResetVector.bin target/x86_64-unknown-uefi/release/rust-tdshim.efi target/x86_64-unknown-none/release/td-payload target/x86_64-unknown-uefi/release/final.bin
 
   test:
     name: Test
@@ -116,4 +116,4 @@ jobs:
 
       - name: "test td-payload"
         working-directory: tests/test-td-payload
-        run: cargo test --target ../devtools/rustc-target/x86_64-custom.json
+        run: cargo xtest --target ../../devtools/rustc-targets/x86_64-custom.json
