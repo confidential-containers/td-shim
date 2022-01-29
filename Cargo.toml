@@ -15,7 +15,9 @@ members = [
     "rust-tdpayload-signing",
     "rust-tdshim-key-enroll",
     "rust-test-payload",
-    "tests/rust-test-paging",
+    "td-layout",
+    "td-paging",
+    "tests/test-td-paging",
 ]
 
 # the profile used for `cargo build`

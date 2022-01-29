@@ -17,7 +17,7 @@ pub const PAGE_SIZE_4K: usize = 0x1000;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rust_td_layout::runtime;
+    use td_layout::runtime;
 
     #[test]
     fn test_constants() {

@@ -11,7 +11,7 @@ mod page_table;
 pub use consts::*;
 pub use page_table::{cr3_write, create_mapping, create_mapping_with_flags, set_page_flags};
 
-use rust_td_layout::runtime;
+use td_layout::runtime;
 use x86_64::{
     structures::paging::{OffsetPageTable, PageTable},
     PhysAddr, VirtAddr,

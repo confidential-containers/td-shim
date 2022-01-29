@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
-use rust_td_layout::build_time::*;
-use rust_td_layout::runtime::*;
+use td_layout::build_time::*;
+use td_layout::runtime::*;
 
 pub enum SliceType {
     ShimHob,

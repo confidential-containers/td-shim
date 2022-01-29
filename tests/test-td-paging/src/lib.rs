@@ -49,13 +49,13 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 
 #[cfg(test)]
 mod tests {
-    use paging::PAGE_TABLE_SIZE;
-    use rust_td_layout::runtime::TD_PAYLOAD_PAGE_TABLE_BASE;
+    use td_layout::runtime::TD_PAYLOAD_PAGE_TABLE_BASE;
+    use td_paging::PAGE_TABLE_SIZE;
 
     #[test_case]
     fn test_create_paging() {
-        paging::init();
-        paging::setup_paging(
+        td_paging::init();
+        td_paging::setup_paging(
             TD_PAYLOAD_PAGE_TABLE_BASE + 0x1000,
             TD_PAYLOAD_PAGE_TABLE_BASE + PAGE_TABLE_SIZE as u64,
         );

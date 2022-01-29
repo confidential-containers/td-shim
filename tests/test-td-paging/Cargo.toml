@@ -1,7 +1,7 @@
 [package]
-name = "rust-test-paging"
+name = "test-td-paging"
 version = "0.1.0"
-description = "Run rust-paging test cases inside a VM"
+description = "Run td-paging unit test cases inside a VM"
 repository = "https://github.com/confidential-containers/td-shim"
 homepage = "https://github.com/confidential-containers"
 edition = "2018"
@@ -9,8 +9,8 @@ license = "BSD-2-Clause-Patent"
 
 [dev-dependencies]
 bootloader = "=0.10.9"
-paging = { path = "../../rust-paging" }
-rust-td-layout = { path = "../../rust-td-layout" }
+td-paging = { path = "../../td-paging" }
+td-layout = { path = "../../td-layout" }
 test_lib = { path = "../../test_lib" }
 
 [package.metadata.bootloader]

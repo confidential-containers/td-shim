@@ -7,13 +7,13 @@ edition = "2018"
 
 [features]
 default = []
-boot-kernel = ["rust-td-layout/boot-kernel"]
+boot-kernel = ["td-layout/boot-kernel"]
 
 [dependencies]
 r-efi = "3.2.0"
 r-uefi-pi =  { path = "../r-uefi-pi" }
 pe-loader = { path = "../pe-loader" }
-rust-td-layout = { path = "../rust-td-layout" }
+td-layout = { path = "../td-layout" }
 env_logger = "0.9.0"
 scroll = { version = "0.10", default-features=false }
 log = "^0.4.5"

@@ -14,7 +14,7 @@ use x86_64::{
 };
 
 use super::frame::{BMFrameAllocator, FRAME_ALLOCATOR};
-use rust_td_layout::runtime::TD_PAYLOAD_PAGE_TABLE_BASE;
+use td_layout::runtime::TD_PAYLOAD_PAGE_TABLE_BASE;
 
 const ALIGN_4K_BITS: u64 = 12;
 const ALIGN_4K: u64 = 1 << ALIGN_4K_BITS;

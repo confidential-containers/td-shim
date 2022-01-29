@@ -80,7 +80,7 @@ Stack guard is setup at `stack_guard_enable()` in [stack_guard.rs](../rust-tdshi
 
 [uefi-pi](../uefi-pi) provide uefi-pi structure access function.
 
-[rust-paging](../rust-paging) provides function to manage the page table.
+[td-paging](../td-paging) provides function to manage the page table.
 
 ### External dependency
 
@@ -94,7 +94,7 @@ Stack guard is setup at `stack_guard_enable()` in [stack_guard.rs](../rust-tdshi
 
 ### layout
 
-[rust-td-layout](../rust-td-layout) defines the layout of a TD.
+[td-layout](../td-layout) defines the layout of a TD.
 
 ## sample td-payload
 

@@ -39,9 +39,9 @@ use r_uefi_pi::pi::hob;
 use tdx_tdcall::tdx;
 use uefi_pi::pi::{fv_lib, hob_lib};
 
-use rust_td_layout::RuntimeMemoryLayout;
-use rust_td_layout::{build_time, build_time::*};
-use rust_td_layout::{runtime, runtime::*};
+use td_layout::RuntimeMemoryLayout;
+use td_layout::{build_time, build_time::*};
+use td_layout::{runtime, runtime::*};
 
 use core::panic::PanicInfo;
 
@@ -232,7 +232,7 @@ pub extern "win64" fn _start(
     let td_event_log_base = runtime_memory_layout.runtime_event_log_base;
     let td_acpi_base = runtime_memory_layout.runtime_acpi_base;
 
-    paging::init();
+    td_paging::init();
 
     let mut td_event_log = tcg::TdEventLog::init(memslice::get_dynamic_mem_slice_mut(
         SliceType::EventLog,
@@ -385,7 +385,7 @@ pub extern "win64" fn _start(
         alloc_descriptor: hob::MemoryAllocationHeader {
             name: *PAGE_TABLE_NAME_GUID.as_bytes(),
             memory_base_address: TD_PAYLOAD_PAGE_TABLE_BASE,
-            memory_length: paging::PAGE_TABLE_SIZE as u64,
+            memory_length: td_paging::PAGE_TABLE_SIZE as u64,
             memory_type: efi::MemoryType::BootServicesData as u32,
             reserved: [0u8; 4],
         },
