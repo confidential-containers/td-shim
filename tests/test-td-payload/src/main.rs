@@ -4,116 +4,71 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 #![no_std]
-#![no_main]
-#![allow(unused)]
-#![feature(alloc_error_handler)]
-#[macro_use]
+// The `custom_test_frameworks` feature allows the use of `#[test_case]` and `#![test_runner]`.
+// Any function, const, or static can be annotated with `#[test_case]` causing it to be aggregated
+// (like #[test]) and be passed to the test runner determined by the `#![test_runner]` crate
+// attribute.
+#![feature(custom_test_frameworks)]
+#![test_runner(test_runner)]
+// Reexport the test harness main function under a different symbol.
+#![reexport_test_harness_main = "test_main"]
+#![cfg_attr(test, no_main)]
 
-mod lib;
-mod tdinfo;
+#[cfg(test)]
+use bootloader::{entry_point, BootInfo};
+#[cfg(test)]
+use core::ops::Deref;
+#[cfg(test)]
+use test_runner_client::{init_heap, panic, serial_println, test_runner};
 
-extern crate alloc;
-use core::ffi::c_void;
-use core::panic::PanicInfo;
-use linked_list_allocator::LockedHeap;
-use td_layout::memslice;
-use tdx_tdcall::tdx;
+#[cfg(test)]
+entry_point!(kernel_main);
 
-use crate::lib::{TestResult, TestSuite};
-use crate::tdinfo::Tdinfo;
-use alloc::boxed::Box;
-use alloc::string::String;
-use alloc::vec::Vec;
+#[cfg(test)]
+fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
+    // turn the screen gray
+    if let Some(framebuffer) = boot_info.framebuffer.as_mut() {
+        for byte in framebuffer.buffer_mut() {
+            *byte = 0x90;
+        }
+    }
 
-use uefi_pi::hob_lib;
+    let memoryregions = boot_info.memory_regions.deref();
+    let offset = boot_info.physical_memory_offset.into_option().unwrap();
 
-#[cfg(not(test))]
-#[panic_handler]
-#[allow(clippy::empty_loop)]
-fn panic(_info: &PanicInfo) -> ! {
-    log::info!("panic ... {:?}\n", _info);
+    for usable in memoryregions.iter() {
+        if usable.kind == bootloader::boot_info::MemoryRegionKind::Usable {
+            init_heap((usable.start + offset) as usize, 0x100000);
+            break;
+        }
+    }
+
+    test_main();
+
     loop {}
 }
 
-#[alloc_error_handler]
-#[allow(clippy::empty_loop)]
-fn alloc_error(_info: core::alloc::Layout) -> ! {
-    log::info!("alloc_error ... {:?}\n", _info);
-    panic!("deadloop");
-}
+/*
+#[cfg(test)]
+mod tests {
 
-#[cfg(not(test))]
-#[global_allocator]
-pub static ALLOCATOR: LockedHeap = LockedHeap::empty();
+    #[test_case]
+    fn trivial_assertion() {
+        assert_eq!(1, 1);
+    }
 
-#[cfg(not(test))]
-pub fn init_heap(heap_start: usize, heap_size: usize) {
-    unsafe {
-        ALLOCATOR.lock().init(heap_start, heap_size);
+    #[test_case]
+    fn test_json() {
+        super::json_test();
     }
 }
-
-#[cfg(not(test))]
-#[no_mangle]
-#[cfg_attr(target_os = "uefi", export_name = "efi_main")]
-pub extern "win64" fn _start(hob: *const c_void) -> ! {
-    use td_layout::runtime::*;
-
-    tdx_logger::init();
-    log::info!("Starting rust-tdcall-payload hob - {:p}\n", hob);
-
-    // init heap so that we can allocate memory
-    let hob_buffer =
-        memslice::get_dynamic_mem_slice_mut(memslice::SliceType::PayloadHob, hob as usize);
-
-    let hob_size = hob_lib::get_hob_total_size(hob_buffer).unwrap();
-    let hob_list = &hob_buffer[..hob_size];
-
-    init_heap(
-        (hob_lib::get_system_memory_size_below_4gb(hob_list).unwrap() as usize
-            - (TD_PAYLOAD_HOB_SIZE
-                + TD_PAYLOAD_STACK_SIZE
-                + TD_PAYLOAD_SHADOW_STACK_SIZE
-                + TD_PAYLOAD_ACPI_SIZE
-                + TD_PAYLOAD_EVENT_LOG_SIZE) as usize
-            - TD_PAYLOAD_HEAP_SIZE as usize),
-        TD_PAYLOAD_HEAP_SIZE as usize,
-    );
-
-    // create TestSuite to hold the test cases
-    let mut ts = TestSuite {
-        testsuite: Vec::new(),
-        done_cases: 0,
-        failed_cases: 0,
-    };
-
-    // now we can create test case and put it to TestSuite
-    // test Tdinfo
-    let mut tdinfo = Tdinfo {
-        name: String::from("Tdinfo"),
-        hob: hob,
-        result: TestResult::Error,
-    };
-    ts.testsuite.push(Box::new(tdinfo));
-
-    // run the TestSuite which contains the test cases
-    log::info!("Start to run tests.\n");
-    log::info!("---------------------------------------------\n");
-    ts.run();
-    log::info!(
-        "Total: {0}, Done: {1}, Failed: {2}\n",
-        ts.testsuite.len(),
-        ts.done_cases,
-        ts.failed_cases
-    );
-
-    panic!("deadloop");
-}
+ */

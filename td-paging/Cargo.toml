@@ -4,8 +4,8 @@ version = "0.1.0"
 description = "A simple page table manager"
 repository = "https://github.com/confidential-containers/td-shim"
 homepage = "https://github.com/confidential-containers"
-edition = "2018"
 license = "BSD-2-Clause-Patent"
+edition = "2018"
 
 [dependencies]
 bitfield = "0.13.2"
