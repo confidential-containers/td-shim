@@ -10,7 +10,7 @@ use signer::*;
 use std::vec::Vec;
 use std::{env, fs, io::Write, path::Path};
 
-const SIGNED_TDPAYLOAD_NAME: &str = "rust-td-payload-signed";
+const SIGNED_TDPAYLOAD_NAME: &str = "td-payload-signed";
 
 fn main() {
     let args: Vec<String> = env::args().collect();

@@ -98,7 +98,7 @@ Stack guard is setup at `stack_guard_enable()` in [stack_guard.rs](../rust-tdshi
 
 ## sample td-payload
 
-[rust-td-payload](../rust-td-payload) is a sample payload. It supports benchmark collection, json parsing.
+[rust-td-payload](../td-payload) is a sample payload. It supports benchmark collection, json parsing.
 
 ## test tools
 

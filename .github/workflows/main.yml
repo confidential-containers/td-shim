@@ -65,17 +65,17 @@ jobs:
 
       - name: Build PE format payload
         run: |
-          pushd rust-td-payload
+          pushd td-payload
           cargo xbuild --target x86_64-unknown-uefi --release
           popd
-          cargo run -p rust-td-tool -- target/x86_64-unknown-uefi/release/ResetVector.bin target/x86_64-unknown-uefi/release/rust-tdshim.efi target/x86_64-unknown-uefi/release/rust-td-payload.efi target/x86_64-unknown-uefi/release/final.bin
+          cargo run -p rust-td-tool -- target/x86_64-unknown-uefi/release/ResetVector.bin target/x86_64-unknown-uefi/release/rust-tdshim.efi target/x86_64-unknown-uefi/release/td-payload.efi target/x86_64-unknown-uefi/release/final.bin
 
       - name: Build Elf format payload
         run: |
-          pushd rust-td-payload
+          pushd td-payload
           cargo xbuild --target target.json --release
           popd
-          cargo run -p rust-td-tool -- target/x86_64-unknown-uefi/release/ResetVector.bin target/x86_64-unknown-uefi/release/rust-tdshim.efi target/target//release/rust-td-payload target/x86_64-unknown-uefi/release/final.bin
+          cargo run -p rust-td-tool -- target/x86_64-unknown-uefi/release/ResetVector.bin target/x86_64-unknown-uefi/release/rust-tdshim.efi target/target//release/td-payload target/x86_64-unknown-uefi/release/final.bin
 
   test:
     name: Test
@@ -114,6 +114,6 @@ jobs:
       - name: "Print QEMU Version"
         run: qemu-system-x86_64 --version
 
-      - name: "test rust-td-payload"
-        working-directory: rust-td-payload
-        run: cargo ktest
+      - name: "test td-payload"
+        working-directory: tests/test-td-payload
+        run: cargo test --target ../devtools/rustc-target/x86_64-custom.json

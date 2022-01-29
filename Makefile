@@ -11,7 +11,7 @@ endif
 LIB_CRATES = td-layout td-paging
 LIB_TEST_CRATES = test-td-paging test-td-payload
 SHIM_CRATES = rust-tdshim
-PAYLOAD_CRATES = rust-td-payload
+PAYLOAD_CRATES = tdx-payload
 
 # Targets for normal artifacts
 all: install-devtools build test

@@ -1,12 +1,11 @@
 [workspace]
 resolver = "2"
-default-members = ["rust-tdshim", "rust-td-payload"]
+default-members = ["rust-tdshim", "td-payload"]
 members = [
     "devtools/td-layout-config",
     "devtools/test-runner-server",
     "devtools/test-runner-client",
     "rust-tdshim",
-    "rust-td-payload",
     "rust-td-tool",
     "benchmark",
     "fuzzing/fuzz_pe_loader",
@@ -17,6 +16,7 @@ members = [
     "rust-tdshim-key-enroll",
     "td-layout",
     "td-paging",
+    "td-payload",
     "tests/test-td-paging",
     "tests/test-td-payload",
 ]
