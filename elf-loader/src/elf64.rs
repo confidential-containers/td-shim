@@ -787,7 +787,7 @@ mod test_elf_loader {
 
     #[test]
     fn test_elfheader() {
-        let pe_image = &include_bytes!("../../target/target/release/rust-td-payload")[..];
+        let pe_image = &include_bytes!("../../target/target/release/td-payload")[..];
 
         let elf = crate::elf64::Elf::parse(pe_image).unwrap();
         println!("{:?}\n", elf.header);

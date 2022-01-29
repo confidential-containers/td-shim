@@ -130,7 +130,7 @@ fn main() {
                     }
                 }
                 Err(_) => {
-                    let path = "fuzzing/in/fuzz_elf_loader/rust-td-payload";
+                    let path = "fuzzing/in/fuzz_elf_loader/td-payload";
                     let data = std::fs::read(path).expect("read crash file fail");
                     fuzz_elf_loader(data.as_slice());
                 }

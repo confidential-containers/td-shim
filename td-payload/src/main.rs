@@ -76,7 +76,7 @@ mod payload_impl {
     #[cfg_attr(target_os = "uefi", export_name = "efi_main")]
     pub extern "win64" fn _start(hob: *const c_void) -> ! {
         tdx_logger::init().expect("td-payload: failed to initialize tdx logger");
-        log::info!("Starting rust-td-payload hob - {:p}\n", hob);
+        log::info!("Starting td-payload hob - {:p}\n", hob);
         log::info!("setup_exception_handlers done\n");
 
         let hob_buffer = unsafe {
@@ -111,7 +111,7 @@ mod payload_impl {
         tdx_tdcall::tdreport::tdreport_dump();
 
         //Test JSON function using no-std serd_json.
-        rust_td_payload::json_test();
+        td_payload::json_test();
 
         //Stack guard test
         unsafe { stack_guard_test() };

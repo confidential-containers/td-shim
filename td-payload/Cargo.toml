@@ -1,5 +1,5 @@
 [package]
-name = "rust-td-payload"
+name = "td-payload"
 version = "0.1.0"
 description = "A sample TD module/driver for TDX hardware platforms"
 repository = "https://github.com/confidential-containers/td-shim"
