@@ -21,7 +21,7 @@ use bootloader::{boot_info as info, entry_point, BootInfo};
 #[cfg(test)]
 use core::ops::Deref;
 #[cfg(test)]
-use test_lib::{init_heap, panic, serial_println, test_runner};
+use test_runner_client::{init_heap, panic, serial_println, test_runner};
 
 #[cfg(test)]
 fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
