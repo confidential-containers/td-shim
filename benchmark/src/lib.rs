@@ -12,8 +12,8 @@ extern crate alloc;
 use core::alloc::GlobalAlloc;
 use core::alloc::Layout;
 use linked_list_allocator::LockedHeap;
-use rust_td_layout::RuntimeMemoryLayout;
 use scroll::Pread;
+use td_layout::RuntimeMemoryLayout;
 
 #[global_allocator]
 pub static ALLOCATOR: MyHeap = MyHeap::empty();

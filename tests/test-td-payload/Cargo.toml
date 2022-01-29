@@ -1,39 +1,38 @@
 [package]
 name = "test-tdx-payload"
 version = "0.1.0"
-authors = [
-    "grace.zhou@intel.com"
-    ]
+description = "Run td-paging unit test cases inside a VM"
+repository = "https://github.com/confidential-containers/td-shim"
+homepage = "https://github.com/confidential-containers"
+license = "BSD-2-Clause-Patent"
 edition = "2018"
 
 [features]
-cet-ss = []
-# add build process
-# build = "build.rs"
-
-#[build-dependencies]
-#cc = { version = "1.0.62", default-features = false }
-
+#cet-ss = []
 
 [dependencies]
-spin = "0.5.2"
-r-efi = "3.2.0"
-linked_list_allocator = "0.9.0"
-log = "0.4.13"
-r-uefi-pi =  { path = "../../r-uefi-pi" }
-uefi-pi =  { path = "../../uefi-pi" }
-tdx-tdcall = { path = "../../tdx-tdcall" }
-tdx-logger =  { path = "../../tdx-logger" }
-tdx-exception =  { path = "../../tdx-exception" }
-td-layout = { path = "../../td-layout" }
-scroll = { version = "0.10", default-features = false, features = ["derive"]}
-
 bootloader = "0.10.9"
+lazy_static = {version = "1.4.0", features = ["spin_no_std"] }
 
+#bootloader = "=0.10.9"
+#spin = "0.9.2"
+#r-uefi-pi =  { path = "../r-uefi-pi" }
+#tdx-exception =  { path = "../tdx-exception" }
+#scroll = { version = "0.10", default-features = false, features = ["derive"]}
+#x86 = "0.41.0"
+#test-runner-client = { path = "../devtools/test-runner-client" }
 
-[dependencies.lazy_static]
-version = "1.0"
-features = ["spin_no_std"]
+#spin = "0.5.2"
+#r-efi = "3.2.0"
+#linked_list_allocator = "0.9.0"
+#log = "0.4.13"
+#r-uefi-pi =  { path = "../../r-uefi-pi" }
+#uefi-pi =  { path = "../../uefi-pi" }
+#tdx-tdcall = { path = "../../tdx-tdcall" }
+#tdx-logger =  { path = "../../tdx-logger" }
+#tdx-exception =  { path = "../../tdx-exception" }
+#td-layout = { path = "../../td-layout" }
+#scroll = { version = "0.10", default-features = false, features = ["derive"]}
 
 [package.metadata.bootloader]
 map-physical-memory = true
