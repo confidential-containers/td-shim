@@ -148,7 +148,8 @@ fn wait_for_ap_responde(mail_box: &mut MailBox) {
 
 // Wait for APs to arrive by checking if they are available
 fn wait_for_ap_arrive(ap_num: u32) {
-    let mut mail_box = MailBox::new(get_mem_slice_mut(SliceType::MailBox));
+    // TODO: Safe because we are the consumer?
+    let mut mail_box = unsafe { MailBox::new(get_mem_slice_mut(SliceType::MailBox)) };
     for i in make_apic_range(ap_num) {
         mail_box.set_apic_id(i);
         mail_box.set_command(MP_WAKEUP_COMMAND_AVAILABLE);
@@ -158,7 +159,8 @@ fn wait_for_ap_arrive(ap_num: u32) {
 }
 
 pub fn ap_assign_work(apic_id: u32, stack: u64, entry: u32) {
-    let mut mail_box = MailBox::new(get_mem_slice_mut(SliceType::MailBox));
+    // TODO: safe because we are the consumer?
+    let mut mail_box = unsafe { MailBox::new(get_mem_slice_mut(SliceType::MailBox)) };
     mail_box.set_wakeup_vector(entry);
     mail_box.set_fw_arg(0, stack);
 
@@ -189,7 +191,8 @@ fn td_accept_pages(address: u64, pages: u64, page_size: u64) {
 }
 
 fn parallel_accept_memory(apic_id: u64) {
-    let mail_box = MailBox::new(get_mem_slice_mut(SliceType::MailBox));
+    // TODO: safe because we are the only user?
+    let mail_box = unsafe { MailBox::new(get_mem_slice_mut(SliceType::MailBox)) };
 
     // The cpu number, start and end address of memory to be accepted is
     // set to mailbox fw arguments by mp_accept_memory_resource_range()
@@ -241,7 +244,8 @@ pub fn mp_accept_memory_resource_range(mut cpu_num: u32, address: u64, size: u64
     wait_for_ap_arrive(active_ap_cnt);
 
     let mut stacks: Vec<u8> = Vec::with_capacity(AP_TEMP_STACK_SIZE * active_ap_cnt as usize);
-    let mut mail_box = MailBox::new(get_mem_slice_mut(SliceType::MailBox));
+    // TODO: safe because we are the only user?
+    let mut mail_box = unsafe { MailBox::new(get_mem_slice_mut(SliceType::MailBox)) };
 
     // BSP calles the same function parallel_accept_memory to accept memory,
     // so set the firmware arguments here.

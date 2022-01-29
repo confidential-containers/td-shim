@@ -33,7 +33,6 @@ entry_point!(kernel_main);
 extern crate alloc;
 
 mod asm;
-mod memslice;
 
 #[cfg(test)]
 use test_runner_client::{init_heap, panic, serial_println, test_runner};
@@ -44,6 +43,7 @@ use benchmark::{BenchmarkContext, ALLOCATOR};
 use linked_list_allocator::LockedHeap;
 
 use core::alloc::Layout;
+use td_layout::memslice;
 use td_layout::runtime::*;
 use uefi_pi::pi::hob_lib;
 

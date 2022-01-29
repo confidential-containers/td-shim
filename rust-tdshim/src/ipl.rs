@@ -34,7 +34,8 @@ pub fn find_and_report_entry_point(
     mem: &mut Memory,
     image_buffer: &[u8],
 ) -> Option<(u64, u64, u64)> {
-    let loaded_buffer = memslice::get_mem_slice_mut(memslice::SliceType::Payload);
+    // Safe because we are the only user.
+    let loaded_buffer = unsafe { memslice::get_mem_slice_mut(memslice::SliceType::Payload) };
     let loaded_buffer_slice = loaded_buffer.as_ptr() as u64;
     let res = if elf::is_elf(image_buffer) {
         elf::relocate_elf_with_per_program_header(image_buffer, loaded_buffer, |ph| {

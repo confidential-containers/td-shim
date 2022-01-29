@@ -18,7 +18,6 @@ mod heap;
 mod ipl;
 mod linux;
 mod memory;
-mod memslice;
 mod mp;
 mod stack_guard;
 mod tcg;
@@ -39,9 +38,10 @@ use r_uefi_pi::pi::hob;
 use tdx_tdcall::tdx;
 use uefi_pi::pi::{fv_lib, hob_lib};
 
+use td_layout::build_time::{self, *};
+use td_layout::memslice;
+use td_layout::runtime::{self, *};
 use td_layout::RuntimeMemoryLayout;
-use td_layout::{build_time, build_time::*};
-use td_layout::{runtime, runtime::*};
 
 use core::panic::PanicInfo;
 
@@ -49,7 +49,6 @@ use core::ffi::c_void;
 
 use crate::e820::create_e820_entries;
 use crate::memory::Memory;
-use crate::memslice::SliceType;
 use crate::verify::PayloadVerifier;
 use scroll::{Pread, Pwrite};
 use zerocopy::{AsBytes, FromBytes};
@@ -234,11 +233,14 @@ pub extern "win64" fn _start(
 
     td_paging::init();
 
-    let mut td_event_log = tcg::TdEventLog::init(memslice::get_dynamic_mem_slice_mut(
-        SliceType::EventLog,
-        td_event_log_base as usize,
-    ));
-
+    // Safe because it's used to initialize the EventLog subsystem which ensures safety.
+    let event_log_buf = unsafe {
+        memslice::get_dynamic_mem_slice_mut(
+            memslice::SliceType::EventLog,
+            td_event_log_base as usize,
+        )
+    };
+    let mut td_event_log = tcg::TdEventLog::init(event_log_buf);
     log_hob_list(hob_list, &mut td_event_log);
 
     let fv_buffer = memslice::get_mem_slice(memslice::SliceType::ShimPayload);
@@ -336,9 +338,13 @@ pub extern "win64" fn _start(
         match vmm_kernel.image_type {
             0 => {}
             1 => {
-                let acpi_slice =
-                    memslice::get_dynamic_mem_slice_mut(SliceType::Acpi, td_acpi_base as usize);
-
+                // Safe because we are the only consumer.
+                let acpi_slice = unsafe {
+                    memslice::get_dynamic_mem_slice_mut(
+                        memslice::SliceType::Acpi,
+                        td_acpi_base as usize,
+                    )
+                };
                 let mut acpi_tables = acpi::AcpiTables::new(acpi_slice);
 
                 //Create and install MADT and TDEL
@@ -362,12 +368,10 @@ pub extern "win64" fn _start(
                 // build the XSDT and RSDP
                 let rsdp = acpi_tables.finish();
                 let e820_table = create_e820_entries(&runtime_memory_layout);
+                // Safe because we are handle off this buffer to linux kernel.
+                let payload = unsafe { memslice::get_mem_slice_mut(memslice::SliceType::Payload) };
 
-                linux::boot::boot_kernel(
-                    memslice::get_mem_slice_mut(memslice::SliceType::Payload),
-                    rsdp,
-                    e820_table.as_slice(),
-                );
+                linux::boot::boot_kernel(payload, rsdp, e820_table.as_slice());
                 panic!("deadloop");
             }
             _ => {
@@ -452,7 +456,7 @@ pub extern "win64" fn _start(
 
     #[cfg(feature = "secure-boot")]
     {
-        let cfv = memslice::get_mem_slice(SliceType::Config);
+        let cfv = memslice::get_mem_slice(memslice::SliceType::Config);
         let verifier = PayloadVerifier::new(payload, cfv);
         if let Some(verifier) = &verifier {
             td_event_log.create_td_event(
@@ -520,8 +524,13 @@ pub extern "win64" fn _start(
         },
     };
 
-    let hob_slice =
-        memslice::get_dynamic_mem_slice_mut(SliceType::PayloadHob, td_payload_hob_base as usize);
+    // Safe because we are the only consumer.
+    let hob_slice = unsafe {
+        memslice::get_dynamic_mem_slice_mut(
+            memslice::SliceType::PayloadHob,
+            td_payload_hob_base as usize,
+        )
+    };
     let _res = hob_slice.pwrite(hob_template, 0);
 
     stack_guard::stack_guard_enable(&mut mem);
