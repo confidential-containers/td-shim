@@ -18,13 +18,13 @@
 #[macro_use]
 
 mod lib;
-mod memslice;
 mod tdinfo;
 
 extern crate alloc;
 use core::ffi::c_void;
 use core::panic::PanicInfo;
 use linked_list_allocator::LockedHeap;
+use td_layout::memslice;
 use tdx_tdcall::tdx;
 
 use crate::lib::{TestResult, TestSuite};

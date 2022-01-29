@@ -23,6 +23,7 @@ use core::fmt;
 
 pub mod build_time;
 pub mod mailbox;
+pub mod memslice;
 pub mod metadata;
 pub mod runtime;
 
