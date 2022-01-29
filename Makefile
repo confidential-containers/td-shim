@@ -8,34 +8,41 @@ else
 	export BUILD_TYPE_FLAG=
 endif
 
-CORE_CRATES = td-layout td-paging
-TEST_CRATES = test-td-paging
+LIB_CRATES = td-layout td-paging
+LIB_TEST_CRATES = test-td-paging
+SHIM_CRATES = rust-tdshim
+PAYLOAD_CRATES = rust-td-payload
 
-# Global targets
-all: devtools build test
+# Targets for normal artifacts
+all: install-devtools build test
 
-build: $(CORE_CRATES:%=build-%) $(TEST_CRATES:%=build-%)
+build: $(SHIM_CRATES:%=uefi-build-%) $(PAYLOAD_CRATES:%=custom-build-%)
 
-check: $(CORE_CRATES:%=check-%) $(TEST_CRATES:%=check-%)
+check: $(SHIM_CRATES:%=uefi-check-%) $(PAYLOAD_CRATES:%=custom-check-%)
 
-clean: $(CORE_CRATES:%=clean-%) $(TEST_CRATES:%=clean-%)
+clean: $(SHIM_CRATES:%=clean-%) $(PAYLOAD_CRATES:%=clean-%)
 
-test: $(CORE_CRATES:%=test-%)
-
-full-test: $(CORE_CRATES:%=test-%) $(TEST_CRATES:%=test-%)
+test: $(SHIM_CRATES:%=test-%) $(PAYLOAD_CRATES:%=test-%)
 
 install:
 
 uninstall:
 
-# Devtools targets
-build-devtools: build-subdir-devtools
+# Targets for whole project
+full-build: lib-build build
 
-install-devtools: build-devtools install-subdir-devtools
+full-check: lib-check check
+
+full-test: lib-test test
+
+full-clean: lib-clean clean clean-subdir-devtools
+
+# Targets for development tools
+install-devtools: build-subdir-devtools install-subdir-devtools
 
 uninstall-devtools: uninstall-subdir-devtools
 
-# Subdir targets
+# Targets for subdirectory
 build-subdir-%:
 	make -C $(patsubst build-subdir-%,%,$@) build
 
@@ -51,7 +58,36 @@ install-subdir-%:
 uninstall-subdir-%:
 	make -C $(patsubst uninstall-subdir-%,%,$@) uninstall
 
-# Crate targets
+# Targets for library crates
+lib-build: $(LIB_CRATES:%=build-%) $(LIB_TEST_CRATES:%=custom-build-%)
+
+lib-check: $(LIB_CRATES:%=check-%) $(LIB_TEST_CRATES:%=custom-check-%)
+
+lib-test: $(LIB_CRATES:%=test-%) $(LIB_TEST_CRATES:%=custom-test-%)
+
+lib-clean: $(LIB_CRATES:%=clean-%) $(LIB_TEST_CRATES:%=clean-%)
+
+# Target for crates which should be compiled for `x86_64-unknown-uefi` target
+uefi-build-%:
+	cargo xbuild --target x86_64-unknown-uefi -p $(patsubst uefi-build-%,%,$@) ${BUILD_TYPE_FLAG}
+
+uefi-check-%:
+	cargo xcheck --target x86_64-unknown-uefi -p $(patsubst uefi-check-%,%,$@) ${BUILD_TYPE_FLAG}
+
+uefi-test-%:
+	cargo xtest --target x86_64-unknown-uefi -p $(patsubst uefi-test-%,%,$@) ${BUILD_TYPE_FLAG}
+
+# Target for crates which should be compiled for `x86_64-custom.json` target
+custom-build-%:
+	cargo xbuild --target ${TOPDIR}/devtools/rustc-targets/x86_64-custom.json -p $(patsubst custom-build-%,%,$@) ${BUILD_TYPE_FLAG}
+
+custom-check-%:
+	cargo xcheck --target ${TOPDIR}/devtools/rustc-targets/x86_64-custom.json -p $(patsubst custom-check-%,%,$@) ${BUILD_TYPE_FLAG}
+
+custom-test-%:
+	cargo xtest --target ${TOPDIR}/devtools/rustc-targets/x86_64-custom.json -p $(patsubst custom-test-%,%,$@) ${BUILD_TYPE_FLAG}
+
+# Targets for normal library/binary crates
 build-%:
 	cargo build -p $(patsubst build-%,%,$@) ${BUILD_TYPE_FLAG}
 

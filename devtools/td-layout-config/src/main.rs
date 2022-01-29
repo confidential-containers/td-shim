@@ -460,14 +460,16 @@ impl TdLayoutRuntime {
 
 fn main() {
     let matches = app_from_crate!()
-        .arg(arg!([output] "Directory to store the generated layout files"))
+        .arg(
+            arg!([output] "Directory to store the generated layout files")
+                .required(true)
+                .allow_invalid_utf8(false),
+        )
         .arg(
             arg!(
                 -c --config <FILE> "Custom configuration file to generate the layout files from"
             )
-            // We don't have syntax yet for optional options, so manually calling `required`
             .required(true)
-            // Support non-UTF8 paths
             .allow_invalid_utf8(false),
         )
         .get_matches();
