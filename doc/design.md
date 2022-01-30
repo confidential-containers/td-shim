@@ -102,7 +102,7 @@ Stack guard is setup at `stack_guard_enable()` in [stack_guard.rs](../rust-tdshi
 
 ## test tools
 
-[benchmark](../benchmark) is to help collect benchmark information, such as stack usage, heap usage, execution time.
+[benchmark](../devtools/td-benchmark) is to help collect benchmark information, such as stack usage, heap usage, execution time.
 
 [fuzzing-test](../fuzzing) includes sample fuzzing test. Refer to [fuzzing](doc/fuzzing.md) doc for more detail.
 
