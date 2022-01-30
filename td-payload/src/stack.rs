@@ -13,7 +13,7 @@
 // limitations under the License.
 // This function will cause page fault by memory protection.
 
-use benchmark::BenchmarkContext;
+use td_benchmark::BenchmarkContext;
 use td_layout::RuntimeMemoryLayout;
 
 fn test_stack() {
