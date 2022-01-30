@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
+use core::ptr::slice_from_raw_parts;
 use scroll::{Pread, Pwrite};
 
 const TDX_METADATA_GUID1: u32 = 0xe9eaf9f3;
@@ -141,10 +142,32 @@ impl Default for TdxMetadata {
     }
 }
 
+impl TdxMetadata {
+    pub fn as_bytes(&self) -> &[u8] {
+        unsafe {
+            &*slice_from_raw_parts(
+                self as *const TdxMetadata as *const u8,
+                core::mem::size_of::<Self>(),
+            )
+        }
+    }
+}
+
 #[repr(C)]
 #[derive(Default, Pwrite, Pread)]
 pub struct TdxMetadataPtr {
     pub ptr: u32,
+}
+
+impl TdxMetadataPtr {
+    pub fn as_bytes(&self) -> &[u8] {
+        unsafe {
+            &*slice_from_raw_parts(
+                self as *const TdxMetadataPtr as *const u8,
+                core::mem::size_of::<Self>(),
+            )
+        }
+    }
 }
 
 #[cfg(test)]
