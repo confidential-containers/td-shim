@@ -18,6 +18,7 @@ use scroll::{Pread, Pwrite};
 use pe_loader::pe;
 use r_efi::efi::Guid;
 use r_uefi_pi::fv::*;
+use std::ops::RangeInclusive;
 use std::str::FromStr;
 use td_layout::build_time::*;
 use td_layout::mailbox::*;
@@ -434,133 +435,139 @@ impl ResetVectorParams {
     }
 }
 
+struct InputData {
+    data: Vec<u8>,
+}
+
+impl InputData {
+    fn new(name: &str, range: RangeInclusive<usize>, desc: &str) -> io::Result<Self> {
+        // Check file size first to avoid allocating too much memory.
+        let md = fs::metadata(name).map_err(|e| {
+            error!("Can not get metadata of file {}: {}", name, e);
+            e
+        })?;
+        if md.len() > TD_SHIM_FIRMWARE_SIZE as u64 {
+            error!(
+                "Size of {} file ({}) is invalid, should be {}-{}",
+                desc,
+                md.len(),
+                range.start(),
+                range.end()
+            );
+            return Err(io::Error::new(io::ErrorKind::Other, "invalid file size"));
+        }
+
+        let data = fs::read(name).map_err(|e| {
+            error!("Can not read data from file {}: {}", name, e);
+            e
+        })?;
+        let len = data.len();
+        if !range.contains(&len) {
+            error!(
+                "Size of {} file ({}) is invalid, should be {}-{}",
+                desc,
+                len,
+                range.start(),
+                range.end()
+            );
+            return Err(io::Error::new(io::ErrorKind::Other, "invalid file size"));
+        }
+
+        Ok(InputData { data })
+    }
+}
+
+struct OutputFile {
+    file: File,
+    name: String,
+}
+
+impl OutputFile {
+    fn new(name: &str) -> io::Result<Self> {
+        let file = File::create(name).map_err(|e| {
+            error!("Can not open output file {}: {}", name, e);
+            e
+        })?;
+
+        Ok(Self {
+            file,
+            name: name.to_owned(),
+        })
+    }
+
+    fn seek_and_write(&mut self, off: u64, data: &[u8], desc: &str) -> io::Result<()> {
+        self.file
+            .seek(SeekFrom::Start(off))
+            .and(self.file.write_all(data))
+            .map_err(|e| {
+                error!("Can not write {} to file {}: {}", desc, self.name, e);
+                e
+            })
+    }
+
+    fn write(&mut self, data: &[u8], desc: &str) -> io::Result<()> {
+        self.file.write_all(data).map_err(|e| {
+            error!("Can not write {} to file {}: {}", desc, self.name, e);
+            e
+        })
+    }
+}
+
 fn build_firmware(
     reset_name: &str,
     ipl_name: &str,
     payload_name: &str,
     output_name: &str,
 ) -> io::Result<()> {
-    let reset_vector_bin = fs::read(reset_name).map_err(|e| {
-        error!("Can not read from reset_vector file {}: {}", reset_name, e);
-        e
-    })?;
-    if reset_vector_bin.len() != TD_SHIM_RESET_VECTOR_SIZE as usize {
-        error!(
-            "Size of reset vector file ({}) is invalid, should be {}",
-            reset_vector_bin.len(),
-            TD_SHIM_RESET_VECTOR_SIZE
-        );
-        return Err(io::Error::new(
-            io::ErrorKind::Other,
-            "invalid reset vector file szie",
-        ))?;
-    }
-
-    let ipl_bin = fs::read(ipl_name).map_err(|e| {
-        error!("Can not read from IPL file {}: {}", ipl_name, e);
-        e
-    })?;
-    if ipl_bin.len() > MAX_IPL_CONTENT_SIZE {
-        error!(
-            "Shim internal payload content (0x{:x} bytes) exceeds the max capacity (0x{:x} bytes)",
-            ipl_bin.len(),
-            MAX_IPL_CONTENT_SIZE
-        );
-        return Err(io::Error::from(io::ErrorKind::Other));
-    }
-
-    let payload_bin = fs::read(payload_name).map_err(|e| {
-        error!("Can not read from payload file {}: {}", payload_name, e);
-        e
-    })?;
-    if payload_bin.len() > MAX_PAYLOAD_CONTENT_SIZE {
-        error!(
-            "Shim payload content (0x{:x} bytes) exceeds the max capacity (0x{:x} bytes)",
-            payload_bin.len(),
-            MAX_PAYLOAD_CONTENT_SIZE
-        );
-        return Err(io::Error::from(io::ErrorKind::Other));
-    }
-
-    let mut output_file = File::create(output_name).map_err(|e| {
-        error!("Can not open output file {}: {}", output_name, e);
-        e
-    })?;
+    let reset_vector_bin = InputData::new(
+        reset_name,
+        TD_SHIM_RESET_VECTOR_SIZE as usize..=TD_SHIM_RESET_VECTOR_SIZE as usize,
+        "reset_vector",
+    )?;
+    let ipl_bin = InputData::new(ipl_name, 0..=MAX_IPL_CONTENT_SIZE, "IPL")?;
+    let payload_bin = InputData::new(payload_name, 0..=MAX_PAYLOAD_CONTENT_SIZE, "payload")?;
+    let mut output_file = OutputFile::new(output_name)?;
 
     let mailbox = TdxMpWakeupMailbox::default();
-    output_file
-        .seek(SeekFrom::Start(TD_SHIM_MAILBOX_OFFSET as u64))
-        .and(output_file.write_all(mailbox.as_bytes()))
-        .map_err(|e| {
-            error!(
-                "Can not write mailbox content to file {}: {}",
-                output_name, e
-            );
-            e
-        })?;
+    output_file.seek_and_write(
+        TD_SHIM_MAILBOX_OFFSET as u64,
+        mailbox.as_bytes(),
+        "mailbox content",
+    )?;
 
     let payload_header = PayloadFvHeaderByte::build_tdx_payload_fv_header();
-    output_file
-        .seek(SeekFrom::Start(TD_SHIM_PAYLOAD_OFFSET as u64))
-        .and(output_file.write_all(&payload_header.data))
-        .map_err(|e| {
-            error!(
-                "Can not write payload header to file {}: {}",
-                output_name, e
-            );
-            e
-        })?;
+    output_file.seek_and_write(
+        TD_SHIM_PAYLOAD_OFFSET as u64,
+        &payload_header.data,
+        "payload header",
+    )?;
 
     if RELOCATE_PAYLOAD {
         let mut payload_reloc_buf = vec![0x0u8; MAX_PAYLOAD_CONTENT_SIZE];
         let reloc = pe::relocate(
-            &payload_bin,
+            &payload_bin.data,
             &mut payload_reloc_buf,
             TD_SHIM_PAYLOAD_BASE as usize + payload_header.data.len(),
         )
         .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "Can not relocate payload content"))?;
         trace!("shim payload relocated to 0x{:x}", reloc);
-        output_file.write_all(&payload_reloc_buf).map_err(|e| {
-            error!(
-                "Can not write payload content to file {}: {}",
-                output_name, e
-            );
-            e
-        })?;
+        output_file.write(&payload_reloc_buf, "payload content")?;
     } else {
-        output_file.write_all(&payload_bin).map_err(|e| {
-            error!(
-                "Can not write payload content to file {}: {}",
-                output_name, e
-            );
-            e
-        })?;
+        output_file.write(&payload_bin.data, "payload content")?;
     }
 
     let metadata = build_tdx_metadata();
     let pos = TD_SHIM_PAYLOAD_OFFSET as u64 + TD_SHIM_PAYLOAD_SIZE as u64
         - size_of::<TdxMetadata>() as u64;
-    output_file
-        .seek(SeekFrom::Start(pos))
-        .and(output_file.write_all(metadata.as_bytes()))
-        .map_err(|e| {
-            error!("Can not write metadata to file {}: {}", output_name, e);
-            e
-        })?;
+    output_file.seek_and_write(pos, metadata.as_bytes(), "metadata")?;
 
     let ipl_header = IplFvHeaderByte::build_tdx_ipl_fv_header();
-    output_file
-        .seek(SeekFrom::Start(TD_SHIM_IPL_OFFSET as u64))
-        .and(output_file.write_all(&ipl_header.data))
-        .map_err(|e| {
-            error!("Can not write IPL header to file {}: {}", output_name, e);
-            e
-        })?;
+    output_file.seek_and_write(TD_SHIM_IPL_OFFSET as u64, &ipl_header.data, "IPL header")?;
 
     let reset_vector_header = ResetVectorHeader::build_tdx_reset_vector_header();
     let mut ipl_reloc_buf = vec![0x00u8; MAX_IPL_CONTENT_SIZE];
     // relocate ipl to 1M
-    let reloc = pe::relocate(&ipl_bin, &mut ipl_reloc_buf, 0x100000 as usize)
+    let reloc = pe::relocate(&ipl_bin.data, &mut ipl_reloc_buf, 0x100000 as usize)
         .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "Can not relocate IPL content"))?;
     trace!(
         "reloc IPL entrypoint - 0x{:x} - base: 0x{:x}",
@@ -570,6 +577,7 @@ fn build_firmware(
 
     let entry_point = (reloc - 0x100000) as u32;
     let current_pos = output_file
+        .file
         .metadata()
         .map_err(|e| {
             error!("Can not get size of file {}", output_name);
@@ -579,59 +587,20 @@ fn build_firmware(
     let reset_vector_info = ResetVectorParams {
         entry_point,
         img_base: TD_SHIM_FIRMWARE_BASE + current_pos as u32,
-        img_size: ipl_bin.len() as u32,
+        img_size: ipl_bin.data.len() as u32,
     };
 
-    output_file.write_all(&ipl_reloc_buf).map_err(|e| {
-        error!(
-            "Can not write internal payload content to file {}: {}",
-            output_name, e
-        );
-        e
-    })?;
-    output_file
-        .write_all(reset_vector_header.as_bytes())
-        .map_err(|e| {
-            error!(
-                "Can not write reset vector header to file {}: {}",
-                output_name, e
-            );
-            e
-        })?;
-
-    output_file.write_all(&reset_vector_bin).map_err(|e| {
-        error!(
-            "Can not write reset vector content to file {}: {}",
-            output_name, e
-        );
-        e
-    })?;
+    output_file.write(&ipl_reloc_buf, "internal payload content")?;
+    output_file.write(reset_vector_header.as_bytes(), "reset vector header")?;
+    output_file.write(&reset_vector_bin.data, "reset vector content")?;
 
     // Overwrite the ResetVectorParams and TdxMetadataPtr.
     let pos = TD_SHIM_FIRMWARE_SIZE as u64 - 0x20 - size_of::<ResetVectorParams>() as u64;
-    output_file
-        .seek(SeekFrom::Start(pos))
-        .and(output_file.write_all(reset_vector_info.as_bytes()))
-        .map_err(|e| {
-            error!(
-                "Can not write reset vector info to file {}: {}",
-                output_name, e
-            );
-            e
-        })?;
-
+    output_file.seek_and_write(pos, reset_vector_info.as_bytes(), "reset vector info")?;
     let metadata_ptr = build_tdx_metadata_ptr();
-    output_file
-        .write_all(metadata_ptr.as_bytes())
-        .map_err(|e| {
-            error!(
-                "Can not write reset vector info to file {}: {}",
-                output_name, e
-            );
-            e
-        })?;
+    output_file.write(metadata_ptr.as_bytes(), "metadata_ptr")?;
 
-    output_file.sync_data()?;
+    output_file.file.sync_data()?;
 
     Ok(())
 }
