@@ -12,6 +12,7 @@ default = []
 boot-kernel = ["td-layout/boot-kernel"]
 
 [dependencies]
+clap = { version = "3.0", features = ["cargo"] }
 env_logger = "0.9.0"
 log = "0.4.5"
 pe-loader = { path = "../pe-loader" }

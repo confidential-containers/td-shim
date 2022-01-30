@@ -2,15 +2,38 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
+use core::ptr::slice_from_raw_parts;
 use scroll::{Pread, Pwrite};
 
 #[repr(C)]
-#[derive(Default, Pwrite, Pread)]
+#[derive(Pwrite, Pread)]
 pub struct TdxMpWakeupMailbox {
     pub command: u16,
     pub rsvd: u16,
     pub apic_id: u32,
     pub wakeup_vector: u64,
+}
+
+impl Default for TdxMpWakeupMailbox {
+    fn default() -> Self {
+        TdxMpWakeupMailbox {
+            command: 0,
+            rsvd: 0,
+            apic_id: 0xffff_ffff,
+            wakeup_vector: 0,
+        }
+    }
+}
+
+impl TdxMpWakeupMailbox {
+    pub fn as_bytes(&self) -> &[u8] {
+        unsafe {
+            &*slice_from_raw_parts(
+                self as *const TdxMpWakeupMailbox as *const u8,
+                core::mem::size_of::<Self>(),
+            )
+        }
+    }
 }
 
 #[cfg(test)]
