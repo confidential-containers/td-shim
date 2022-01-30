@@ -19,5 +19,6 @@ RUN apt-get update && \
 RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain nightly-2021-08-20
 RUN rustup toolchain install 1.58.1
 RUN rustup component add rust-src
+RUN rustup component add llvm-tools-preview
 COPY cargo_config /root/.cargo/config
 RUN cargo install cargo-xbuild

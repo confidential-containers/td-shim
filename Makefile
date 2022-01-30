@@ -16,9 +16,9 @@ PAYLOAD_CRATES = tdx-payload
 # Targets for normal artifacts
 all: install-devtools build test
 
-build: $(SHIM_CRATES:%=uefi-build-%) $(PAYLOAD_CRATES:%=custom-build-%)
+build: $(SHIM_CRATES:%=uefi-build-%) $(PAYLOAD_CRATES:%=td-build-%)
 
-check: $(SHIM_CRATES:%=uefi-check-%) $(PAYLOAD_CRATES:%=custom-check-%)
+check: $(SHIM_CRATES:%=uefi-check-%) $(PAYLOAD_CRATES:%=td-check-%)
 
 clean: $(SHIM_CRATES:%=clean-%) $(PAYLOAD_CRATES:%=clean-%)
 
@@ -59,11 +59,11 @@ uninstall-subdir-%:
 	make -C $(patsubst uninstall-subdir-%,%,$@) uninstall
 
 # Targets for library crates
-lib-build: $(LIB_CRATES:%=build-%) $(LIB_TEST_CRATES:%=custom-build-%)
+lib-build: $(LIB_CRATES:%=build-%) $(LIB_TEST_CRATES:%=td-build-%)
 
-lib-check: $(LIB_CRATES:%=check-%) $(LIB_TEST_CRATES:%=custom-check-%)
+lib-check: $(LIB_CRATES:%=check-%) $(LIB_TEST_CRATES:%=td-check-%)
 
-lib-test: $(LIB_CRATES:%=test-%) $(LIB_TEST_CRATES:%=custom-test-%)
+lib-test: $(LIB_CRATES:%=test-%) $(LIB_TEST_CRATES:%=td-test-%)
 
 lib-clean: $(LIB_CRATES:%=clean-%) $(LIB_TEST_CRATES:%=clean-%)
 
@@ -78,14 +78,14 @@ uefi-test-%:
 	cargo xtest --target x86_64-unknown-uefi -p $(patsubst uefi-test-%,%,$@) ${BUILD_TYPE_FLAG}
 
 # Target for crates which should be compiled for `x86_64-custom.json` target
-custom-build-%:
-	cargo xbuild --target ${TOPDIR}/devtools/rustc-targets/x86_64-custom.json -p $(patsubst custom-build-%,%,$@) ${BUILD_TYPE_FLAG}
+td-build-%:
+	cargo xbuild --target ${TOPDIR}/devtools/rustc-targets/x86_64-custom.json -p $(patsubst td-build-%,%,$@) ${BUILD_TYPE_FLAG}
 
-custom-check-%:
-	cargo xcheck --target ${TOPDIR}/devtools/rustc-targets/x86_64-custom.json -p $(patsubst custom-check-%,%,$@) ${BUILD_TYPE_FLAG}
+td-check-%:
+	cargo xcheck --target ${TOPDIR}/devtools/rustc-targets/x86_64-custom.json -p $(patsubst td-check-%,%,$@) ${BUILD_TYPE_FLAG}
 
-custom-test-%:
-	cargo xtest --target ${TOPDIR}/devtools/rustc-targets/x86_64-custom.json -p $(patsubst custom-test-%,%,$@) ${BUILD_TYPE_FLAG}
+td-test-%:
+	cargo xtest --target ${TOPDIR}/devtools/rustc-targets/x86_64-custom.json -p $(patsubst td-test-%,%,$@) ${BUILD_TYPE_FLAG}
 
 # Targets for normal library/binary crates
 build-%:
