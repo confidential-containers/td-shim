@@ -51,7 +51,7 @@ Generate public key file with private key:
 openssl rsa -inform der -in rsa-3072-private.pk8 -pubout -outform der -out rsa-3072-public.der
 ```
 
-## Sign payload with [rust-tdpayload-signing](../rust-tdpayload-signing)
+## Sign payload with [rust-tdpayload-signing](../td-shim-sign-payload)
 Using ECDSA NIST P384 as example:
 
 Clear environment varibles CC and AR at first:
