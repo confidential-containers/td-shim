@@ -1,5 +1,6 @@
 export CARGO=cargo
 export BUILD_TYPE:=debug
+export PREFIX:=/usr/local
 
 export TOPDIR=$(shell pwd)
 ifeq (${BUILD_TYPE},release)
@@ -11,21 +12,22 @@ endif
 LIB_CRATES = td-layout td-paging
 SHIM_CRATES = rust-tdshim td-payload
 TEST_CRATES = test-td-paging test-td-payload
+TOOL_CRATES = td-shim-ld
 
 # Targets for normal artifacts
 all: install-devtools build test
 
-build: $(SHIM_CRATES:%=uefi-build-%)
+build: $(SHIM_CRATES:%=uefi-build-%) $(TOOL_CRATES:%=build-%)
 
-check: $(SHIM_CRATES:%=uefi-check-%)
+check: $(SHIM_CRATES:%=uefi-check-%) $(TOOL_CRATES:%=check-%)
 
-clean: $(SHIM_CRATES:%=uefi-clean-%)
+clean: $(SHIM_CRATES:%=uefi-clean-%) $(TOOL_CRATES:%=clean-%)
 
-test: $(SHIM_CRATES:%=test-%)
+test: $(SHIM_CRATES:%=test-%) $(TOOL_CRATES:%=test-%)
 
-install:
+install: $(TOOL_CRATES:%=install-tool-%)
 
-uninstall:
+uninstall: $(TOOL_CRATES:%=uninstall-tool-%)
 
 # Targets to catch them all
 full-build: lib-build build integration-build
@@ -37,9 +39,24 @@ full-test: lib-test test integration-test
 full-clean: lib-clean clean integration-clean clean-subdir-devtools
 
 # Targets for development tools
-install-devtools: build-subdir-devtools install-subdir-devtools
+install-devtools: build-subdir-devtools install-subdir-devtools $(TOOL_CRATES:%=install-devtool-%)
 
-uninstall-devtools: uninstall-subdir-devtools
+uninstall-devtools: uninstall-subdir-devtools $(TOOL_CRATES:%=uninstall-devtool-%)
+
+install-devtool-%: build-%
+	mkdir -p ${TOPDIR}/devtools/bin
+	install -m u+rx ${TOPDIR}/target/${BUILD_TYPE}/$(patsubst install-devtool-%,%,$@) ${TOPDIR}/devtools/bin/
+
+uninstall-devtool-%:
+	rm ${TOPDIR}/devtools/bin/$(patsubst uninstall-devtool-%,%,$@)
+
+# Targets for tool crates
+install-tool-%: build-%
+	mkdir -p ${TOPDIR}/devtools/bin
+	install -m u+rx ${TOPDIR}/target/${BUILD_TYPE}/$(patsubst install-tool-%,%,$@) ${PREFIX}/bin/
+
+uninstall-tool-%:
+	rm ${PREFIX}/bin/$(patsubst uninstall-tool-%,%,$@)
 
 # Targets for library crates
 lib-build: $(LIB_CRATES:%=build-%)

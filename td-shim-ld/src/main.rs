@@ -431,7 +431,7 @@ fn main() -> std::io::Result<()> {
     let rust_firmware_name = &args[4];
 
     println!(
-        "\nrust-td-tool {} {} {} {}\n",
+        "\ntd-shim-ld {} {} {} {}\n",
         reset_vector_name, rust_ipl_name, rust_payload_name, rust_firmware_name
     );
 

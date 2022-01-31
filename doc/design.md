@@ -90,7 +90,7 @@ Stack guard is setup at `stack_guard_enable()` in [stack_guard.rs](../rust-tdshi
 
 ### tools
 
-[rust-td-tool](../rust-td-tool) is the tool to assembly all components into a TD.bin.
+[rust-td-tool](../td-shim-ld) is the tool to assembly all components into a TD.bin.
 
 ### layout
 
