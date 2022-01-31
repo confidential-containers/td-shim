@@ -477,6 +477,11 @@ impl InputData {
         Ok(InputData { data })
     }
 
+    /// Clear the internal data buffer.
+    pub fn clear(&mut self) {
+        self.data.clear()
+    }
+
     /// Get the input data.
     pub fn as_bytes(&self) -> &[u8] {
         &self.data
