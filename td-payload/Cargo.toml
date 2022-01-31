@@ -16,11 +16,12 @@ r-efi = "3.2.0"
 serde = { version = "1.0", default-features = false, features = ["derive"]}
 serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
 td-layout = { path = "../td-layout" }
-tdx-tdcall = { path = "../tdx-tdcall" }
-tdx-logger =  { path = "../tdx-logger" }
+tdx-tdcall = { path = "../tdx-tdcall", optional = true }
+tdx-logger =  { path = "../tdx-logger", optional = true }
 uefi-pi =  { path = "../uefi-pi" }
 
 [features]
-default = ["cet-ss"]
+default = []
 cet-ss = []
 benches = ["benchmark"]
+tdx = ["tdx-tdcall", "tdx-logger"]
