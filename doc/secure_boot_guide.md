@@ -68,7 +68,7 @@ popd
 ```
 The signed payload file **rust-td-payload-signed** is located in the same folder with input rust-td-payload.
 
-## Enroll public key into CFV with [rust-tdshim-key-enroll](../rust-tdshim-key-enroll)
+## Enroll public key into CFV with [rust-tdshim-key-enroll](../td-shim-enroll-key)
 Build final.bin:
 ```
 cargo run -p rust-td-tool -- target/x86_64-unknown-uefi/release/ResetVector.bin target/x86_64-unknown-uefi/release/rust-tdshim.efi target/target/release/rust-td-payload-signed target/x86_64-unknown-uefi/release/final.bin
