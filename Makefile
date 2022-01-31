@@ -12,7 +12,7 @@ endif
 LIB_CRATES = td-layout td-paging
 SHIM_CRATES = rust-tdshim td-payload
 TEST_CRATES = test-td-paging test-td-payload
-TOOL_CRATES = td-shim-ld
+TOOL_CRATES = td-shim-ld td-shim-enroll-key
 
 # Targets for normal artifacts
 all: install-devtools build test

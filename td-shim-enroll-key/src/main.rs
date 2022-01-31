@@ -11,10 +11,10 @@ use core::{convert::TryFrom, mem::size_of};
 use r_efi::efi::Guid;
 use r_uefi_pi::fv::*;
 use ring::digest;
-use rust_td_layout::build_time::{TD_SHIM_CONFIG_OFFSET, TD_SHIM_CONFIG_SIZE};
 use scroll::{Pread, Pwrite};
 use std::vec::Vec;
 use std::{env, fs, io::Write, path::Path};
+use td_layout::build_time::{TD_SHIM_CONFIG_OFFSET, TD_SHIM_CONFIG_SIZE};
 
 const CFV_FFS_HEADER_GUID: Guid = Guid::from_fields(
     0x77a2742e,

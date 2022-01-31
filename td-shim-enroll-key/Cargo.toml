@@ -1,5 +1,5 @@
 [package]
-name = "rust-tdshim-key-enroll"
+name = "td-shim-enroll-key"
 version = "0.1.0"
 edition = "2018"
 

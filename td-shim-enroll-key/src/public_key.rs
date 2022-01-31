@@ -11,15 +11,16 @@ use der::{
 
 // As specified in https://datatracker.ietf.org/doc/html/rfc5480#appendix-A
 // id-ecPublicKey OBJECT IDENTIFIER ::= {
-//     iso(1) member-body(2) us(840) ansi-X9-62(10045) keyType(2) 1 }
-// secp384r1 OBJECT IDENTIFIER ::= {
-//     iso(1) identified-organization(3) certicom(132) curve(0) 34 }
-//
+//     iso(1) member-body(2) us(840) ansi-X9-62(10045) keyType(2) 1
+// }
 pub const ID_EC_PUBKEY_OID: ObjectIdentifier = ObjectIdentifier::new("1.2.840.10045.2.1");
+// secp384r1 OBJECT IDENTIFIER ::= {
+//     iso(1) identified-organization(3) certicom(132) curve(0) 34
+// }
 pub const SECP384R1_OID: ObjectIdentifier = ObjectIdentifier::new("1.3.132.0.34");
-//
 // rsaEncryption OBJECT IDENTIFIER ::= {
-//    iso(1) member-body(2) us(840) rsadsi(113549) pkcs(1) pkcs-1(1) 1 }
+//    iso(1) member-body(2) us(840) rsadsi(113549) pkcs(1) pkcs-1(1) 1
+// }
 pub const RSA_PUBKEY_OID: ObjectIdentifier = ObjectIdentifier::new("1.2.840.113549.1.1.1");
 
 pub type Result<T> = core::result::Result<T, der::Error>;
@@ -27,8 +28,8 @@ pub type Result<T> = core::result::Result<T, der::Error>;
 // As specified in rfc3280#section-4.1.1.2
 // SubjectPublicKeyInfo  ::=  SEQUENCE  {
 //    algorithm            AlgorithmIdentifier,
-//    subjectPublicKey     BIT STRING  }
-//
+//    subjectPublicKey     BIT STRING
+// }
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct AlgorithmIdentifier<'a> {
     pub algorithm: ObjectIdentifier,
@@ -38,8 +39,8 @@ pub struct AlgorithmIdentifier<'a> {
 // As specified in rfc3280#section-4.1.2.7
 // AlgorithmIdentifier  ::=  SEQUENCE  {
 //    algorithm               OBJECT IDENTIFIER,
-//    parameters              ANY DEFINED BY algorithm OPTIONAL  }
-//
+//    parameters              ANY DEFINED BY algorithm OPTIONAL
+// }
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct SubjectPublicKeyInfo<'a> {
     pub algorithm: AlgorithmIdentifier<'a>,
@@ -82,7 +83,6 @@ impl<'a> TryFrom<&'a [u8]> for SubjectPublicKeyInfo<'a> {
 // RSAPublicKey ::= SEQUENCE {
 //     modulus            INTEGER,    -- n
 //     publicExponent     INTEGER  }  -- e
-//
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct RsaPublicKeyInfo<'a> {
     pub modulus: UIntBytes<'a>,
