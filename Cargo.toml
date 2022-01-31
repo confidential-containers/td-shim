@@ -11,12 +11,12 @@ members = [
     "fuzzing/fuzz_elf_loader",
     "fuzzing/fuzz_fv_parser",
     "fuzzing/fuzz_hob_parser",
-    "rust-tdpayload-signing",
     "td-layout",
     "td-paging",
     "td-payload",
     "td-shim-enroll-key",
     "td-shim-ld",
+    "td-shim-sign-payload",
     "tests/test-td-paging",
     "tests/test-td-payload",
 ]
