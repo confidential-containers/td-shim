@@ -2,19 +2,28 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
-mod public_key;
+#[macro_use]
+extern crate clap;
 
-use crate::public_key::{
-    RsaPublicKeyInfo, SubjectPublicKeyInfo, ID_EC_PUBKEY_OID, RSA_PUBKEY_OID, SECP384R1_OID,
-};
-use core::{convert::TryFrom, mem::size_of};
+use std::ptr::slice_from_raw_parts;
+use std::str::FromStr;
+use std::vec::Vec;
+use std::{convert::TryFrom, mem::size_of};
+use std::{env, io, path::Path};
+
+use log::{error, trace, LevelFilter};
+
 use r_efi::efi::Guid;
 use r_uefi_pi::fv::*;
 use ring::digest;
 use scroll::{Pread, Pwrite};
-use std::vec::Vec;
-use std::{env, fs, io::Write, path::Path};
-use td_layout::build_time::{TD_SHIM_CONFIG_OFFSET, TD_SHIM_CONFIG_SIZE};
+use td_layout::build_time::{TD_SHIM_CONFIG_OFFSET, TD_SHIM_CONFIG_SIZE, TD_SHIM_FIRMWARE_SIZE};
+use td_shim_ld::{write_u24, FvFfsHeader, FvHeader, InputData, OutputFile};
+
+mod public_key;
+use self::public_key::{
+    RsaPublicKeyInfo, SubjectPublicKeyInfo, ID_EC_PUBKEY_OID, RSA_PUBKEY_OID, SECP384R1_OID,
+};
 
 const CFV_FFS_HEADER_GUID: Guid = Guid::from_fields(
     0x77a2742e,
@@ -37,21 +46,7 @@ const FS_DATA_HEADER_GUID: Guid = Guid::from_fields(
 const PUBKEY_FILE_STRUCT_VERSION: u32 = 0x01;
 const TDSHIM_SB_NAME: &str = "final.sb.bin";
 
-#[repr(C)]
-#[derive(Copy, Clone, Debug, Pwrite, Default)]
-struct CfvHeader {
-    fv_header: FirmwareVolumeHeader,
-    fv_block_map: [FvBlockMap; 2],
-    pad_ffs_header: FfsFileHeader,
-    fv_ext_header: FirmwareVolumeExtHeader,
-    pad: [u8; 4],
-}
-
-#[derive(Copy, Clone, Debug, Pread, Pwrite, Default)]
-struct CfvFfsHeader {
-    ffs_header: FfsFileHeader,
-}
-
+#[repr(C, align(4))]
 #[derive(Pread, Pwrite)]
 struct CfvDataFileHeader {
     pub type_guid: [u8; 16],
@@ -61,71 +56,30 @@ struct CfvDataFileHeader {
     pub reserved: u32,
 }
 
-fn write_u24(data: u32, buf: &mut [u8]) {
-    assert_eq!(data < 0xffffff, true);
-    buf[0] = (data & 0xFF) as u8;
-    buf[1] = ((data >> 8) & 0xFF) as u8;
-    buf[2] = ((data >> 16) & 0xFF) as u8;
+impl CfvDataFileHeader {
+    pub fn as_bytes(&self) -> &[u8] {
+        unsafe { &*slice_from_raw_parts(self as *const Self as *const u8, size_of::<Self>()) }
+    }
 }
 
-fn build_cfv_header() -> CfvHeader {
-    let mut cfv_header = CfvHeader::default();
+fn build_cfv_header() -> FvHeader {
+    let mut cfv_header = FvHeader::default();
 
-    cfv_header.fv_header.zero_vector = [0u8; 16];
     cfv_header
         .fv_header
         .file_system_guid
         .copy_from_slice(FIRMWARE_FILE_SYSTEM3_GUID.as_bytes());
     cfv_header.fv_header.fv_length = TD_SHIM_CONFIG_SIZE as u64;
-    cfv_header.fv_header.signature = FVH_SIGNATURE;
-    cfv_header.fv_header.attributes = 0x0004f6ff;
-    cfv_header.fv_header.header_length = 0x0048;
     cfv_header.fv_header.checksum = 0xdc0a;
-    cfv_header.fv_header.ext_header_offset = 0x0060;
-    cfv_header.fv_header.reserved = 0x00;
-    cfv_header.fv_header.revision = 0x02;
-
     cfv_header.fv_block_map[0].num_blocks = (TD_SHIM_CONFIG_SIZE as u32) / 0x1000;
     cfv_header.fv_block_map[0].length = 0x1000;
-    cfv_header.fv_block_map[1].num_blocks = 0x0000;
-    cfv_header.fv_block_map[1].length = 0x0000;
-
-    cfv_header.pad_ffs_header.name.copy_from_slice(
-        Guid::from_fields(
-            0x00000000,
-            0x0000,
-            0x0000,
-            0x00,
-            0x00,
-            &[0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
-        )
-        .as_bytes(),
-    );
-    cfv_header.pad_ffs_header.integrity_check = 0xaae4;
-    cfv_header.pad_ffs_header.r#type = FV_FILETYPE_FFS_PAD;
-    cfv_header.pad_ffs_header.attributes = 0x00;
-    write_u24(0x2c, &mut cfv_header.pad_ffs_header.size);
-    cfv_header.pad_ffs_header.state = 0x07u8;
-
-    cfv_header.fv_ext_header.fv_name.copy_from_slice(
-        Guid::from_fields(
-            0x00000000,
-            0x0000,
-            0x0000,
-            0x00,
-            0x00,
-            &[0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
-        )
-        .as_bytes(),
-    );
     cfv_header.fv_ext_header.ext_header_size = 0x14;
-    cfv_header.pad = [0u8; 4];
 
     cfv_header
 }
 
-fn build_cfv_ffs_header() -> CfvFfsHeader {
-    let mut cfv_ffs_header = CfvFfsHeader::default();
+fn build_cfv_ffs_header() -> FvFfsHeader {
+    let mut cfv_ffs_header = FvFfsHeader::default();
     cfv_ffs_header
         .ffs_header
         .name
@@ -135,7 +89,7 @@ fn build_cfv_ffs_header() -> CfvFfsHeader {
     cfv_ffs_header.ffs_header.r#type = FV_FILETYPE_RAW;
     cfv_ffs_header.ffs_header.attributes = 0x00;
     write_u24(
-        TD_SHIM_CONFIG_SIZE - size_of::<CfvHeader>() as u32,
+        TD_SHIM_CONFIG_SIZE - size_of::<FvHeader>() as u32,
         &mut cfv_ffs_header.ffs_header.size,
     );
     cfv_ffs_header.ffs_header.state = 0x07u8;
@@ -144,58 +98,143 @@ fn build_cfv_ffs_header() -> CfvFfsHeader {
 }
 
 fn main() -> std::io::Result<()> {
-    let args: Vec<String> = env::args().collect();
-    let path_tdshim = &args[1];
-    let path_public_key = &args[2];
-    let hash_alg = &args[3];
+    use env_logger::Env;
+    let env = Env::default()
+        .filter_or("MY_LOG_LEVEL", "info")
+        .write_style_or("MY_LOG_STYLE", "always");
+    env_logger::init_from_env(env);
 
-    println!(
-        "\nrust-tdpayload-signing {} {} {}\n",
-        path_tdshim, path_public_key, hash_alg
+    let matches = app_from_crate!()
+        .arg(
+            arg!([tdshim] "shim binary file")
+                .required(true)
+                .allow_invalid_utf8(false),
+        )
+        .arg(
+            arg!([key] "key file for enrollment")
+                .required(true)
+                .allow_invalid_utf8(false),
+        )
+        .arg(
+            arg!(-H --hash "hash algorithm to compute digest")
+                .required(false)
+                .takes_value(true)
+                .default_value("SHA384"),
+        )
+        .arg(
+            arg!(-l --"log-level" "logging level: [off, error, warn, info, debug, trace]")
+                .required(false)
+                .default_value("info"),
+        )
+        .arg(
+            arg!(-o --output "output of the enrolled shim binary file")
+                .required(false)
+                .takes_value(true)
+                .allow_invalid_utf8(false),
+        )
+        .get_matches();
+
+    if let Ok(lvl) = LevelFilter::from_str(matches.value_of("log-level").unwrap()) {
+        log::set_max_level(lvl);
+    }
+
+    // Safe to unwrap() because they are mandatory or have default values.
+    let tdshim_file = matches.value_of("tdshim").unwrap();
+    let key_file = matches.value_of("key").unwrap();
+    let hash_alg = matches.value_of("hash").unwrap();
+    let output_file = match matches.value_of("output") {
+        Some(v) => Path::new(v).to_path_buf(),
+        None => {
+            let p = Path::new(tdshim_file).canonicalize().map_err(|e| {
+                error!("Invalid tdshim file path {}: {}", tdshim_file, e);
+                e
+            })?;
+            p.parent().unwrap_or(Path::new("/")).join(TDSHIM_SB_NAME)
+        }
+    };
+
+    trace!(
+        "\nrust-tdpayload-signing {} {} {} to {}\n",
+        tdshim_file,
+        key_file,
+        hash_alg,
+        output_file.display(),
     );
 
-    let mut tdshim_bin = fs::read(path_tdshim).expect("fail to read td payload");
-    let public_bytes = fs::read(path_public_key).expect("fail to read private key file");
+    // Hash public key
+    let hash_alg = match hash_alg {
+        "SHA384" => &digest::SHA384,
+        _ => {
+            error!("Unsupported hash algorithm {}", hash_alg);
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                "unsupported hash algorithm",
+            ));
+        }
+    };
 
-    // Parse public key
-    let key = SubjectPublicKeyInfo::try_from(public_bytes.as_slice()).unwrap();
+    let tdshim_bin = InputData::new(
+        tdshim_file,
+        TD_SHIM_FIRMWARE_SIZE as usize..=TD_SHIM_FIRMWARE_SIZE as usize,
+        "shim binary",
+    )?;
+    let key_data = InputData::new(key_file, 1..=1024 * 1024, "private key")?;
+    let key = SubjectPublicKeyInfo::try_from(key_data.as_bytes()).map_err(|e| {
+        error!("Can not load key from file {}: {}", key_file, e);
+        io::Error::new(io::ErrorKind::Other, "invalid key data")
+    })?;
 
     let mut public_bytes: Vec<u8> = Vec::new();
     match key.algorithm.algorithm {
         ID_EC_PUBKEY_OID => {
             if let Some(curve) = key.algorithm.parameters {
                 if curve.as_bytes() != SECP384R1_OID.as_bytes() {
-                    panic!("Unsupported Named Curve");
+                    error!("Unsupported Named Curve from file {}", key_file);
+                    return Err(io::Error::new(
+                        io::ErrorKind::Other,
+                        "unsupported Named Curve",
+                    ));
                 }
                 if key.subject_public_key.as_bytes()[0] != 0x04 {
-                    panic!("Invalid SECP384R1 public key");
+                    error!("Invalid SECP384R1 public key from file {}", key_file);
+                    return Err(io::Error::new(
+                        io::ErrorKind::Other,
+                        "Invalid SECP384R1 public key",
+                    ));
                 }
                 public_bytes.extend_from_slice(&key.subject_public_key.as_bytes()[1..]);
+            } else {
+                error!("Invalid algorithm parameter from file {}", key_file);
+                return Err(io::Error::new(
+                    io::ErrorKind::Other,
+                    "Invalid key algorithm parameter",
+                ));
             }
         }
         RSA_PUBKEY_OID => {
-            let pubkey = RsaPublicKeyInfo::try_from(key.subject_public_key.as_bytes()).unwrap();
+            let pubkey =
+                RsaPublicKeyInfo::try_from(key.subject_public_key.as_bytes()).map_err(|e| {
+                    error!("Invalid key from file {}: {}", key_file, e);
+                    io::Error::new(io::ErrorKind::Other, "invalid key from file")
+                })?;
             public_bytes.extend_from_slice(pubkey.modulus.as_bytes());
             let mut exp_bytes = [0u8; 8];
             if pubkey.exponents.as_bytes().len() > 8 {
-                panic!("Invalid exponent size");
+                error!("Invalid exponent size from key file {}", key_file);
+                return Err(io::Error::new(
+                    io::ErrorKind::Other,
+                    "Invalid exponent size",
+                ));
             }
             exp_bytes[8 - pubkey.exponents.as_bytes().len()..]
                 .copy_from_slice(pubkey.exponents.as_bytes());
             public_bytes.extend_from_slice(&exp_bytes);
         }
-        _ => {
-            panic!("Unsupported hash algorithm")
+        t => {
+            error!("Unsupported key type {} from file {}", t, key_file);
+            return Err(io::Error::new(io::ErrorKind::Other, "unsupported key type"));
         }
-    };
-
-    // Hash public key
-    let hash_alg = match hash_alg.as_str() {
-        "SHA384" => &digest::SHA384,
-        _ => {
-            panic!("Unsupported hash algorithm")
-        }
-    };
+    }
 
     let hash = digest::digest(hash_alg, public_bytes.as_slice());
     let hash = hash.as_ref();
@@ -210,25 +249,20 @@ fn main() -> std::io::Result<()> {
     };
 
     // Create and write the td-shim binary with key enrolled.
-    let output = Path::new(path_tdshim)
-        .parent()
-        .unwrap()
-        .join(TDSHIM_SB_NAME);
-    let mut signed_tdshim_bin = fs::File::create(output).expect("fail to create final binary");
-
+    let mut output = OutputFile::new(output_file)?;
     let cfv_header = build_cfv_header();
     let cfv_ffs_header = build_cfv_ffs_header();
 
-    let mut offset = TD_SHIM_CONFIG_OFFSET as usize;
-    tdshim_bin.gwrite(cfv_header, &mut offset).unwrap();
-    tdshim_bin.gwrite(cfv_ffs_header, &mut offset).unwrap();
-    tdshim_bin.gwrite(pub_key_header, &mut offset).unwrap();
-    tdshim_bin.gwrite(hash, &mut offset).unwrap();
-
-    signed_tdshim_bin
-        .write_all(&tdshim_bin)
-        .expect("fail to write final binary");
-    signed_tdshim_bin.sync_data()?;
+    output.seek_and_write(0, tdshim_bin.as_bytes(), "enrolled shim binary")?;
+    output.seek_and_write(
+        TD_SHIM_CONFIG_OFFSET as u64,
+        cfv_header.as_bytes(),
+        "firmware volume header",
+    )?;
+    output.write(cfv_ffs_header.as_bytes(), "firmware volume fs header")?;
+    output.write(pub_key_header.as_bytes(), "firmware key")?;
+    output.write(hash, "firmware hash value")?;
+    output.flush()?;
 
     Ok(())
 }
