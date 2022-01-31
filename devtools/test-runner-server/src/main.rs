@@ -20,7 +20,6 @@ use std::{
     time::Duration,
 };
 
-//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 const RUN_ARGS: &[&str] = &["--no-reboot", "-s"];
 const TEST_ARGS: &[&str] = &[
     "-device",
@@ -132,4 +131,3 @@ fn create_disk_images(kernel_binary_path: &Path) -> PathBuf {
     }
     disk_image
 }
-//>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
