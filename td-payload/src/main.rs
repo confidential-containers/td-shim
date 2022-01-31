@@ -75,7 +75,10 @@ mod payload_impl {
     #[no_mangle]
     #[cfg_attr(target_os = "uefi", export_name = "efi_main")]
     pub extern "win64" fn _start(hob: *const c_void) -> ! {
-        tdx_logger::init().expect("td-payload: failed to initialize tdx logger");
+        #[cfg(feature = "tdx")]
+        {
+            tdx_logger::init().expect("td-payload: failed to initialize tdx logger");
+        }
         log::info!("Starting td-payload hob - {:p}\n", hob);
         log::info!("setup_exception_handlers done\n");
 
@@ -107,8 +110,11 @@ mod payload_impl {
             stack::bench_stack(memory_layout);
         }
 
-        //Dump TD Report
-        tdx_tdcall::tdreport::tdreport_dump();
+        #[cfg(feature = "tdx")]
+        {
+            //Dump TD Report
+            tdx_tdcall::tdreport::tdreport_dump();
+        }
 
         //Test JSON function using no-std serd_json.
         td_payload::json_test();
