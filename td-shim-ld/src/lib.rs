@@ -7,6 +7,7 @@ use std::fs::{self, File};
 use std::io::{self, Seek, SeekFrom, Write};
 use std::mem::size_of;
 use std::ops::RangeInclusive;
+use std::path::{Path, PathBuf};
 use std::ptr::slice_from_raw_parts;
 
 use log::{error, trace};
@@ -26,9 +27,10 @@ use td_layout::runtime::{
 const MAX_IPL_CONTENT_SIZE: usize =
     TD_SHIM_IPL_SIZE as usize - size_of::<IplFvHeaderByte>() - size_of::<ResetVectorHeader>();
 const MAX_PAYLOAD_CONTENT_SIZE: usize =
-    TD_SHIM_PAYLOAD_SIZE as usize - size_of::<PayloadFvHeaderByte>() - size_of::<TdxMetadata>();
+    TD_SHIM_PAYLOAD_SIZE as usize - size_of::<FvHeaderByte>() - size_of::<TdxMetadata>();
 
-fn write_u24(data: u32, buf: &mut [u8]) {
+/// Write three bytes from an integer value into the buffer.
+pub fn write_u24(data: u32, buf: &mut [u8]) {
     assert!(data < 0xffffff);
     buf[0] = (data & 0xFF) as u8;
     buf[1] = ((data >> 8) & 0xFF) as u8;
@@ -37,20 +39,26 @@ fn write_u24(data: u32, buf: &mut [u8]) {
 
 #[repr(C, align(4))]
 #[derive(Copy, Clone, Debug, Pwrite)]
-struct PayloadFvHeader {
-    fv_header: FirmwareVolumeHeader,
-    fv_block_map: [FvBlockMap; 2],
-    pad_ffs_header: FfsFileHeader,
-    fv_ext_header: FirmwareVolumeExtHeader,
+pub struct FvHeader {
+    pub fv_header: FirmwareVolumeHeader,
+    pub fv_block_map: [FvBlockMap; 2],
+    pub pad_ffs_header: FfsFileHeader,
+    pub fv_ext_header: FirmwareVolumeExtHeader,
     pad: [u8; 4],
 }
 
-impl Default for PayloadFvHeader {
+impl FvHeader {
+    pub fn as_bytes(&self) -> &[u8] {
+        unsafe { &*slice_from_raw_parts(self as *const Self as *const u8, size_of::<Self>()) }
+    }
+}
+
+impl Default for FvHeader {
     fn default() -> Self {
         let mut header_sz = [0u8; 3];
         write_u24(0x2c, &mut header_sz);
 
-        PayloadFvHeader {
+        FvHeader {
             fv_header: FirmwareVolumeHeader {
                 zero_vector: [0u8; 16],
                 file_system_guid: FIRMWARE_FILE_SYSTEM2_GUID.as_bytes().to_owned(),
@@ -92,39 +100,43 @@ impl Default for PayloadFvHeader {
 
 #[repr(C, align(4))]
 #[derive(Copy, Clone, Debug, Pread, Pwrite, Default)]
-struct PayloadFvFfsHeader {
-    ffs_header: FfsFileHeader,
+pub struct FvFfsHeader {
+    pub ffs_header: FfsFileHeader,
+}
+
+impl FvFfsHeader {
+    pub fn as_bytes(&self) -> &[u8] {
+        unsafe { &*slice_from_raw_parts(self as *const Self as *const u8, size_of::<Self>()) }
+    }
 }
 
 #[repr(C, align(4))]
 #[derive(Copy, Clone, Debug, Pread, Pwrite, Default)]
-struct PayloadFvFfsSectionHeader {
+struct FvFfsSectionHeader {
     section_header: CommonSectionHeader,
 }
 
 #[repr(C, align(4))]
-struct PayloadFvHeaderByte {
-    data: [u8; size_of::<PayloadFvHeader>()
-        + size_of::<PayloadFvFfsHeader>()
-        + size_of::<PayloadFvFfsSectionHeader>()],
+struct FvHeaderByte {
+    data: [u8; size_of::<FvHeader>() + size_of::<FvFfsHeader>() + size_of::<FvFfsSectionHeader>()],
 }
 
-impl Default for PayloadFvHeaderByte {
+impl Default for FvHeaderByte {
     fn default() -> Self {
-        PayloadFvHeaderByte {
-            data: [0u8; size_of::<PayloadFvHeader>()
-                + size_of::<PayloadFvFfsHeader>()
-                + size_of::<PayloadFvFfsSectionHeader>()],
+        FvHeaderByte {
+            data: [0u8; size_of::<FvHeader>()
+                + size_of::<FvFfsHeader>()
+                + size_of::<FvFfsSectionHeader>()],
         }
     }
 }
 
-impl PayloadFvHeaderByte {
+impl FvHeaderByte {
     fn build_tdx_payload_fv_header() -> Self {
         let mut hdr = Self::default();
-        let fv_header_size = (size_of::<PayloadFvHeader>()) as usize;
+        let fv_header_size = (size_of::<FvHeader>()) as usize;
 
-        let mut tdx_payload_fv_header = PayloadFvHeader::default();
+        let mut tdx_payload_fv_header = FvHeader::default();
         tdx_payload_fv_header.fv_header.fv_length = TD_SHIM_PAYLOAD_SIZE as u64;
         tdx_payload_fv_header.fv_header.checksum = 0xdc0a;
         tdx_payload_fv_header.fv_block_map[0].num_blocks = (TD_SHIM_PAYLOAD_SIZE as u32) / 0x1000;
@@ -145,7 +157,7 @@ impl PayloadFvHeaderByte {
         let res = hdr.data.pwrite(tdx_payload_fv_header, 0).unwrap();
         assert_eq!(res, 120);
 
-        let mut tdx_payload_fv_ffs_header = PayloadFvFfsHeader::default();
+        let mut tdx_payload_fv_ffs_header = FvFfsHeader::default();
         tdx_payload_fv_ffs_header.ffs_header.name.copy_from_slice(
             Guid::from_fields(
                 0xa8f75d7c,
@@ -172,9 +184,9 @@ impl PayloadFvHeaderByte {
             .unwrap();
         assert_eq!(res, 24);
 
-        let mut tdx_payload_fv_ffs_section_header = PayloadFvFfsSectionHeader::default();
+        let mut tdx_payload_fv_ffs_section_header = FvFfsSectionHeader::default();
         write_u24(
-            TD_SHIM_PAYLOAD_SIZE - fv_header_size as u32 - size_of::<PayloadFvFfsHeader>() as u32,
+            TD_SHIM_PAYLOAD_SIZE - fv_header_size as u32 - size_of::<FvFfsHeader>() as u32,
             &mut tdx_payload_fv_ffs_section_header.section_header.size,
         );
         tdx_payload_fv_ffs_section_header.section_header.r#type = SECTION_PE32;
@@ -183,7 +195,7 @@ impl PayloadFvHeaderByte {
             .data
             .pwrite(
                 tdx_payload_fv_ffs_section_header,
-                fv_header_size + size_of::<PayloadFvFfsHeader>(),
+                fv_header_size + size_of::<FvFfsHeader>(),
             )
             .unwrap();
         assert_eq!(res, 4);
@@ -194,7 +206,7 @@ impl PayloadFvHeaderByte {
     // Build internal payload header
     fn build_tdx_ipl_fv_header() -> Self {
         let mut hdr = Self::default();
-        let fv_header_size = (size_of::<PayloadFvHeader>()) as usize;
+        let fv_header_size = (size_of::<FvHeader>()) as usize;
 
         let mut tdx_ipl_fv_header = IplFvHeader::default();
         tdx_ipl_fv_header.fv_header.fv_length =
@@ -266,10 +278,14 @@ impl PayloadFvHeaderByte {
     }
 }
 
+type PayloadFvHeader = FvHeader;
+type PayloadFvFfsHeader = FvFfsHeader;
+//type PayloadFvFfsSectionHeader = FvFfsSectionHeader;
+type PayloadFvHeaderByte = FvHeaderByte;
 type IplFvHeader = PayloadFvHeader;
 type IplFvFfsHeader = PayloadFvFfsHeader;
-type IplFvFfsSectionHeader = PayloadFvFfsSectionHeader;
-type IplFvHeaderByte = PayloadFvHeaderByte;
+type IplFvFfsSectionHeader = FvFfsSectionHeader;
+type IplFvHeaderByte = FvHeaderByte;
 
 fn build_tdx_metadata() -> TdxMetadata {
     let mut tdx_metadata = TdxMetadata::default();
@@ -400,12 +416,7 @@ impl ResetVectorHeader {
     }
 
     fn as_bytes(&self) -> &[u8] {
-        unsafe {
-            &*slice_from_raw_parts(
-                self as *const ResetVectorHeader as *const u8,
-                size_of::<Self>(),
-            )
-        }
+        unsafe { &*slice_from_raw_parts(self as *const Self as *const u8, size_of::<Self>()) }
     }
 }
 
@@ -419,21 +430,18 @@ struct ResetVectorParams {
 
 impl ResetVectorParams {
     fn as_bytes(&self) -> &[u8] {
-        unsafe {
-            &*slice_from_raw_parts(
-                self as *const ResetVectorParams as *const u8,
-                size_of::<Self>(),
-            )
-        }
+        unsafe { &*slice_from_raw_parts(self as *const Self as *const u8, size_of::<Self>()) }
     }
 }
 
-struct InputData {
+/// Struct to read input data from a file.
+pub struct InputData {
     data: Vec<u8>,
 }
 
 impl InputData {
-    fn new(name: &str, range: RangeInclusive<usize>, desc: &str) -> io::Result<Self> {
+    /// Read data from file into the internal buffer.
+    pub fn new(name: &str, range: RangeInclusive<usize>, desc: &str) -> io::Result<Self> {
         // Check file size first to avoid allocating too much memory.
         let md = fs::metadata(name).map_err(|e| {
             error!("Can not get metadata of file {}: {}", name, e);
@@ -441,7 +449,7 @@ impl InputData {
         })?;
         if md.len() > TD_SHIM_FIRMWARE_SIZE as u64 {
             error!(
-                "Size of {} file ({}) is invalid, should be {}-{}",
+                "Size of {} file ({}) is invalid, should be in range [{}-{}]",
                 desc,
                 md.len(),
                 range.start(),
@@ -457,7 +465,7 @@ impl InputData {
         let len = data.len();
         if !range.contains(&len) {
             error!(
-                "Size of {} file ({}) is invalid, should be {}-{}",
+                "Size of {} file ({}) is invalid, should be in range [{}-{}]",
                 desc,
                 len,
                 range.start(),
@@ -468,41 +476,65 @@ impl InputData {
 
         Ok(InputData { data })
     }
+
+    /// Get the input data.
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.data
+    }
 }
 
-struct OutputFile {
+/// Struct to write out built data.
+pub struct OutputFile {
     file: File,
-    name: String,
+    name: PathBuf,
 }
 
 impl OutputFile {
-    fn new(name: &str) -> io::Result<Self> {
-        let file = File::create(name).map_err(|e| {
-            error!("Can not open output file {}: {}", name, e);
+    pub fn new<P: AsRef<Path>>(name: P) -> io::Result<Self> {
+        let file = File::create(name.as_ref()).map_err(|e| {
+            error!(
+                "Can not open output file {}: {}",
+                name.as_ref().display(),
+                e
+            );
             e
         })?;
 
         Ok(Self {
             file,
-            name: name.to_owned(),
+            name: name.as_ref().to_path_buf(),
         })
     }
 
-    fn seek_and_write(&mut self, off: u64, data: &[u8], desc: &str) -> io::Result<()> {
+    pub fn seek_and_write(&mut self, off: u64, data: &[u8], desc: &str) -> io::Result<()> {
         self.file
             .seek(SeekFrom::Start(off))
             .and(self.file.write_all(data))
             .map_err(|e| {
-                error!("Can not write {} to file {}: {}", desc, self.name, e);
+                error!(
+                    "Can not write {} to file {}: {}",
+                    desc,
+                    self.name.display(),
+                    e
+                );
                 e
             })
     }
 
-    fn write(&mut self, data: &[u8], desc: &str) -> io::Result<()> {
+    pub fn write(&mut self, data: &[u8], desc: &str) -> io::Result<()> {
         self.file.write_all(data).map_err(|e| {
-            error!("Can not write {} to file {}: {}", desc, self.name, e);
+            error!(
+                "Can not write {} to file {}: {}",
+                desc,
+                self.name.display(),
+                e
+            );
             e
         })
+    }
+
+    pub fn flush(&mut self) -> io::Result<()> {
+        self.file.flush()
     }
 }
 
@@ -616,7 +648,7 @@ impl TdShimLinker {
         let metadata_ptr = build_tdx_metadata_ptr();
         output_file.write(metadata_ptr.as_bytes(), "metadata_ptr")?;
 
-        output_file.file.sync_data()?;
+        output_file.flush()?;
 
         Ok(())
     }
