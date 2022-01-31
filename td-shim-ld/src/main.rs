@@ -39,9 +39,7 @@ fn main() -> io::Result<()> {
                 .required(false)
                 .default_value("info"),
         )
-        .arg(
-            arg!(-r --"relocate-payload" "Relocate shim payload content").required(false),
-        )
+        .arg(arg!(-r --"relocate-payload" "Relocate shim payload content").required(false))
         .arg(
             arg!(-o --output "Output of the merged shim binary file")
                 .required(false)
