@@ -1,0 +1,21 @@
+[package]
+name = "td-shim-ld"
+version = "0.1.0"
+description = "TD shim linker to compose multiple components into shim binary"
+repository = "https://github.com/confidential-containers/td-shim"
+homepage = "https://github.com/confidential-containers"
+license = "BSD-2-Clause-Patent"
+edition = "2018"
+
+[features]
+default = []
+boot-kernel = ["td-layout/boot-kernel"]
+
+[dependencies]
+env_logger = "0.9.0"
+log = "0.4.5"
+pe-loader = { path = "../pe-loader" }
+r-efi = "3.2.0"
+r-uefi-pi =  { path = "../r-uefi-pi" }
+scroll = { version = "0.10", default-features=false }
+td-layout = { path = "../td-layout" }

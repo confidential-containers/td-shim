@@ -7,7 +7,6 @@ members = [
     "devtools/test-runner-server",
     "devtools/test-runner-client",
     "rust-tdshim",
-    "rust-td-tool",
     "fuzzing/fuzz_pe_loader",
     "fuzzing/fuzz_elf_loader",
     "fuzzing/fuzz_fv_parser",
@@ -17,6 +16,7 @@ members = [
     "td-layout",
     "td-paging",
     "td-payload",
+    "td-shim-ld",
     "tests/test-td-paging",
     "tests/test-td-payload",
 ]
