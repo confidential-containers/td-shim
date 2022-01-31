@@ -1,12 +1,19 @@
 [package]
 name = "td-shim-sign-payload"
 version = "0.1.0"
+description = "Sign shim payload binary with RSA/DSA"
+repository = "https://github.com/confidential-containers/td-shim"
+homepage = "https://github.com/confidential-containers"
+license = "BSD-2-Clause-Patent"
 edition = "2018"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
+clap = { version = "3.0", features = ["cargo"] }
+der = { version = "0.4.5", features = ["oid"]}
+env_logger = "0.9.0"
+log = "0.4.5"
 ring = { git = "https://github.com/jyao1/ring.git", branch = "uefi_support", default-features = false, features = ["alloc"]}
-scroll = { version = "0.10", default-features = false, features = ["derive"]}
-der = {version = "0.4.5", features = ["oid"]}
 r-efi = "3.2.0"
+scroll = { version = "0.10", default-features = false, features = ["derive"]}
+td-layout = { path = "../td-layout" }
+td-shim-ld = { path = "../td-shim-ld" }
