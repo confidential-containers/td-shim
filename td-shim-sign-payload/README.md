@@ -35,10 +35,10 @@ set AR=
 
 Then run the tool:
 ```
-cargo run -- {payload_file} {payload_version} {payload_svn} {signing_algorithm} {private_key_file}
+cargo run -- [-A {signing_algorithm}] [-o output] {payload_file} {payload_version} {payload_svn} {private_key_file}
 ```
 
 For example:
 ```
-cargo run -- ../target/target/release/rust-td-payload 1 1 ECDSA_NIST_P384_SHA384 ecdsa-p384-private.pk8
+cargo run -- -A ecdsa-p384-private.pk8 ../target/target/release/rust-td-payload 1 1 ECDSA_NIST_P384_SHA384
 ```

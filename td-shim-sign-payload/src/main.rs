@@ -14,8 +14,7 @@ use ring::signature::{EcdsaKeyPair, RsaKeyPair, ECDSA_P384_SHA384_FIXED_SIGNING}
 use td_layout::build_time::TD_SHIM_PAYLOAD_SIZE;
 use td_shim_ld::{InputData, OutputFile};
 
-mod signer;
-use signer::*;
+use td_shim_sign_payload::*;
 
 const SIGNED_TDPAYLOAD_NAME: &str = "td-payload-signed";
 
