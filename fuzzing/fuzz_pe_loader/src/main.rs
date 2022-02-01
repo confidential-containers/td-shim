@@ -2,10 +2,10 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
-use pe_loader::pe::{is_pe, relocate, relocate_pe_mem_with_per_sections, Sections};
+use pe_loader::pe::{is_x86_64_pe, relocate, relocate_pe_mem_with_per_sections, Sections};
 
 fn fuzz_pe_loader(data: &[u8]) {
-    if is_pe(data) {
+    if is_x86_64_pe(data) {
         let sections = Sections::parse(data, 5 as usize).unwrap();
         for section in sections {
             println!("{:?}", section);

@@ -9,7 +9,7 @@ else
 	export BUILD_TYPE_FLAG=
 endif
 
-LIB_CRATES = td-layout td-paging
+LIB_CRATES = pe-loader td-layout td-paging
 SHIM_CRATES = rust-tdshim td-payload
 TEST_CRATES = test-td-paging test-td-payload
 TOOL_CRATES = td-shim-ld td-shim-enroll-key td-shim-sign-payload
