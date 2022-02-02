@@ -3,6 +3,8 @@ resolver = "2"
 default-members = ["fake"]
 members = [
 	"fake",
+	"devtools/td-layout-config",
+	"td-layout",
 ]
 
 # the profile used for `cargo build`

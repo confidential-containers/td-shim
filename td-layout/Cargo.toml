@@ -1,0 +1,20 @@
+[package]
+name = "td-layout"
+version = "0.1.0"
+description = "Define build time and runtime layout for trusted domain"
+repository = "https://github.com/confidential-containers/td-shim"
+homepage = "https://github.com/confidential-containers"
+license = "BSD-2-Clause-Patent"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[features]
+boot-kernel = []
+
+[dependencies]
+scroll = { version = "0.10", default-features = false, features = ["derive"]}
+log = "0.4.13"
+
+[dev-dependencies]
+memoffset = "0.6"
