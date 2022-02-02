@@ -9,9 +9,9 @@ extern crate clap;
 use std::env;
 use std::fs;
 use std::io::{self, Write};
+use std::mem::size_of;
 use std::path::Path;
 
-use core::mem::size_of;
 use serde::Deserialize;
 
 use td_layout::metadata::*;
@@ -491,6 +491,7 @@ fn main() {
     // TODO: sanity checks on the layouts.
 
     // Generate config .rs file from the template and JSON inputs, then write to fs.
+    fs::create_dir_all(output).expect(&format!("Failed to create target directory: {}", output));
     layout.generate_build_time_rs(output);
     layout.generate_runtime_rs(output);
 }
