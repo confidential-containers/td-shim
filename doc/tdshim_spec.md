@@ -820,8 +820,8 @@ APs Resource = AP Page Table (Reserved) + AP Number * AP Stack (Reserved)
 
 * Intel, TDX Overview -
   https://software.intel.com/content/www/us/en/develop/articles/intel-trust-domain-extensions.html
-* Intel, TDX Virtual Firmware Design Guide Version 1.0 -
-  https://software.intel.com/content/dam/develop/external/us/en/documents/tdx-virtual-firmware-design-guide-rev-1.pdf
+* Intel, TDX Virtual Firmware Design Guide Version 1.01 -
+  https://www.intel.com/content/dam/develop/external/us/en/documents/tdx-virtual-firmware-design-guide-rev-1.01.pdf
 * Intel, Guest Hypervisor Communication Interface Version 1.0 -
   https://software.intel.com/content/dam/develop/external/us/en/documents/intel-tdx-guest-hypervisor-communication-interface.pdf
 * Intel, Intel, TDX Module 1.0 EAS -
