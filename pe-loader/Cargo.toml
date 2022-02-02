@@ -1,9 +1,11 @@
 [package]
 name = "pe-loader"
 version = "0.1.0"
+description = "Parser and loader for 64 bit Portable Executable (PE+) binary objects"
+repository = "https://github.com/confidential-containers/td-shim"
+homepage = "https://github.com/confidential-containers"
+license = "Apache 2.0"
 edition = "2018"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 log = "0.4.13"

@@ -204,8 +204,11 @@ pub fn relocate_with_per_section(
 
         image_buffer.len().checked_sub(src_end as usize)?;
         loaded_buffer.len().checked_sub(dst_end as usize)?;
-        loaded_buffer[dst_start..dst_end].fill(0);
         loaded_buffer[dst_start..dst_end].copy_from_slice(&image_buffer[src_start..src_end]);
+        if section.virtual_size as usize > section_size {
+            let fill_end = dst_start.checked_add(section.virtual_size as usize)?;
+            loaded_buffer[dst_end..fill_end].fill(0);
+        }
     }
 
     let sections = Sections::parse(sections_buffer, num_sections as usize)?;
