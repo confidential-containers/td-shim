@@ -1,0 +1,20 @@
+name: cargo-deny
+on: [push, pull_request]
+jobs:
+  cargo-deny:
+    runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        checks:
+          # - advisories
+          - sources
+          - bans
+
+    # Prevent sudden announcement of a new advisory from failing ci:
+    continue-on-error: ${{ matrix.checks == 'sources' }}
+
+    steps:
+    - uses: actions/checkout@v2
+    - uses: EmbarkStudios/cargo-deny-action@v1
+      with:
+        command: check ${{ matrix.checks }}
