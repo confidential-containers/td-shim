@@ -213,7 +213,7 @@ pub fn relocate_with_per_section(
 
     let sections = Sections::parse(sections_buffer, num_sections as usize)?;
     for section in sections {
-        if &section.name[0..6] == b".reloc" && image_base != new_image_base as u64 {
+        if &section.name == b".reloc\0\0" && image_base != new_image_base as u64 {
             reloc_to_base(
                 loaded_buffer,
                 image_buffer,
