@@ -1,0 +1,92 @@
+on:
+  push:
+    paths-ignore:
+      - "**.md"
+  pull_request:
+    paths-ignore:
+      - "**.md"
+  workflow_dispatch:
+
+name: RUN CODE
+
+env:
+  RUST_TOOLCHAIN: nightly-2021-08-20
+  TOOLCHAIN_PROFILE: minimal
+
+jobs:
+  system_compile:
+    name: Compile the final.bin file
+    runs-on: ${{ matrix.host_os }}
+    timeout-minutes: 30
+
+    strategy:
+      matrix:
+        host_os:
+          - ubuntu-20.04
+          - windows-2019
+    steps:
+      - name: install NASM
+        uses: ilammy/setup-nasm@v1
+
+      - name: Install LLVM and Clang
+        uses: KyleMayes/install-llvm-action@v1
+        with:
+          version: "10.0"
+          directory: ${{ runner.temp }}/llvm
+
+      - name: Checkout sources
+        uses: actions/checkout@v2
+
+      - name: Install toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: ${{ env.TOOLCHAIN_PROFILE }}
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          override: true
+          components: rust-src
+
+      - name: Cache
+        uses: Swatinem/rust-cache@v1
+
+      - name: Run cargo install cargo-xbuild
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: cargo-xbuild
+
+  test:
+    name: Test
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-20.04, windows-2019]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          override: true
+          components: rust-src, llvm-tools-preview
+
+      - name: Run cargo install cargo-xbuild
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: cargo-xbuild
+
+      # install QEMU
+      - name: Install QEMU (Linux)
+        run: sudo apt update && sudo apt install qemu-system-x86
+        if: runner.os == 'Linux'
+      - name: Install QEMU (Windows)
+        run: |
+          choco install qemu --version 2021.5.5
+          echo "$Env:Programfiles\qemu" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        if: runner.os == 'Windows'
+        shell: pwsh
+      - name: "Print QEMU Version"
+        run: qemu-system-x86_64 --version
