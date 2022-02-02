@@ -1,0 +1,71 @@
+on:
+  push:
+    paths-ignore:
+      - "**.md"
+  pull_request:
+    paths-ignore:
+      - "**.md"
+  workflow_dispatch:
+
+name: Library Crates
+
+env:
+  RUST_TOOLCHAIN: nightly-2021-08-20
+  TOOLCHAIN_PROFILE: minimal
+
+jobs:
+  library_compile:
+    name: Build Library Crates
+    runs-on: ${{ matrix.host_os }}
+    timeout-minutes: 30
+
+    strategy:
+      matrix:
+        host_os:
+          - ubuntu-20.04
+          - windows-2019
+    steps:
+      - name: install NASM
+        uses: ilammy/setup-nasm@v1
+
+      - name: Install LLVM and Clang
+        uses: KyleMayes/install-llvm-action@v1
+        with:
+          version: "10.0"
+          directory: ${{ runner.temp }}/llvm
+
+      - name: Checkout sources
+        uses: actions/checkout@v2
+
+      - name: Install toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: ${{ env.TOOLCHAIN_PROFILE }}
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          override: true
+
+      - name: Cache
+        uses: Swatinem/rust-cache@v1
+
+      - name: Build library crates
+        run: make lib-build
+
+  test:
+    name: Test Library Crates
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-20.04, windows-2019]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          override: true
+
+      - name: Test library crates
+        run: make lib-test
