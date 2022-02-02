@@ -6,13 +6,27 @@ Data: October 2021
 
 ## Background
 
-Hardware virtualization-based containers are designed to launch and run containerized applications in hardware virtualized environments. While containers usually run directly as bare-metal applications, using TD or VT as an isolation layer from the host OS is used as a secure and efficient way of building multi-tenant Cloud-native infrastructures (e.g. Kubernetes).
+Hardware virtualization-based containers are designed to launch and run
+containerized applications in hardware virtualized environments. While
+containers usually run directly as bare-metal applications, using TD or VT as an
+isolation layer from the host OS is used as a secure and efficient way of
+building multi-tenant Cloud-native infrastructures (e.g. Kubernetes).
 
-In order to match the short start-up time and resource consumption overhead of bare-metal containers, runtime architectures for TD- and VT-based containers put a strong focus on minimizing boot time. They must also launch the container payload as quickly as possible. Hardware virtualization-based containers typically run on top of simplified and customized Linux kernels to minimize the overall guest boot time.
+In order to match the short start-up time and resource consumption overhead of
+bare-metal containers, runtime architectures for TD- and VT-based containers put
+a strong focus on minimizing boot time. They must also launch the container
+payload as quickly as possible. Hardware virtualization-based containers
+typically run on top of simplified and customized Linux kernels to minimize the
+overall guest boot time.
 
-Simplified kernels typically have no UEFI dependencies and no ACPI ASL support. This allows guests to boot without firmware dependencies. Current VT-based container runtimes rely on VMMs that are capable of directly booting into the guest kernel without loading firmware.
+Simplified kernels typically have no UEFI dependencies and no ACPI ASL
+support. This allows guests to boot without firmware dependencies. Current
+VT-based container runtimes rely on VMMs that are capable of directly booting
+into the guest kernel without loading firmware.
 
-TD Shim is a simplified TDX virtual firmware for the simplified kernel for TD container. This document describes a lightweight interface between the TD Shim and TD VMM and between the TD Shim and the simplified kernel.
+TD Shim is a simplified TDX virtual firmware for the simplified kernel for TD
+container. This document describes a lightweight interface between the TD Shim
+and TD VMM and between the TD Shim and the simplified kernel.
 
 ### Acknowledgments
 
@@ -37,53 +51,84 @@ TD Shim is a lightweight layer between hypervisor and guest TD kernel.
 
 TD Shim is in the Trust Computing Base (TCB). It shall be as simple as possible.
 
-TD Shim shall NOT include any advance features which may exist in a normal guest firmware, such as network stack, file system, UEFI, virtio, etc. If those features are really required, a specific boot payload on top of TD Shim is preferred.
+TD Shim shall NOT include any advance features which may exist in a normal guest
+firmware, such as network stack, file system, UEFI, virtio, etc. If those
+features are really required, a specific boot payload on top of TD Shim is
+preferred.
 
-TD Shim shall NOT provide any runtime services, such as UEFI Runtime, ACPI ASL, SMM, or event exception handler for OS Kernel.
+TD Shim shall NOT provide any runtime services, such as UEFI Runtime, ACPI ASL,
+SMM, or event exception handler for OS Kernel.
 
 ### Boot Process
 
 1.	VMM loads TDX module.
 
-NOTE: For detail, please refer to Intel TDX Module 1.0 EAS, Section 2.1 and Chapter 12 – Intel TDX Module Lifecycle.
+NOTE: For detail, please refer to Intel TDX Module 1.0 EAS, Section 2.1 and
+Chapter 12 – Intel TDX Module Lifecycle.
 
 2.	VMM loads TD Shim and payload (kernel)
  * VMM parses the TD Shim metadata.
  * VMM allocates memory for the TD.
  * VMM loads TD Shim and payload to TD memory.
- * VMM also prepares the TD_HOB – the boot configuration for TD Shim and payload command line parameter – the boot configuration for the payload, then loads them to TD memory.
- * VMM uses SEAMCALL[TDH.MEM.PAGE.ADD] to add private pages, where this memory includes the initialized data.
-    * VMM uses SEAMCALL[TDH.MR.EXTEND] to extend initialized memory, such as TD Shim and payload. To save the boot time, there is no need to uninitialized memory, such as stack or heap.
+ * VMM also prepares the TD_HOB – the boot configuration for TD Shim and payload
+   command line parameter – the boot configuration for the payload, then loads
+   them to TD memory.
+ * VMM uses SEAMCALL[TDH.MEM.PAGE.ADD] to add private pages, where this memory
+   includes the initialized data.
+    * VMM uses SEAMCALL[TDH.MR.EXTEND] to extend initialized memory, such as TD
+      Shim and payload. To save the boot time, there is no need to uninitialized
+      memory, such as stack or heap.
     * After VMM extends all memory, VMM uses SEAMCALL[TDH.MR.FINALIZE].
- * VMM uses SEAMCALL[TDH.MEM.PAGE.AUG] to add rest unaccepted pages, which requires the TD to use TDCALL[TDG.MEM.PAGE.ACCEPT] to accept this memory before use it.
+ * VMM uses SEAMCALL[TDH.MEM.PAGE.AUG] to add rest unaccepted pages, which
+   requires the TD to use TDCALL[TDG.MEM.PAGE.ACCEPT] to accept this memory
+   before use it.
  * VMM enters the TD by using SEAMCALL[TDH.VP.ENTER].
 
-NOTE: This flow just shows the VMM basic flow on how the VMM loads the TD memory. For more detail of the full TD launch process, please refer to Intel TDX Module 1.0 EAS, Section 2.2 – Guest TD Life Cycle Overview. For more detail of adding private page at TD build time, please refer to Intel TDX Module 1.0 EAS, Section 7.7 – Secure EPT Build and Update and Section 7.8 – Adding TD Private Pages during TD Build Time.
+NOTE: This flow just shows the VMM basic flow on how the VMM loads the TD
+memory. For more detail of the full TD launch process, please refer to Intel TDX
+Module 1.0 EAS, Section 2.2 – Guest TD Life Cycle Overview. For more detail of
+adding private page at TD build time, please refer to Intel TDX Module 1.0 EAS,
+Section 7.7 – Secure EPT Build and Update and Section 7.8 – Adding TD Private
+Pages during TD Build Time.
 
 3.	TD Shim boots
- * TD Shim starts at the reset vector in 32bit protected mode. It sets up page table and switch to 64bit long mode immediately.
- * TD Shim uses TDCALL[TDG.VP.INFO] to get the virtual CPU (VCPU) information and only allows the bootstrap processor (BSP) to start the system initialization. All application processors (APs) loops with a mailbox and wait for the instruction from the BSP.
+ * TD Shim starts at the reset vector in 32bit protected mode. It sets up page
+   table and switch to 64bit long mode immediately.
+ * TD Shim uses TDCALL[TDG.VP.INFO] to get the virtual CPU (VCPU) information
+   and only allows the bootstrap processor (BSP) to start the system
+   initialization. All application processors (APs) loops with a mailbox and
+   wait for the instruction from the BSP.
  * TD Shim setup stack and starts to run the C code.
  * TD Shim setup exception handler.
- * TD Shim uses TDCALL[TDG.MR.RTMR.EXTEND] to extend the TD_HOB to runtime measurement register (RTMR) with, then parse the TD_HOB.
- * TD Shim gets the memory information and accepts the memory. It also maintains the memory map.
+ * TD Shim uses TDCALL[TDG.MR.RTMR.EXTEND] to extend the TD_HOB to runtime
+   measurement register (RTMR) with, then parse the TD_HOB.
+ * TD Shim gets the memory information and accepts the memory. It also maintains
+   the memory map.
 
-NOTE: TD Shim shall build the trusted chain by extending the component to RTMR before use. All input from the VMM shall be extended unless it is already measured in TD measurement register (MRTD).
+NOTE: TD Shim shall build the trusted chain by extending the component to RTMR
+before use. All input from the VMM shall be extended unless it is already
+measured in TD measurement register (MRTD).
 
 4.	TD Shim loads payload
  * TD Shim measures the payload parameter to RTMR.
- * TD Shim prepares the payload parameter, such as boot params (zero page) for the OS kernel, E820 table and ACPI tables, etc.
+ * TD Shim prepares the payload parameter, such as boot params (zero page) for
+   the OS kernel, E820 table and ACPI tables, etc.
  * TD Shim jumps to the payload’s entrypoint.
 
 ## Part I - TD Shim / VMM Interface
 
 ### TD Shim Metadata
 
-TD Shim image contains a metadata table to report the TD Shim information to the VMM. The metadata table is also known as the TDVF_DESCRIPTOR. The VMM refers to TDVF_DESCRIPTOR to set up memory for TD Shim. The VMM shall follow the MemoryAddress defined in each TDVF_SECTION to reserve system memory and load corresponding components.
+TD Shim image contains a metadata table to report the TD Shim information to the
+VMM. The metadata table is also known as the TDVF_DESCRIPTOR. The VMM refers to
+TDVF_DESCRIPTOR to set up memory for TD Shim. The VMM shall follow the
+MemoryAddress defined in each TDVF_SECTION to reserve system memory and load
+corresponding components.
 
 #### Metadata Location
 
-The TD Shim metadata can be located at (TD Shim end – 0x20) byte. It is a 4-bytes offset of the TDVF_DESCRIPTOR to the beginning of the TD Shim image.
+The TD Shim metadata can be located at (TD Shim end – 0x20) byte. It is a
+4-bytes offset of the TDVF_DESCRIPTOR to the beginning of the TD Shim image.
 
 #### Metadata Definition
 
@@ -130,51 +175,93 @@ The TD Shim metadata can be located at (TD Shim end – 0x20) byte. It is a 4-by
 | 7 ~ 0xFFFFFFFF | Reserved     | N/A               | N/A                     | N/A            | N/A               |
 
 Rules for the TDVF_SECTION:
- * A TD-Shim shall include at least one BFV and the reset vector shall be inside of BFV. The RawDataSize of BFV must be non-zero.
- * A TD-Shim may have zero, one or multiple CFVs. The RawDataSize of CFV must be non-zero.
- * A TD-Shim may have zero or one TD_HOB section. The RawDataSize of TD_HOB must be zero. If TD-Shim reports zero TD_HOB section, then TD-Shim shall report all required memory in PermMem section.
- * A TD-Shim may have zero or one TempMem. The RawDataSize of TempMem must be zero.
- * A TD-Shim may have zero, one or multiple PermMem section. The RawDataSize of PermMem must be zero. If a TD provides PermMem section, that means the TD will own the memory allocation. VMM shall allocate the permanent memory for this TD. TD will NOT use the system memory information in the TD HOB. Even if VMM adds system memory information in the TD HOB, it will ne ignored.
- * A TD-Shim may have zero or one Payload. The RawDataSize of Payload must be non-zero, if the whole image includes the Payload. Otherwise the RawDataSize must be zero.
- * A TD-Shim may have zero or one  PayloadParam.  PayloadParam is present only if the Payload is present.
+ * A TD-Shim shall include at least one BFV and the reset vector shall be inside
+   of BFV. The RawDataSize of BFV must be non-zero.
+ * A TD-Shim may have zero, one or multiple CFVs. The RawDataSize of CFV must be
+   non-zero.
+ * A TD-Shim may have zero or one TD_HOB section. The RawDataSize of TD_HOB must
+   be zero. If TD-Shim reports zero TD_HOB section, then TD-Shim shall report
+   all required memory in PermMem section.
+ * A TD-Shim may have zero or one TempMem. The RawDataSize of TempMem must be
+   zero.
+ * A TD-Shim may have zero, one or multiple PermMem section. The RawDataSize of
+   PermMem must be zero. If a TD provides PermMem section, that means the TD
+   will own the memory allocation. VMM shall allocate the permanent memory for
+   this TD. TD will NOT use the system memory information in the TD HOB. Even if
+   VMM adds system memory information in the TD HOB, it will ne ignored.
+ * A TD-Shim may have zero or one Payload. The RawDataSize of Payload must be
+   non-zero, if the whole image includes the Payload. Otherwise the RawDataSize
+   must be zero.
+ * A TD-Shim may have zero or one PayloadParam.  PayloadParam is present only if
+   the Payload is present.
 
 ### Metadata Reporting Use case
 
 The metadata above may support below use cases as example.
 
-1. Normal TDVF: The metadata includes one BFV, one CFV, one TD_HOB and one TempMem.
-2. TD-Shim with container OS: The metadata includes one BFV, one TD_HOB, one TempMem and one OS kernel as Payload. The OS kernel is added so that the TD-Shim does not need load it from other storage.
-3. TD-Shim with Service TD core: The metadata includes one BFV, zero or one CFV, one TempMem, one PermMem, and one Service TD Core as Payload. The TD_HOB is removed and the PermMem is added, so that the configuration is static, and all measurement registers are predictable at build time.
+1. Normal TDVF: The metadata includes one BFV, one CFV, one TD_HOB and one
+   TempMem.
+2. TD-Shim with container OS: The metadata includes one BFV, one TD_HOB, one
+   TempMem and one OS kernel as Payload. The OS kernel is added so that the
+   TD-Shim does not need load it from other storage.
+3. TD-Shim with Service TD core: The metadata includes one BFV, zero or one CFV,
+   one TempMem, one PermMem, and one Service TD Core as Payload. The TD_HOB is
+   removed and the PermMem is added, so that the configuration is static, and
+   all measurement registers are predictable at build time.
 
 ## Part II - VMM / TD Shim Interface
 
 ### TD HOB
 
-The HOB data structure is defined in UEFI Platform Initialization (PI) specification (https://uefi.org/sites/default/files/resources/PI_Spec_1_7_A_final_May1.pdf), volume 3 - Shared Architectural Elements, Chapter 5 - HOB Code Definitions. The TD HOB list starts with EFI_HOB_HANDOFF_INFO_TABLE (PHIT HOB), where only Header, Version and EfiEndOfHobList are useful. All other fields shall be zero. The EfiEndOfHobList points the end of the HOB list. If present, the PHIT HOB and End Of List HOB are required. All other HOBs are options.
+The HOB data structure is defined in UEFI Platform Initialization (PI)
+specification
+(https://uefi.org/sites/default/files/resources/PI_Spec_1_7_A_final_May1.pdf),
+volume 3 - Shared Architectural Elements, Chapter 5 - HOB Code Definitions. The
+TD HOB list starts with EFI_HOB_HANDOFF_INFO_TABLE (PHIT HOB), where only
+Header, Version and EfiEndOfHobList are useful. All other fields shall be
+zero. The EfiEndOfHobList points the end of the HOB list. If present, the PHIT
+HOB and End Of List HOB are required. All other HOBs are options.
 
-In order to initialize a TD starts, the VMM uses SEAMCALL[TDH.VP.INIT] with an TD HOB address in RDX. The TDX module puts this TD HOB address in RCX/R8 as VCPU INIT state. Because the TD HOB address is an input from VMM, it is untrusted. For detail, please refer to Intel TDX Module 1.0 EAS, Section 8.1 TD VCPU Initial State and Section 20.2.42 TDH.VP.INIT.
+In order to initialize a TD starts, the VMM uses SEAMCALL[TDH.VP.INIT] with an
+TD HOB address in RDX. The TDX module puts this TD HOB address in RCX/R8 as VCPU
+INIT state. Because the TD HOB address is an input from VMM, it is
+untrusted. For detail, please refer to Intel TDX Module 1.0 EAS, Section 8.1 TD
+VCPU Initial State and Section 20.2.42 TDH.VP.INIT.
 
 #### Memory Information
 
 Resource Description HOB is to report the VMM assigned memory information.
 
-If TD Shim does not include the PermMem section in metadata, then the VMM shall report the unaccepted memory via TD HOB. The unaccepted memory should be reported as TD Resource HOB with type: EFI_RESOURCE_SYSTEM_MEMORY and attribute: EFI_RESOURCE_ATTRIBUTE_PRESENT | EFI_RESOURCE_ATTRIBUTE_INITIALIZED |EFI_RESOURCE_ATTRIBUTE_UNACCEPTED. The private memory information is optional, because the TD Shim can get the information from metadata directly.
+If TD Shim does not include the PermMem section in metadata, then the VMM shall
+report the unaccepted memory via TD HOB. The unaccepted memory should be
+reported as TD Resource HOB with type: EFI_RESOURCE_SYSTEM_MEMORY and attribute:
+EFI_RESOURCE_ATTRIBUTE_PRESENT | EFI_RESOURCE_ATTRIBUTE_INITIALIZED
+|EFI_RESOURCE_ATTRIBUTE_UNACCEPTED. The private memory information is optional, because the TD Shim can get the information from metadata directly.
 
-If TD Shim reports the PermMem section in metadata, then the VMM does not need report unaccepted memory via TD HOB. If nothing else should be reported, then the TD HOB could be NULL.
+If TD Shim reports the PermMem section in metadata, then the VMM does not need
+report unaccepted memory via TD HOB. If nothing else should be reported, then
+the TD HOB could be NULL.
 
 #### Resource Information
 
-VMM also uses the Resource Description HOB to report the emulated MMIO (EFI_RESOURCE_MEMORY_MAPPED_IO) and IO resource (EFI_RESOURCE_IO), such as for timer, interrupt controller or virtual PCI express.
+VMM also uses the Resource Description HOB to report the emulated MMIO
+(EFI_RESOURCE_MEMORY_MAPPED_IO) and IO resource (EFI_RESOURCE_IO), such as for
+timer, interrupt controller or virtual PCI express.
 
 #### System Configuration
 
-The VMM may optionally report other system configuration via GUID Extension HOB, such as ACPI table. The TD Shim shall convert the HOB to report to OS with TD Shim / Guest payload interface.
+The VMM may optionally report other system configuration via GUID Extension HOB,
+such as ACPI table. The TD Shim shall convert the HOB to report to OS with TD
+Shim / Guest payload interface.
 
 ### GUID Extension HOB definition
 
 #### ACPI GUID Extension HOB
 
-A HOB may include zero, one or multiple ACPI Table GUID Extension HOB. It is the ACPI table prepared by the VMM to the guest OS. The TD Shim shall move the ACPI tables from HOB to ACPI Reclaim memory one by one, and report to guest payload via normal ACPI mechanism via RSDP.
+A HOB may include zero, one or multiple ACPI Table GUID Extension HOB. It is the
+ACPI table prepared by the VMM to the guest OS. The TD Shim shall move the ACPI
+tables from HOB to ACPI Reclaim memory one by one, and report to guest payload
+via normal ACPI mechanism via RSDP.
 
 ```
 #define ACPI_TABLE_HOB_GUID { \
@@ -197,7 +284,10 @@ typedef struct {
 
 #### E820 Memory Map GUID Extension HOB
 
-A HOB may include zero or one E820 memory map Table GUID Extension HOB. If present, this HOB is used to describe the memory information with E820 table. The E820 table definition can be found at https://uefi.org/specs/ACPI/6.4/15_System_Address_Map_Interfaces/Sys_Address_Map_Interfaces.html#.
+A HOB may include zero or one E820 memory map Table GUID Extension HOB. If
+present, this HOB is used to describe the memory information with E820
+table. The E820 table definition can be found at
+https://uefi.org/specs/ACPI/6.4/15_System_Address_Map_Interfaces/Sys_Address_Map_Interfaces.html#.
 
 ```
 #define E820_TABLE_HOB_GUID { \
@@ -225,11 +315,18 @@ typedef struct {
 
 #### TD Payload Info GUID Extension HOB
 
-A HOB may include zero or one payload Info GUID Extension HOB. If it is present, then the TD Shim shall follow the payload image type and boot protocol, then jump the corresponding payload entrypoint.
+A HOB may include zero or one payload Info GUID Extension HOB. If it is present,
+then the TD Shim shall follow the payload image type and boot protocol, then
+jump the corresponding payload entrypoint.
 
-A TD Shim may support a subset of the payload type based upon its use case. For example, TD Shim for a container may only support PayloadImageTypeBzImage and PayloadImageTypeRawVmLinux. TD shim for a service TD may only support PayloadImageTypeExecutablePayload.
+A TD Shim may support a subset of the payload type based upon its use case. For
+example, TD Shim for a container may only support PayloadImageTypeBzImage and
+PayloadImageTypeRawVmLinux. TD shim for a service TD may only support
+PayloadImageTypeExecutablePayload.
 
-If the VMM does not provide the payload image or the VMM does not know the payload image format, the VMM shall not create this payload info HOB. The TdShim must know the payload format and transfer to the payload in right way.
+If the VMM does not provide the payload image or the VMM does not know the
+payload image format, the VMM shall not create this payload info HOB. The TdShim
+must know the payload format and transfer to the payload in right way.
 
 ```
 #define HOB_PAYLOAD_INFO_GUID { \
@@ -273,26 +370,47 @@ typedef enum {
 #pragma pack ()
 ```
 
-If the final binary includes a payload and the TD Shim knows the payload type, then TD shim does not rely on VMM input. TD shim can boot payload directly. VMM does not need to know payload and VMM does not need detect the payload type or provide the payload type information to TD Shim.
+If the final binary includes a payload and the TD Shim knows the payload type,
+then TD shim does not rely on VMM input. TD shim can boot payload directly. VMM
+does not need to know payload and VMM does not need detect the payload type or
+provide the payload type information to TD Shim.
 
-If the final binary does not include a payload and TD Shim relies on VMM to input the payload, then VMM needs to know the payload and provides the payload type information to TD Shim.
+If the final binary does not include a payload and TD Shim relies on VMM to
+input the payload, then VMM needs to know the payload and provides the payload
+type information to TD Shim.
 
 ### Payload Loading
 
-The VMM shall load the payload such as Linux kernel (bzImage or vmlinux) and optional driver (initrd.img) with payload command line parameter into TD private memory if they are supported in TD metadata. The payload may or might not be included in the binary and the payload may or might not be measured in MRTD based upon different use cases. If the payload image is not measured in MRTD, then it shall be measured to RTMR[1].
+The VMM shall load the payload such as Linux kernel (bzImage or vmlinux) and
+optional driver (initrd.img) with payload command line parameter into TD private
+memory if they are supported in TD metadata. The payload may or might not be
+included in the binary and the payload may or might not be measured in MRTD
+based upon different use cases. If the payload image is not measured in MRTD,
+then it shall be measured to RTMR[1].
 
-NOTE: The VMM does not need create the payload boot params, such as the Linux boot zero page, but just create a payload boot command line parameter (a string, please refer to https://www.kernel.org/doc/html/v5.0/admin-guide/kernel-parameters.html, and https://man7.org/linux/man-pages/man7/bootparam.7.html). It is TD Shim that setup the required OS kernel boot_params (the zero page). See Part III for detail.
+NOTE: The VMM does not need create the payload boot params, such as the Linux
+boot zero page, but just create a payload boot command line parameter (a string,
+please refer to
+https://www.kernel.org/doc/html/v5.0/admin-guide/kernel-parameters.html, and
+https://man7.org/linux/man-pages/man7/bootparam.7.html). It is TD Shim that
+setup the required OS kernel boot_params (the zero page). See Part III for
+detail.
 
 
 ## Part III - TD Shim / Guest Payload Interface
 
 ### Boot Protocol
 
-If the payload follows Linux Boot Protocol, TD Shim shall follow 64bit boot protocol defined in https://www.kernel.org/doc/Documentation/x86/boot.txt to setup the boot_params (the zero page), then jump to the 64-bit payload entry point according to the TD Payload Info GUID Extension HOB.
+If the payload follows Linux Boot Protocol, TD Shim shall follow 64bit boot
+protocol defined in https://www.kernel.org/doc/Documentation/x86/boot.txt to
+setup the boot_params (the zero page), then jump to the 64-bit payload entry
+point according to the TD Payload Info GUID Extension HOB.
 
 The bootstrap processor state is below:
  * CPU must be in 64-bit mode with paging enabled.
- * The range with setup_header.init_size from start address of loaded Linux kernel, zero page and Linux kernel command line parameter buffer get identical mapping.
+ * The range with setup_header.init_size from start address of loaded Linux
+   kernel, zero page and Linux kernel command line parameter buffer get
+   identical mapping.
  * A GDT must be loaded with below configuration
     * CS=0x10, 4G flat segment, with execute/read permission.
     * DS=0x18, 4G flat segment, with read/write permission.
@@ -301,55 +419,105 @@ The bootstrap processor state is below:
  * Interrupt must be disabled.
  * RSI must hold the base address of the struct boot_params.
 
-If the payload does not follow Linux Boot Protocol, TD Shim shall follow X64 calling convention to call the kernel entrypoint and pass a new payload HOB as the first parameter.
- * For PE/COFF image, MSVC X64 calling convention must be used. RCX must hold the payload HOB address.
- * For ELF image, System-V ABI AMD64 calling convention must be used. RDI must hold the payload HOB address.
+If the payload does not follow Linux Boot Protocol, TD Shim shall follow X64
+calling convention to call the kernel entrypoint and pass a new payload HOB as
+the first parameter.
+ * For PE/COFF image, MSVC X64 calling convention must be used. RCX must hold
+   the payload HOB address.
+ * For ELF image, System-V ABI AMD64 calling convention must be used. RDI must
+   hold the payload HOB address.
  * All rest are same as above.
 
 ### UEFI Interface
 
-TD Shim shall only NOT support UEFI interface. If the TD guest requires to boot an UEFI OS, the TD Shim may load a special UEFI payload to support UEFI interface and UEFI OS kernel boot.
+TD Shim shall only NOT support UEFI interface. If the TD guest requires to boot
+an UEFI OS, the TD Shim may load a special UEFI payload to support UEFI
+interface and UEFI OS kernel boot.
 
 ### ACPI Table
 
-TD Shim shall only support static ACPI tables. TD Shim shall not report any ACPI table that contains the ASL such as DSDT or SSDT, unless the VMM passes the DSDT or SSDT via ACPI_TABLE_HOB.
+TD Shim shall only support static ACPI tables. TD Shim shall not report any ACPI
+table that contains the ASL such as DSDT or SSDT, unless the VMM passes the DSDT
+or SSDT via ACPI_TABLE_HOB.
 
-The root of ACPI table is RSDP. For the payload supporting Linux Boot Protocol, the TD Shim shall report RSDP as part of boot parameter - acpi_rsdp_addr (offset 0x70) - https://github.com/torvalds/linux/blob/master/arch/x86/include/uapi/asm/bootparam.h.
+The root of ACPI table is RSDP. For the payload supporting Linux Boot Protocol,
+the TD Shim shall report RSDP as part of boot parameter - acpi_rsdp_addr (offset
+0x70) -
+https://github.com/torvalds/linux/blob/master/arch/x86/include/uapi/asm/bootparam.h.
 
-TD Shim does not report RSDP in any legacy region, such as EBDA or BIOS read-only memory space. (https://uefi.org/specs/ACPI/6.4/05_ACPI_Software_Programming_Model/ACPI_Software_Programming_Model.html#root-system-description-pointer-rsdp)
+TD Shim does not report RSDP in any legacy region, such as EBDA or BIOS
+read-only memory
+space. (https://uefi.org/specs/ACPI/6.4/05_ACPI_Software_Programming_Model/ACPI_Software_Programming_Model.html#root-system-description-pointer-rsdp)
 
-For the payload not supporting Linux Boot Protocol, the TD Shim shall report ACPI table via ACPI Extension HOB.
+For the payload not supporting Linux Boot Protocol, the TD Shim shall report
+ACPI table via ACPI Extension HOB.
 
-TD Shim shall support a minimal set of ACPI tables. ACPI specification defined RSDP, XSDT, MADT tables are required to report system information.
- * Within MADT, the Processor Local APIC/x2 APIC, IO APIC, Interrupt Source Override, Local APIC NMI, Multiprocessor Wakeup structures are required.
- * FADT is required, if we need pass the reduced hardware information to guest, such as RESET_REG.
- * SRAT is required, only if the hypervisor configures Non-Uniform Memory Access (NUMA) platform.
+TD Shim shall support a minimal set of ACPI tables. ACPI specification defined
+RSDP, XSDT, MADT tables are required to report system information.
+ * Within MADT, the Processor Local APIC/x2 APIC, IO APIC, Interrupt Source
+   Override, Local APIC NMI, Multiprocessor Wakeup structures are required.
+ * FADT is required, if we need pass the reduced hardware information to guest,
+   such as RESET_REG.
+ * SRAT is required, only if the hypervisor configures Non-Uniform Memory Access
+   (NUMA) platform.
  * Intel TDX defined TDEL table is required to support TDX based trusted boot.
- * TCG defined TCG2 table is required, if the virtual TPM2 device is supported in the future.
- * PCI-SIG defined MCFG table is required, if the virtual PCI express is supported.
- * TD Shim defined SPRT table is required, if the virtual PCI device is supported.
+ * TCG defined TCG2 table is required, if the virtual TPM2 device is supported
+   in the future.
+ * PCI-SIG defined MCFG table is required, if the virtual PCI express is
+   supported.
+ * TD Shim defined SPRT table is required, if the virtual PCI device is
+   supported.
 
 #### Multiple Processor Support
 
-Because the Intel TDX module initializes all CPUs and allows them to jump to the reset vector at the same time, the TD Shim shall rendezvous all processor, and only let the BSP does the TD initialization and lets APs do wait-loop in the X64 long mode.
+Because the Intel TDX module initializes all CPUs and allows them to jump to the
+reset vector at the same time, the TD Shim shall rendezvous all processor, and
+only let the BSP does the TD initialization and lets APs do wait-loop in the X64
+long mode.
 
-The AP init state is exactly same as the BSP init state. The TD Shim uses TDCALL[TDG.VP.INFO] to get the TD_INFO. The VCPU_INDEX is reported by INIT_STATE.RSI or TD_INFO.R9[0:31]. It is the starting from 0 and allocated sequentially on each successful SEAMCALL[TDH.SYS.LP.INIT].
+The AP init state is exactly same as the BSP init state. The TD Shim uses
+TDCALL[TDG.VP.INFO] to get the TD_INFO. The VCPU_INDEX is reported by
+INIT_STATE.RSI or TD_INFO.R9[0:31]. It is the starting from 0 and allocated
+sequentially on each successful SEAMCALL[TDH.SYS.LP.INIT].
 
-The NUM_VCPUS is reported by TD_INFO.R8[0:31]. It is the Number of Virtual CPUs that are usable, i.e. either active or ready. The TD Shim need use this number to determine how many CPUs will join.
+The NUM_VCPUS is reported by TD_INFO.R8[0:31]. It is the Number of Virtual CPUs
+that are usable, i.e. either active or ready. The TD Shim need use this number
+to determine how many CPUs will join.
 
-The MAX_VCPUS is reported by TD_INFO.R8[32:63]. It is TD's maximum number of Virtual CPUs. This value should be ignored by the TD Shim in this version. It may be used for other purpose in future version such as later-add.
+The MAX_VCPUS is reported by TD_INFO.R8[32:63]. It is TD's maximum number of
+Virtual CPUs. This value should be ignored by the TD Shim in this version. It
+may be used for other purpose in future version such as later-add.
 
-Intel TDX module will start the VCPU with VCPU_INDEX from 0 to (NUM_VCPUS – 1). As such, the TD Shim can treat the BSP as the CPU with VCPU_INDEX 0. However, the TD Shim cannot assume that the CPU with VCPU_INDEX 0 is the first one to launch. The TD Shim needs to rendezvous in early initialization code, let the BSP execute the main boot flow and let APs execute in the wait loop.
+Intel TDX module will start the VCPU with VCPU_INDEX from 0 to (NUM_VCPUS –
+1). As such, the TD Shim can treat the BSP as the CPU with
+VCPU_INDEX 0. However, the TD Shim cannot assume that the CPU with VCPU_INDEX 0
+is the first one to launch. The TD Shim needs to rendezvous in early
+initialization code, let the BSP execute the main boot flow and let APs execute
+in the wait loop.
 
-TD Shim shall report the multiple processor information via MADT - https://uefi.org/specs/ACPI/6.4/05_ACPI_Software_Programming_Model/ACPI_Software_Programming_Model.html#multiple-apic-description-table-madt.
+TD Shim shall report the multiple processor information via MADT -
+https://uefi.org/specs/ACPI/6.4/05_ACPI_Software_Programming_Model/ACPI_Software_Programming_Model.html#multiple-apic-description-table-madt.
 
-In order to support AP wake up, TD Shim shall report multiprocessor wakeup structure in MADT to share mailbox information with the payload or OS kernel, and send the OS commands via ACPI mailbox to wakeup APs. Please refer to https://uefi.org/specs/ACPI/6.4/05_ACPI_Software_Programming_Model/ACPI_Software_Programming_Model.html#multiprocessor-wakeup-structure.
+In order to support AP wake up, TD Shim shall report multiprocessor wakeup
+structure in MADT to share mailbox information with the payload or OS kernel,
+and send the OS commands via ACPI mailbox to wakeup APs. Please refer to
+https://uefi.org/specs/ACPI/6.4/05_ACPI_Software_Programming_Model/ACPI_Software_Programming_Model.html#multiprocessor-wakeup-structure.
 
-NOTE: In TDX architecture, the VMM is not trusted. The TD does not give AP control back to VMM, once the AP is launched into the TD. This behavior is different with traditional VM, where the AP is not initialized yet and in WAIT-FOR-SIPI state. As such, TDX architecture does not support traditional INIT-SIPI-SIPI style wait up with local APIC, but only allows the payload or OS kernel uses the mailbox mechanism to pull AP into its own domain.
+NOTE: In TDX architecture, the VMM is not trusted. The TD does not give AP
+control back to VMM, once the AP is launched into the TD. This behavior is
+different with traditional VM, where the AP is not initialized yet and in
+WAIT-FOR-SIPI state. As such, TDX architecture does not support traditional
+INIT-SIPI-SIPI style wait up with local APIC, but only allows the payload or OS
+kernel uses the mailbox mechanism to pull AP into its own domain.
 
 #### PCI Interrupt Routing
 
-If VMM does not pass DSDT, VMM needs a way to replace _PRT method in ASL. This is done by Simple Static PCI Routing Table (SPRT). This table reports the PCI device routing information in legacy way, which is similar to PCI Interrupt Routing table in PCI Firmware Specification, section 2.6.2, Get PCI Interrupt Routing Expansions, and I/O Interrupt Assignment Entries in Multi-Processor Specification, 4.3.4, I/O Interrupt Assignment Entries.
+If VMM does not pass DSDT, VMM needs a way to replace _PRT method in ASL. This
+is done by Simple Static PCI Routing Table (SPRT). This table reports the PCI
+device routing information in legacy way, which is similar to PCI Interrupt
+Routing table in PCI Firmware Specification, section 2.6.2, Get PCI Interrupt
+Routing Expansions, and I/O Interrupt Assignment Entries in Multi-Processor
+Specification, 4.3.4, I/O Interrupt Assignment Entries.
 
 TODO: Need reserve the table signature in ACPI spec.
 
@@ -409,31 +577,51 @@ TODO: Need reserve the table signature in ACPI spec.
 
 #### Device Reporting
 
-TD Shim does not report device to TD guest. The VMM may include the device in the boot parameter, or Flattened Device Tree (FDT).
+TD Shim does not report device to TD guest. The VMM may include the device in
+the boot parameter, or Flattened Device Tree (FDT).
 
 #### Resource Reporting
 
-The VMM may have emulated MMIO or IO region for the TD. The VMM may include the information in the boot parameter together the device such as basic timer or interrupt controller device, or VMM may combine the device information into a FDT and pass to the OS Kernel.
+The VMM may have emulated MMIO or IO region for the TD. The VMM may include the
+information in the boot parameter together the device such as basic timer or
+interrupt controller device, or VMM may combine the device information into a
+FDT and pass to the OS Kernel.
 
-The ACPI table can be used to report detail register information. FADT is to report the fixed hardware ACPI information such as PM_TIMER, PM_CONTROL, RESET register. MADT is to report the Local APIC and IO APIC information. HPET is to report HPET timer information. MCFG is to report PCI express configuration space information.
+The ACPI table can be used to report detail register information. FADT is to
+report the fixed hardware ACPI information such as PM_TIMER, PM_CONTROL, RESET
+register. MADT is to report the Local APIC and IO APIC information. HPET is to
+report HPET timer information. MCFG is to report PCI express configuration space
+information.
 
 ### Memory Map
 
 The memory in the TD guest-environment can be:
- * Private memory - SEAMCALL [TDH.MEM.PAGE.ADD] by VMM or TDCALL [TDG.MEM.PAGE.ACCEPT] by TD-Shim with S-bit clear in page table.
- * Shared memory - SEAMCALL [TDH.MEM.PAGE.ADD] by VMM or TDCALL [TDG.MEM.PAGE.ACCEPT] by TD-Shim with S-bit set in page table.
- * Unaccepted memory - SEAMCALL [TDH.MEM.PAGE.AUG] by VMM and not accepted by TD-Shim yet.
- * Memory-mapped IO (MMIO) - Shared memory accessed by TD via TDCALL [TDG.VP.VMCALL] <#VE.REQUESTMMIO>.
+ * Private memory - SEAMCALL [TDH.MEM.PAGE.ADD] by VMM or TDCALL
+   [TDG.MEM.PAGE.ACCEPT] by TD-Shim with S-bit clear in page table.
+ * Shared memory - SEAMCALL [TDH.MEM.PAGE.ADD] by VMM or TDCALL
+   [TDG.MEM.PAGE.ACCEPT] by TD-Shim with S-bit set in page table.
+ * Unaccepted memory - SEAMCALL [TDH.MEM.PAGE.AUG] by VMM and not accepted by
+   TD-Shim yet.
+ * Memory-mapped IO (MMIO) - Shared memory accessed by TD via TDCALL
+   [TDG.VP.VMCALL] <#VE.REQUESTMMIO>.
 
-If a TD-memory region is private memory, the TD Shim shall have the final memory map report the region with AddressRangeMemory, AddressRangeReserved, AddressRangeACPI, or AddressRangeNVS.
+If a TD-memory region is private memory, the TD Shim shall have the final memory
+map report the region with AddressRangeMemory, AddressRangeReserved,
+AddressRangeACPI, or AddressRangeNVS.
 
-If a TD-memory region is shared memory, the TD Shim shall convert it to private memory before transfer to a payload.
+If a TD-memory region is shared memory, the TD Shim shall convert it to private
+memory before transfer to a payload.
 
-If a TD-memory region is unaccepted memory and requires TDCALL [TDG.MEM.PAGE.ACCEPT] in the TD guest OS, then the TD Shim shall have the final memory map report this region with AddressRangeUnaccepted.
+If a TD-memory region is unaccepted memory and requires TDCALL
+[TDG.MEM.PAGE.ACCEPT] in the TD guest OS, then the TD Shim shall have the final
+memory map report this region with AddressRangeUnaccepted.
 
-If a memory region is MMIO, it is designed to only be accessed via TDVMCALL<#VE.RequestMMIO> and not via direct memory read or write.  Accordingly, as designed, there is no need to report this region in the final memory map.
+If a memory region is MMIO, it is designed to only be accessed via
+TDVMCALL<#VE.RequestMMIO> and not via direct memory read or write.  Accordingly,
+as designed, there is no need to report this region in the final memory map.
 
-To simply the design, TD Shim report E820 memory map to OS - https://uefi.org/specs/ACPI/6.4/15_System_Address_Map_Interfaces/Sys_Address_Map_Interfaces.html#.
+To simply the design, TD Shim report E820 memory map to OS -
+https://uefi.org/specs/ACPI/6.4/15_System_Address_Map_Interfaces/Sys_Address_Map_Interfaces.html#.
 
 Table 3.4-1 shows the E820 memory map.
 
@@ -447,17 +635,23 @@ Table 3.4-1 shows the E820 memory map.
 | AddressRangeNVS        | 4     | Firmware Reserved for ACPI, such as the memory used in ACPI OpRegion. | Private        | Reserved                           |
 | AddressRangeUnaccepted | 8     | Allocated by VMM, but not accepted by TD guest yet.                   | Unaccepted     | Use after convert to private page. |
 
-For the payload supporting Linux Boot Protocol, the TD Shim shall report E820 table as part of boot parameter - e820_table (offset 0x2d0)  https://www.kernel.org/doc/Documentation/x86/zero-page.txt.
+For the payload supporting Linux Boot Protocol, the TD Shim shall report E820
+table as part of boot parameter - e820_table (offset 0x2d0)
+https://www.kernel.org/doc/Documentation/x86/zero-page.txt.
 
-For the payload not supporting Linux Boot Protocol, the TD Shim shall report E820 table via E820 Extension HOB.
+For the payload not supporting Linux Boot Protocol, the TD Shim shall report
+E820 table via E820 Extension HOB.
 
 ### TD Trusted Boot Support
 
-TDX architecture defines two types of measurement registers – MRTD and RTMR. Please refer to Intel TDX Module 1.0 EAS, Chapter 10 – Measurement and Attestation.
+TDX architecture defines two types of measurement registers – MRTD and
+RTMR. Please refer to Intel TDX Module 1.0 EAS, Chapter 10 – Measurement and
+Attestation.
 
 #### TD Measurement
 
-TD-Shim must extend RTMR before transferring control to the payload. Table 3.5-1 shows the TD measurement register usage in TD-Shim.
+TD-Shim must extend RTMR before transferring control to the payload. Table 3.5-1
+shows the TD measurement register usage in TD-Shim.
 
 **Table 3.5-1 TD Measurement Registers for TD-Shim**
 
@@ -468,11 +662,16 @@ TD-Shim must extend RTMR before transferring control to the payload. Table 3.5-1
 | OS code            | RTMR[1]  | YES       | TD-Shim: TDCALL[TDG.MR.RTMR.EXTEND] | Payload (if not in Firmware Code)         | 4          |
 | Boot Configuration | RTMR[1]  | YES       | TD-Shim: TDCALL[TDG.MR.RTMR.EXTEND] | Payload parameter - command line          | 5          |
 
-NOTE: Different measurement register are for different purposes. Usually, MRTD is for static guest BIOS code. RTMR[0] is for dynamic guest BIOS configuration. RTMR[1] is for guest OS code and configuration. RTMR[2] is for guest application code and configuration. RTMR[3] is reserved for special usage only.
+NOTE: Different measurement register are for different purposes. Usually, MRTD
+is for static guest BIOS code. RTMR[0] is for dynamic guest BIOS
+configuration. RTMR[1] is for guest OS code and configuration. RTMR[2] is for
+guest application code and configuration. RTMR[3] is reserved for special usage
+only.
 
 #### TD Event Log
 
-The TD-Shim shall report the TD event log via 'TDEL' ACPI table define in https://software.intel.com/content/dam/develop/external/us/en/documents/intel-tdx-guest-hypervisor-communication-interface.pdf
+The TD-Shim shall report the TD event log via 'TDEL' ACPI table define in
+https://software.intel.com/content/dam/develop/external/us/en/documents/intel-tdx-guest-hypervisor-communication-interface.pdf
 
 **Table 3.5-2 TD Event Log Table**
 
@@ -522,48 +721,69 @@ typedef struct {
 #### MRTD Calculation
 
 MRTD is extended by two operations:
- * TDH.MEM.PAGE.ADD adds a TD private page to the TD and inserts its properties (GPA) into MRTD. Extension is done using SHA384, with 128-byte extension buffer composed as follows:
+ * TDH.MEM.PAGE.ADD adds a TD private page to the TD and inserts its properties
+   (GPA) into MRTD. Extension is done using SHA384, with 128-byte extension
+   buffer composed as follows:
     * Byte 0 through 11 contain the ASCII string 'MEM.PAGE.ADD'.
     * Byte 16 through 23 contain the GPA (in little-endian format).
     * All the other bytes contain 0.
- * TDH.MR.EXTEND inserts the data contained in the pages, in 256 bytes chunks, and its GPA into MRTD. Extension is done using SHA384, with three 128-byte extension buffers. The first extension buffer is composed as follows:
+ * TDH.MR.EXTEND inserts the data contained in the pages, in 256 bytes chunks,
+   and its GPA into MRTD. Extension is done using SHA384, with three 128-byte
+   extension buffers. The first extension buffer is composed as follows:
     * Byte 0 through 8 contain the ASCII string 'MR.EXTEND'.
     * Byte 16 through 23 contain the GPA (in little-endian format).
-    * All the other bytes contain 0.
-The other two extension buffers contain the chunk’s content.
+    * All the other bytes contain 0.  The other two extension buffers contain
+the chunk’s content.
 
 The expected flow is:
 1. Search TD Metadata from metadata location and get TDVF_DESCRIPTOR.
-2. In TDVF_DESCRIPTOR, get TDVF_SECTION from index 0 to (NumberOfSectionEntry - 1).
-3. In TDVF_SECTION, if PAGE.AUG attribute is clear (PAGE.ADD is used), extend MRTD with the THD.MEM.PAGE.ADD as described above, from the lowest GPA to the highest GPA, with 4K granularity.
-4. In TDVF_SECTION, if MR.EXTEND attribute is set, extend MRTD with the TDH.MR.EXTEND as described above, from the lowest GPA to the highest GPA, with 256 bytes granularity.
+2. In TDVF_DESCRIPTOR, get TDVF_SECTION from index 0 to (NumberOfSectionEntry -
+   1).
+3. In TDVF_SECTION, if PAGE.AUG attribute is clear (PAGE.ADD is used), extend
+   MRTD with the THD.MEM.PAGE.ADD as described above, from the lowest GPA to the
+   highest GPA, with 4K granularity.
+4. In TDVF_SECTION, if MR.EXTEND attribute is set, extend MRTD with the
+   TDH.MR.EXTEND as described above, from the lowest GPA to the highest GPA,
+   with 256 bytes granularity.
 
 ### Secure Boot Support
 
-If TD Shim reports Payload in TD Shim metadata with MR.EXTEND attribute, then TD Shim does not need support secure boot. The Payload is extended to MRTD.
+If TD Shim reports Payload in TD Shim metadata with MR.EXTEND attribute, then TD
+Shim does not need support secure boot. The Payload is extended to MRTD.
 
-TD Shim may report Payload without MR.EXTEND attribute, then TD Shim may use secure boot to verify the digital signature of Payload and measure the Secure Version Number (SVN) and Payload to RTMR[1]. The benefit of this approach is that the verifier can validate the SVN of the Payload.
+TD Shim may report Payload without MR.EXTEND attribute, then TD Shim may use
+secure boot to verify the digital signature of Payload and measure the Secure
+Version Number (SVN) and Payload to RTMR[1]. The benefit of this approach is
+that the verifier can validate the SVN of the Payload.
 
 ### Exception Handling
 
-TD guest payload shall NOT rely on any exception handler setup by TD Shim, including #VE.
+TD guest payload shall NOT rely on any exception handler setup by TD Shim,
+including #VE.
 
 ### Hot Plug
 
 #### CPU Hot Plug
 
-This version TDX does not support CPU Hot plug. All processors shall be initialized by the VMM and enter TD Shim at one time.
+This version TDX does not support CPU Hot plug. All processors shall be
+initialized by the VMM and enter TD Shim at one time.
 
 CPU Hot Add is blocked by the Intel TDX module.
 
 CPU Hot Remove can be considered as a DOS attack and out of scope.
 
 #### Memory Hot Plug
-The TD memory is managed by the VMM. TD Shim does not support memory hot plug in the TD Shim boot phase. After TD Shim boots to the payload or OS kernel, the payload or OS kernel may have a mechanism to communicate with VMM to support memory hot plug, such as virtio-mem and virtio-balloon.
+The TD memory is managed by the VMM. TD Shim does not support memory hot plug in
+the TD Shim boot phase. After TD Shim boots to the payload or OS kernel, the
+payload or OS kernel may have a mechanism to communicate with VMM to support
+memory hot plug, such as virtio-mem and virtio-balloon.
 
 That memory hot plug mechanism is out of scope of this specification.
 
-For more detail of adding private page at TD run time, please refer to Intel TDX Module 1.0 EAS, Section 7.9 – Dynamically Adding TD Private Pages during TD Run Time, Section 7.12 – Removing TD Private Pages and Section 7.13 – Removing a Secure EPT Page.
+For more detail of adding private page at TD run time, please refer to Intel TDX
+Module 1.0 EAS, Section 7.9 – Dynamically Adding TD Private Pages during TD Run
+Time, Section 7.12 – Removing TD Private Pages and Section 7.13 – Removing a
+Secure EPT Page.
 
 ## Part IV – Misc
 
@@ -578,11 +798,14 @@ For more detail of adding private page at TD run time, please refer to Intel TDX
 | PayloadParam                 | VMM      | Payload  | RTMR[1]     |
 | boot_params (or) Payload HOB | TdShim   | Payload  | N/A         |
 
-It is based upon payload type. For the one following Linux Boot Protocol, the boot_params will be used. For the one not following Linux Boot Protocol, the payload HOB will be used.
+It is based upon payload type. For the one following Linux Boot Protocol, the
+boot_params will be used. For the one not following Linux Boot Protocol, the
+payload HOB will be used.
 
 ### Resource Overhead Calculation
 
-Below formula can be used to calculate the resource overhead (reserved memory + ACPI NVS + ACPI Reclaim allocated by the TDShim).
+Below formula can be used to calculate the resource overhead (reserved memory +
+ACPI NVS + ACPI Reclaim allocated by the TDShim).
 
 Total Resource Overhead == BSP Resource + APs Resource
 
@@ -595,29 +818,46 @@ APs Resource = AP Page Table (Reserved) + AP Number * AP Stack (Reserved)
 
 ### Intel TDX
 
-* Intel, TDX Overview - https://software.intel.com/content/www/us/en/develop/articles/intel-trust-domain-extensions.html
-* Intel, TDX Virtual Firmware Design Guide Version 1.0 - https://software.intel.com/content/dam/develop/external/us/en/documents/tdx-virtual-firmware-design-guide-rev-1.pdf
-* Intel, Guest Hypervisor Communication Interface Version 1.0 - https://software.intel.com/content/dam/develop/external/us/en/documents/intel-tdx-guest-hypervisor-communication-interface.pdf
-* Intel, Intel, TDX Module 1.0 EAS - https://software.intel.com/content/dam/develop/external/us/en/documents/tdx-module-1.0-public-spec-v0.931.pdf
-* Intel, TDX CPU Architecture Extensions Specification - https://software.intel.com/content/dam/develop/external/us/en/documents-tps/intel-tdx-cpu-architectural-specification.pdf
+* Intel, TDX Overview -
+  https://software.intel.com/content/www/us/en/develop/articles/intel-trust-domain-extensions.html
+* Intel, TDX Virtual Firmware Design Guide Version 1.0 -
+  https://software.intel.com/content/dam/develop/external/us/en/documents/tdx-virtual-firmware-design-guide-rev-1.pdf
+* Intel, Guest Hypervisor Communication Interface Version 1.0 -
+  https://software.intel.com/content/dam/develop/external/us/en/documents/intel-tdx-guest-hypervisor-communication-interface.pdf
+* Intel, Intel, TDX Module 1.0 EAS -
+  https://software.intel.com/content/dam/develop/external/us/en/documents/tdx-module-1.0-public-spec-v0.931.pdf
+* Intel, TDX CPU Architecture Extensions Specification -
+  https://software.intel.com/content/dam/develop/external/us/en/documents-tps/intel-tdx-cpu-architectural-specification.pdf
 
 ### Industry Standard
 
-* UEFI org, ACPI Specification Version 6.4 - https://uefi.org/sites/default/files/resources/ACPI_Spec_6_4_Jan22.pdf
-* UEFI org, UEFI Specification Version 2.9 - https://uefi.org/sites/default/files/resources/UEFI_Spec_2_9_2021_03_18.pdf
-* UEFI org, UEFI Platform Initialization Specification Version 1.7 - https://uefi.org/sites/default/files/resources/PI_Spec_1_7_A_final_May1.pdf
-* PCI-SIG, PCI Firmware Specification Revision 3.2 - https://pcisig.com/specifications
+* UEFI org, ACPI Specification Version 6.4 -
+  https://uefi.org/sites/default/files/resources/ACPI_Spec_6_4_Jan22.pdf
+* UEFI org, UEFI Specification Version 2.9 -
+  https://uefi.org/sites/default/files/resources/UEFI_Spec_2_9_2021_03_18.pdf
+* UEFI org, UEFI Platform Initialization Specification Version 1.7 -
+  https://uefi.org/sites/default/files/resources/PI_Spec_1_7_A_final_May1.pdf
+* PCI-SIG, PCI Firmware Specification Revision 3.2 -
+  https://pcisig.com/specifications
 * Multi-Processor Specification Version 1.4
 * PCI IRQ Routing Table Specification v1.0
 * Device Tree Specification 0.3 - https://www.devicetree.org/specifications/
-* MSVC x64 Calling Convention - https://docs.microsoft.com/en-us/cpp/build/x64-calling-convention
+* MSVC x64 Calling Convention -
+  https://docs.microsoft.com/en-us/cpp/build/x64-calling-convention
 * System-V ABI - https://www.uclibc.org/docs/psABI-x86_64.pdf
-* PE/COFF Specification - https://docs.microsoft.com/en-us/windows/win32/debug/pe-format
+* PE/COFF Specification -
+  https://docs.microsoft.com/en-us/windows/win32/debug/pe-format
 * ELF Specification - https://refspecs.linuxfoundation.org/elf/elf.pdf
 
 ### Linux Boot
 
-* Linux, X86 Boot Protocol - https://www.kernel.org/doc/Documentation/x86/boot.txt, https://www.kernel.org/doc/html/latest/x86/boot.html
-* Linux, X86 Zero Page - https://www.kernel.org/doc/Documentation/x86/zero-page.txt
-* Linux, X86 Boot Params definition - https://github.com/torvalds/linux/blob/master/arch/x86/include/uapi/asm/bootparam.h
-* Linux, Kernel Command Line Parameter - https://www.kernel.org/doc/html/v5.0/admin-guide/kernel-parameters.html , https://man7.org/linux/man-pages/man7/bootparam.7.html
+* Linux, X86 Boot Protocol -
+  https://www.kernel.org/doc/Documentation/x86/boot.txt,
+  https://www.kernel.org/doc/html/latest/x86/boot.html
+* Linux, X86 Zero Page -
+  https://www.kernel.org/doc/Documentation/x86/zero-page.txt
+* Linux, X86 Boot Params definition -
+  https://github.com/torvalds/linux/blob/master/arch/x86/include/uapi/asm/bootparam.h
+* Linux, Kernel Command Line Parameter -
+  https://www.kernel.org/doc/html/v5.0/admin-guide/kernel-parameters.html ,
+  https://man7.org/linux/man-pages/man7/bootparam.7.html
