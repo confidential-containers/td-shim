@@ -1,0 +1,83 @@
+{
+    "image_layout": {
+        /*
+          Image Layout:
+                       Binary                    Address
+              config_offset -> +--------------+
+                config_size -> |     VAR      |
+                               +--------------+
+               mailbox_size -> |  TD_MAILBOX  |
+                               +--------------+
+                   hob_size -> |    TD_HOB    |
+                               +--------------+
+      temp_stack_guard_size -> |    (Guard)   |
+            temp_stack_size -> |  TEMP_STACK  |
+                               +--------------+
+             temp_heap_size -> |   TEMP_RAM   |
+                               +--------------+
+               payload_size -> | Rust Payload |
+                               |     (pad)    |
+                               |   metadata   |
+                               +--------------+
+                   ipl_size -> |   Rust IPL   |
+                               |     (pad)    |
+                               +--------------+
+          reset_vector_size -> | Reset Vector |
+                               +--------------+
+        */
+        "config_offset": 0x0,
+        "config_size": 0x040000,
+        "mailbox_size": 0x001000,
+        "hob_size": 0x002000,
+        "temp_stack_guard_size": 0x001000,
+        "temp_stack_size": 0x020000,
+        "temp_heap_size": 0x020000,
+        "payload_size": 0xC2C000,
+        "ipl_size": 0x348000,
+        "reset_vector_size": 0x008000
+    },
+    "runtime_layout": {
+        /*
+            Mem Layout:
+                                    Address
+                +--------------+ <-  0x0
+                |     Legacy   |
+                +--------------+ <-  0x00100000 (1M)
+                |   ........   |
+                +--------------+ <-  page_table_base - 0x00800000
+                |  Page Table  |
+                +--------------+ <-  payload_param_base - 0x04000000 (8M)
+                | PAYLOAD_PARAM|     (payload_param_size)
+                +--------------+ <-  payload_base - 0x04100000 (8M)
+                |    PAYLOAD   |     (payload_size)
+                +--------------+
+                |   ........   |
+                +--------------+ <-  dma_base - 0x7D000000 (16M)
+                |     DMA      |     (dma_size)
+                +--------------+ <-  heap_base - 0x7E000000 (16M)
+                |     HEAP     |     (heap_size)
+                +--------------+ <-  stack_base - 0x7F000000 (8M)
+                |     STACK    |     (stack_size)
+                +--------------+ <-  shadow_stack_base - 0x7F800000 (2M)
+                |      SS      |     (shadow_stack_size)
+                +--------------+ <-  hob_base - 0x7FA00000 (5M)
+                |    TD_HOB    |     (hob_size)
+                +--------------+ <-  event_log_base - 0x7FEF0000 (1M)
+                |     ACPI     |     (ACPI)
+                +--------------+ <-  acpi_base - 0x7FF00000 (1M)
+                | TD_EVENT_LOG |     (event_log_size)
+                +--------------+ <-  0x80000000 (2G) - for example
+        */
+        "event_log_size": 0x100000,
+        "acpi_size": 0x100000,
+        "hob_size": 0x400000,
+        "shadow_stack_size": 0x200000,
+        "stack_size": 0x800000,
+        "heap_size": 0x01000000,
+        "dma_size": 0x1000000,
+        "payload_size": 0x2000000,
+        "payload_param_size": 0x100000,
+        "payload_param_base": 0x1000000,
+        "page_table_base": 0x800000,
+    }
+}

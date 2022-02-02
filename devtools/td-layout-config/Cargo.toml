@@ -1,0 +1,16 @@
+[package]
+name = "td-layout-config"
+version = "0.1.0"
+description = "Generate TD layout constants from configuration files"
+repository = "https://github.com/confidential-containers/td-shim"
+homepage = "https://github.com/confidential-containers"
+license = "BSD-2-Clause-Patent"
+edition = "2018"
+
+[dependencies]
+clap = { version = "3.0", features = ["cargo"] }
+json5 = "0.3.0"
+scroll = { version = "0.10", default-features = false, features = ["derive"]}
+serde = { version = "1.0", features = ["derive"] }
+
+td-layout = { path = "../../td-layout" }
