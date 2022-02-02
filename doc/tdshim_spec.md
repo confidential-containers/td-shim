@@ -70,9 +70,9 @@ Chapter 12 – Intel TDX Module Lifecycle.
  * VMM parses the TD Shim metadata.
  * VMM allocates memory for the TD.
  * VMM loads TD Shim and payload to TD memory.
- * VMM also prepares the TD_HOB – the boot configuration for TD Shim and payload
-   command line parameter – the boot configuration for the payload, then loads
-   them to TD memory.
+ * VMM also prepares the TD_HOB ([Hand-off Block](#td-hob)), the boot
+   configuration for TD Shim and payload command line parameter, then loads them
+   to TD memory.
  * VMM uses SEAMCALL[TDH.MEM.PAGE.ADD] to add private pages, where this memory
    includes the initialized data.
     * VMM uses SEAMCALL[TDH.MR.EXTEND] to extend initialized memory, such as TD
