@@ -839,15 +839,20 @@ APs Resource = AP Page Table (Reserved) + AP Number * AP Stack (Reserved)
   https://uefi.org/sites/default/files/resources/PI_Spec_1_7_A_final_May1.pdf
 * PCI-SIG, PCI Firmware Specification Revision 3.2 -
   https://pcisig.com/specifications
-* Multi-Processor Specification Version 1.4
-* PCI IRQ Routing Table Specification v1.0
-* Device Tree Specification 0.3 - https://www.devicetree.org/specifications/
+* Multi-Processor Specification Version 1.4 -
+  https://pdos.csail.mit.edu/6.828/2014/readings/ia32/MPspec.pdf
+* PCI IRQ Routing Table Specification v1.0 - Not public, but documented at
+  https://github.com/cirosantilli/ralf-brown-interrupt-list/blob/fde1a5ac1b7e8a45ff4255ee275ee77c7fe7e256/inter61c/MEMORY.LST#L2757
+* Device Tree Specification 0.3 -
+  https://www.devicetree.org/specifications/
 * MSVC x64 Calling Convention -
   https://docs.microsoft.com/en-us/cpp/build/x64-calling-convention
-* System-V ABI - https://www.uclibc.org/docs/psABI-x86_64.pdf
+* System-V ABI -
+  https://www.uclibc.org/docs/psABI-x86_64.pdf
 * PE/COFF Specification -
   https://docs.microsoft.com/en-us/windows/win32/debug/pe-format
-* ELF Specification - https://refspecs.linuxfoundation.org/elf/elf.pdf
+* ELF Specification -
+  https://refspecs.linuxfoundation.org/elf/elf.pdf
 
 ### Linux Boot
 
