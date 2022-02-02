@@ -1,8 +1,8 @@
 # TD-SHIM specification
 
-version 0.5
+version 0.5.1
 
-Data: October 2021
+Date: February 2022
 
 ## Background
 
