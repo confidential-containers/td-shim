@@ -489,22 +489,21 @@ mod test {
 
     #[test]
     fn test_is_pe() {
-        let image_bytes =
-            include_bytes!("../../target/x86_64-unknown-uefi/release/rust-tdshim.efi");
-        let mut status = is_pe(image_bytes);
+        let image_bytes = include_bytes!("../../data/blobs/td-payload.efi");
+        let mut status = is_x86_64_pe(image_bytes);
         assert_eq!(status, true);
 
         let image_bytes = &mut [0u8; 10][..];
-        status = is_pe(image_bytes);
+        status = is_x86_64_pe(image_bytes);
         assert_eq!(status, false);
 
         let image_bytes = &mut [0u8; 0x55][..];
-        status = is_pe(image_bytes);
+        status = is_x86_64_pe(image_bytes);
         assert_eq!(status, false);
 
         image_bytes[0] = 0x4du8;
         image_bytes[1] = 0x5au8;
-        status = is_pe(image_bytes);
+        status = is_x86_64_pe(image_bytes);
         assert_eq!(status, false);
 
         image_bytes[0x3c] = 0x10;
@@ -512,47 +511,48 @@ mod test {
         image_bytes[0x11] = 0x45;
         image_bytes[0x12] = 0x00;
         image_bytes[0x13] = 0x00;
-        status = is_pe(image_bytes);
+        status = is_x86_64_pe(image_bytes);
         assert_eq!(status, false);
 
         image_bytes[0x3c] = 0xAA;
-        status = is_pe(image_bytes);
+        status = is_x86_64_pe(image_bytes);
         assert_eq!(status, false);
     }
+
     #[test]
     fn test_sections() {
         use scroll::Pread;
-        let pe_image =
-            &include_bytes!("../../target/x86_64-unknown-uefi/release/rust-tdshim.efi")[..];
+        let pe_image = &include_bytes!("../../data/blobs/td-payload.efi")[..];
 
-        let pe_header_offset = pe_image.pread::<u32>(0x3c).unwrap() as usize;
-        let pe_region = &pe_image[pe_header_offset..];
+        let coff_header_offset = pe_image.pread::<u32>(0x3c).unwrap() as usize;
+        let pe_region = &pe_image[coff_header_offset..];
 
         let num_sections = pe_region.pread::<u16>(6).unwrap() as usize;
         let optional_header_size = pe_region.pread::<u16>(20).unwrap() as usize;
-        let optional_region = &pe_image[24 + pe_header_offset..];
+        let optional_region = &pe_image[24 + coff_header_offset..];
 
         // check optional_hdr64_magic
         assert_eq!(
             optional_region.pread::<u16>(0).unwrap(),
-            super::OPTIONAL_HDR64_MAGIC
+            OPTIONAL_HDR64_MAGIC
         );
 
+        let total_header_size =
+            (24 + coff_header_offset + optional_header_size + num_sections * 40) as usize;
         let entry_point = optional_region.pread::<u32>(16).unwrap();
         let image_base = optional_region.pread::<u64>(24).unwrap();
+        assert_eq!(total_header_size, 584);
+        assert_eq!(image_base, 0x1_4000_0000);
+        assert_eq!(entry_point, 0x1040);
 
-        let sections_buffer = &pe_image[(24 + pe_header_offset + optional_header_size)..];
-
-        let _total_header_size =
-            (24 + pe_header_offset + optional_header_size + num_sections * 40) as usize;
-
-        let sections = super::Sections::parse(sections_buffer, num_sections as usize).unwrap();
-        println!("entry_point: {:x}", entry_point);
-        println!("image_base: {:x}", image_base);
+        let mut num_section = 0;
+        let sections_buffer = &pe_image[(24 + coff_header_offset + optional_header_size)..];
+        let sections = Sections::parse(sections_buffer, num_sections as usize).unwrap();
         for section in sections {
+            num_section += 1;
             println!("{:?}", section)
         }
-        println!("entry: {:x?}", &pe_image[0xf8e0..0xf9e0])
+        assert_eq!(num_section, 5);
     }
 
     #[test]
@@ -561,21 +561,24 @@ mod test {
         let env = Env::default()
             .filter_or("MY_LOG_LEVEL", "trace")
             .write_style_or("MY_LOG_STYLE", "always");
-
         env_logger::init_from_env(env);
 
-        let pe_image =
-            &include_bytes!("../../target/x86_64-unknown-uefi/release//rust-tdshim.efi")[..];
-
+        let pe_image = &include_bytes!("../../data/blobs/td-payload.efi")[..];
         let mut loaded_buffer = vec![0u8; 0x200000];
 
+        let mut entries = 0;
         if let Some((image_entry, image_base, image_size)) =
-            super::relocate_pe_mem_with_per_sections(pe_image, loaded_buffer.as_mut_slice(), |_| ())
+            relocate_pe_mem_with_per_sections(pe_image, loaded_buffer.as_mut_slice(), |_| ())
         {
             println!(
                 " 0x:{:x}\n 0x:{:x}\n 0x:{:x}\n",
                 image_entry, image_base, image_size
             );
+            assert_eq!(image_entry, loaded_buffer.as_ptr() as usize as u64 + 0x1040);
+            assert_eq!(image_base, loaded_buffer.as_ptr() as usize as u64);
+            assert_eq!(image_size, 0x27400);
+            entries += 1;
         }
+        assert_eq!(entries, 1);
     }
 }
