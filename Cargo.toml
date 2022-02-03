@@ -18,6 +18,7 @@ members = [
     "td-shim-enroll-key",
     "td-shim-ld",
     "td-shim-sign-payload",
+    "tests/test-td-exception",
     "tests/test-td-paging",
     "tests/test-td-payload",
 ]
