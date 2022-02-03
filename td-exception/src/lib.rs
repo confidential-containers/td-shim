@@ -16,3 +16,8 @@ pub(crate) mod interrupt;
 pub fn setup_exception_handlers() {
     unsafe { idt::init() };
 }
+
+#[cfg(feature = "integration-test")]
+lazy_static::lazy_static! {
+    pub static ref DIVIDED_BY_ZERO_EVENT_COUNT: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU32::new(0);
+}

@@ -220,6 +220,16 @@ macro_rules! interrupt_error {
     };
 }
 
+#[cfg(feature = "integration-test")]
+interrupt_no_error!(divide_by_zero, stack, {
+    log::info!("Divide by zero\n");
+    crate::DIVIDED_BY_ZERO_EVENT_COUNT.fetch_add(1, core::sync::atomic::Ordering::AcqRel);
+    stack.iret.rip += 7;
+    log::info!("divide_by_zero done\n");
+    return;
+});
+
+#[cfg(not(feature = "integration-test"))]
 interrupt_no_error!(divide_by_zero, stack, {
     log::info!("Divide by zero\n");
     stack.dump();

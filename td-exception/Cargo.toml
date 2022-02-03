@@ -16,3 +16,4 @@ x86_64 = "=0.14.6"
 
 [features]
 tdx = ["tdx-tdcall"]
+integration-test = []

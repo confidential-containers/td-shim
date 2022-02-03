@@ -11,7 +11,7 @@ endif
 
 LIB_CRATES = pe-loader td-layout td-paging
 SHIM_CRATES = rust-tdshim td-exception td-payload
-TEST_CRATES = test-td-paging test-td-payload
+TEST_CRATES = test-td-exception test-td-paging test-td-payload
 TOOL_CRATES = td-shim-ld td-shim-enroll-key td-shim-sign-payload
 
 # Targets for normal artifacts
@@ -68,13 +68,13 @@ lib-test: $(LIB_CRATES:%=test-%)
 lib-clean: $(LIB_CRATES:%=clean-%)
 
 # Targets for integration test crates
-integration-build: $(LIB_CRATES:%=integration-build-%)
+integration-build: $(TEST_CRATES:%=integration-build-%)
 
-integration-check: $(LIB_CRATES:%=integration-check-%)
+integration-check: $(TEST_CRATES:%=integration-check-%)
 
-integration-test: $(LIB_CRATES:%=integration-test-%)
+integration-test: $(TEST_CRATES:%=integration-test-%)
 
-integration-clean: $(LIB_CRATES:%=integration-clean-%)
+integration-clean: $(TEST_CRATES:%=integration-clean-%)
 
 # Target for crates which should be compiled with `x86_64-unknown-uefi` target
 uefi-build-%:
