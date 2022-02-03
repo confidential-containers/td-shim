@@ -28,6 +28,8 @@ TD Shim is a simplified [TDX virtual firmware](#vfw) for the simplified kernel f
 container. This document describes a lightweight interface between the TD Shim
 and TD VMM and between the TD Shim and the simplified kernel.
 
+![Diagram](td-shim-diagram.png)
+
 Terminology and references can be found [at the end of the document](#reference).
 
 ### Acknowledgments
