@@ -90,6 +90,7 @@ impl Idt {
         current_idt[17].set_func(interrupt::alignment_check);
         current_idt[18].set_func(interrupt::machine_check);
         current_idt[19].set_func(interrupt::simd);
+        #[cfg(feature = "tdx")]
         current_idt[20].set_func(interrupt::virtualization);
     }
 }
