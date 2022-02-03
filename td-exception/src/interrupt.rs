@@ -5,18 +5,17 @@
 #[cfg(feature = "tdx")]
 use tdx_tdcall::tdx;
 
-#[allow(dead_code)]
 #[repr(C, packed)]
 struct ScratchRegisters {
-    pub r11: usize,
-    pub r10: usize,
-    pub r9: usize,
-    pub r8: usize,
-    pub rsi: usize,
-    pub rdi: usize,
-    pub rdx: usize,
-    pub rcx: usize,
-    pub rax: usize,
+    r11: usize,
+    r10: usize,
+    r9: usize,
+    r8: usize,
+    rsi: usize,
+    rdi: usize,
+    rdx: usize,
+    rcx: usize,
+    rax: usize,
 }
 
 impl ScratchRegisters {
@@ -65,15 +64,14 @@ macro_rules! scratch_pop {
     };
 }
 
-#[allow(dead_code)]
 #[repr(C, packed)]
 struct PreservedRegisters {
-    pub r15: usize,
-    pub r14: usize,
-    pub r13: usize,
-    pub r12: usize,
-    pub rbp: usize,
-    pub rbx: usize,
+    r15: usize,
+    r14: usize,
+    r13: usize,
+    r12: usize,
+    rbp: usize,
+    rbx: usize,
 }
 
 impl PreservedRegisters {
@@ -113,12 +111,11 @@ macro_rules! preserved_pop {
     };
 }
 
-#[allow(dead_code)]
 #[repr(packed)]
 struct IretRegisters {
-    pub rip: usize,
-    pub cs: usize,
-    pub rflags: usize,
+    rip: usize,
+    cs: usize,
+    rflags: usize,
 }
 
 impl IretRegisters {
@@ -129,33 +126,31 @@ impl IretRegisters {
     }
 }
 
-#[allow(dead_code)]
 #[repr(packed)]
 struct InterruptNoErrorStack {
-    pub preserved: PreservedRegisters,
-    pub scratch: ScratchRegisters,
-    pub iret: IretRegisters,
+    preserved: PreservedRegisters,
+    scratch: ScratchRegisters,
+    iret: IretRegisters,
 }
 
 impl InterruptNoErrorStack {
-    pub fn dump(&self) {
+    fn dump(&self) {
         self.iret.dump();
         self.scratch.dump();
         self.preserved.dump();
     }
 }
 
-#[allow(dead_code)]
 #[repr(packed)]
 struct InterruptErrorStack {
-    pub preserved: PreservedRegisters,
-    pub scratch: ScratchRegisters,
-    pub code: usize,
-    pub iret: IretRegisters,
+    preserved: PreservedRegisters,
+    scratch: ScratchRegisters,
+    code: usize,
+    iret: IretRegisters,
 }
 
 impl InterruptErrorStack {
-    pub fn dump(&self) {
+    fn dump(&self) {
         self.iret.dump();
         log::info!("CODE:  {:>016X}\n", { self.code });
         self.scratch.dump();
@@ -400,5 +395,8 @@ interrupt_no_error!(virtualization, stack, {
 fn deadloop() {
     // TBD: empty `loop {}` wastes CPU cycles
     #[allow(clippy::empty_loop)]
-    loop {}
+    loop {
+        x86_64::instructions::interrupts::enable();
+        x86_64::instructions::hlt();
+    }
 }
