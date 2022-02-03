@@ -11,6 +11,7 @@ members = [
     "fuzzing/fuzz_elf_loader",
     "fuzzing/fuzz_fv_parser",
     "fuzzing/fuzz_hob_parser",
+    "td-exception",
     "td-layout",
     "td-paging",
     "td-payload",

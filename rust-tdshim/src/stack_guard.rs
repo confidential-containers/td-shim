@@ -9,7 +9,7 @@ use core::{
 };
 use lazy_static::lazy_static;
 use spin::Mutex;
-use tdx_exception::{asm, idt, idt::Idt};
+use td_exception::{asm, idt, idt::Idt};
 use x86::{
     bits64::segmentation,
     bits64::task::TaskStateSegment,
