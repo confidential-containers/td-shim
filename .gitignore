@@ -1,0 +1,13 @@
+*~
+
+# Cargo Junk
+Cargo.lock
+target/
+*.bin
+# afl fuzz 
+out
+*.profraw
+# Intellj working directory
+.idea
+
+devtools/bin
