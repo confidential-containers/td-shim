@@ -1,4 +1,6 @@
 export CARGO=cargo
+export STABLE_TOOLCHAIN:=1.58.1
+export NIGHTLY_TOOLCHAIN:=nightly-2021-08-20
 export BUILD_TYPE:=debug
 export PREFIX:=/usr/local
 
@@ -68,49 +70,49 @@ lib-test: $(LIB_CRATES:%=test-%)
 lib-clean: $(LIB_CRATES:%=clean-%)
 
 # Targets for integration test crates
-integration-build: $(LIB_CRATES:%=integration-build-%)
+integration-build: $(TEST_CRATES:%=integration-build-%)
 
-integration-check: $(LIB_CRATES:%=integration-check-%)
+integration-check: $(TEST_CRATES:%=integration-check-%)
 
-integration-test: $(LIB_CRATES:%=integration-test-%)
+integration-test: $(TEST_CRATES:%=integration-test-%)
 
-integration-clean: $(LIB_CRATES:%=integration-clean-%)
+integration-clean: $(TEST_CRATES:%=integration-clean-%)
 
 # Target for crates which should be compiled with `x86_64-unknown-uefi` target
 uefi-build-%:
-	cargo xbuild --target x86_64-unknown-uefi -p $(patsubst uefi-build-%,%,$@) ${BUILD_TYPE_FLAG}
+	${CARGO} +${NIGHTLY_TOOLCHAIN} xbuild --target x86_64-unknown-uefi -p $(patsubst uefi-build-%,%,$@) ${BUILD_TYPE_FLAG}
 
 uefi-check-%:
-	cargo xcheck --target x86_64-unknown-uefi -p $(patsubst uefi-check-%,%,$@) ${BUILD_TYPE_FLAG}
+	 ${CARGO} +${NIGHTLY_TOOLCHAIN}xcheck --target x86_64-unknown-uefi -p $(patsubst uefi-check-%,%,$@) ${BUILD_TYPE_FLAG}
 
 uefi-clean-%:
-	cargo clean --target x86_64-unknown-uefi -p $(patsubst uefi-clean-%,%,$@) ${BUILD_TYPE_FLAG}
+	${CARGO} +${NIGHTLY_TOOLCHAIN} clean --target x86_64-unknown-uefi -p $(patsubst uefi-clean-%,%,$@) ${BUILD_TYPE_FLAG}
 
 # Target for integration test crates which should be compiled with `x86_64-custom.json` target
 integration-build-%:
-	cargo xbuild --target ${TOPDIR}/devtools/rustc-targets/x86_64-custom.json -p $(patsubst integration-build-%,%,$@) ${BUILD_TYPE_FLAG}
+	${CARGO} +${NIGHTLY_TOOLCHAIN} xbuild --target ${TOPDIR}/devtools/rustc-targets/x86_64-custom.json -p $(patsubst integration-build-%,%,$@) ${BUILD_TYPE_FLAG}
 
 integration-check-%:
-	cargo xcheck --target ${TOPDIR}/devtools/rustc-targets/x86_64-custom.json -p $(patsubst integration-check-%,%,$@) ${BUILD_TYPE_FLAG}
+	${CARGO} +${NIGHTLY_TOOLCHAIN} xcheck --target ${TOPDIR}/devtools/rustc-targets/x86_64-custom.json -p $(patsubst integration-check-%,%,$@) ${BUILD_TYPE_FLAG}
 
 integration-test-%:
-	cargo xtest --target ${TOPDIR}/devtools/rustc-targets/x86_64-custom.json -p $(patsubst integration-test-%,%,$@) ${BUILD_TYPE_FLAG}
+	${CARGO} +${NIGHTLY_TOOLCHAIN} xtest --target ${TOPDIR}/devtools/rustc-targets/x86_64-custom.json -p $(patsubst integration-test-%,%,$@) ${BUILD_TYPE_FLAG}
 
 integration-clean-%:
-	cargo clean --target ${TOPDIR}/devtools/rustc-targets/x86_64-custom.json -p $(patsubst integration-clean-%,%,$@) ${BUILD_TYPE_FLAG}
+	${CARGO} +${NIGHTLY_TOOLCHAIN} clean --target ${TOPDIR}/devtools/rustc-targets/x86_64-custom.json -p $(patsubst integration-clean-%,%,$@) ${BUILD_TYPE_FLAG}
 
 # Targets for normal library/binary crates
 build-%:
-	cargo build -p $(patsubst build-%,%,$@) ${BUILD_TYPE_FLAG}
+	${CARGO} +${STABLE_TOOLCHAIN} build -p $(patsubst build-%,%,$@) ${BUILD_TYPE_FLAG}
 
 check-%:
-	cargo check -p $(patsubst check-%,%,$@) ${BUILD_TYPE_FLAG}
+	${CARGO} +${STABLE_TOOLCHAIN} check -p $(patsubst check-%,%,$@) ${BUILD_TYPE_FLAG}
 
 clean-%:
-	cargo clean -p $(patsubst clean-%,%,$@) ${BUILD_TYPE_FLAG}
+	${CARGO} +${STABLE_TOOLCHAIN} clean -p $(patsubst clean-%,%,$@) ${BUILD_TYPE_FLAG}
 
 test-%:
-	cargo test -p $(patsubst test-%,%,$@) ${BUILD_TYPE_FLAG}
+	${CARGO} +${STABLE_TOOLCHAIN} test -p $(patsubst test-%,%,$@) ${BUILD_TYPE_FLAG}
 
 # Targets for subdirectories
 build-subdir-%:
