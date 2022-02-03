@@ -2,23 +2,24 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
-use core::mem;
+//! Manipulate x86_64 Interrupt Descriptor Table (IDT).
+//!
+//! Setup a stub IDT for td-shim, which assumes 1:1 mapping between physical address and virtual
+//! address in identity mapping mode.
+//!
+//! It also handles Virtualization Interrupt for Intel TDX technology.
+
+use core::mem::{self, size_of};
+use core::slice::from_raw_parts_mut;
+
+use bitflags::bitflags;
+use lazy_static::lazy_static;
 
 use crate::interrupt;
 
-use bitflags::bitflags;
-use core::{mem::size_of, slice::from_raw_parts_mut};
-use lazy_static::lazy_static;
-
 extern "win64" {
     fn sidt_call(addr: usize);
-}
-
-extern "win64" {
     fn lidt_call(addr: usize);
-}
-
-extern "win64" {
     fn read_cs_call() -> u16;
 }
 
@@ -38,8 +39,8 @@ pub struct DescriptorTablePointer {
 /// This function is unsafe because of the lidt_call()
 pub unsafe fn init() {
     let mut idtr = DescriptorTablePointer { limit: 1, base: 0 };
-
     let current_idt = &INIT_IDT.entries;
+
     idtr.limit = (current_idt.len() * mem::size_of::<IdtEntry>() - 1) as u16;
     idtr.base = current_idt.as_ptr() as u64;
 
@@ -47,6 +48,7 @@ pub unsafe fn init() {
 }
 
 pub type IdtEntries = [IdtEntry; 256];
+
 // 8 alignment required
 #[repr(C, align(8))]
 pub struct Idt {
@@ -67,8 +69,10 @@ impl Idt {
         idt.init();
         idt
     }
+
     pub fn init(&mut self) {
         let current_idt = &mut self.entries;
+
         // Set up exceptions
         current_idt[0].set_func(interrupt::divide_by_zero);
         current_idt[1].set_func(interrupt::debug);
@@ -109,7 +113,7 @@ bitflags! {
 }
 
 #[derive(Copy, Clone, Debug, Default)]
-#[repr(packed)]
+#[repr(C, packed)]
 pub struct IdtEntry {
     offsetl: u16,
     selector: u16,
@@ -132,6 +136,7 @@ impl IdtEntry {
             zero2: 0,
         }
     }
+
     pub fn set_flags(&mut self, flags: IdtFlags) {
         self.attribute = flags.bits;
     }
