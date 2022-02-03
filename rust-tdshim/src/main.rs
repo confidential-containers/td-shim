@@ -166,7 +166,7 @@ pub extern "win64" fn _start(
 ) -> ! {
     let _ = tdx_logger::init();
     log::info!("Starting RUST Based TdShim boot_fv - {:p}, Top of stack - {:p}, init_vp - {:p}, info - 0x{:x} \n", boot_fv, top_of_stack, init_vp, info);
-    tdx_exception::setup_exception_handlers();
+    td_exception::setup_exception_handlers();
     log::info!("setup_exception_handlers done\n");
 
     //Init temp heap

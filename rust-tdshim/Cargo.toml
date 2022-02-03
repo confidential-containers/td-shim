@@ -26,7 +26,7 @@ r-uefi-pi =  { path = "../r-uefi-pi" }
 uefi-pi =  { path = "../uefi-pi" }
 tdx-tdcall = { path = "../tdx-tdcall" }
 tdx-logger =  { path = "../tdx-logger" }
-tdx-exception =  { path = "../tdx-exception" }
+td-exception =  { path = "../td-exception" }
 td-layout = { path = "../td-layout" }
 td-paging = { path = "../td-paging" }
 ring = { git = "https://github.com/jyao1/ring.git", branch = "uefi_support", default-features = false, features = ["alloc"]}
