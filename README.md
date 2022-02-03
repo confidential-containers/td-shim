@@ -23,6 +23,8 @@ simplified kernel for TD container. This document describes a lightweight
 interface between the TD Shim and TD VMM and between the TD Shim and the
 simplified kernel.
 
+![Overview](doc/td-shim-diagram.png)
+
 ## Documents
 
 * [Introduction (PDF)](doc/td-shim introduction.pdf)
