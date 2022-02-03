@@ -1,0 +1,14 @@
+[package]
+name = "test-runner-server"
+version = "0.1.0"
+description = "Server to run test cases inside a qemu virtual machine"
+repository = "https://github.com/confidential-containers/td-shim"
+homepage = "https://github.com/confidential-containers"
+license = "Apache 2.0"
+edition = "2018"
+
+[dependencies]
+bootloader-locator = "0.0.4" # for locating the `bootloader` dependency on disk
+clap = { version = "3.0", features = ["cargo"] }
+locate-cargo-manifest = "0.2.0" # for locating the kernel's `Cargo.toml`
+runner-utils = "0.0.2" # small helper functions for custom runners (e.g. timeouts)

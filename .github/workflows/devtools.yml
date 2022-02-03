@@ -1,0 +1,64 @@
+on:
+  push:
+    paths-ignore:
+      - "**.md"
+  pull_request:
+    paths-ignore:
+      - "**.md"
+  workflow_dispatch:
+
+name: Devtools
+
+env:
+  STABLE_RUST_TOOLCHAIN: 1.58.1
+  NIGHTLY_RUST_TOOLCHAIN: nightly-2021-08-20
+  TOOLCHAIN_PROFILE: minimal
+
+jobs:
+  devtools_install:
+    name: Install
+    runs-on: ${{ matrix.host_os }}
+    timeout-minutes: 30
+
+    strategy:
+      matrix:
+        host_os:
+          - ubuntu-20.04
+          - windows-2019
+    steps:
+      - name: Install LLVM and Clang
+        uses: KyleMayes/install-llvm-action@v1
+        with:
+          version: "10.0"
+          directory: ${{ runner.temp }}/llvm
+
+      - name: Checkout sources
+        uses: actions/checkout@v2
+
+      - name: Install nightly toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: ${{ env.TOOLCHAIN_PROFILE }}
+          toolchain: ${{ env.NIGHTLY_RUST_TOOLCHAIN }}
+          override: true
+
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: ${{ env.TOOLCHAIN_PROFILE }}
+          toolchain: ${{ env.STABLE_RUST_TOOLCHAIN }}
+          override: true
+
+      - name: Cache
+        uses: Swatinem/rust-cache@v1
+
+      - name: Install devtools
+        run: make install-devtools
+
+      - name: Set PATH
+        shell: bash
+        run: |
+          echo "$GITHUB_WORKSPACE/devtools/bin" >> $GITHUB_PATH
+
+      - name: Exec Runner Server
+        run: test-runner-server -h
