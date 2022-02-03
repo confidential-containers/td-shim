@@ -24,7 +24,7 @@ support. This allows guests to boot without firmware dependencies. Current
 VT-based container runtimes rely on VMMs that are capable of directly booting
 into the guest kernel without loading firmware.
 
-TD Shim is a simplified TDX virtual firmware for the simplified kernel for TD
+TD Shim is a simplified [TDX virtual firmware](#vfw) for the simplified kernel for TD
 container. This document describes a lightweight interface between the TD Shim
 and TD VMM and between the TD Shim and the simplified kernel.
 
@@ -63,7 +63,7 @@ SMM, or event exception handler for OS Kernel.
 
 1.	VMM loads TDX module.
 
-NOTE: For detail, please refer to Intel TDX Module 1.0 EAS, Section 2.1 and
+NOTE: For detail, please refer to [Intel TDX Module 1.0 EAS](#eas), Section 2.1 and
 Chapter 12 – Intel TDX Module Lifecycle.
 
 2.	VMM loads TD Shim and payload (kernel)
@@ -85,9 +85,9 @@ Chapter 12 – Intel TDX Module Lifecycle.
  * VMM enters the TD by using SEAMCALL[TDH.VP.ENTER].
 
 NOTE: This flow just shows the VMM basic flow on how the VMM loads the TD
-memory. For more detail of the full TD launch process, please refer to Intel TDX
-Module 1.0 EAS, Section 2.2 – Guest TD Life Cycle Overview. For more detail of
-adding private page at TD build time, please refer to Intel TDX Module 1.0 EAS,
+memory. For more detail of the full TD launch process, please refer to [Intel TDX
+Module 1.0 EAS](#eas), Section 2.2 – Guest TD Life Cycle Overview. For more detail of
+adding private page at TD build time, please refer to [Intel TDX Module 1.0 EAS](#eas),
 Section 7.7 – Secure EPT Build and Update and Section 7.8 – Adding TD Private
 Pages during TD Build Time.
 
@@ -213,20 +213,18 @@ The metadata above may support below use cases as example.
 
 ### TD HOB
 
-The HOB data structure is defined in UEFI Platform Initialization (PI)
-specification
-(https://uefi.org/sites/default/files/resources/PI_Spec_1_7_A_final_May1.pdf),
-volume 3 - Shared Architectural Elements, Chapter 5 - HOB Code Definitions. The
-TD HOB list starts with EFI_HOB_HANDOFF_INFO_TABLE (PHIT HOB), where only
-Header, Version and EfiEndOfHobList are useful. All other fields shall be
-zero. The EfiEndOfHobList points the end of the HOB list. If present, the PHIT
-HOB and End Of List HOB are required. All other HOBs are options.
+The HOB data structure is defined in [UEFI Platform Initialization (PI)](#pinit)
+specification, volume 3 - Shared Architectural Elements, Chapter 5 - HOB Code
+Definitions.  The TD HOB list starts with EFI_HOB_HANDOFF_INFO_TABLE (PHIT HOB),
+where only Header, Version and EfiEndOfHobList are useful. All other fields
+shall be zero. The EfiEndOfHobList points the end of the HOB list. If present,
+the PHIT HOB and End Of List HOB are required. All other HOBs are options.
 
 In order to initialize a TD starts, the VMM uses SEAMCALL[TDH.VP.INIT] with an
 TD HOB address in RDX. The TDX module puts this TD HOB address in RCX/R8 as VCPU
 INIT state. Because the TD HOB address is an input from VMM, it is
-untrusted. For detail, please refer to Intel TDX Module 1.0 EAS, Section 8.1 TD
-VCPU Initial State and Section 20.2.42 TDH.VP.INIT.
+untrusted. For detail, please refer to [Intel TDX Module 1.0 EAS](#eas), Section
+8.1 TD VCPU Initial State and Section 20.2.42 TDH.VP.INIT.
 
 #### Memory Information
 
@@ -235,8 +233,9 @@ Resource Description HOB is to report the VMM assigned memory information.
 If TD Shim does not include the PermMem section in metadata, then the VMM shall
 report the unaccepted memory via TD HOB. The unaccepted memory should be
 reported as TD Resource HOB with type: EFI_RESOURCE_SYSTEM_MEMORY and attribute:
-EFI_RESOURCE_ATTRIBUTE_PRESENT | EFI_RESOURCE_ATTRIBUTE_INITIALIZED
-|EFI_RESOURCE_ATTRIBUTE_UNACCEPTED. The private memory information is optional, because the TD Shim can get the information from metadata directly.
+EFI_RESOURCE_ATTRIBUTE_PRESENT | EFI_RESOURCE_ATTRIBUTE_INITIALIZED |EFI_RESOURCE_ATTRIBUTE_UNACCEPTED.
+The private memory information is optional, because the TD Shim can get the
+information from metadata directly.
 
 If TD Shim reports the PermMem section in metadata, then the VMM does not need
 report unaccepted memory via TD HOB. If nothing else should be reported, then
@@ -390,11 +389,8 @@ then it shall be measured to RTMR[1].
 
 NOTE: The VMM does not need create the payload boot params, such as the Linux
 boot zero page, but just create a payload boot command line parameter (a string,
-please refer to
-https://www.kernel.org/doc/html/v5.0/admin-guide/kernel-parameters.html, and
-https://man7.org/linux/man-pages/man7/bootparam.7.html). It is TD Shim that
-setup the required OS kernel boot_params (the zero page). See Part III for
-detail.
+please refer to [Kernel parameters](#kparms). It is TD Shim that setup the
+required OS kernel boot_params (the zero page). See Part III for detail.
 
 
 ## Part III - TD Shim / Guest Payload Interface
@@ -402,9 +398,9 @@ detail.
 ### Boot Protocol
 
 If the payload follows Linux Boot Protocol, TD Shim shall follow 64bit boot
-protocol defined in https://www.kernel.org/doc/Documentation/x86/boot.txt to
-setup the boot_params (the zero page), then jump to the 64-bit payload entry
-point according to the TD Payload Info GUID Extension HOB.
+protocol defined in the [Linux boot process](#boot) setup the boot_params (the
+[zero page](#zeropage)), then jump to the 64-bit payload entry point according
+to the TD Payload Info GUID Extension HOB.
 
 The bootstrap processor state is below:
  * CPU must be in 64-bit mode with paging enabled.
@@ -434,26 +430,26 @@ TD Shim shall only NOT support UEFI interface. If the TD guest requires to boot
 an UEFI OS, the TD Shim may load a special UEFI payload to support UEFI
 interface and UEFI OS kernel boot.
 
-### ACPI Table
+### ACPI Tables
 
-TD Shim shall only support static ACPI tables. TD Shim shall not report any ACPI
-table that contains the ASL such as DSDT or SSDT, unless the VMM passes the DSDT
-or SSDT via ACPI_TABLE_HOB.
+TD Shim shall only support [static ACPI tables](#acpi-prog). TD Shim shall not
+report any ACPI table that contains the ASL such as DSDT or SSDT, unless the VMM
+passes the DSDT or SSDT via ACPI_TABLE_HOB.
 
 The root of ACPI table is RSDP. For the payload supporting Linux Boot Protocol,
-the TD Shim shall report RSDP as part of boot parameter - acpi_rsdp_addr (offset
-0x70) -
-https://github.com/torvalds/linux/blob/master/arch/x86/include/uapi/asm/bootparam.h.
+the TD Shim shall report RSDP as part of [boot parameter](#bootparam) -
+acpi_rsdp_addr (offset 0x70).
 
 TD Shim does not report RSDP in any legacy region, such as EBDA or BIOS
-read-only memory
-space. (https://uefi.org/specs/ACPI/6.4/05_ACPI_Software_Programming_Model/ACPI_Software_Programming_Model.html#root-system-description-pointer-rsdp)
+[read-only memory space](#acpi-rdsp).
 
 For the payload not supporting Linux Boot Protocol, the TD Shim shall report
 ACPI table via ACPI Extension HOB.
 
 TD Shim shall support a minimal set of ACPI tables. ACPI specification defined
-RSDP, XSDT, MADT tables are required to report system information.
+[RSDP](#acpi-rdsp), [XSDT](#acpi-xsdt), [MADT](#acpi-madt) tables are required
+to report system information.
+
  * Within MADT, the Processor Local APIC/x2 APIC, IO APIC, Interrupt Source
    Override, Local APIC NMI, Multiprocessor Wakeup structures are required.
  * FADT is required, if we need pass the reduced hardware information to guest,
@@ -495,13 +491,11 @@ is the first one to launch. The TD Shim needs to rendezvous in early
 initialization code, let the BSP execute the main boot flow and let APs execute
 in the wait loop.
 
-TD Shim shall report the multiple processor information via MADT -
-https://uefi.org/specs/ACPI/6.4/05_ACPI_Software_Programming_Model/ACPI_Software_Programming_Model.html#multiple-apic-description-table-madt.
+TD Shim shall report the multiple processor information via [MADT](#acpi-madt).
 
-In order to support AP wake up, TD Shim shall report multiprocessor wakeup
-structure in MADT to share mailbox information with the payload or OS kernel,
-and send the OS commands via ACPI mailbox to wakeup APs. Please refer to
-https://uefi.org/specs/ACPI/6.4/05_ACPI_Software_Programming_Model/ACPI_Software_Programming_Model.html#multiprocessor-wakeup-structure.
+In order to support AP wake up, TD Shim shall report [multiprocessor wakeup
+structure](#acpi-mpws) in MADT to share mailbox information with the payload or
+OS kernel, and send the OS commands via ACPI mailbox to wakeup APs.
 
 NOTE: In TDX architecture, the VMM is not trusted. The TD does not give AP
 control back to VMM, once the AP is launched into the TD. This behavior is
@@ -620,8 +614,7 @@ If a memory region is MMIO, it is designed to only be accessed via
 TDVMCALL<#VE.RequestMMIO> and not via direct memory read or write.  Accordingly,
 as designed, there is no need to report this region in the final memory map.
 
-To simply the design, TD Shim report E820 memory map to OS -
-https://uefi.org/specs/ACPI/6.4/15_System_Address_Map_Interfaces/Sys_Address_Map_Interfaces.html#.
+To simply the design, TD Shim report [E820 memory map to OS](#acpi-smap).
 
 Table 3.4-1 shows the E820 memory map.
 
@@ -636,8 +629,7 @@ Table 3.4-1 shows the E820 memory map.
 | AddressRangeUnaccepted | 8     | Allocated by VMM, but not accepted by TD guest yet.                   | Unaccepted     | Use after convert to private page. |
 
 For the payload supporting Linux Boot Protocol, the TD Shim shall report E820
-table as part of boot parameter - e820_table (offset 0x2d0)
-https://www.kernel.org/doc/Documentation/x86/zero-page.txt.
+table as part of [boot parameter](#zeropage) - e820_table (offset 0x2d0).
 
 For the payload not supporting Linux Boot Protocol, the TD Shim shall report
 E820 table via E820 Extension HOB.
@@ -645,8 +637,8 @@ E820 table via E820 Extension HOB.
 ### TD Trusted Boot Support
 
 TDX architecture defines two types of measurement registers – MRTD and
-RTMR. Please refer to Intel TDX Module 1.0 EAS, Chapter 10 – Measurement and
-Attestation.
+RTMR. Please refer to [Intel TDX Module 1.0 EAS](#eas), Chapter 10 – Measurement
+and Attestation.
 
 #### TD Measurement
 
@@ -670,8 +662,9 @@ only.
 
 #### TD Event Log
 
-The TD-Shim shall report the TD event log via 'TDEL' ACPI table define in
-https://software.intel.com/content/dam/develop/external/us/en/documents/intel-tdx-guest-hypervisor-communication-interface.pdf
+The TD-Shim shall report the TD event log via 'TDEL' ACPI table defined in the
+[Guest Hypervisor communication interface](#ghci).
+
 
 **Table 3.5-2 TD Event Log Table**
 
@@ -820,11 +813,11 @@ APs Resource = AP Page Table (Reserved) + AP Number * AP Stack (Reserved)
 
 * Intel, TDX Overview -
   https://software.intel.com/content/www/us/en/develop/articles/intel-trust-domain-extensions.html
-* Intel, TDX Virtual Firmware Design Guide Version 1.01 -
+* <a name="vfw"/>Intel, TDX Virtual Firmware Design Guide Version 1.01 -
   https://www.intel.com/content/dam/develop/external/us/en/documents/tdx-virtual-firmware-design-guide-rev-1.01.pdf
-* Intel, Guest Hypervisor Communication Interface Version 1.0 -
+* <a name="ghci"/>Intel, Guest Hypervisor Communication Interface Version 1.0 -
   https://software.intel.com/content/dam/develop/external/us/en/documents/intel-tdx-guest-hypervisor-communication-interface.pdf
-* Intel, Intel, TDX Module 1.0 EAS -
+* <a name="eas"/>Intel, Intel, TDX Module 1.0 EAS -
   https://software.intel.com/content/dam/develop/external/us/en/documents/tdx-module-1.0-public-spec-v0.931.pdf
 * Intel, TDX CPU Architecture Extensions Specification -
   https://software.intel.com/content/dam/develop/external/us/en/documents-tps/intel-tdx-cpu-architectural-specification.pdf
@@ -833,9 +826,15 @@ APs Resource = AP Page Table (Reserved) + AP Number * AP Stack (Reserved)
 
 * UEFI org, ACPI Specification Version 6.4 -
   https://uefi.org/sites/default/files/resources/ACPI_Spec_6_4_Jan22.pdf
+* UEFI org, ACPI Software Programming Model Version 6.4 -
+  https://uefi.org/specs/ACPI/6.4/05_ACPI_Software_Programming_Model/ACPI_Software_Programming_Model.html
+  * <a name="acpi-rdsp"/>[Root system description pointer (RDSP)](https://uefi.org/specs/ACPI/6.4/05_ACPI_Software_Programming_Model/ACPI_Software_Programming_Model.html#root-system-description-pointer-rsdp)
+  * <a name="acpi-madt"/>[Multiple APIC description table (MADT)](https://uefi.org/specs/ACPI/6.4/05_ACPI_Software_Programming_Model/ACPI_Software_Programming_Model.html#multiple-apic-description-table-madt)
+  * <a name="acpi-mpws"/>[Multiprocessor wakeup structure](https://uefi.org/specs/ACPI/6.4/05_ACPI_Software_Programming_Model/ACPI_Software_Programming_Model.html#multiprocessor-wakeup-structure)
+  * <a name="acpi-smap"/>[System Address Map Interfaces](https://uefi.org/specs/ACPI/6.4/15_System_Address_Map_Interfaces/Sys_Address_Map_Interfaces.html)
 * UEFI org, UEFI Specification Version 2.9 -
   https://uefi.org/sites/default/files/resources/UEFI_Spec_2_9_2021_03_18.pdf
-* UEFI org, UEFI Platform Initialization Specification Version 1.7 -
+* <a name="pinit"/>UEFI org, UEFI Platform Initialization Specification Version 1.7 -
   https://uefi.org/sites/default/files/resources/PI_Spec_1_7_A_final_May1.pdf
 * PCI-SIG, PCI Firmware Specification Revision 3.2 -
   https://pcisig.com/specifications
@@ -854,15 +853,17 @@ APs Resource = AP Page Table (Reserved) + AP Number * AP Stack (Reserved)
 * ELF Specification -
   https://refspecs.linuxfoundation.org/elf/elf.pdf
 
+
+
 ### Linux Boot
 
-* Linux, X86 Boot Protocol -
+* <a name="boot"/>Linux, X86 Boot Protocol -
   https://www.kernel.org/doc/Documentation/x86/boot.txt,
   https://www.kernel.org/doc/html/latest/x86/boot.html
-* Linux, X86 Zero Page -
+* <a name="zeropage"/>Linux, X86 Zero Page -
   https://www.kernel.org/doc/Documentation/x86/zero-page.txt
-* Linux, X86 Boot Params definition -
+* <a name="bootparam"/>Linux, X86 Boot Params definition -
   https://github.com/torvalds/linux/blob/master/arch/x86/include/uapi/asm/bootparam.h
-* Linux, Kernel Command Line Parameter -
+* <a name="kparm"/>Linux, Kernel Command Line Parameter -
   https://www.kernel.org/doc/html/v5.0/admin-guide/kernel-parameters.html ,
   https://man7.org/linux/man-pages/man7/bootparam.7.html
