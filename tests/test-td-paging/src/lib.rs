@@ -49,17 +49,60 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 
 #[cfg(test)]
 mod tests {
-    use td_layout::runtime::TD_PAYLOAD_PAGE_TABLE_BASE;
-    use td_paging::PAGE_TABLE_SIZE;
+    use td_layout::runtime;
+    use td_paging::{
+        create_mapping, reserve_page, PAGE_SIZE_DEFAULT, PAGE_TABLE_SIZE, PHYS_VIRT_OFFSET,
+    };
+    use x86_64::{
+        structures::paging::{OffsetPageTable, PageTable},
+        PhysAddr, VirtAddr,
+    };
+
+    /// Build page table to map guest physical addres range [0, system_memory_size), the top page table
+    /// page will be hosted at guest physical address `page_table_memory_base`.
+    pub fn setup_paging(page_table_memory_base: u64, system_memory_size: u64) {
+        let mut pt = unsafe {
+            OffsetPageTable::new(
+                &mut *(page_table_memory_base as *mut PageTable),
+                VirtAddr::new(PHYS_VIRT_OFFSET as u64),
+            )
+        };
+
+        if page_table_memory_base > system_memory_size
+            || page_table_memory_base < runtime::TD_PAYLOAD_PAGE_TABLE_BASE
+            || page_table_memory_base > runtime::TD_PAYLOAD_PAGE_TABLE_BASE + PAGE_TABLE_SIZE as u64
+            || runtime::TD_PAYLOAD_PAGE_TABLE_BASE + PAGE_TABLE_SIZE as u64 > system_memory_size
+        {
+            panic!(
+                "invalid parameters (0x{:x}, 0x{:x} to setup_paging()",
+                page_table_memory_base, system_memory_size
+            );
+        }
+
+        reserve_page(page_table_memory_base);
+
+        // TODO: make this work. More work is needed to enable paging, basically need to duplicate
+        // tdshim::memory::setup_paging()
+        /*
+        create_mapping(
+            &mut pt,
+            PhysAddr::new(0),
+            VirtAddr::new(0),
+            PAGE_SIZE_DEFAULT as u64,
+            system_memory_size,
+        );
+        page_table::cr3_write();
+         */
+    }
 
     #[test_case]
     fn test_create_paging() {
         td_paging::init();
-        td_paging::setup_paging(
-            TD_PAYLOAD_PAGE_TABLE_BASE + 0x1000,
-            TD_PAYLOAD_PAGE_TABLE_BASE + PAGE_TABLE_SIZE as u64,
+        setup_paging(
+            runtime::TD_PAYLOAD_PAGE_TABLE_BASE + 0x1000,
+            runtime::TD_PAYLOAD_PAGE_TABLE_BASE + PAGE_TABLE_SIZE as u64,
         );
 
-        // TODO: add test cases for setup_paging(), create_mapping_with_flags(), set_page_flags()
+        // TODO: add test cases for create_mapping_with_flags(), set_page_flags()
     }
 }
