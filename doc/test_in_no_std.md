@@ -1,10 +1,24 @@
-### test_in_no_std
+## test_in_no_std
 
-#### Run test in no_std environment
+### Organization of `td-shim` Tests
 
-##### Requirements
+To ease maintenance of test cases for td-shim library crates, test cases are divided into two classes:
+- ***unit test cases***: which could/should be run on the host (development machine) directly.
+  The standard rust unit test mechanism is used for this type of tests. That is, test cases are implemented within
+  the library crate, and `cargo test` is used to run tests.
+- ***integration test cases***: which must be run with a special test runner inside dedicated physical/virtual machines.
+  Dedicated integration test crates are created under the `tests/` directory to separate them from the library crate,
+  so `cargo xtest` and the special test runner `test-runner-server` may be used to run tests.
 
-You need a nightly [Rust](https://www.rust-lang.org/) compiler with the `llvm-tools-preview` component, which can be installed through `rustup component add llvm-tools-preview` and `cargo install cargo-xbuild`.
+### Develop Integration Tests
+
+Please follow below steps to develop unit test cases for `#[no_std]` td-shim components. Those components should be
+run within a dedicated physical/virtual machines. For convenience, `qemu` is used to create virtual machines for tests.
+
+#### Requirements
+
+You need a nightly [Rust](https://www.rust-lang.org/) compiler with the `llvm-tools-preview` component, which can be
+installed through `rustup component add llvm-tools-preview` and `cargo install cargo-xbuild`.
 
 ```
 rustup install nightly
@@ -12,7 +26,7 @@ rustup component add llvm-tools-preview
 cargo install cargo-xbuild
 ```
 
-#### Main.rs file header added
+#### Add integration test skeleton to `main.rs`
 
 ```rust
 #![no_std]
@@ -43,7 +57,7 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 }
 ```
 
-#### Cargo.toml file add dependency
+#### Add dependencies to `Cargo.toml`
 
 ```toml
 [dependencies]
@@ -55,7 +69,9 @@ bootloader = "0.10.9"
 map-physical-memory = true
 ```
 
-#### Write test case, the test case mark is changed from #[test] to #[test_case]
+#### Write test cases
+
+Note: the test case marker is changed from #[test] to #[test_case]
 
 ```rust
 #[cfg(test)]
@@ -67,24 +83,37 @@ mod tests {
 }
 ```
 
-#### Create a .cargo/config.toml file in the current library, add content
+####  Customize cargo configuration for integration tests
+
+Symlink file `devtools/rustc-targets/x86_64-custom.json` into the current rust project, so the project will be compiled
+for customized rust target.
+
+Create a `.cargo/config.toml` file in the current rust project with content
 
 ```toml
 [target.'cfg(target_os = "none")']
-runner = "cargo run --package boot --"
+runner = "cargo run --package test-runner-server --"
 
 [alias]
 ktest = "xtest --target x86_64-custom.json"
 
 ```
 
-#### case runs in qemu, refer to current member boot
+### Run Integration Tests
 
-##### run rust-td-payload test
+####  Manually run integration tests
+
+For example, run the `tests/test-td-payload` integration test
 
 ```
-cd rust-td-payload
+cd tests/test-td-payload
 cargo ktest
+```
+
+##### Run all integration tests
+
+```
+make integration-test
 ```
 
 #### reference
