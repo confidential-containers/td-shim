@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
+#[cfg(feature = "tdx")]
 use tdx_tdcall::tdx;
 
 #[allow(dead_code)]
@@ -334,6 +335,7 @@ interrupt_no_error!(simd, stack, {
     deadloop();
 });
 
+#[cfg(feature = "tdx")]
 interrupt_no_error!(virtualization, stack, {
     let op_code: u8 = *(stack.iret.rip as *const u8);
     match op_code {
