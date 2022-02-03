@@ -9,8 +9,10 @@
 
 pub mod asm;
 pub mod idt;
-mod interrupt;
 
+pub(crate) mod interrupt;
+
+/// Initialize exception/interrupt handlers.
 pub fn setup_exception_handlers() {
     unsafe { idt::init() };
 }

@@ -6,8 +6,8 @@
 use tdx_tdcall::tdx;
 
 #[allow(dead_code)]
-#[repr(packed)]
-pub struct ScratchRegisters {
+#[repr(C, packed)]
+struct ScratchRegisters {
     pub r11: usize,
     pub r10: usize,
     pub r9: usize,
@@ -20,7 +20,7 @@ pub struct ScratchRegisters {
 }
 
 impl ScratchRegisters {
-    pub fn dump(&self) {
+    fn dump(&self) {
         log::info!("RAX:   {:>016X}\n", { self.rax });
         log::info!("RCX:   {:>016X}\n", { self.rcx });
         log::info!("RDX:   {:>016X}\n", { self.rdx });
@@ -66,8 +66,8 @@ macro_rules! scratch_pop {
 }
 
 #[allow(dead_code)]
-#[repr(packed)]
-pub struct PreservedRegisters {
+#[repr(C, packed)]
+struct PreservedRegisters {
     pub r15: usize,
     pub r14: usize,
     pub r13: usize,
@@ -77,7 +77,7 @@ pub struct PreservedRegisters {
 }
 
 impl PreservedRegisters {
-    pub fn dump(&self) {
+    fn dump(&self) {
         log::info!("RBX:   {:>016X}\n", { self.rbx });
         log::info!("RBP:   {:>016X}\n", { self.rbp });
         log::info!("R12:   {:>016X}\n", { self.r12 });
@@ -115,14 +115,14 @@ macro_rules! preserved_pop {
 
 #[allow(dead_code)]
 #[repr(packed)]
-pub struct IretRegisters {
+struct IretRegisters {
     pub rip: usize,
     pub cs: usize,
     pub rflags: usize,
 }
 
 impl IretRegisters {
-    pub fn dump(&self) {
+    fn dump(&self) {
         log::info!("RFLAG: {:>016X}\n", { self.rflags });
         log::info!("CS:    {:>016X}\n", { self.cs });
         log::info!("RIP:   {:>016X}\n", { self.rip });
@@ -131,7 +131,7 @@ impl IretRegisters {
 
 #[allow(dead_code)]
 #[repr(packed)]
-pub struct InterruptNoErrorStack {
+struct InterruptNoErrorStack {
     pub preserved: PreservedRegisters,
     pub scratch: ScratchRegisters,
     pub iret: IretRegisters,
@@ -147,7 +147,7 @@ impl InterruptNoErrorStack {
 
 #[allow(dead_code)]
 #[repr(packed)]
-pub struct InterruptErrorStack {
+struct InterruptErrorStack {
     pub preserved: PreservedRegisters,
     pub scratch: ScratchRegisters,
     pub code: usize,
