@@ -27,5 +27,5 @@ simplified kernel.
 
 ## Documents
 
-* [Introduction (PDF)](doc/td-shim introduction.pdf)
+* [Introduction (PDF)](doc/td-shim-introduction.pdf)
 * [TD-Shim specification](doc/tdshim_spec.md)
