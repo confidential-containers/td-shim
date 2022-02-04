@@ -7,7 +7,6 @@ edition = "2018"
 
 [dependencies]
 uefi-pi = { path = "../../uefi-pi" }
-r-uefi-pi = { path = "../../r-uefi-pi" }
 afl = { version = "*", optional = true}
 
 [features]

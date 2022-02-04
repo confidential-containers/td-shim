@@ -13,11 +13,11 @@
 // limitations under the License.
 
 use r_efi::efi::Guid;
+use scroll::{Pread, Pwrite};
 
 pub type FvbAttributes2 = u32;
 
 pub const FVH_SIGNATURE: u32 = 0x4856465F; // '_','F','V','H'
-use scroll::{Pread, Pwrite};
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Pread, Pwrite, Default)]

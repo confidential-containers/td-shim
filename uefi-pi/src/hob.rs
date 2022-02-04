@@ -12,9 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! Functions to access UEFI-PI defined `Hand-Off Block` (HOB) list.
+
 use core::mem::size_of;
-use r_uefi_pi::hob::*;
 use scroll::Pread;
+
+use crate::pi::hob::*;
 
 const SIZE_4G: u64 = 0x100000000u64;
 
@@ -193,7 +196,7 @@ pub fn get_next_extension_guid_hob<'a>(hob_list: &'a [u8], guid: &[u8]) -> Optio
         match header.r#type {
             HOB_TYPE_GUID_EXTENSION => {
                 let guid_hob: GuidExtension = hob.pread(0).ok()?;
-                if &guid_hob.name == guid {
+                if guid_hob.name == guid {
                     return Some(hob);
                 }
             }

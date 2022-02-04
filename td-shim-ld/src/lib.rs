@@ -15,13 +15,16 @@ use scroll::{Pread, Pwrite};
 
 use pe_loader::pe;
 use r_efi::efi::Guid;
-use r_uefi_pi::fv::*;
 use td_layout::build_time::*;
 use td_layout::mailbox::*;
 use td_layout::metadata::*;
 #[cfg(feature = "boot-kernel")]
 use td_layout::runtime::{
     TD_PAYLOAD_BASE, TD_PAYLOAD_PARAM_BASE, TD_PAYLOAD_PARAM_SIZE, TD_PAYLOAD_SIZE,
+};
+use uefi_pi::{
+    fv::*,
+    pi::{fv::*, hob::*},
 };
 
 const MAX_IPL_CONTENT_SIZE: usize =

@@ -41,7 +41,7 @@ mod payload_impl {
     use core::panic::PanicInfo;
     use td_layout::memslice;
     use td_layout::runtime::*;
-    use uefi_pi::pi::hob;
+    use uefi_pi::hob;
 
     #[cfg(feature = "benches")]
     use benchmark::ALLOCATOR;

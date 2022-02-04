@@ -12,15 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![no_std]
-#![forbid(unsafe_code)]
+//! Constants and Structures defined by the UEFI Platform Initialization (UEFI-PI) Spec.
 
 pub mod boot_mode;
 pub mod fv;
 pub mod hob;
-
-pub mod pi {
-    pub use crate::boot_mode;
-    pub use crate::fv;
-    pub use crate::hob;
-}

@@ -2,13 +2,11 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
-use r_uefi_pi::pi::fv;
-use uefi_pi::pi::fv;
+use uefi_pi::hob;
 
 use elf_loader::elf;
 use elf_loader::elf64::ProgramHeader;
-use pe_loader::pe;
-use pe_loader::pe::Section;
+use pe_loader::pe::{self, Section};
 
 use crate::memslice;
 use crate::Memory;
@@ -100,7 +98,7 @@ pub fn cpu_get_memory_space_size() -> u8 {
 pub fn get_memory_size(hob: &[u8]) -> u64 {
     let cpu_men_space_size = cpu_get_memory_space_size() as u32;
     let cpu_memory_size = 2u64.pow(cpu_men_space_size);
-    let hob_memory_size = uefi_pi::hob::get_total_memory_top(hob).unwrap();
+    let hob_memory_size = hob::get_total_memory_top(hob).unwrap();
     let mem_size = core::cmp::min(cpu_memory_size, hob_memory_size);
     log::info!("memory_size: 0x{:x}\n", mem_size);
     mem_size

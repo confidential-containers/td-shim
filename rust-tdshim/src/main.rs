@@ -31,12 +31,8 @@ mod asm;
 
 use r_efi::efi;
 
-use r_uefi_pi::fv;
-use r_uefi_pi::hob::*;
-use r_uefi_pi::pi;
-use r_uefi_pi::pi::hob;
 use tdx_tdcall::tdx;
-use uefi_pi::pi::{fv, hob};
+use uefi_pi::{fv, hob, pi};
 
 use td_layout::build_time::{self, *};
 use td_layout::memslice;
@@ -56,15 +52,15 @@ use zerocopy::{AsBytes, FromBytes};
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Pwrite, Pread)]
 pub struct HobTemplate {
-    pub handoff_info_table: hob::HandoffInfoTable,
-    pub firmware_volume: hob::FirmwareVolume,
-    pub cpu: hob::Cpu,
-    pub payload: hob::MemoryAllocation,
-    pub page_table: hob::MemoryAllocation,
-    pub stack: hob::MemoryAllocation,
-    pub memory_above_1m: hob::ResourceDescription,
-    pub memory_blow_1m: hob::ResourceDescription,
-    pub end_off_hob: hob::Header,
+    pub handoff_info_table: pi::hob::HandoffInfoTable,
+    pub firmware_volume: pi::hob::FirmwareVolume,
+    pub cpu: pi::hob::Cpu,
+    pub payload: pi::hob::MemoryAllocation,
+    pub page_table: pi::hob::MemoryAllocation,
+    pub stack: pi::hob::MemoryAllocation,
+    pub memory_above_1m: pi::hob::ResourceDescription,
+    pub memory_blow_1m: pi::hob::ResourceDescription,
+    pub end_off_hob: pi::hob::Header,
 }
 #[cfg(not(test))]
 #[panic_handler]
@@ -198,28 +194,28 @@ pub extern "win64" fn _start(
     let mut offset: usize = 0;
     loop {
         let hob = &hob_list[offset..];
-        let header: Header = hob.pread(0).unwrap();
+        let header: pi::hob::Header = hob.pread(0).unwrap();
         match header.r#type {
-            HOB_TYPE_RESOURCE_DESCRIPTOR => {
-                let resource_hob: ResourceDescription = hob.pread(0).unwrap();
+            pi::hob::HOB_TYPE_RESOURCE_DESCRIPTOR => {
+                let resource_hob: pi::hob::ResourceDescription = hob.pread(0).unwrap();
                 match resource_hob.resource_type {
-                    RESOURCE_SYSTEM_MEMORY => {
+                    pi::hob::RESOURCE_SYSTEM_MEMORY => {
                         mp::mp_accept_memory_resource_range(
                             td_info.num_vcpus,
                             resource_hob.physical_start,
                             resource_hob.resource_length,
                         );
                     }
-                    RESOURCE_MEMORY_RESERVED => {}
+                    pi::hob::RESOURCE_MEMORY_RESERVED => {}
                     _ => {}
                 }
             }
-            HOB_TYPE_END_OF_HOB_LIST => {
+            pi::hob::HOB_TYPE_END_OF_HOB_LIST => {
                 break;
             }
             _ => {}
         }
-        offset += hob::align_hob(header.length) as usize;
+        offset = hob::align_to_next_hob_offset(hob_list.len(), offset, header.length).unwrap();
     }
 
     let memory_bottom = runtime_memory_layout.runtime_memory_bottom;
@@ -246,16 +242,16 @@ pub extern "win64" fn _start(
     let fv_buffer = memslice::get_mem_slice(memslice::SliceType::ShimPayload);
     let _hob_buffer = memslice::get_mem_slice(memslice::SliceType::ShimHob);
 
-    let _hob_header = hob::Header {
-        r#type: hob::HOB_TYPE_END_OF_HOB_LIST,
-        length: core::mem::size_of::<hob::Header>() as u16,
+    let _hob_header = pi::hob::Header {
+        r#type: pi::hob::HOB_TYPE_END_OF_HOB_LIST,
+        length: core::mem::size_of::<pi::hob::Header>() as u16,
         reserved: 0,
     };
 
-    let handoff_info_table = hob::HandoffInfoTable {
-        header: hob::Header {
-            r#type: hob::HOB_TYPE_HANDOFF,
-            length: core::mem::size_of::<hob::HandoffInfoTable>() as u16,
+    let handoff_info_table = pi::hob::HandoffInfoTable {
+        header: pi::hob::Header {
+            r#type: pi::hob::HOB_TYPE_HANDOFF,
+            length: core::mem::size_of::<pi::hob::HandoffInfoTable>() as u16,
             reserved: 0,
         },
         version: 9u32,
@@ -270,10 +266,10 @@ pub extern "win64" fn _start(
         efi_end_of_hob_list: td_payload_hob_base + core::mem::size_of::<HobTemplate>() as u64,
     };
 
-    let cpu = hob::Cpu {
-        header: hob::Header {
-            r#type: hob::HOB_TYPE_CPU,
-            length: core::mem::size_of::<hob::Cpu>() as u16,
+    let cpu = pi::hob::Cpu {
+        header: pi::hob::Header {
+            r#type: pi::hob::HOB_TYPE_CPU,
+            length: core::mem::size_of::<pi::hob::Cpu>() as u16,
             reserved: 0,
         },
         size_of_memory_space: ipl::cpu_get_memory_space_size(),
@@ -281,10 +277,10 @@ pub extern "win64" fn _start(
         reserved: [0u8; 6],
     };
 
-    let firmware_volume = hob::FirmwareVolume {
-        header: hob::Header {
-            r#type: hob::HOB_TYPE_FV,
-            length: core::mem::size_of::<hob::FirmwareVolume>() as u16,
+    let firmware_volume = pi::hob::FirmwareVolume {
+        header: pi::hob::Header {
+            r#type: pi::hob::HOB_TYPE_FV,
+            length: core::mem::size_of::<pi::hob::FirmwareVolume>() as u16,
             reserved: 0,
         },
         base_address: TD_SHIM_PAYLOAD_BASE as u64,
@@ -299,13 +295,13 @@ pub extern "win64" fn _start(
         0x7D,
         &[0x52, 0x7B, 0x1D, 0x00, 0xC9, 0xBD],
     );
-    let stack = hob::MemoryAllocation {
-        header: hob::Header {
-            r#type: hob::HOB_TYPE_MEMORY_ALLOCATION,
-            length: core::mem::size_of::<hob::MemoryAllocation>() as u16,
+    let stack = pi::hob::MemoryAllocation {
+        header: pi::hob::Header {
+            r#type: pi::hob::HOB_TYPE_MEMORY_ALLOCATION,
+            length: core::mem::size_of::<pi::hob::MemoryAllocation>() as u16,
             reserved: 0,
         },
-        alloc_descriptor: hob::MemoryAllocationHeader {
+        alloc_descriptor: pi::hob::MemoryAllocationHeader {
             name: *MEMORY_ALLOCATION_STACK_GUID.as_bytes(),
             memory_base_address: td_payload_stack_base as u64,
             memory_length: TD_PAYLOAD_STACK_SIZE as u64
@@ -361,7 +357,7 @@ pub extern "win64" fn _start(
                     hob::get_next_extension_guid_hob(next_hob, &HOB_ACPI_TABLE_GUID)
                 {
                     acpi_tables.install(hob::get_guid_data(hob).unwrap());
-                    next_hob = hob::get_nex_hob(hob).unwrap();
+                    next_hob = hob::seek_to_next_hob(hob).unwrap();
                 }
 
                 // When all the ACPI tables are put into the ACPI memory
@@ -380,13 +376,13 @@ pub extern "win64" fn _start(
         }
     }
 
-    let page_table = hob::MemoryAllocation {
-        header: hob::Header {
-            r#type: hob::HOB_TYPE_MEMORY_ALLOCATION,
-            length: core::mem::size_of::<hob::MemoryAllocation>() as u16,
+    let page_table = pi::hob::MemoryAllocation {
+        header: pi::hob::Header {
+            r#type: pi::hob::HOB_TYPE_MEMORY_ALLOCATION,
+            length: core::mem::size_of::<pi::hob::MemoryAllocation>() as u16,
             reserved: 0,
         },
-        alloc_descriptor: hob::MemoryAllocationHeader {
+        alloc_descriptor: pi::hob::MemoryAllocationHeader {
             name: *PAGE_TABLE_NAME_GUID.as_bytes(),
             memory_base_address: TD_PAYLOAD_PAGE_TABLE_BASE,
             memory_length: td_paging::PAGE_TABLE_SIZE as u64,
@@ -397,10 +393,10 @@ pub extern "win64" fn _start(
 
     let lowmemory = hob::get_system_memory_size_below_4gb(hob_list).unwrap();
 
-    let memory_above_1m = hob::ResourceDescription {
-        header: hob::Header {
-            r#type: hob::HOB_TYPE_RESOURCE_DESCRIPTOR,
-            length: core::mem::size_of::<hob::ResourceDescription>() as u16,
+    let memory_above_1m = pi::hob::ResourceDescription {
+        header: pi::hob::Header {
+            r#type: pi::hob::HOB_TYPE_RESOURCE_DESCRIPTOR,
+            length: core::mem::size_of::<pi::hob::ResourceDescription>() as u16,
             reserved: 0,
         },
         owner: *efi::Guid::from_fields(
@@ -412,22 +408,22 @@ pub extern "win64" fn _start(
             &[0x52, 0x7B, 0x1D, 0x00, 0xC9, 0xBD],
         )
         .as_bytes(),
-        resource_type: hob::RESOURCE_SYSTEM_MEMORY,
-        resource_attribute: hob::RESOURCE_ATTRIBUTE_PRESENT
-            | hob::RESOURCE_ATTRIBUTE_INITIALIZED
-            | hob::RESOURCE_ATTRIBUTE_UNCACHEABLE
-            | hob::RESOURCE_ATTRIBUTE_WRITE_COMBINEABLE
-            | hob::RESOURCE_ATTRIBUTE_WRITE_THROUGH_CACHEABLE
-            | hob::RESOURCE_ATTRIBUTE_WRITE_BACK_CACHEABLE
-            | hob::RESOURCE_ATTRIBUTE_TESTED,
+        resource_type: pi::hob::RESOURCE_SYSTEM_MEMORY,
+        resource_attribute: pi::hob::RESOURCE_ATTRIBUTE_PRESENT
+            | pi::hob::RESOURCE_ATTRIBUTE_INITIALIZED
+            | pi::hob::RESOURCE_ATTRIBUTE_UNCACHEABLE
+            | pi::hob::RESOURCE_ATTRIBUTE_WRITE_COMBINEABLE
+            | pi::hob::RESOURCE_ATTRIBUTE_WRITE_THROUGH_CACHEABLE
+            | pi::hob::RESOURCE_ATTRIBUTE_WRITE_BACK_CACHEABLE
+            | pi::hob::RESOURCE_ATTRIBUTE_TESTED,
         physical_start: 0x100000u64,
         resource_length: lowmemory - 0x100000u64,
     };
 
-    let memory_below_1m = hob::ResourceDescription {
-        header: hob::Header {
-            r#type: hob::HOB_TYPE_RESOURCE_DESCRIPTOR,
-            length: core::mem::size_of::<hob::ResourceDescription>() as u16,
+    let memory_below_1m = pi::hob::ResourceDescription {
+        header: pi::hob::Header {
+            r#type: pi::hob::HOB_TYPE_RESOURCE_DESCRIPTOR,
+            length: core::mem::size_of::<pi::hob::ResourceDescription>() as u16,
             reserved: 0,
         },
         owner: *efi::Guid::from_fields(
@@ -439,20 +435,24 @@ pub extern "win64" fn _start(
             &[0x52, 0x7B, 0x1D, 0x00, 0xC9, 0xBD],
         )
         .as_bytes(),
-        resource_type: hob::RESOURCE_SYSTEM_MEMORY,
-        resource_attribute: hob::RESOURCE_ATTRIBUTE_PRESENT
-            | hob::RESOURCE_ATTRIBUTE_INITIALIZED
-            | hob::RESOURCE_ATTRIBUTE_UNCACHEABLE
-            | hob::RESOURCE_ATTRIBUTE_WRITE_COMBINEABLE
-            | hob::RESOURCE_ATTRIBUTE_WRITE_THROUGH_CACHEABLE
-            | hob::RESOURCE_ATTRIBUTE_WRITE_BACK_CACHEABLE
-            | hob::RESOURCE_ATTRIBUTE_TESTED,
+        resource_type: pi::hob::RESOURCE_SYSTEM_MEMORY,
+        resource_attribute: pi::hob::RESOURCE_ATTRIBUTE_PRESENT
+            | pi::hob::RESOURCE_ATTRIBUTE_INITIALIZED
+            | pi::hob::RESOURCE_ATTRIBUTE_UNCACHEABLE
+            | pi::hob::RESOURCE_ATTRIBUTE_WRITE_COMBINEABLE
+            | pi::hob::RESOURCE_ATTRIBUTE_WRITE_THROUGH_CACHEABLE
+            | pi::hob::RESOURCE_ATTRIBUTE_WRITE_BACK_CACHEABLE
+            | pi::hob::RESOURCE_ATTRIBUTE_TESTED,
         physical_start: 0u64,
         resource_length: 0x80000u64 + 0x20000u64,
     };
 
-    let mut payload =
-        fv::get_image_from_fv(fv_buffer, fv::FV_FILETYPE_DXE_CORE, fv::SECTION_PE32).unwrap();
+    let mut payload = fv::get_image_from_fv(
+        fv_buffer,
+        pi::fv::FV_FILETYPE_DXE_CORE,
+        pi::fv::SECTION_PE32,
+    )
+    .unwrap();
 
     #[cfg(feature = "secure-boot")]
     {
@@ -493,13 +493,13 @@ pub extern "win64" fn _start(
         &[0x52, 0x25, 0x48, 0x5a, 0x6a, 0x3a],
     );
 
-    let payload = hob::MemoryAllocation {
-        header: hob::Header {
-            r#type: hob::HOB_TYPE_MEMORY_ALLOCATION,
-            length: core::mem::size_of::<hob::MemoryAllocation>() as u16,
+    let payload = pi::hob::MemoryAllocation {
+        header: pi::hob::Header {
+            r#type: pi::hob::HOB_TYPE_MEMORY_ALLOCATION,
+            length: core::mem::size_of::<pi::hob::MemoryAllocation>() as u16,
             reserved: 0,
         },
-        alloc_descriptor: hob::MemoryAllocationHeader {
+        alloc_descriptor: pi::hob::MemoryAllocationHeader {
             name: *PAYLOAD_NAME_GUID.as_bytes(),
             memory_base_address: basefw,
             memory_length: ipl::efi_page_to_size(ipl::efi_size_to_page(basefwsize)),
@@ -517,9 +517,9 @@ pub extern "win64" fn _start(
         stack,
         memory_above_1m,
         memory_blow_1m: memory_below_1m,
-        end_off_hob: hob::Header {
-            r#type: hob::HOB_TYPE_END_OF_HOB_LIST,
-            length: core::mem::size_of::<hob::Header>() as u16,
+        end_off_hob: pi::hob::Header {
+            r#type: pi::hob::HOB_TYPE_END_OF_HOB_LIST,
+            length: core::mem::size_of::<pi::hob::Header>() as u16,
             reserved: 0,
         },
     };

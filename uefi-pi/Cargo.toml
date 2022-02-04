@@ -1,13 +1,13 @@
 [package]
 name = "uefi-pi"
 version = "0.1.0"
-description = "UEFI Platform Independent data structures"
+description = "UEFI Platform Initializaiton data structures and accessors"
 repository = "https://github.com/confidential-containers/td-shim"
 homepage = "https://github.com/confidential-containers"
 license = "BSD-2-Clause-Patent"
 edition = "2018"
 
 [dependencies]
+log = "0.4.13"
 r-efi = "3.2.0"
-r-uefi-pi =  { path = "../r-uefi-pi" }
-scroll = { version = "0.10", default-features=false}
+scroll = { version = "0.10", default-features = false, features = ["derive"] }

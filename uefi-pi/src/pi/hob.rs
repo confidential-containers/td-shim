@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::boot_mode::BootMode;
 use r_efi::efi::{Guid, PhysicalAddress};
 use scroll::{Pread, Pwrite};
+
+use super::boot_mode::BootMode;
 
 pub const HOB_LIST_GUID: Guid = Guid::from_fields(
     0x7739F24C,
