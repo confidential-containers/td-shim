@@ -36,7 +36,7 @@ use r_uefi_pi::hob::*;
 use r_uefi_pi::pi;
 use r_uefi_pi::pi::hob;
 use tdx_tdcall::tdx;
-use uefi_pi::pi::{fv_lib, hob_lib};
+use uefi_pi::pi::{fv, hob};
 
 use td_layout::build_time::{self, *};
 use td_layout::memslice;
@@ -115,7 +115,7 @@ struct TdxHandoffTablePointers {
 }
 
 fn log_hob_list(hob_list: &[u8], td_event_log: &mut tcg::TdEventLog) {
-    hob_lib::dump_hob(hob_list);
+    hob::dump_hob(hob_list);
 
     let hand_off_table_pointers = TdxHandoffTablePointers {
         table_descripion_size: 8,
@@ -173,9 +173,9 @@ pub extern "win64" fn _start(
     heap::init();
 
     let hob_list = memslice::get_mem_slice(memslice::SliceType::ShimHob);
-    let hob_size = hob_lib::get_hob_total_size(hob_list).unwrap();
+    let hob_size = hob::get_hob_total_size(hob_list).unwrap();
     let hob_list = &hob_list[0..hob_size];
-    hob_lib::dump_hob(hob_list);
+    hob::dump_hob(hob_list);
     let mut td_info = tdx::TdInfoReturnData {
         gpaw: 0,
         attributes: 0,
@@ -188,7 +188,7 @@ pub extern "win64" fn _start(
     log::info!("gpaw - {:?}\n", td_info.gpaw);
     log::info!("num_vcpus - {:?}\n", td_info.num_vcpus);
 
-    let memory_top = hob_lib::get_system_memory_size_below_4gb(hob_list).unwrap();
+    let memory_top = hob::get_system_memory_size_below_4gb(hob_list).unwrap();
     let runtime_memory_layout = RuntimeMemoryLayout::new(memory_top);
 
     let mut e820_table = e820::E820Table::new();
@@ -219,7 +219,7 @@ pub extern "win64" fn _start(
             }
             _ => {}
         }
-        offset += hob_lib::align_hob(header.length) as usize;
+        offset += hob::align_hob(header.length) as usize;
     }
 
     let memory_bottom = runtime_memory_layout.runtime_memory_bottom;
@@ -331,8 +331,8 @@ pub extern "win64" fn _start(
 
     mem.setup_paging();
 
-    if let Some(hob) = hob_lib::get_next_extension_guid_hob(hob_list, &HOB_KERNEL_INFO_GUID) {
-        let kernel_info = hob_lib::get_guid_data(hob).unwrap();
+    if let Some(hob) = hob::get_next_extension_guid_hob(hob_list, &HOB_KERNEL_INFO_GUID) {
+        let kernel_info = hob::get_guid_data(hob).unwrap();
         let vmm_kernel = kernel_info.pread::<PayloadInfo>(0).unwrap();
 
         match vmm_kernel.image_type {
@@ -358,10 +358,10 @@ pub extern "win64" fn _start(
 
                 let mut next_hob = hob_list;
                 while let Some(hob) =
-                    hob_lib::get_next_extension_guid_hob(next_hob, &HOB_ACPI_TABLE_GUID)
+                    hob::get_next_extension_guid_hob(next_hob, &HOB_ACPI_TABLE_GUID)
                 {
-                    acpi_tables.install(hob_lib::get_guid_data(hob).unwrap());
-                    next_hob = hob_lib::get_nex_hob(hob).unwrap();
+                    acpi_tables.install(hob::get_guid_data(hob).unwrap());
+                    next_hob = hob::get_nex_hob(hob).unwrap();
                 }
 
                 // When all the ACPI tables are put into the ACPI memory
@@ -395,7 +395,7 @@ pub extern "win64" fn _start(
         },
     };
 
-    let lowmemory = hob_lib::get_system_memory_size_below_4gb(hob_list).unwrap();
+    let lowmemory = hob::get_system_memory_size_below_4gb(hob_list).unwrap();
 
     let memory_above_1m = hob::ResourceDescription {
         header: hob::Header {
@@ -452,7 +452,7 @@ pub extern "win64" fn _start(
     };
 
     let mut payload =
-        fv_lib::get_image_from_fv(fv_buffer, fv::FV_FILETYPE_DXE_CORE, fv::SECTION_PE32).unwrap();
+        fv::get_image_from_fv(fv_buffer, fv::FV_FILETYPE_DXE_CORE, fv::SECTION_PE32).unwrap();
 
     #[cfg(feature = "secure-boot")]
     {

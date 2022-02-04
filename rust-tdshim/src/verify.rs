@@ -160,7 +160,7 @@ impl<'a> PayloadVerifier<'a> {
     }
 
     pub fn get_trust_anchor(cfv: &'a [u8]) -> &'a [u8] {
-        uefi_pi::fv_lib::get_file_from_fv(cfv, FV_FILETYPE_RAW, CFV_FFS_HEADER_TRUST_ANCHOR_GUID)
+        uefi_pi::fv::get_file_from_fv(cfv, FV_FILETYPE_RAW, CFV_FFS_HEADER_TRUST_ANCHOR_GUID)
             .unwrap()
     }
 
@@ -190,7 +190,7 @@ impl<'a> PayloadVerifier<'a> {
     // The public key hash is stored in the data field.
     //
     fn verify_public_key(&self) -> bool {
-        let file = uefi_pi::fv_lib::get_file_from_fv(
+        let file = uefi_pi::fv::get_file_from_fv(
             self.config,
             FV_FILETYPE_RAW,
             CFV_FFS_HEADER_TRUST_ANCHOR_GUID,
@@ -230,7 +230,7 @@ mod test {
     use r_uefi_pi::fv::{self, *};
     use rust_td_layout::build_time::*;
     use scroll::Pread;
-    use uefi_pi::fv_lib;
+    use uefi_pi::fv;
 
     use super::PayloadVerifier;
     use std::vec::Vec;
@@ -245,7 +245,7 @@ mod test {
 
         let mut offset = 0;
         let payload =
-            fv_lib::get_image_from_fv(payload_fv, fv::FV_FILETYPE_DXE_CORE, fv::SECTION_PE32)
+            fv::get_image_from_fv(payload_fv, fv::FV_FILETYPE_DXE_CORE, fv::SECTION_PE32)
                 .unwrap();
 
         let cstart = TD_SHIM_CONFIG_OFFSET as usize;
