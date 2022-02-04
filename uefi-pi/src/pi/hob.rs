@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use core::mem::size_of;
+use core::ptr::slice_from_raw_parts;
 use r_efi::efi::{Guid, PhysicalAddress};
 use scroll::{Pread, Pwrite};
 
@@ -44,6 +46,10 @@ impl Header {
         log::info!("Hob:\n");
         log::info!("  header.type            - 0x{:x}\n", self.r#type);
         log::info!("  header.length          - 0x{:x}\n", self.length);
+    }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        unsafe { &*slice_from_raw_parts(self as *const Self as *const u8, size_of::<Self>()) }
     }
 }
 
@@ -104,6 +110,10 @@ impl HandoffInfoTable {
             self.efi_end_of_hob_list
         );
     }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        unsafe { &*slice_from_raw_parts(self as *const Self as *const u8, size_of::<Self>()) }
+    }
 }
 
 /// Memory Allocation Hob Header, defined in [UEFI-PI Spec], section 5.4
@@ -118,6 +128,12 @@ pub struct MemoryAllocationHeader {
     pub memory_length: u64,
     pub memory_type: u32, // MemoryType,
     pub reserved: [u8; 4],
+}
+
+impl MemoryAllocationHeader {
+    pub fn as_bytes(&self) -> &[u8] {
+        unsafe { &*slice_from_raw_parts(self as *const Self as *const u8, size_of::<Self>()) }
+    }
 }
 
 /// Memory Allocation Hob Entry, defined in [UEFI-PI Spec], section 5.4
@@ -138,6 +154,10 @@ impl MemoryAllocation {
             self.alloc_descriptor.memory_base_address,
             self.alloc_descriptor.memory_base_address + self.alloc_descriptor.memory_length - 1,
         );
+    }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        unsafe { &*slice_from_raw_parts(self as *const Self as *const u8, size_of::<Self>()) }
     }
 }
 
@@ -167,6 +187,10 @@ impl ResourceDescription {
             self.physical_start + self.resource_length - 1,
             self.resource_attribute
         );
+    }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        unsafe { &*slice_from_raw_parts(self as *const Self as *const u8, size_of::<Self>()) }
     }
 }
 
@@ -238,6 +262,10 @@ impl FirmwareVolume {
             self.base_address + self.length - 1
         );
     }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        unsafe { &*slice_from_raw_parts(self as *const Self as *const u8, size_of::<Self>()) }
+    }
 }
 
 /// Firmware Volume 2 HOB, defined in [UEFI-PI Spec], section 5.7
@@ -254,6 +282,12 @@ pub struct FirmwareVolume2 {
     pub file_name: [u8; 16], // Guid
 }
 
+impl FirmwareVolume2 {
+    pub fn as_bytes(&self) -> &[u8] {
+        unsafe { &*slice_from_raw_parts(self as *const Self as *const u8, size_of::<Self>()) }
+    }
+}
+
 /// Firmware Volume 3 HOB, defined in [UEFI-PI Spec], section 5.7
 ///
 /// Details the location of a firmware volume including authentication information, for both
@@ -268,6 +302,12 @@ pub struct FirmwareVolume3 {
     pub extracted_fv: u8,    // Boolean
     pub fv_name: [u8; 16],   // Guid
     pub file_name: [u8; 16], // Guid
+}
+
+impl FirmwareVolume3 {
+    pub fn as_bytes(&self) -> &[u8] {
+        unsafe { &*slice_from_raw_parts(self as *const Self as *const u8, size_of::<Self>()) }
+    }
 }
 
 /// CPU HOB, defined in [UEFI-PI Spec], section 5.8
@@ -291,6 +331,10 @@ impl Cpu {
             self.size_of_io_space
         );
     }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        unsafe { &*slice_from_raw_parts(self as *const Self as *const u8, size_of::<Self>()) }
+    }
 }
 
 /// GUID Extension HOB, defined in [UEFI-PI Spec], section 5.6
@@ -303,4 +347,10 @@ impl Cpu {
 pub struct GuidExtension {
     pub header: Header,
     pub name: [u8; 16], // Guid
+}
+
+impl GuidExtension {
+    pub fn as_bytes(&self) -> &[u8] {
+        unsafe { &*slice_from_raw_parts(self as *const Self as *const u8, size_of::<Self>()) }
+    }
 }

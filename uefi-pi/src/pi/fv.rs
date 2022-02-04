@@ -28,6 +28,8 @@
 //! multiple sections.
 //!
 //! Firmware file sections are separate discrete “parts” within certain file types.
+use core::mem::size_of;
+use core::ptr::slice_from_raw_parts;
 use r_efi::efi::Guid;
 use scroll::{Pread, Pwrite};
 
@@ -56,6 +58,12 @@ pub struct FirmwareVolumeHeader {
     pub revision: u8,
 }
 
+impl FirmwareVolumeHeader {
+    pub fn as_bytes(&self) -> &[u8] {
+        unsafe { &*slice_from_raw_parts(self as *const Self as *const u8, size_of::<Self>()) }
+    }
+}
+
 /// Firmware block map.
 ///
 /// The block map is a run-length-encoded array of logical block definitions. This design allows a
@@ -68,6 +76,12 @@ pub struct FirmwareVolumeHeader {
 pub struct FvBlockMap {
     pub num_blocks: u32,
     pub length: u32,
+}
+
+impl FvBlockMap {
+    pub fn as_bytes(&self) -> &[u8] {
+        unsafe { &*slice_from_raw_parts(self as *const Self as *const u8, size_of::<Self>()) }
+    }
 }
 
 /// Firmware Volume Extended Header pointed to by `FirmwareVolumeHeader::ext_header_offset`.
@@ -83,6 +97,12 @@ pub struct FirmwareVolumeExtHeader {
     pub ext_header_size: u32,
 }
 
+impl FirmwareVolumeExtHeader {
+    pub fn as_bytes(&self) -> &[u8] {
+        unsafe { &*slice_from_raw_parts(self as *const Self as *const u8, size_of::<Self>()) }
+    }
+}
+
 /// Firmware volume extension entry.
 ///
 /// After the extension header, there is an array of variable-length extension header entries,
@@ -92,6 +112,12 @@ pub struct FirmwareVolumeExtHeader {
 pub struct FirmwareVolumeExtEntry {
     pub ext_entry_size: u16,
     pub ext_entry_type: u32,
+}
+
+impl FirmwareVolumeExtEntry {
+    pub fn as_bytes(&self) -> &[u8] {
+        unsafe { &*slice_from_raw_parts(self as *const Self as *const u8, size_of::<Self>()) }
+    }
 }
 
 /// EFI_FIRMWARE_FILE_SYSTEM2_GUID defined in [UEFI-PI Spec], section 3.2.2
@@ -157,6 +183,12 @@ pub struct FfsFileHeader {
     pub state: FfsFileState,
 }
 
+impl FfsFileHeader {
+    pub fn as_bytes(&self) -> &[u8] {
+        unsafe { &*slice_from_raw_parts(self as *const Self as *const u8, size_of::<Self>()) }
+    }
+}
+
 /// File Header 2 for files larger than 16Mb, define in [UEFI-PI Spec] section 2.2.3
 ///
 /// All FFS files begin with a header that is aligned on an 8-byteboundry with respect to the
@@ -176,6 +208,12 @@ pub struct FfsFileHeader2 {
     pub size: [u8; 3],
     pub state: FfsFileState,
     pub extended_size: u32,
+}
+
+impl FfsFileHeader2 {
+    pub fn as_bytes(&self) -> &[u8] {
+        unsafe { &*slice_from_raw_parts(self as *const Self as *const u8, size_of::<Self>()) }
+    }
 }
 
 /// Firmware File Section Types defined in [UEFI-PI], section 2.1.5.1
@@ -208,6 +246,12 @@ pub struct CommonSectionHeader {
     pub r#type: SectionType,
 }
 
+impl CommonSectionHeader {
+    pub fn as_bytes(&self) -> &[u8] {
+        unsafe { &*slice_from_raw_parts(self as *const Self as *const u8, size_of::<Self>()) }
+    }
+}
+
 /// Section Header 2 for files larger than 16Mb, define in [UEFI-PI Spec] section 2.2.4
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]
@@ -215,4 +259,10 @@ pub struct CommonSectionHeader2 {
     pub size: [u8; 3],
     pub r#type: SectionType,
     pub extended_size: u32,
+}
+
+impl CommonSectionHeader2 {
+    pub fn as_bytes(&self) -> &[u8] {
+        unsafe { &*slice_from_raw_parts(self as *const Self as *const u8, size_of::<Self>()) }
+    }
 }
