@@ -245,8 +245,7 @@ mod test {
 
         let mut offset = 0;
         let payload =
-            fv::get_image_from_fv(payload_fv, fv::FV_FILETYPE_DXE_CORE, fv::SECTION_PE32)
-                .unwrap();
+            fv::get_image_from_fv(payload_fv, fv::FV_FILETYPE_DXE_CORE, fv::SECTION_PE32).unwrap();
 
         let cstart = TD_SHIM_CONFIG_OFFSET as usize;
         let cend = cstart + TD_SHIM_CONFIG_SIZE as usize;

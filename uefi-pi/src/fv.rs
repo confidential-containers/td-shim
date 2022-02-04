@@ -19,36 +19,23 @@ use r_uefi_pi::fv::{
 };
 use scroll::Pread;
 
-fn get_image_from_sections(sections_data: &[u8], section_type: SectionType) -> Option<&[u8]> {
-    let sections = Sections::parse(sections_data, 0)?;
-    for (section_header, section_data) in sections {
-        if section_header.r#type != section_type {
-            continue;
-        }
-        return Some(section_data);
-    }
-    None
-}
-
 pub fn get_image_from_fv(
     fv_data: &[u8],
     fv_file_type: FvFileType,
     section_type: SectionType,
 ) -> Option<&[u8]> {
     let fv_header: FirmwareVolumeHeader = fv_data.pread(0).ok()?;
-
     if fv_header.signature != FVH_SIGNATURE {
         return None;
     }
 
     let files = Files::parse(fv_data, fv_header.header_length as usize)?;
     for (file_header, file_data) in files {
-        if file_header.r#type != fv_file_type {
-            continue;
+        if file_header.r#type == fv_file_type {
+            return get_image_from_sections(file_data, section_type);
         }
-        let section_data = get_image_from_sections(file_data, section_type)?;
-        return Some(section_data);
     }
+
     None
 }
 
@@ -58,102 +45,103 @@ pub fn get_file_from_fv(
     file_name: Guid,
 ) -> Option<&[u8]> {
     let fv_header: FirmwareVolumeHeader = fv_data.pread(0).ok()?;
-
-    assert!(fv_header.signature == FVH_SIGNATURE);
+    if fv_header.signature != FVH_SIGNATURE {
+        return None;
+    }
 
     let files = Files::parse(fv_data, fv_header.header_length as usize)?;
-
     for (file_header, file_data) in files {
-        if file_header.r#type != fv_file_type || &file_header.name != file_name.as_bytes() {
-            continue;
+        if file_header.r#type == fv_file_type && &file_header.name == file_name.as_bytes() {
+            return Some(file_data);
         }
-
-        return Some(file_data);
     }
+
+    None
+}
+
+fn get_image_from_sections(sections_data: &[u8], section_type: SectionType) -> Option<&[u8]> {
+    let sections = Sections::parse(sections_data, 0)?;
+
+    for (section_header, section_data) in sections {
+        if section_header.r#type == section_type {
+            return Some(section_data);
+        }
+    }
+
     None
 }
 
 struct Sections<'a> {
-    offset: usize,
     buffer: &'a [u8],
 }
 
 impl<'a> Sections<'a> {
     pub fn parse(sections_buffer: &'a [u8], offset: usize) -> Option<Self> {
         Some(Sections {
-            offset,
-            buffer: sections_buffer,
+            buffer: &sections_buffer[offset..],
         })
     }
 }
 
 impl<'a> Iterator for Sections<'a> {
     type Item = (CommonSectionHeader, &'a [u8]);
-    fn next(&mut self) -> Option<Self::Item> {
-        let base_address = self.buffer as *const [u8] as *const u8 as usize;
-        // required 4 bytes alignment
-        let offset = ((self.offset + 3 + base_address) & (core::usize::MAX - 3)) - base_address;
 
-        let header_size = core::mem::size_of::<CommonSectionHeader>();
-        if offset > self.buffer.len().checked_sub(header_size)? {
-            return None;
-        }
-        let bytes = &self.buffer[offset..];
-        let header: CommonSectionHeader = bytes.pread(0).ok()?;
+    fn next(&mut self) -> Option<Self::Item> {
+        const HEADER_SIZE: usize = core::mem::size_of::<CommonSectionHeader>();
+        let header: CommonSectionHeader = self.buffer.pread(0).ok()?;
         let section_size = header.size[0] as usize
             + ((header.size[1] as usize) << 8)
             + ((header.size[2] as usize) << 16);
+        section_size.checked_sub(HEADER_SIZE)?;
+        self.buffer.len().checked_sub(section_size)?;
+        let buf = &self.buffer[HEADER_SIZE..section_size];
 
-        section_size.checked_sub(header_size)?;
-        bytes.len().checked_sub(section_size)?;
+        // Align to 4 bytes.
+        let section_size = (section_size + 3) & !3;
+        if section_size < self.buffer.len() {
+            self.buffer = &self.buffer[section_size..];
+        } else {
+            self.buffer = &self.buffer[0..0];
+        }
 
-        self.offset += section_size;
-
-        Some((header, &bytes[header_size..section_size]))
+        Some((header, buf))
     }
 }
 
 struct Files<'a> {
-    offset: usize,
     buffer: &'a [u8],
 }
 
 impl<'a> Files<'a> {
-    // fv_buffer: fv volume buffer
-    // offset: fv volume header_length
-    pub fn parse(fv_buffer: &'a [u8], offset: usize) -> Option<Self> {
+    pub fn parse(fv_buffer: &'a [u8], fv_header_size: usize) -> Option<Self> {
         Some(Files {
-            offset,
-            buffer: fv_buffer,
+            buffer: &fv_buffer[fv_header_size..],
         })
     }
 }
 
 impl<'a> Iterator for Files<'a> {
     type Item = (FfsFileHeader, &'a [u8]);
+
     fn next(&mut self) -> Option<Self::Item> {
-        let base_address = self.buffer as *const [u8] as *const u8 as usize;
-        // required 8 bytes alignment
-        let offset = ((self.offset + 7 + base_address) & (core::usize::MAX - 7)) - base_address;
+        const HEADER_SIZE: usize = core::mem::size_of::<FfsFileHeader>();
 
-        let header_size = core::mem::size_of::<FfsFileHeader>();
-        if offset > self.buffer.len() {
-            return None;
-        }
-
-        let buffer = &self.buffer[offset..];
-        let header: FfsFileHeader = buffer.pread(0).ok()?;
-
+        let header: FfsFileHeader = self.buffer.pread(0).ok()?;
         let data_size = header.size[0] as usize
             + ((header.size[1] as usize) << 8)
             + ((header.size[2] as usize) << 16);
+        data_size.checked_sub(HEADER_SIZE)?;
+        self.buffer.len().checked_sub(data_size)?;
+        let buf = &self.buffer[HEADER_SIZE..data_size];
 
-        buffer.len().checked_sub(data_size)?;
-        data_size.checked_sub(header_size)?;
+        // Align to 8 bytes.
+        let data_size = (data_size + 7) & !7;
+        if data_size < self.buffer.len() {
+            self.buffer = &self.buffer[data_size..];
+        } else {
+            self.buffer = &self.buffer[0..0];
+        }
 
-        self.offset = offset;
-        self.offset += data_size;
-
-        Some((header, &buffer[header_size..data_size]))
+        Some((header, buf))
     }
 }
