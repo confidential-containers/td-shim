@@ -12,13 +12,35 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! UEFI-PI storage service.
+//!
+//! The UEFI storage service is composed of Firmware Volume, Firmware Filesystem, File and Section.
+//!
+//! A Firmware Volume (FV) is a logical firmware device. In this specification, the basic storage
+//! repository for data and/or code is the firmware volume. Each firmware volume is organized into
+//! a  file system. As such, the file is the base unit of storage for firmware.
+//!
+//! A firmware file system (FFS) describes the organization of files and (optionally) free space
+//! within the firmware volume. Each firmware file system has a unique GUID, which is used by the
+//! firmware to associate a driver with a newly exposed firmware volume.
+//!
+//! Firmware files are code and/or data stored in firmware volumes. A firmware file may contain
+//! multiple sections.
+//!
+//! Firmware file sections are separate discrete “parts” within certain file types.
 use r_efi::efi::Guid;
 use scroll::{Pread, Pwrite};
 
 pub type FvbAttributes2 = u32;
 
+/// Firmware volume signature defined in [UEFI-PI] section 3.2.1
 pub const FVH_SIGNATURE: u32 = 0x4856465F; // '_','F','V','H'
 
+/// Firmware volume header defined in [UEFI-PI] section "3.2.1 Firmware Volume".
+///
+/// A firmware volume based on a block device begins with a header that describes the features and
+/// layout of the firmware volume. This header includes a description of the capabilities, state,
+/// and block map of the device.
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Pread, Pwrite, Default)]
 pub struct FirmwareVolumeHeader {
@@ -34,6 +56,13 @@ pub struct FirmwareVolumeHeader {
     pub revision: u8,
 }
 
+/// Firmware block map.
+///
+/// The block map is a run-length-encoded array of logical block definitions. This design allows a
+/// reasonable mechanism of describing the block layout of typical firmware devices. Each block can
+/// be referenced by its logical block address (LBA). The LBA is a zero-based enumeration of all of
+/// the blocks—i.e., LBA 0 is the first block, LBA 1 is the second block, and LBA n is the (n-1)
+/// device. The header is always located at the beginning of LBA 0.
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Pread, Pwrite, Default)]
 pub struct FvBlockMap {
@@ -41,6 +70,12 @@ pub struct FvBlockMap {
     pub length: u32,
 }
 
+/// Firmware Volume Extended Header pointed to by `FirmwareVolumeHeader::ext_header_offset`.
+///
+/// The extended header is followed by zero or more variable length extension entries.
+/// Each extension entry is prefixed with the EFI_FIRMWARE_VOLUME_EXT_ENTRY structure, which
+/// defines the type and size of the extension entry. The extended header is always 32-bit aligned
+/// relative to the start of the FIRMWARE VOLUME.
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Pread, Pwrite, Default)]
 pub struct FirmwareVolumeExtHeader {
@@ -48,6 +83,10 @@ pub struct FirmwareVolumeExtHeader {
     pub ext_header_size: u32,
 }
 
+/// Firmware volume extension entry.
+///
+/// After the extension header, there is an array of variable-length extension header entries,
+/// each prefixed with the EFI_FIRMWARE_VOLUME_EXT_ENTRY structure.
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]
 pub struct FirmwareVolumeExtEntry {
@@ -55,6 +94,7 @@ pub struct FirmwareVolumeExtEntry {
     pub ext_entry_type: u32,
 }
 
+/// EFI_FIRMWARE_FILE_SYSTEM2_GUID defined in [UEFI-PI Spec], section 3.2.2
 pub const FIRMWARE_FILE_SYSTEM2_GUID: r_efi::base::Guid = r_efi::base::Guid::from_fields(
     0x8c8ce578,
     0x8a3d,
@@ -64,6 +104,7 @@ pub const FIRMWARE_FILE_SYSTEM2_GUID: r_efi::base::Guid = r_efi::base::Guid::fro
     &[0x89, 0x61, 0x85, 0xc3, 0x2d, 0xd3],
 );
 
+/// EFI_FIRMWARE_FILE_SYSTEM3_GUID defined in [UEFI-PI Spec], section 3.2.2
 pub const FIRMWARE_FILE_SYSTEM3_GUID: r_efi::base::Guid = r_efi::base::Guid::from_fields(
     0x5473c07a,
     0x3dcb,
@@ -73,6 +114,7 @@ pub const FIRMWARE_FILE_SYSTEM3_GUID: r_efi::base::Guid = r_efi::base::Guid::fro
     &[0x1e, 0x96, 0x89, 0xe7, 0x34, 0x9a],
 );
 
+/// Firmware File Types defined in [UEFI-PI], section 2.1.4.1
 pub type FvFileType = u8;
 
 pub const FV_FILETYPE_RAW: u8 = 0x01;
@@ -95,6 +137,15 @@ pub const FV_FILETYPE_FFS_PAD: u8 = 0xF0;
 pub type FfsFileAttributes = u8;
 pub type FfsFileState = u8;
 
+/// File Header for files smaller than 16Mb, define in [UEFI-PI Spec] section 2.2.3
+///
+/// All FFS files begin with a header that is aligned on an 8-byteboundry with respect to the
+/// beginning of the firmware volume. FFS files can contain the following parts: Header and Data.
+/// It is possible to create a file that has only a header and no data, which consumes 24 bytes
+/// of space. This type of file is known as a zero-length file. If the file contains data,
+/// the data immediately follows the header. The format of the data within a file is defined by the
+/// Type field in the header, either EFI_FFS_FILE_HEADER or EFI_FFS_FILE_HEADER2.
+/// If the file length is bigger than 16MB, EFI_FFS_FILE_HEADER2 must be used.
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Pread, Pwrite, Default)]
 pub struct FfsFileHeader {
@@ -106,6 +157,15 @@ pub struct FfsFileHeader {
     pub state: FfsFileState,
 }
 
+/// File Header 2 for files larger than 16Mb, define in [UEFI-PI Spec] section 2.2.3
+///
+/// All FFS files begin with a header that is aligned on an 8-byteboundry with respect to the
+/// beginning of the firmware volume. FFS files can contain the following parts: Header and Data.
+/// It is possible to create a file that has only a header and no data, which consumes 24 bytes
+/// of space. This type of file is known as a zero-length file. If the file contains data,
+/// the data immediately follows the header. The format of the data within a file is defined by the
+/// Type field in the header, either EFI_FFS_FILE_HEADER or EFI_FFS_FILE_HEADER2.
+/// If the file length is bigger than 16MB, EFI_FFS_FILE_HEADER2 must be used.
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]
 pub struct FfsFileHeader2 {
@@ -118,6 +178,7 @@ pub struct FfsFileHeader2 {
     pub extended_size: u32,
 }
 
+/// Firmware File Section Types defined in [UEFI-PI], section 2.1.5.1
 pub type SectionType = u8;
 
 pub const SECTION_ALL: u8 = 0x00;
@@ -139,6 +200,7 @@ pub const SECTION_RAW: u8 = 0x19;
 pub const SECTION_PEI_DEPEX: u8 = 0x1B;
 pub const SECTION_MM_DEPEX: u8 = 0x1C;
 
+/// Section Header for files smaller than 16Mb, define in [UEFI-PI Spec] section 2.2.4
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Pread, Pwrite, Default)]
 pub struct CommonSectionHeader {
@@ -146,6 +208,7 @@ pub struct CommonSectionHeader {
     pub r#type: SectionType,
 }
 
+/// Section Header 2 for files larger than 16Mb, define in [UEFI-PI Spec] section 2.2.4
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]
 pub struct CommonSectionHeader2 {
