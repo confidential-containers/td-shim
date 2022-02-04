@@ -10,7 +10,7 @@ else
 endif
 
 LIB_CRATES = pe-loader td-layout td-paging
-SHIM_CRATES = rust-tdshim td-exception td-payload
+SHIM_CRATES = rust-tdshim td-exception td-payload tdx-tdcall
 TEST_CRATES = test-td-exception test-td-paging test-td-payload
 TOOL_CRATES = td-shim-ld td-shim-enroll-key td-shim-sign-payload
 

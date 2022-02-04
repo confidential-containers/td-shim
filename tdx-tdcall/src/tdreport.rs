@@ -2,8 +2,9 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
-extern crate alloc;
 use core::fmt;
+use core::mem::{size_of, zeroed};
+use core::ptr::{slice_from_raw_parts, slice_from_raw_parts_mut};
 use lazy_static::lazy_static;
 use scroll::{Pread, Pwrite};
 use spin::Mutex;
@@ -12,9 +13,11 @@ use crate::tdx;
 
 pub const TD_REPORT_SIZE: usize = 0x400;
 pub const TD_REPORT_ADDITIONAL_DATA_SIZE: usize = 64;
-const TD_REPORT_BUFF_SIZE: usize = 0x840; // TD_REPORT_SIZE*2 + TD_REPORT_ADDITIONAL_DATA_SIZE
-const TDCALL_TDREPORT: u64 = 4;
 
+// The buffer to td_report() must be aligned to TD_REPORT_SIZE.
+const TD_REPORT_BUFF_SIZE: usize = (TD_REPORT_SIZE * 2) + TD_REPORT_ADDITIONAL_DATA_SIZE;
+
+#[repr(C)]
 #[derive(Debug, Pread, Pwrite)]
 pub struct ReportType {
     pub r#type: u8,
@@ -22,6 +25,8 @@ pub struct ReportType {
     pub version: u8,
     pub reserved: u8,
 }
+
+#[repr(C)]
 #[derive(Debug, Pread, Pwrite)]
 pub struct ReportMac {
     pub report_type: ReportType,
@@ -55,6 +60,7 @@ impl fmt::Display for ReportMac {
     }
 }
 
+#[repr(C)]
 #[derive(Debug, Pread, Pwrite)]
 pub struct TeeTcbInfo {
     pub valid: [u8; 8],
@@ -78,6 +84,7 @@ impl fmt::Display for TeeTcbInfo {
     }
 }
 
+#[repr(C)]
 #[derive(Debug, Pread, Pwrite)]
 pub struct TdInfo {
     pub attributes: [u8; 8],
@@ -138,44 +145,77 @@ impl fmt::Display for TdxReport {
 }
 
 impl TdxReport {
-    fn from(raw: &[u8]) -> Option<TdxReport> {
-        if raw.len() != TD_REPORT_SIZE {
-            None
-        } else {
-            let report: TdxReport = raw.pread(0).ok()?;
-            Some(report)
-        }
+    pub fn as_bytes(&self) -> &[u8] {
+        unsafe { &*slice_from_raw_parts(self as *const Self as *const u8, size_of::<Self>()) }
     }
 
-    pub fn to_buff(&self) -> [u8; TD_REPORT_SIZE] {
-        let mut buff: [u8; TD_REPORT_SIZE] = [0; TD_REPORT_SIZE];
-        buff.pwrite(self, 0).unwrap();
-        buff
+    pub fn as_bytes_mut(&mut self) -> &mut [u8] {
+        unsafe { &mut *slice_from_raw_parts_mut(self as *mut Self as *mut u8, size_of::<Self>()) }
+    }
+}
+
+struct TdxReportBuf {
+    buf: [u8; TD_REPORT_BUFF_SIZE],
+    offset: usize,
+    end: usize,
+    additional: usize,
+}
+
+impl TdxReportBuf {
+    fn new() -> Self {
+        let mut buf = TdxReportBuf {
+            buf: [0u8; TD_REPORT_BUFF_SIZE],
+            offset: 0,
+            end: 0,
+            additional: 0,
+        };
+        let pos = buf.buf.as_ptr() as *const u8 as usize;
+
+        buf.offset = TD_REPORT_SIZE - (pos & (TD_REPORT_SIZE - 1));
+        buf.end = buf.offset + TD_REPORT_SIZE;
+        buf.additional = buf.end + TD_REPORT_ADDITIONAL_DATA_SIZE;
+
+        buf
+    }
+
+    fn report_buf_start(&mut self) -> u64 {
+        &mut self.buf[self.offset] as *mut u8 as u64
+    }
+
+    fn additional_buf_mut(&mut self) -> &mut [u8] {
+        &mut self.buf[self.end..self.additional]
+    }
+
+    fn to_owned(&self) -> TdxReport {
+        let mut report: TdxReport = TdxReport::default();
+        report
+            .as_bytes_mut()
+            .copy_from_slice(&self.buf[self.offset..self.end]);
+        report
+    }
+}
+
+impl Default for TdxReport {
+    fn default() -> Self {
+        unsafe { zeroed() }
     }
 }
 
 lazy_static! {
-    static ref TD_REPORT: Mutex<[u8; TD_REPORT_BUFF_SIZE]> = Mutex::new([0; TD_REPORT_BUFF_SIZE]);
+    static ref TD_REPORT: Mutex<TdxReportBuf> = Mutex::new(TdxReportBuf::new());
 }
 
-pub fn tdcall_report(additional_data: &[u8]) -> TdxReport {
-    let mut tdreport_buff = TD_REPORT.lock();
-    let address = tdreport_buff.as_ptr() as usize;
+/// Query TDX report information.
+pub fn tdcall_report(additional_data: &[u8; TD_REPORT_ADDITIONAL_DATA_SIZE]) -> TdxReport {
+    let mut buff = TD_REPORT.lock();
+    let addr = buff.report_buf_start();
 
-    let report_offset: usize = (TD_REPORT_SIZE - address) & (TD_REPORT_SIZE - 1);
-    let data_offset: usize = report_offset + TD_REPORT_SIZE;
-
-    tdreport_buff[data_offset..data_offset + TD_REPORT_ADDITIONAL_DATA_SIZE]
-        .copy_from_slice(additional_data);
-
-    let buffer: u64 =
-        tdreport_buff[report_offset..].as_mut_ptr() as *mut core::ffi::c_void as usize as u64;
-
+    buff.additional_buf_mut().copy_from_slice(additional_data);
     let ret = unsafe {
         tdx::td_call(
-            TDCALL_TDREPORT,
-            buffer,
-            buffer + TD_REPORT_SIZE as u64,
+            tdx::TDCALL_TDREPORT,
+            addr,
+            addr + TD_REPORT_SIZE as u64,
             0,
             0,
         )
@@ -184,9 +224,10 @@ pub fn tdcall_report(additional_data: &[u8]) -> TdxReport {
         tdx::tdvmcall_halt();
     }
 
-    TdxReport::from(&tdreport_buff[report_offset..report_offset + TD_REPORT_SIZE]).unwrap()
+    buff.to_owned()
 }
 
+/// Dump TDX report information.
 pub fn tdreport_dump() {
     let addtional_data: [u8; 64] = [0; 64];
     let tdx_report = tdcall_report(&addtional_data);
