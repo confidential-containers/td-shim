@@ -14,7 +14,7 @@ env_logger = "0.9.0"
 log = "0.4.5"
 ring = { git = "https://github.com/jyao1/ring.git", branch = "uefi_support", default-features = false, features = ["alloc"]}
 r-efi = "3.2.0"
-r-uefi-pi =  { path = "../r-uefi-pi" }
 scroll = { version = "0.10", default-features = false, features = ["derive"]}
 td-layout = { path = "../td-layout" }
 td-shim-ld = { path = "../td-shim-ld" }
+uefi-pi =  { path = "../uefi-pi" }

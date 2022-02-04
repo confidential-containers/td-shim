@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! Functions to access UEFI-PI defined `Firmware Volumes`.
+
 use r_efi::efi::Guid;
-use r_uefi_pi::fv::{
-    CommonSectionHeader, FfsFileHeader, FirmwareVolumeHeader, FvFileType, SectionType,
-    FVH_SIGNATURE,
-};
 use scroll::Pread;
+
+use crate::pi::fv::*;
 
 pub fn get_image_from_fv(
     fv_data: &[u8],

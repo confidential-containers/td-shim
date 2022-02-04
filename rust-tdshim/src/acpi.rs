@@ -6,7 +6,7 @@ use alloc::vec::Vec;
 use core::mem::size_of;
 use zerocopy::{AsBytes, FromBytes};
 
-use crate::memslice;
+use td_layout::memslice;
 
 const ACPI_TABLES_MAX_NUM: usize = 20;
 const ACPI_RSDP_REVISION: u8 = 2;

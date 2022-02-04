@@ -14,11 +14,11 @@ use std::{env, io, path::Path};
 use log::{error, trace, LevelFilter};
 
 use r_efi::efi::Guid;
-use r_uefi_pi::fv::*;
 use ring::digest;
 use scroll::{Pread, Pwrite};
 use td_layout::build_time::{TD_SHIM_CONFIG_OFFSET, TD_SHIM_CONFIG_SIZE, TD_SHIM_FIRMWARE_SIZE};
 use td_shim_ld::{write_u24, FvFfsHeader, FvHeader, InputData, OutputFile};
+use uefi_pi::fv::*;
 
 mod public_key;
 use self::public_key::{

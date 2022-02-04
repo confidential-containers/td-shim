@@ -12,12 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! UEFI Platform Initialization data structures and accessors.
+//!
+//! This crate defines constants and data structures defined by the
+//! [UEFI-PI Spec](https://uefi.org/sites/default/files/resources/PI_Spec_1_6.pdf)
+//! and needed by the `td-shim` project. It also provides functions to parse those data structures
+//! from raw data buffer.
+//!
+//! Constants and data structures defined by [UEFI PI Spec] are hosted by [crate::pi], functions
+//! to access them are hosted by [crate::fv] and [crate::hob].
 #![no_std]
 
 pub mod fv;
 pub mod hob;
-
-pub mod pi {
-    pub use crate::fv;
-    pub use crate::hob;
-}
+pub mod pi;
