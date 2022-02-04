@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #![no_std]
-#![forbid(unsafe_code)]
 
 pub mod fv;
 pub mod hob;

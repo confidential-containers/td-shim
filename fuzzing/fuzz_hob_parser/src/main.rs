@@ -21,7 +21,7 @@ fn fuzz_hob_parser(buffer: &[u8]) {
         hob::get_next_extension_guid_hob(buffer, &HOB_ACPI_TABLE_GUID);
         hob::get_next_extension_guid_hob(buffer, &HOB_KERNEL_INFO_GUID);
         hob::get_guid_data(buffer);
-        hob::get_nex_hob(buffer);
+        hob::seek_to_next_hob(buffer);
     }
 }
 fn main() {
