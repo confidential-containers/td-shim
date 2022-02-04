@@ -60,9 +60,9 @@ Stack guard is setup at `stack_guard_enable()` in [stack_guard.rs](../rust-tdshi
 
 [tdx-exception](../td-exception) provides execution handler in TD.
 
-[tdx-logger](../tdx-logger) provides debug logger in TD.
+[tdx-logger](../td-logger) provides debug logger in TD.
 
-[tdx-tdcall](../tdx-logger) provides TDCALL function.
+[tdx-tdcall](../td-logger) provides TDCALL function.
 
 ### Generic lib
 

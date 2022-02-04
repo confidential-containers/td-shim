@@ -24,7 +24,7 @@ elf-loader = { path = "../elf-loader" }
 pe-loader = { path = "../pe-loader" }
 uefi-pi =  { path = "../uefi-pi" }
 tdx-tdcall = { path = "../tdx-tdcall" }
-tdx-logger =  { path = "../tdx-logger" }
+td-logger =  { path = "../td-logger" }
 td-exception =  { path = "../td-exception", features = ["tdx"] }
 td-layout = { path = "../td-layout" }
 td-paging = { path = "../td-paging" }

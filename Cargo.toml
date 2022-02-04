@@ -13,6 +13,7 @@ members = [
     "fuzzing/fuzz_hob_parser",
     "td-exception",
     "td-layout",
+    "td-logger",
     "td-paging",
     "td-payload",
     "td-shim-enroll-key",
