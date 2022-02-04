@@ -217,3 +217,234 @@ pub fn get_guid_data(hob_list: &[u8]) -> Option<&[u8]> {
         None
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use core::ptr::slice_from_raw_parts;
+
+    #[test]
+    fn test_align_to_next_hob() {
+        assert!(align_to_next_hob_offset(usize::MAX, 0, 0).is_none());
+        assert!(align_to_next_hob_offset(8, 8, 1).is_none());
+        assert_eq!(align_to_next_hob_offset(usize::MAX, 8, 1), Some(16));
+        assert_eq!(align_to_next_hob_offset(usize::MAX, 8, 9), Some(24));
+        assert_eq!(
+            align_to_next_hob_offset(usize::MAX, 0, u16::MAX - 8),
+            Some(u16::MAX as usize - 7)
+        );
+        assert_eq!(
+            align_to_next_hob_offset(usize::MAX, 0, u16::MAX - 7),
+            Some(u16::MAX as usize - 7)
+        );
+        assert_eq!(
+            align_to_next_hob_offset(usize::MAX, 8, u16::MAX - 7),
+            Some(u16::MAX as usize + 1)
+        );
+        assert!(align_to_next_hob_offset(usize::MAX, 0, u16::MAX - 6).is_none());
+        assert!(align_to_next_hob_offset(usize::MAX, 8, u16::MAX).is_none());
+    }
+
+    #[test]
+    fn test_get_hob_total_size() {
+        assert!(get_hob_total_size(&[]).is_none());
+
+        let mut tbl = HandoffInfoTable {
+            header: Header {
+                r#type: HOB_TYPE_HANDOFF,
+                length: size_of::<HandoffInfoTable>() as u16,
+                reserved: 0,
+            },
+            version: 1,
+            boot_mode: 0,
+            efi_memory_top: 0x2_0000_0000,
+            efi_memory_bottom: 0xc000_0000,
+            efi_free_memory_top: 0,
+            efi_free_memory_bottom: 0,
+            efi_end_of_hob_list: 0,
+        };
+        let buf = unsafe {
+            &*slice_from_raw_parts(
+                &tbl as *const HandoffInfoTable as *const u8,
+                size_of::<HandoffInfoTable>(),
+            )
+        };
+        assert!(get_hob_total_size(buf).is_none());
+
+        let end = &tbl as *const HandoffInfoTable as *const u8 as usize as u64 + 0x10000;
+        tbl.efi_end_of_hob_list = end;
+        assert_eq!(get_hob_total_size(buf), Some(0x10000));
+    }
+
+    #[test]
+    fn test_dump_hob() {
+        assert!(dump_hob(&[]).is_none());
+        assert!(dump_hob(&[0u8]).is_none());
+    }
+
+    #[test]
+    fn test_get_system_memory_size_below_4gb() {
+        assert!(get_system_memory_size_below_4gb(&[]).is_none());
+
+        let mut buf = [0u8; 1024];
+        let res = ResourceDescription {
+            header: Header {
+                r#type: HOB_TYPE_RESOURCE_DESCRIPTOR,
+                length: size_of::<ResourceDescription>() as u16,
+                reserved: 0,
+            },
+            owner: [0u8; 16],
+            resource_type: RESOURCE_SYSTEM_MEMORY,
+            resource_attribute: 0,
+            physical_start: 0,
+            resource_length: 0x200_0000,
+        };
+        let buf1 = unsafe {
+            &*slice_from_raw_parts(
+                &res as *const ResourceDescription as *const u8,
+                size_of::<ResourceDescription>(),
+            )
+        };
+        buf[..size_of::<ResourceDescription>()].copy_from_slice(buf1);
+        let res = ResourceDescription {
+            header: Header {
+                r#type: HOB_TYPE_RESOURCE_DESCRIPTOR,
+                length: size_of::<ResourceDescription>() as u16,
+                reserved: 0,
+            },
+            owner: [0u8; 16],
+            resource_type: RESOURCE_SYSTEM_MEMORY,
+            resource_attribute: 0,
+            physical_start: 0x1000_0000,
+            resource_length: 0x200_0000,
+        };
+        let buf1 = unsafe {
+            &*slice_from_raw_parts(
+                &res as *const ResourceDescription as *const u8,
+                size_of::<ResourceDescription>(),
+            )
+        };
+        buf[size_of::<ResourceDescription>()..2 * size_of::<ResourceDescription>()]
+            .copy_from_slice(buf1);
+        let end = Header {
+            r#type: HOB_TYPE_END_OF_HOB_LIST,
+            length: 0,
+            reserved: 0,
+        };
+        let buf2 = unsafe {
+            &*slice_from_raw_parts(&end as *const Header as *const u8, size_of::<Header>())
+        };
+        buf[2 * size_of::<ResourceDescription>()
+            ..2 * size_of::<ResourceDescription>() + size_of::<Header>()]
+            .copy_from_slice(buf2);
+        assert_eq!(get_system_memory_size_below_4gb(&buf), Some(0x1200_0000));
+
+        let res = ResourceDescription {
+            header: Header {
+                r#type: HOB_TYPE_RESOURCE_DESCRIPTOR,
+                length: 0,
+                reserved: 0,
+            },
+            owner: [0u8; 16],
+            resource_type: RESOURCE_SYSTEM_MEMORY,
+            resource_attribute: 0,
+            physical_start: 0,
+            resource_length: 0x200_0000,
+        };
+        let buf1 = unsafe {
+            &*slice_from_raw_parts(
+                &res as *const ResourceDescription as *const u8,
+                size_of::<ResourceDescription>(),
+            )
+        };
+        buf[..size_of::<ResourceDescription>()].copy_from_slice(buf1);
+        assert!(get_system_memory_size_below_4gb(&buf).is_none());
+    }
+
+    #[test]
+    fn test_get_fv() {
+        assert!(get_fv(&[]).is_none());
+
+        let mut buf = [0u8; 1024];
+        let res = FirmwareVolume {
+            header: Header {
+                r#type: HOB_TYPE_FV,
+                length: size_of::<FirmwareVolume>() as u16,
+                reserved: 0,
+            },
+            base_address: 0x1000000,
+            length: 0,
+        };
+        let buf1 = unsafe {
+            &*slice_from_raw_parts(
+                &res as *const FirmwareVolume as *const u8,
+                size_of::<FirmwareVolume>(),
+            )
+        };
+        buf[..size_of::<FirmwareVolume>()].copy_from_slice(buf1);
+        let end = Header {
+            r#type: HOB_TYPE_END_OF_HOB_LIST,
+            length: 0,
+            reserved: 0,
+        };
+        let buf2 = unsafe {
+            &*slice_from_raw_parts(&end as *const Header as *const u8, size_of::<Header>())
+        };
+        buf[size_of::<FirmwareVolume>()..size_of::<FirmwareVolume>() + size_of::<Header>()]
+            .copy_from_slice(buf2);
+        assert!(get_fv(&buf).is_some());
+
+        let res = FirmwareVolume {
+            header: Header {
+                r#type: HOB_TYPE_FV2,
+                length: u16::MAX,
+                reserved: 0,
+            },
+            base_address: 0x1000000,
+            length: 0,
+        };
+        let buf1 = unsafe {
+            &*slice_from_raw_parts(
+                &res as *const FirmwareVolume as *const u8,
+                size_of::<FirmwareVolume>(),
+            )
+        };
+        buf[..size_of::<FirmwareVolume>()].copy_from_slice(buf1);
+        assert!(get_fv(&buf).is_none());
+    }
+
+    #[test]
+    fn test_get_guid() {
+        assert!(get_next_extension_guid_hob(&[], &[0u8; 16]).is_none());
+
+        let mut buf = [0xaau8; 128];
+        let res = GuidExtension {
+            header: Header {
+                r#type: HOB_TYPE_GUID_EXTENSION,
+                length: size_of::<GuidExtension>() as u16 + 16,
+                reserved: 0,
+            },
+            name: [0xa5u8; 16],
+        };
+        let buf1 = unsafe {
+            &*slice_from_raw_parts(
+                &res as *const GuidExtension as *const u8,
+                size_of::<GuidExtension>(),
+            )
+        };
+        buf[..size_of::<GuidExtension>()].copy_from_slice(buf1);
+        let end = Header {
+            r#type: HOB_TYPE_END_OF_HOB_LIST,
+            length: 0,
+            reserved: 0,
+        };
+        let buf2 = unsafe {
+            &*slice_from_raw_parts(&end as *const Header as *const u8, size_of::<Header>())
+        };
+        buf[size_of::<GuidExtension>() + 16..size_of::<GuidExtension>() + 16 + size_of::<Header>()]
+            .copy_from_slice(buf2);
+        let guid = get_next_extension_guid_hob(&buf, &[0xa5u8; 16]).unwrap();
+        let data = get_guid_data(guid).unwrap();
+        assert_eq!(data, &[0xaa; 16]);
+    }
+}
