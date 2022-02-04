@@ -9,7 +9,7 @@ else
 	export BUILD_TYPE_FLAG=
 endif
 
-LIB_CRATES = td-layout
+LIB_CRATES = td-layout td-paging
 SHIM_CRATES = 
 TEST_CRATES = 
 TOOL_CRATES = 

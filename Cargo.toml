@@ -5,6 +5,7 @@ members = [
 	"fake",
 	"devtools/td-layout-config",
 	"td-layout",
+	"td-paging",
 ]
 
 # the profile used for `cargo build`
