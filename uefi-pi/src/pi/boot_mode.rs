@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! Boot mode defined in [UEFI-PI Spec](https://uefi.org/sites/default/files/resources/PI_Spec_1_6.pdf),
+//! section "4.3 Boot Mode Services".
 pub type BootMode = u32;
 
 pub const BOOT_WITH_FULL_CONFIGURATION: u32 = 0x00;
