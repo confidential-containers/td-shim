@@ -154,8 +154,15 @@ impl TdxReport {
     }
 }
 
+impl Default for TdxReport {
+    fn default() -> Self {
+        unsafe { zeroed() }
+    }
+}
+
 struct TdxReportBuf {
     buf: [u8; TD_REPORT_BUFF_SIZE],
+    start: usize,
     offset: usize,
     end: usize,
     additional: usize,
@@ -165,17 +172,23 @@ impl TdxReportBuf {
     fn new() -> Self {
         let mut buf = TdxReportBuf {
             buf: [0u8; TD_REPORT_BUFF_SIZE],
+            start: 0,
             offset: 0,
             end: 0,
             additional: 0,
         };
-        let pos = buf.buf.as_ptr() as *const u8 as usize;
-
-        buf.offset = TD_REPORT_SIZE - (pos & (TD_REPORT_SIZE - 1));
-        buf.end = buf.offset + TD_REPORT_SIZE;
-        buf.additional = buf.end + TD_REPORT_ADDITIONAL_DATA_SIZE;
-
+        buf.adjust();
         buf
+    }
+
+    fn adjust(&mut self) {
+        let pos = self.buf.as_ptr() as *const u8 as usize;
+        if pos != self.start {
+            self.start = pos;
+            self.offset = TD_REPORT_SIZE - (pos & (TD_REPORT_SIZE - 1));
+            self.end = self.offset + TD_REPORT_SIZE;
+            self.additional = self.end + TD_REPORT_ADDITIONAL_DATA_SIZE;
+        }
     }
 
     fn report_buf_start(&mut self) -> u64 {
@@ -195,12 +208,6 @@ impl TdxReportBuf {
     }
 }
 
-impl Default for TdxReport {
-    fn default() -> Self {
-        unsafe { zeroed() }
-    }
-}
-
 lazy_static! {
     static ref TD_REPORT: Mutex<TdxReportBuf> = Mutex::new(TdxReportBuf::new());
 }
@@ -208,9 +215,11 @@ lazy_static! {
 /// Query TDX report information.
 pub fn tdcall_report(additional_data: &[u8; TD_REPORT_ADDITIONAL_DATA_SIZE]) -> TdxReport {
     let mut buff = TD_REPORT.lock();
-    let addr = buff.report_buf_start();
+    buff.adjust();
 
+    let addr = buff.report_buf_start();
     buff.additional_buf_mut().copy_from_slice(additional_data);
+
     let ret = unsafe {
         tdx::td_call(
             tdx::TDCALL_TDREPORT,
@@ -232,4 +241,26 @@ pub fn tdreport_dump() {
     let addtional_data: [u8; 64] = [0; 64];
     let tdx_report = tdcall_report(&addtional_data);
     log::info!("{}", tdx_report);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_tdx_report_size() {
+        assert_eq!(size_of::<TdxReport>(), 0x400);
+    }
+
+    #[test]
+    fn test_tdx_report_buf() {
+        let mut buf = TdxReportBuf::new();
+        assert_eq!(buf.report_buf_start() & 0x3ff, 0);
+
+        let additional = buf.additional_buf_mut().as_ptr() as u64;
+        assert_eq!(buf.report_buf_start() + 0x400, additional);
+
+        TD_REPORT.lock().adjust();
+        assert_eq!(TD_REPORT.lock().report_buf_start() & 0x3ff, 0);
+    }
 }

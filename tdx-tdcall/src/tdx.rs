@@ -59,7 +59,8 @@ lazy_static! {
     static ref SHARED_MASK: u64 = td_shared_page_mask();
 }
 
-#[repr(align(64))]
+// Both alignment and size are 64 bytes.
+#[repr(C, align(64))]
 pub struct TdxDigest {
     pub data: [u8; 48],
 }
@@ -282,4 +283,19 @@ pub fn td_shared_page_mask() -> u64 {
     let gpaw = (td_info.gpaw & 0x3f) as u8;
     assert!((gpaw == 48 || gpaw == 52));
     1u64 << (gpaw - 1)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use core::mem::{align_of, size_of};
+
+    #[test]
+    fn test_struct_size_alignment() {
+        assert_eq!(align_of::<TdxDigest>(), 64);
+        assert_eq!(size_of::<TdxDigest>(), 64);
+        assert_eq!(size_of::<TdCallGenericReturnData>(), 48);
+        assert_eq!(size_of::<TdInfoReturnData>(), 48);
+        assert_eq!(size_of::<TdVeInfoReturnData>(), 48);
+    }
 }
