@@ -28,6 +28,7 @@ pub fn dump_hob(hob_list: &[u8]) -> Option<()> {
     loop {
         let hob = &hob_list[offset..];
         let header: Header = hob.pread(0).ok()?;
+
         match header.r#type {
             HOB_TYPE_HANDOFF => {
                 let phit_hob: HandoffInfoTable = hob.pread(0).ok()?;
@@ -50,19 +51,19 @@ pub fn dump_hob(hob_list: &[u8]) -> Option<()> {
                 cpu_hob.dump();
             }
             HOB_TYPE_END_OF_HOB_LIST => {
-                break;
+                return Some(());
             }
             _ => {
                 header.dump();
             }
         }
+
         if header.length == 0 || header.length > (u16::MAX - 7) {
             return None;
         }
         offset = offset.checked_add(align_hob(header.length) as usize)?;
         hob_list.len().checked_sub(offset)?;
     }
-    Some(())
 }
 
 /// used for data storage (stack/heap/pagetable/eventlog/...)

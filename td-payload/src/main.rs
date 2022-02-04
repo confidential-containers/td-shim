@@ -41,7 +41,7 @@ mod payload_impl {
     use core::panic::PanicInfo;
     use td_layout::memslice;
     use td_layout::runtime::*;
-    use uefi_pi::pi::hob_lib;
+    use uefi_pi::pi::hob;
 
     #[cfg(feature = "benches")]
     use benchmark::ALLOCATOR;
@@ -85,11 +85,11 @@ mod payload_impl {
         let hob_buffer = unsafe {
             memslice::get_dynamic_mem_slice_mut(memslice::SliceType::PayloadHob, hob as usize)
         };
-        let hob_size = hob_lib::get_hob_total_size(hob_buffer).unwrap();
+        let hob_size = hob::get_hob_total_size(hob_buffer).unwrap();
         let hob_list = &hob_buffer[..hob_size];
-        hob_lib::dump_hob(hob_list);
+        hob::dump_hob(hob_list);
 
-        let heap_start = hob_lib::get_system_memory_size_below_4gb(hob_list).unwrap() as usize
+        let heap_start = hob::get_system_memory_size_below_4gb(hob_list).unwrap() as usize
             - (TD_PAYLOAD_HOB_SIZE
                 + TD_PAYLOAD_STACK_SIZE
                 + TD_PAYLOAD_SHADOW_STACK_SIZE
@@ -98,7 +98,7 @@ mod payload_impl {
             - TD_PAYLOAD_HEAP_SIZE as usize;
         init_heap(heap_start, TD_PAYLOAD_HEAP_SIZE as usize);
         let memory_layout = td_layout::RuntimeMemoryLayout::new(
-            hob_lib::get_system_memory_size_below_4gb(hob_list).unwrap(),
+            hob::get_system_memory_size_below_4gb(hob_list).unwrap(),
         );
         assert_eq!(
             (heap_start - TD_PAYLOAD_HEAP_SIZE as usize) as u64,

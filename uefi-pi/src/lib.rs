@@ -15,10 +15,10 @@
 #![no_std]
 #![forbid(unsafe_code)]
 
-pub mod fv_lib;
-pub mod hob_lib;
+pub mod fv;
+pub mod hob;
 
 pub mod pi {
-    pub use crate::fv_lib;
-    pub use crate::hob_lib;
+    pub use crate::fv;
+    pub use crate::hob;
 }
