@@ -2,12 +2,11 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
-#![allow(dead_code)]
-
 use core::fmt;
 use lazy_static::lazy_static;
 use spin::Mutex;
-use tdx_tdcall::tdx;
+
+use crate::{dbg_port_write, dbg_write_string};
 
 pub const LOG_LEVEL_VERBOSE: usize = 1000;
 pub const LOG_LEVEL_INFO: usize = 100;
@@ -32,37 +31,26 @@ pub const LOG_MASK_FILE_SYSTEM: u64 = 0x200000000;
 // All
 pub const LOG_MASK_ALL: u64 = 0xFFFFFFFFFFFFFFFF;
 
-// Use lazy_static here to prevent potential problems caused
-// by compiler/linker optimization.
-//
+// Use lazy_static here to prevent potential problems caused by compiler/linker optimization.
 lazy_static! {
-    static ref LOGGER: Mutex<Logger> = Mutex::new(Logger {
+    pub static ref LOGGER: Mutex<Logger> = Mutex::new(Logger {
         level: LOG_LEVEL_VERBOSE,
         mask: LOG_MASK_ALL,
     });
 }
 
-struct Logger {
+pub struct Logger {
     level: usize,
     mask: u64,
 }
 
 impl Logger {
-    fn port_write(&mut self, byte: u8) {
-        tdx::tdvmcall_io_write_8(0x3F8, byte);
-    }
-
     pub fn write_byte(&mut self, byte: u8) {
-        if byte == b'\n' {
-            self.port_write(b'\r')
-        }
-        self.port_write(byte)
+        dbg_port_write(byte);
     }
 
     pub fn write_string(&mut self, s: &str) {
-        for c in s.chars() {
-            self.write_byte(c as u8);
-        }
+        dbg_write_string(s);
     }
 
     pub fn get_level(&self) -> usize {
@@ -87,30 +75,6 @@ impl fmt::Write for Logger {
     }
 }
 
-fn dbg_port_write(byte: u8) {
-    tdx_tdcall::tdx::tdvmcall_io_write_8(0x3F8, byte);
-}
-
-fn dbg_write_byte(byte: u8) {
-    if byte == b'\n' {
-        dbg_port_write(b'\r')
-    }
-    dbg_port_write(byte)
-}
-
-fn dbg_write_string(s: &str) {
-    for c in s.chars() {
-        dbg_write_byte(c as u8);
-    }
-}
-
-#[cfg(not(test))]
-pub fn _log(args: fmt::Arguments) {
-    use core::fmt::Write;
-    LOGGER.lock().write_fmt(args).unwrap();
-}
-
-#[cfg(not(test))]
 pub fn _log_ex(level: usize, mask: u64, args: fmt::Arguments) {
     if level > LOGGER.lock().get_level() {
         return;
@@ -121,8 +85,7 @@ pub fn _log_ex(level: usize, mask: u64, args: fmt::Arguments) {
     _log(args);
 }
 
-#[cfg(test)]
 pub fn _log(args: fmt::Arguments) {
-    use std::io::{self, Write};
-    write!(&mut std::io::stdout(), "{}", args).expect("stdout logging failed");
+    use core::fmt::Write;
+    LOGGER.lock().write_fmt(args).unwrap();
 }

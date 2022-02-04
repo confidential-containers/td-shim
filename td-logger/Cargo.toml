@@ -1,0 +1,20 @@
+[package]
+name = "td-logger"
+version = "0.1.0"
+description = "Simple logger backend for td-shim"
+repository = "https://github.com/confidential-containers/td-shim"
+homepage = "https://github.com/confidential-containers"
+license = "BSD-2-Clause-Patent"
+edition = "2018"
+
+[dependencies]
+lazy_static = { version = "1.0", features = ["spin_no_std"] }
+log = "0.4.13"
+spin = "0.9.2"
+tdx-tdcall = { path = "../tdx-tdcall", optional = true }
+# Lock down to 0.44, otherwise it depends on inline asm
+x86 = { version = "0.44.0", optional = true }
+
+[features]
+tdx = ["tdx-tdcall"]
+serial-port = ["x86"]
