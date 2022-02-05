@@ -820,11 +820,11 @@ APs Resource = AP Page Table (Reserved) + AP Number * AP Stack (Reserved)
 * <a name="vfw"/>Intel, TDX Virtual Firmware Design Guide Version 1.01 -
   https://www.intel.com/content/dam/develop/external/us/en/documents/tdx-virtual-firmware-design-guide-rev-1.01.pdf
 * <a name="ghci"/>Intel, Guest Hypervisor Communication Interface Version 1.0 -
-  https://software.intel.com/content/dam/develop/external/us/en/documents/intel-tdx-guest-hypervisor-communication-interface.pdf
+  https://www.intel.com/content/dam/develop/external/us/en/documents/intel-tdx-guest-hypervisor-communication-interface-1.0-344426-002.pdf
 * <a name="eas"/>Intel, Intel, TDX Module 1.0 EAS -
-  https://software.intel.com/content/dam/develop/external/us/en/documents/tdx-module-1.0-public-spec-v0.931.pdf
+  https://www.intel.com/content/dam/develop/external/us/en/documents/tdx-module-1.0-public-spec-v0.931.pdf
 * Intel, TDX CPU Architecture Extensions Specification -
-  https://software.intel.com/content/dam/develop/external/us/en/documents-tps/intel-tdx-cpu-architectural-specification.pdf
+  https://www.intel.com/content/dam/develop/external/us/en/documents-tps/intel-tdx-cpu-architectural-specification.pdf
 
 ### Industry Standard
 
