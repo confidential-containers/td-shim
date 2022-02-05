@@ -22,10 +22,7 @@ use td_layout::metadata::*;
 use td_layout::runtime::{
     TD_PAYLOAD_BASE, TD_PAYLOAD_PARAM_BASE, TD_PAYLOAD_PARAM_SIZE, TD_PAYLOAD_SIZE,
 };
-use uefi_pi::{
-    fv::*,
-    pi::{fv::*, hob::*},
-};
+use uefi_pi::pi::fv::*;
 
 const MAX_IPL_CONTENT_SIZE: usize =
     TD_SHIM_IPL_SIZE as usize - size_of::<IplFvHeaderByte>() - size_of::<ResetVectorHeader>();
