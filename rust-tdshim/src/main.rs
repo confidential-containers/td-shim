@@ -21,6 +21,7 @@ mod memory;
 mod mp;
 mod stack_guard;
 mod tcg;
+mod td;
 mod verify;
 
 extern "win64" {
