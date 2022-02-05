@@ -167,8 +167,8 @@ BITS    64
     ;mov     rax, TDCALL_TDACCEPTPAGE
     ;tdcall
 
-    mov     r14, 0x0                ; start address
-    mov     r15, 0x800000           ; end address TBD
+    mov     r14, 0x0                                    ; start address
+    mov     r15, INITIALLY_ACCEPTED_MEMORY_SIZE         ; end address
 
 .accept_pages_for_sec_core_loop
     mov     r8,  0
