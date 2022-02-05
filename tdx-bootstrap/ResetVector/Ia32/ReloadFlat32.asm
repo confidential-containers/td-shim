@@ -16,7 +16,7 @@ BITS    32
 ; Modified:  EAX, EBX
 ;
 ReloadFlat32:
-
+; It's already in 32 bit mode?
     debugShowPostCode POSTCODE_16BIT_MODE
 
     cli
@@ -27,6 +27,7 @@ ReloadFlat32:
     mov     cr0, eax
 
     jmp     LINEAR_CODE_SEL:dword ADDR_OF(jumpTo32BitAndLandHere)
+
 BITS    32
 jumpTo32BitAndLandHere:
 

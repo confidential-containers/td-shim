@@ -55,7 +55,7 @@ Main32:
     or        esp, esi
 
     ;
-    ; Transition the processor from protected to 32-bit flat mode
+    ; Transition the processor to 32-bit protected flat mode
     ;
     OneTimeCall ReloadFlat32
 

@@ -27,8 +27,9 @@ StartOfResetVectorCode:
 %endif
 
 %include "Ia32/ValidateBfvBase.asm"
-
 %include "Ia32/Flat32ToFlat64.asm"
 %include "Ia32/ReloadFlat32.asm"
+
 %include "Main.asm"
+
 %include "Ia32/ResetVectorVtf0.asm"

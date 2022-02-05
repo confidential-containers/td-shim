@@ -44,6 +44,7 @@ Transition32FlatTo64Flat:
     mov     cr0, eax                    ; enable paging
 
     jmp     LINEAR_CODE64_SEL:ADDR_OF(jumpTo64BitAndLandHere)
+
 BITS    64
 jumpTo64BitAndLandHere:
 
