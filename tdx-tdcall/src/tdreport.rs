@@ -160,6 +160,7 @@ impl Default for TdxReport {
     }
 }
 
+/// Struct to fulfill the alignment requirement of buffer for td-report tdcall.
 struct TdxReportBuf {
     buf: [u8; TD_REPORT_BUFF_SIZE],
     start: usize,
@@ -215,6 +216,7 @@ lazy_static! {
 /// Query TDX report information.
 pub fn tdcall_report(additional_data: &[u8; TD_REPORT_ADDITIONAL_DATA_SIZE]) -> TdxReport {
     let mut buff = TD_REPORT.lock();
+    // lazy_static!() moves the underlying object, so we need to repair the object here.
     buff.adjust();
 
     let addr = buff.report_buf_start();
