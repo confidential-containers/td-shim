@@ -2,25 +2,15 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
-use td_layout::{
-    runtime::{TD_PAYLOAD_EVENT_LOG_SIZE, TD_PAYLOAD_SIZE},
-    RuntimeMemoryLayout,
-};
-
-use log::*;
+use td_layout::runtime::{TD_PAYLOAD_EVENT_LOG_SIZE, TD_PAYLOAD_SIZE};
+use td_layout::RuntimeMemoryLayout;
 use x86_64::{
     structures::paging::PageTableFlags as Flags,
     structures::paging::{OffsetPageTable, PageTable},
     PhysAddr, VirtAddr,
 };
 
-extern "win64" {
-    fn asm_read_msr64(index: u32) -> u64;
-    fn asm_write_msr64(index: u32, value: u64) -> u64;
-}
-
-const EXTENDED_FUNCTION_INFO: u32 = 0x80000000;
-const EXTENDED_PROCESSOR_INFO: u32 = 0x80000001;
+use crate::td;
 
 pub struct Memory<'a> {
     pub layout: &'a RuntimeMemoryLayout,
@@ -30,22 +20,22 @@ pub struct Memory<'a> {
 
 impl<'a> Memory<'a> {
     pub fn new(layout: &RuntimeMemoryLayout, memory_size: u64) -> Memory {
+        let pt = unsafe {
+            OffsetPageTable::new(
+                &mut *(layout.runtime_page_table_base as *mut PageTable),
+                VirtAddr::new(td_paging::PHYS_VIRT_OFFSET as u64),
+            )
+        };
+
         Memory {
-            pt: unsafe {
-                OffsetPageTable::new(
-                    &mut *(layout.runtime_page_table_base as *mut PageTable),
-                    VirtAddr::new(td_paging::PHYS_VIRT_OFFSET as u64),
-                )
-            },
+            pt,
             layout,
             memory_size,
         }
     }
 
-    /// page_table_memory_base: page_table_memory_base
-    /// system_memory_size
     pub fn setup_paging(&mut self) {
-        let shared_page_flag = tdx_tdcall::tdx::td_shared_page_mask();
+        let shared_page_flag = td::get_shared_page_mask();
         let flags = Flags::PRESENT | Flags::WRITABLE;
         let with_s_flags = unsafe { Flags::from_bits_unchecked(flags.bits() | shared_page_flag) };
         let with_nx_flags = flags | Flags::NO_EXECUTE;
@@ -114,16 +104,7 @@ impl<'a> Memory<'a> {
             self.memory_size - runtime_memory_top,
         );
 
-        //
-        // enable the execute disable.
-        //
-        if is_execute_disable_bit_available() {
-            //
-            // For now EFER cannot be set in TDX, but the NX is enabled by default.
-            //
-            // enable_execute_disable_bit();
-        }
-
+        td::enable_execution_disable_bit();
         td_paging::cr3_write();
     }
 
@@ -143,35 +124,5 @@ impl<'a> Memory<'a> {
         let flags: Flags = Flags::empty();
 
         td_paging::set_page_flags(&mut self.pt, VirtAddr::new(address), size as i64, flags);
-    }
-}
-
-fn is_execute_disable_bit_available() -> bool {
-    let cpuid = unsafe { core::arch::x86_64::__cpuid(EXTENDED_FUNCTION_INFO) };
-
-    if cpuid.eax >= EXTENDED_PROCESSOR_INFO {
-        let cpuid = unsafe { core::arch::x86_64::__cpuid(EXTENDED_PROCESSOR_INFO) };
-        if (cpuid.edx & 0x00100000) != 0 {
-            //
-            // Bit 20: Execute Disable Bit available.
-            //
-            return true;
-        }
-    }
-    false
-}
-
-//
-//  Enable Execute Disable Bit.
-//
-fn enable_execute_disable_bit() {
-    let mut msr: u64;
-
-    unsafe {
-        msr = asm_read_msr64(0xC0000080);
-    }
-    msr |= 0x800;
-    unsafe {
-        asm_write_msr64(0xC0000080, msr);
     }
 }
