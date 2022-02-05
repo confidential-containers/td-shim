@@ -12,7 +12,7 @@ else
 endif
 
 GENERIC_LIB_CRATES = td-layout
-NIGHTLY_LIB_CRATES = td-paging
+NIGHTLY_LIB_CRATES = td-paging tdx-tdcall
 SHIM_CRATES = 
 TEST_CRATES = 
 TOOL_CRATES = 

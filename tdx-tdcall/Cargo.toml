@@ -1,0 +1,18 @@
+[package]
+name = "tdx-tdcall"
+version = "0.1.0"
+description = "Constants, stuctures and wrappers to access TDCALL services"
+repository = "https://github.com/confidential-containers/td-shim"
+homepage = "https://github.com/confidential-containers"
+license = "BSD-2-Clause-Patent"
+edition = "2018"
+
+[dependencies]
+lazy_static = { version = "1.0", features = ["spin_no_std"] }
+log = "0.4.13"
+scroll = { version = "0.10", default-features = false, features = ["derive"] }
+spin = "0.9.2"
+
+[features]
+default = []
+use_tdx_emulation = []
