@@ -2,21 +2,16 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
-use crate::memory::Memory;
-use core::{
-    mem::size_of,
-    slice::{from_raw_parts, from_raw_parts_mut},
-};
+use core::{mem::size_of, slice::from_raw_parts};
 use lazy_static::lazy_static;
 use spin::Mutex;
-use td_exception::{asm, idt, idt::Idt};
+use td_exception::idt;
 use x86::{
-    bits64::segmentation,
-    bits64::task::TaskStateSegment,
-    dtables::DescriptorTablePointer,
-    segmentation::{BuildDescriptor, DescriptorBuilder, GateDescriptorBuilder, SegmentSelector},
+    bits64::task::TaskStateSegment, dtables::DescriptorTablePointer, segmentation::SegmentSelector,
     Ring,
 };
+
+use crate::memory::Memory;
 
 //
 // stack guard feature
@@ -34,9 +29,13 @@ use x86::{
 
 pub const STACK_GUARD_PAGE_SIZE: usize = 0x1000;
 pub const STACK_EXCEPTION_PAGE_SIZE: usize = 0x1000;
+
+// TSS occupies two GDT entries.
+const TSS_DESC_SIZE: u16 = 2 * size_of::<GdtEntry>() as u16;
+// For x86_64, and GDT with eight entries is defined in `ResetVector/Ia32/ReloadFlat32.asm`.
+// And the TSS needs two GDT entries, so at least 10 GDT entries.
 const MAX_GDT_SIZE: usize = 10;
-const TSS_DESC_SIZE: u16 = 16;
-//Avalible present TSS
+// Avalible present TSS
 const IA32_GDT_TYPE_TSS: u8 = 0x89;
 
 lazy_static! {
@@ -51,10 +50,11 @@ struct GdtEntry(u64);
 
 #[repr(align(8))]
 struct Gdt {
-    pub entries: [GdtEntry; MAX_GDT_SIZE],
+    entries: [GdtEntry; MAX_GDT_SIZE],
 }
 
-#[derive(Debug)]
+#[repr(C, packed)]
+#[derive(Debug, Clone, Copy)]
 struct TssDescriptor {
     limit15_0: u16,
     base15_0: u16,
@@ -100,88 +100,88 @@ fn store_gdtr() -> DescriptorTablePointer<GdtEntry> {
     gdtr
 }
 
-fn read_gdt(gdtr: &DescriptorTablePointer<GdtEntry>) -> &'static [GdtEntry] {
+/// Get the Global Descriptor Table from the DescriptorTablePointer.
+///
+/// ### Safety
+///
+/// The caller needs to ensure/protect from:
+/// - the DescriptorTablePointer is valid
+/// - the lifetime of the return reference
+/// - concurrent access to the returned reference
+unsafe fn read_gdt(gdtr: &DescriptorTablePointer<GdtEntry>) -> &'static [GdtEntry] {
     let gdt_addr = gdtr.base;
     let gdt_size = (gdtr.limit + 1) as usize / size_of::<GdtEntry>();
 
     unsafe { from_raw_parts(gdtr.base, gdt_size) }
 }
 
-fn load_gdtr(gdtr: &DescriptorTablePointer<GdtEntry>) {
-    unsafe { x86::dtables::lgdt(gdtr) };
-}
-
-#[allow(unused)]
-fn dump_idt() {
-    let idtr = idt::store_idtr();
-    let idt_entries = idt::read_idt(&idtr);
-
-    log::info!("Dump IDT: {:x?}\n", idt_entries);
-}
-
-#[allow(unused)]
-fn dump_gdt() {
-    let gdtr = store_gdtr();
-    let addr = gdtr.base;
-    let size = gdtr.limit + 1;
-
-    let gdt_entries = read_gdt(&gdtr);
-
-    log::info!("Dump GDT: {:x?}\n", gdt_entries);
+/// Load DescriptorTablePointer `idtr` into the Interrupt Descriptor Table Register.
+///
+/// ### Safey
+///
+/// Caller needs to ensure that `gdtr` is valid, otherwise behavior is undefined.
+unsafe fn load_gdtr(gdtr: &DescriptorTablePointer<GdtEntry>) {
+    x86::dtables::lgdt(gdtr);
 }
 
 fn setup_tss(exception_page_top: u64) {
     // Read the original GDT
     let mut gdtr = store_gdtr();
     let gdt_size = gdtr.limit + 1;
-
-    let original_gdt_entries = read_gdt(&gdtr);
     let origin_gdt_table_size = (gdt_size / 8) as usize;
+    assert_ne!(gdtr.base as *const _ as usize, 0);
+    assert!(origin_gdt_table_size + TSS_DESC_SIZE as usize <= MAX_GDT_SIZE * size_of::<GdtEntry>());
 
-    // Copy the original GDT to the new GDT
     let mut gdt = GDT.lock();
-    gdt.entries[0..origin_gdt_table_size as usize].copy_from_slice(original_gdt_entries);
-    gdtr.base = &gdt.entries as *const _;
-    gdtr.limit = gdt_size + TSS_DESC_SIZE - 1;
+    // Safe because the bootstrap code has initialized GDT and we have verified it just now.
+    unsafe {
+        let original_gdt_entries = read_gdt(&gdtr);
+        // Copy the original GDT to the new GDT
+        gdt.entries[0..origin_gdt_table_size as usize].copy_from_slice(original_gdt_entries);
+    }
 
     // Setup the TSS and append the TSS desc to the GDT
-    let mut tss_desc_entry = &mut gdt.entries[origin_gdt_table_size..origin_gdt_table_size + 2];
-
     let mut tss = &mut *TSS.lock();
-
     tss.set_ist(0, exception_page_top);
     let tss_desc: TssDescriptor = TssDescriptor::new(
         tss as *const _ as u64,
         size_of::<TaskStateSegment>() as u32 - 1,
         IA32_GDT_TYPE_TSS,
     );
-
+    let mut tss_desc_entry = &mut gdt.entries[origin_gdt_table_size..origin_gdt_table_size + 2];
     tss_desc_entry[0].0 = tss_desc.low();
     tss_desc_entry[1].0 = tss_desc.high();
 
-    load_gdtr(&gdtr);
+    gdtr.base = &gdt.entries as *const _;
+    gdtr.limit = gdt_size + TSS_DESC_SIZE - 1;
+    // Safe because the `gdtr` is valid.
+    unsafe { load_gdtr(&gdtr) };
 
     // load the tss selector into the task register
     let tss_sel = SegmentSelector::new(origin_gdt_table_size as u16, Ring::Ring0);
-
-    unsafe {
-        x86::task::load_tr(tss_sel);
-    }
+    unsafe { x86::task::load_tr(tss_sel) };
 }
 
 fn setup_idt() {
     let mut idtr = idt::store_idtr();
-    let mut idt_entries = idt::read_idt(&idtr);
-
-    idt_entries[14].set_ist(1);
-    idt::load_idtr(&idtr);
+    // Safe because _start() ensures that td_exception::setup_exception_handlers() get called
+    // before stack_guard_enable().
+    unsafe {
+        let mut idt_entries = idt::read_idt(&idtr);
+        idt_entries[14].set_ist(1);
+        idt::load_idtr(&idtr);
+    }
 }
 
+/// Turn on the stack red zone to guard from stack overflow.
+///
+/// The GDT/IDT must have been initialized when calling this function.
 pub fn stack_guard_enable(mem: &mut Memory) {
     let stack_addr = mem.layout.runtime_stack_base;
     let guard_page_addr = stack_addr + STACK_EXCEPTION_PAGE_SIZE as u64;
     let exception_page_top = guard_page_addr;
 
+    assert!(guard_page_addr + (STACK_GUARD_PAGE_SIZE as u64) < mem.layout.runtime_stack_top);
     log::info!(
         "Stack Guard: guard page top {:x}, known good stack top {:x}\n",
         guard_page_addr,
@@ -191,4 +191,17 @@ pub fn stack_guard_enable(mem: &mut Memory) {
 
     setup_idt();
     setup_tss(exception_page_top);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use td_layout::runtime::TD_PAYLOAD_STACK_SIZE;
+
+    #[test]
+    fn test_stack_guard_struct_size() {
+        assert_eq!(size_of::<GdtEntry>(), 8);
+        assert_eq!(size_of::<TssDescriptor>(), TSS_DESC_SIZE as usize);
+        assert!(STACK_EXCEPTION_PAGE_SIZE + STACK_GUARD_PAGE_SIZE < TD_PAYLOAD_STACK_SIZE as usize);
+    }
 }
