@@ -3,18 +3,10 @@ name = "rust-tdshim"
 version = "0.1.0"
 edition = "2018"
 
-# add build process
-build = "build.rs"
-
 [features]
 cet-ss = []
 secure-boot = []
 boot-kernel = ["td-layout/boot-kernel"]
-
-[build-dependencies]
-cc = { git = "https://github.com/jyao1/cc-rs.git", branch = "uefi_support" }
-td-layout = { path = "../td-layout" }
-tdx-tdcall = { path = "../tdx-tdcall" }
 
 [dependencies]
 r-efi = "3.2.0"

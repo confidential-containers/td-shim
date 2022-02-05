@@ -6,5 +6,9 @@ repository = "https://github.com/confidential-containers/td-shim"
 homepage = "https://github.com/confidential-containers"
 license = "BSD-2-Clause-Patent"
 edition = "2018"
+build = "build.rs"
 
-[dependencies]
+[build-dependencies]
+cc = { git = "https://github.com/jyao1/cc-rs.git", branch = "uefi_support" }
+td-layout = { path = "../td-layout" }
+tdx-tdcall = { path = "../tdx-tdcall" }
