@@ -8,6 +8,7 @@ members = [
 	"devtools/test-runner-server",
 	"td-layout",
 	"td-paging",
+	"tdx-tdcall",
 ]
 
 # the profile used for `cargo build`
