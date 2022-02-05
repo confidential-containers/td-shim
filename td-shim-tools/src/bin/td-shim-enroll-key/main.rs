@@ -21,7 +21,7 @@ fn main() -> io::Result<()> {
         .write_style_or("MY_LOG_STYLE", "always");
     env_logger::init_from_env(env);
 
-    let matches = app_from_crate!()
+    let matches = command!()
         .about("Enroll hash value of a public key into shim binary for secure boot")
         .arg(
             arg!([tdshim] "shim binary file")

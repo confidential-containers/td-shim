@@ -19,7 +19,7 @@ fn main() -> io::Result<()> {
         .write_style_or("MY_LOG_STYLE", "always");
     env_logger::init_from_env(env);
 
-    let matches = app_from_crate!()
+    let matches = command!()
         .about("Link multiple shim objects into shim binary")
         .arg(
             arg!([reset_vector] "Reset_vector binary file")
