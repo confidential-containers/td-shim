@@ -160,14 +160,6 @@ impl IdtEntry {
     }
 }
 
-pub fn read_idt(idtr: &DescriptorTablePointer) -> &'static mut [IdtEntry] {
-    unsafe {
-        let addr = idtr.base as *mut IdtEntry;
-        let size = (idtr.limit + 1) as usize / size_of::<IdtEntry>();
-        from_raw_parts_mut(addr, size)
-    }
-}
-
 pub fn store_idtr() -> DescriptorTablePointer {
     let mut idtr = DescriptorTablePointer { limit: 0, base: 0 };
     unsafe {
@@ -176,8 +168,25 @@ pub fn store_idtr() -> DescriptorTablePointer {
     idtr
 }
 
-pub fn load_idtr(idtr: &DescriptorTablePointer) {
-    unsafe {
-        lidt_call(idtr as *const DescriptorTablePointer as usize);
-    }
+/// Get the Interrupt Descriptor Table from the DescriptorTablePointer.
+///
+/// ### Safety
+///
+/// The caller needs to ensure/protect from:
+/// - the DescriptorTablePointer is valid
+/// - the lifetime of the return reference
+/// - concurrent access to the returned reference
+pub unsafe fn read_idt(idtr: &DescriptorTablePointer) -> &'static mut [IdtEntry] {
+    let addr = idtr.base as *mut IdtEntry;
+    let size = (idtr.limit + 1) as usize / size_of::<IdtEntry>();
+    from_raw_parts_mut(addr, size)
+}
+
+/// Load DescriptorTablePointer `idtr` into the Interrupt Descriptor Table Register.
+///
+/// ### Safety
+///
+/// Caller needs to ensure that `idtr` is valid, otherwise behavior is undefined.
+pub unsafe fn load_idtr(idtr: &DescriptorTablePointer) {
+    lidt_call(idtr as *const DescriptorTablePointer as usize);
 }

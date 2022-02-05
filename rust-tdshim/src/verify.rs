@@ -228,6 +228,7 @@ impl<'a> PayloadVerifier<'a> {
     }
 }
 
+/*
 #[cfg(test)]
 mod test {
     use super::*;
@@ -269,3 +270,4 @@ mod test {
         );
     }
 }
+ */
