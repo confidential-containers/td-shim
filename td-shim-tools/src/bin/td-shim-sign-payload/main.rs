@@ -23,7 +23,7 @@ fn main() -> io::Result<()> {
         .write_style_or("MY_LOG_STYLE", "always");
     env_logger::init_from_env(env);
 
-    let matches = app_from_crate!()
+    let matches = command!()
         .about("Sign shim payload with given private key")
         .arg(
             arg!([key] "private key file to sign the payload")
