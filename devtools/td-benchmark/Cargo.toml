@@ -12,4 +12,5 @@ linked_list_allocator = "0.9.0"
 log = "0.4.13"
 scroll = { version = "0.10", default-features = false, features = ["derive"]}
 td-layout = { path = "../../td-layout" }
-x86 = "0.41.0"
+# Lock down to 0.44, otherwise it depends on inline asm
+x86 = "0.44.0"
