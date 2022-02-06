@@ -17,10 +17,10 @@ const MSR_IA32_PL0_SSP: u32 = 0x6A4;
 const MSR_IA32_INTERRUPT_SSP_TABLE_ADDR: u32 = 0x6A8;
 const MSR_IA32_XSS: u32 = 0xDA0;
 
-const EXCEPTION_PAGE_SIZE: u64 = 0x1000;
-const GUARD_PAGE_SIZE: u64 = 0x1000;
-
 const CR4_CET_ENABLE_BIT: u64 = 1 << 23;
+
+const EXCEPTION_PAGE_SIZE: u64 = crate::stack_guard::STACK_EXCEPTION_PAGE_SIZE as u64;
+const GUARD_PAGE_SIZE: u64 = crate::stack_guard::STACK_GUARD_PAGE_SIZE as u64;
 
 #[derive(Default)]
 struct Isst {
@@ -42,8 +42,6 @@ fn is_cet_available() -> (bool, bool) {
 
     //EAX = 7, ECX = 0: extend features.
     let cpuid = unsafe { core::arch::x86_64::__cpuid_count(7, 0) };
-
-    log::info!("cpuid 7,0 {:x}\n", cpuid.ecx);
     if cpuid.ecx & CPUID_CET_SS_BIT != 0 {
         cet_supported = true;
 
@@ -56,31 +54,18 @@ fn is_cet_available() -> (bool, bool) {
     (cet_supported, cet_xss_supported)
 }
 
-fn disable_cet() {
-    unsafe {
-        Cr4::write_raw(Cr4::read_raw() & !CR4_CET_ENABLE_BIT);
-    }
-}
-
 fn enable_cet() {
-    unsafe {
-        Cr4::write_raw(Cr4::read_raw() | CR4_CET_ENABLE_BIT);
-    }
+    unsafe { Cr4::write_raw(Cr4::read_raw() | CR4_CET_ENABLE_BIT) };
 }
 
-#[allow(unused)]
 pub fn enable_cet_ss(shadow_stack_addr: u64, shadow_stack_size: u64) {
     let (cet_supported, cet_xss_supported) = is_cet_available();
-
     log::info!("CET support: {}\n", cet_supported);
-
     if !cet_supported {
         return;
     }
 
-    unsafe {
-        asm_write_msr64(MSR_IA32_S_CET, 1);
-    }
+    unsafe { asm_write_msr64(MSR_IA32_S_CET, 1) };
 
     //
     // +------------------------------------------------------------- +
@@ -90,18 +75,14 @@ pub fn enable_cet_ss(shadow_stack_addr: u64, shadow_stack_size: u64) {
 
     // Init SS Token
     let pl0_ssp: u64 = shadow_stack_addr + shadow_stack_size - 8;
-    unsafe {
-        *(pl0_ssp as *mut u64) = pl0_ssp;
-    }
+    unsafe { *(pl0_ssp as *mut u64) = pl0_ssp };
 
     enable_cet();
 
     // Init Exception Page token and interrupt ssp table
     let ist = &mut INTERRUPT_SSP_TABLE.lock();
     let token = shadow_stack_addr + EXCEPTION_PAGE_SIZE - 8;
-    unsafe {
-        *(token as *mut u64) = token;
-    }
+    unsafe { *(token as *mut u64) = token };
     ist.entries[1] = token;
 
     if cet_xss_supported {
