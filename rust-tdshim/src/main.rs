@@ -201,7 +201,7 @@ pub extern "win64" fn _start(
                 let resource_hob: pi::hob::ResourceDescription = hob.pread(0).unwrap();
                 match resource_hob.resource_type {
                     pi::hob::RESOURCE_SYSTEM_MEMORY => {
-                        mp::mp_accept_memory_resource_range(
+                        td::accept_memory_resource_range(
                             td_info.num_vcpus,
                             resource_hob.physical_start,
                             resource_hob.resource_length,
@@ -349,7 +349,8 @@ pub extern "win64" fn _start(
                 let madt = mp::create_madt(
                     td_info.num_vcpus as u8,
                     build_time::TD_SHIM_MAILBOX_BASE as u64,
-                );
+                )
+                .unwrap();
                 let tdel = td_event_log.create_tdel();
                 acpi_tables.install(&madt.data);
                 acpi_tables.install(tdel.as_bytes());
