@@ -4,6 +4,7 @@
 
 use td_layout::runtime::{TD_PAYLOAD_EVENT_LOG_SIZE, TD_PAYLOAD_SIZE};
 use td_layout::RuntimeMemoryLayout;
+use uefi_pi::hob;
 use x86_64::{
     structures::paging::PageTableFlags as Flags,
     structures::paging::{OffsetPageTable, PageTable},
@@ -11,6 +12,9 @@ use x86_64::{
 };
 
 use crate::td;
+
+const EXTENDED_FUNCTION_INFO: u32 = 0x80000000;
+const VIRT_PHYS_MEM_SIZES: u32 = 0x80000008;
 
 pub struct Memory<'a> {
     pub layout: &'a RuntimeMemoryLayout,
@@ -125,4 +129,35 @@ impl<'a> Memory<'a> {
 
         td_paging::set_page_flags(&mut self.pt, VirtAddr::new(address), size as i64, flags);
     }
+}
+
+/// Get the maximum physical memory addressability of the processor.
+pub fn cpu_get_memory_space_size() -> u8 {
+    let cpuid = unsafe { core::arch::x86_64::__cpuid(EXTENDED_FUNCTION_INFO) };
+    let size_of_mem_space = if cpuid.eax >= VIRT_PHYS_MEM_SIZES {
+        let cpuid = unsafe { core::arch::x86_64::__cpuid(VIRT_PHYS_MEM_SIZES) };
+        // CPUID.80000008H:EAX[bits 7-0]: the size of the physical address range
+        cpuid.eax as u8
+    } else {
+        // fallback value according to edk2 core
+        36
+    };
+
+    log::info!(
+        "Maximum physical memory addressability of the processor - {}\n",
+        size_of_mem_space
+    );
+
+    // TBD: Currently we only map the 64GB memory, change back to size_of_mem_space once page table
+    // allocator can be ready.
+    core::cmp::min(36, size_of_mem_space)
+}
+
+pub fn get_memory_size(hob: &[u8]) -> u64 {
+    let cpu_men_space_size = cpu_get_memory_space_size() as u32;
+    let cpu_memory_size = 2u64.pow(cpu_men_space_size);
+    let hob_memory_size = hob::get_total_memory_top(hob).unwrap();
+    let mem_size = core::cmp::min(cpu_memory_size, hob_memory_size);
+    log::info!("memory_size: 0x{:x}\n", mem_size);
+    mem_size
 }

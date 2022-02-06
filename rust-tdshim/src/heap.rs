@@ -3,9 +3,7 @@
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
 use linked_list_allocator::LockedHeap;
-use log::*;
-
-use crate::{TD_SHIM_TEMP_HEAP_BASE, TD_SHIM_TEMP_HEAP_SIZE};
+use td_layout::build_time::{TD_SHIM_TEMP_HEAP_BASE, TD_SHIM_TEMP_HEAP_SIZE};
 
 #[cfg(not(test))]
 #[global_allocator]
@@ -20,7 +18,7 @@ pub(super) fn init() {
         #[cfg(not(test))]
         HEAP_ALLOCATOR.lock().init(heap_start, heap_size);
     }
-    info!(
+    log::info!(
         "Heap allocator init done: {:#x?}\n",
         heap_start..heap_start + heap_size
     );
