@@ -367,7 +367,7 @@ pub fn create_madt(cpu_num: u8, mailbox_base: u64) -> Madt {
 
     let mut madt = Madt::default();
 
-    let header = GenericSdtHeader::new(*b"APIC", table_length as u32, 1);
+    let header = GenericSdtHeader::new(b"APIC", table_length as u32, 1);
 
     madt.write(header.as_bytes());
 

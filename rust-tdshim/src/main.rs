@@ -48,7 +48,7 @@ use crate::e820::create_e820_entries;
 use crate::memory::Memory;
 use crate::verify::PayloadVerifier;
 use scroll::{Pread, Pwrite};
-use zerocopy::{AsBytes, FromBytes};
+use zerocopy::{AsBytes, ByteSlice, FromBytes};
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Pwrite, Pread)]
@@ -342,7 +342,8 @@ pub extern "win64" fn _start(
                         td_acpi_base as usize,
                     )
                 };
-                let mut acpi_tables = acpi::AcpiTables::new(acpi_slice);
+                let mut acpi_tables =
+                    acpi::AcpiTables::new(acpi_slice, acpi_slice.as_ptr() as *const _ as u64);
 
                 //Create and install MADT and TDEL
                 let madt = mp::create_madt(
