@@ -79,3 +79,37 @@ pub fn find_and_report_entry_point(
         Some(res)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_size_to_page() {
+        assert_eq!(efi_size_to_page(0), 0);
+        assert_eq!(efi_size_to_page(1), 1);
+        assert_eq!(efi_size_to_page(SIZE_4KB), 1);
+        assert_eq!(efi_size_to_page(SIZE_4KB + 1), 2);
+        assert_eq!(efi_size_to_page(u64::MAX), u64::MAX / SIZE_4KB);
+        assert_eq!(efi_page_to_size(1), SIZE_4KB);
+        assert_eq!(efi_page_to_size(u64::MAX), u64::MAX & !(SIZE_4KB - 1));
+    }
+
+    #[test]
+    fn test_parse_elf() {
+        let elf = include_bytes!("../../data/blobs/td-payload.elf");
+        let mut loaded_buffer = vec![0u8; elf.len()];
+
+        assert!(elf::is_elf(elf));
+        elf::relocate_elf_with_per_program_header(elf, &mut loaded_buffer, |_ph| {}).unwrap();
+    }
+
+    #[test]
+    fn test_parse_pe() {
+        let efi = include_bytes!("../../data/blobs/td-payload.efi");
+        let mut loaded_buffer = vec![0u8; efi.len() * 2];
+
+        assert!(pe::is_x86_64_pe(efi));
+        pe::relocate_pe_mem_with_per_sections(efi, &mut loaded_buffer, |_ph| {}).unwrap();
+    }
+}
