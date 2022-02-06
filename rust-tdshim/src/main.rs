@@ -273,7 +273,7 @@ pub extern "win64" fn _start(
             length: core::mem::size_of::<pi::hob::Cpu>() as u16,
             reserved: 0,
         },
-        size_of_memory_space: ipl::cpu_get_memory_space_size(),
+        size_of_memory_space: memory::cpu_get_memory_space_size(),
         size_of_io_space: 16u8,
         reserved: [0u8; 6],
     };
@@ -323,7 +323,7 @@ pub extern "win64" fn _start(
         &[0x55, 0x25, 0xA9, 0xC6, 0xD7, 0x7A],
     );
 
-    let memory_size = ipl::get_memory_size(hob_list);
+    let memory_size = memory::get_memory_size(hob_list);
     let mut mem = Memory::new(&runtime_memory_layout, memory_size);
 
     mem.setup_paging();
