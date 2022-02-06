@@ -2,18 +2,19 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
-use crate::{
-    acpi::{self, GenericSdtHeader},
-    memslice::{get_mem_slice_mut, SliceType},
-};
+extern crate alloc;
+
+use alloc::vec::Vec;
 use core::mem::size_of;
 use core::{cmp::min, slice};
 use core::{convert::TryInto, ops::RangeInclusive};
 use tdx_tdcall::tdx;
 use zerocopy::{AsBytes, FromBytes};
 
-extern crate alloc;
-use alloc::vec::Vec;
+use crate::{
+    acpi::{self, GenericSdtHeader},
+    memslice::{get_mem_slice_mut, SliceType},
+};
 
 const ACCEPT_CHUNK_SIZE: u64 = 0x2000000;
 const ACCEPT_PAGE_SIZE: u64 = 0x200000;
@@ -35,15 +36,15 @@ const MP_WAKEUP_COMMAND_AVAILABLE: u32 = 4;
 const MAILBOX_APICID_INVALID: u32 = 0xffffffff;
 const MAILBOX_APICID_BROADCAST: u32 = 0xfffffffe;
 
-const MADT_MAX_SIZE: usize = 0x400;
-
+// 255 vCPUs needs 2278 bytes, refer to create_madt().
+const MADT_MAX_SIZE: usize = 0xc00;
 const NUM_8259_IRQS: usize = 16;
 
 const ACPI_1_0_PROCESSOR_LOCAL_APIC: u8 = 0x00;
 const ACPI_1_0_IO_APIC: u8 = 0x01;
 const ACPI_1_0_INTERRUPT_SOURCE_OVERRIDE: u8 = 0x02;
-const ACPI_MADT_MPWK_STRUCT_TYPE: u8 = 0x10;
 const ACPI_1_0_LOCAL_APIC_NMI: u8 = 0x04;
+const ACPI_MADT_MPWK_STRUCT_TYPE: u8 = 0x10;
 
 pub mod mailbox {
     pub type Field = ::core::ops::Range<usize>;
@@ -297,8 +298,8 @@ impl Madt {
     }
 
     fn update_checksum(&mut self) {
-        let checksum = acpi::calculate_checksum(&self.data[0..self.size]);
-        self.data[9] = checksum;
+        self.data[9] = 0;
+        self.data[9] = acpi::calculate_checksum(&self.data[0..self.size]);
     }
 }
 
@@ -354,7 +355,7 @@ struct MadtMpwkStruct {
     mail_box_address: u64,
 }
 
-pub fn create_madt(cpu_num: u8, mailbox_base: u64) -> Madt {
+pub fn create_madt(cpu_num: u8, mailbox_base: u64) -> Option<Madt> {
     log::info!("create_madt(): cpu_num: {:x}\n", cpu_num);
 
     let table_length = size_of::<GenericSdtHeader>()
@@ -364,13 +365,17 @@ pub fn create_madt(cpu_num: u8, mailbox_base: u64) -> Madt {
         + NUM_8259_IRQS * size_of::<InterruptSourceOverride>()
         + size_of::<LocalApicNmi>()
         + size_of::<MadtMpwkStruct>();
+    if cpu_num == 0 || table_length > MADT_MAX_SIZE {
+        return None;
+    }
 
     let mut madt = Madt::default();
-
     let header = GenericSdtHeader::new(b"APIC", table_length as u32, 1);
 
+    // Write generic header
     madt.write(header.as_bytes());
 
+    // Write APIC base and version
     madt.write(&0xfee00000u32.to_le_bytes());
     madt.write(&1u32.to_le_bytes());
 
@@ -435,6 +440,20 @@ pub fn create_madt(cpu_num: u8, mailbox_base: u64) -> Madt {
     };
     madt.write(mpwk.as_bytes());
 
+    assert_eq!(madt.size, table_length);
     madt.update_checksum();
-    madt
+
+    Some(madt)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_create_mdat() {
+        assert!(create_madt(0, 0x1000).is_none());
+        let madt = create_madt(255, 0x1000).unwrap();
+        assert!(madt.size < MADT_MAX_SIZE);
+    }
 }
