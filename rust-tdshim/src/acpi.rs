@@ -60,21 +60,21 @@ impl Rsdp {
 #[repr(C, packed)]
 #[derive(Default, AsBytes, FromBytes)]
 pub struct GenericSdtHeader {
-    signature: [u8; 4],
+    pub signature: [u8; 4],
     pub length: u32,
-    revision: u8,
-    checksum: u8,
-    oem_id: [u8; 6],
-    oem_table_id: u64,
-    oem_revision: u32,
-    creator_id: u32,
-    creator_revision: u32,
+    pub revision: u8,
+    pub checksum: u8,
+    pub oem_id: [u8; 6],
+    pub oem_table_id: u64,
+    pub oem_revision: u32,
+    pub creator_id: u32,
+    pub creator_revision: u32,
 }
 
 impl GenericSdtHeader {
-    pub fn new(signature: [u8; 4], length: u32, revision: u8) -> Self {
+    pub fn new(signature: &[u8; 4], length: u32, revision: u8) -> Self {
         GenericSdtHeader {
-            signature,
+            signature: *signature,
             length,
             revision,
             checksum: 0,
@@ -101,7 +101,7 @@ struct Xsdt {
 impl Xsdt {
     pub fn new() -> Self {
         Xsdt {
-            header: GenericSdtHeader::new(*b"XSDT", size_of::<GenericSdtHeader>() as u32, 1),
+            header: GenericSdtHeader::new(b"XSDT", size_of::<GenericSdtHeader>() as u32, 1),
             tables: [0; ACPI_TABLES_MAX_NUM],
         }
     }
@@ -113,7 +113,7 @@ impl Xsdt {
             self.tables[table_num] = addr as u64;
             self.header.length += size_of::<u64>() as u32;
         } else {
-            panic!("too many ACPI tables, max {}", ACPI_TABLES_MAX_NUM);
+            log::error!("too many ACPI tables, max {}", ACPI_TABLES_MAX_NUM);
         }
     }
 
@@ -126,18 +126,20 @@ impl Xsdt {
 }
 
 #[derive(Default)]
-pub struct AcpiTables {
-    acpi_memory: &'static mut [u8],
+pub struct AcpiTables<'a> {
+    acpi_memory: &'a mut [u8],
+    pa: u64,
     size: usize,
     fadt: Option<(usize, usize)>, // FADT offset in acpi memory
     dsdt: Option<usize>,          // DSDT offset in acpi memory
     table_offset: Vec<usize>,
 }
 
-impl AcpiTables {
-    pub fn new(td_acpi_mem: &'static mut [u8]) -> Self {
+impl<'a> AcpiTables<'a> {
+    pub fn new(td_acpi_mem: &'a mut [u8], pa: u64) -> Self {
         AcpiTables {
             acpi_memory: td_acpi_mem,
+            pa,
             ..Default::default()
         }
     }
@@ -147,13 +149,13 @@ impl AcpiTables {
 
         // The Fixed ACPI Description Table (FADT) should always be the first table in XSDT.
         if let Some((fadt_off, fadt_len)) = self.fadt {
+            // Safe because DSDT is loaded in acpi_memory which is below 4G
+            let dsdt = self.offset_to_address(self.dsdt.unwrap_or_default()) as u32;
             let fadt = &mut self.acpi_memory[fadt_off..fadt_off + fadt_len];
             // The Differentiated System Description Table (DSDT) is referred by the FADT table.
             if let Some(dsdt) = self.dsdt {
-                // Safe because DSDT is loaded in acpi_memory which is below 4G
-                let dsdt = self.offset_to_address(dsdt) as u32;
                 // The DSDT field of FADT [40..44]
-                dsdt.write_to(fadt[40..44]);
+                dsdt.write_to(&mut fadt[40..44]);
             }
 
             // Update FADT checksum
@@ -195,8 +197,21 @@ impl AcpiTables {
 
         // Safe because we have checked buffer size.
         let header = GenericSdtHeader::read_from(&table[..size_of::<GenericSdtHeader>()]).unwrap();
+        if header.length as usize > table.len() {
+            log::error!(
+                "invalid ACPI table, header length {} is bigger than data length {}",
+                header.length as usize,
+                table.len()
+            );
+            return;
+        }
 
         if &header.signature == b"FACP" {
+            // We will write to the `dsdt` fields at [40-44)
+            if header.length < 44 {
+                log::error!("invalid ACPI FADT table");
+                return;
+            }
             self.fadt = Some((self.size, header.length as usize));
         } else if &header.signature == b"DSDT" {
             self.dsdt = Some(self.size);
@@ -223,6 +238,111 @@ impl AcpiTables {
     }
 
     fn offset_to_address(&self, offset: usize) -> u64 {
-        (self.acpi_memory.as_ptr() as usize + offset) as u64
+        self.pa + offset as u64
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_calculate_checksum() {
+        let mut buf = [0xac; 8];
+        buf[7] = 0;
+        buf[7] = calculate_checksum(&buf);
+        let sum = buf.iter().fold(0u8, |s, v| s.wrapping_add(*v));
+        assert_eq!(sum, 0);
+
+        buf[3] = 0xcd;
+        buf[6] = 0x1c;
+        buf[4] = 0;
+        buf[4] = calculate_checksum(&buf);
+        let sum = buf.iter().fold(0u8, |s, v| s.wrapping_add(*v));
+        assert_eq!(sum, 0);
+    }
+
+    #[test]
+    fn test_rsdp() {
+        let mut rsdp = Rsdp::new(0xabcd1234);
+        let sum = rsdp.as_bytes()[0..20]
+            .iter()
+            .fold(0u8, |s, v| s.wrapping_add(*v));
+        assert_eq!(sum, 0);
+        let sum = rsdp.as_bytes().iter().fold(0u8, |s, v| s.wrapping_add(*v));
+        assert_eq!(sum, 0);
+
+        rsdp.set_xsdt(0xdeadbeaf);
+        let sum = rsdp.as_bytes()[0..20]
+            .iter()
+            .fold(0u8, |s, v| s.wrapping_add(*v));
+        assert_eq!(sum, 0);
+        let sum = rsdp.as_bytes().iter().fold(0u8, |s, v| s.wrapping_add(*v));
+        assert_eq!(sum, 0);
+    }
+
+    #[test]
+    fn test_xsdt() {
+        let mut xsdt = Xsdt::new();
+        assert_eq!(xsdt.header.length as usize, size_of::<GenericSdtHeader>());
+        for idx in 0..ACPI_TABLES_MAX_NUM {
+            xsdt.add_table(idx as u64);
+            assert_eq!(
+                xsdt.header.length as usize,
+                size_of::<GenericSdtHeader>() + (idx + 1) * 8
+            );
+        }
+
+        xsdt.add_table(100);
+        assert_eq!(
+            xsdt.header.length as usize,
+            size_of::<GenericSdtHeader>() + ACPI_TABLES_MAX_NUM * 8
+        );
+        xsdt.add_table(101);
+        assert_eq!(
+            xsdt.header.length as usize,
+            size_of::<GenericSdtHeader>() + ACPI_TABLES_MAX_NUM * 8
+        );
+    }
+
+    #[test]
+    fn test_acpi_tables() {
+        let mut buff = [0u8; 500];
+        let mut tables = AcpiTables::new(&mut buff, 0x100000);
+
+        assert_eq!(tables.offset_to_address(0x1000), 0x101000);
+        assert_eq!(tables.size, 0);
+
+        tables.install(&[]);
+        assert_eq!(tables.size, 0);
+        tables.install(&[0u8]);
+        assert_eq!(tables.size, 0);
+        tables.install(&[0u8; 269]);
+        assert_eq!(tables.size, 0);
+
+        let hdr = GenericSdtHeader::new(b"FACP", 44, 2);
+        let mut buf = [0u8; 44];
+        buf[0..size_of::<GenericSdtHeader>()].copy_from_slice(hdr.as_bytes());
+        tables.install(&buf);
+        assert_eq!(tables.fadt, Some((0, 44)));
+        assert_eq!(tables.size, 44);
+
+        let hdr = GenericSdtHeader::new(b"DSDT", size_of::<GenericSdtHeader>() as u32, 2);
+        tables.install(hdr.as_bytes());
+        assert_eq!(tables.size, 44 + size_of::<GenericSdtHeader>());
+
+        let hdr = GenericSdtHeader::new(b"TEST", size_of::<GenericSdtHeader>() as u32, 2);
+        tables.install(hdr.as_bytes());
+        assert_eq!(tables.size, 44 + 2 * size_of::<GenericSdtHeader>());
+
+        let hdr = GenericSdtHeader::new(b"TEST", size_of::<GenericSdtHeader>() as u32, 2);
+        tables.install(hdr.as_bytes());
+        assert_eq!(tables.size, 44 + 2 * size_of::<GenericSdtHeader>());
+
+        let addr = tables.finish();
+        assert_eq!(
+            addr,
+            0x100000 + 240 + 2 * size_of::<GenericSdtHeader>() as u64
+        );
     }
 }

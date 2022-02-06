@@ -130,7 +130,7 @@ pub struct Tdel {
 impl Tdel {
     pub fn new(laml: u64, lasa: u64) -> Tdel {
         let mut tdel = Tdel {
-            header: GenericSdtHeader::new(*b"TDEL", size_of::<Tdel>() as u32, 1),
+            header: GenericSdtHeader::new(b"TDEL", size_of::<Tdel>() as u32, 1),
             laml,
             lasa,
             ..Default::default()
