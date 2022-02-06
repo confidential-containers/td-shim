@@ -5,9 +5,10 @@
 use elf_loader::elf;
 use elf_loader::elf64::ProgramHeader;
 use pe_loader::pe::{self, Section};
+use td_layout::memslice;
 use td_layout::runtime::{TD_PAYLOAD_BASE, TD_PAYLOAD_SIZE};
 
-use crate::{memslice, Memory};
+use crate::memory::Memory;
 
 const SIZE_4KB: u64 = 0x00001000u64;
 

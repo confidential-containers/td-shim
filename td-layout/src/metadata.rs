@@ -129,7 +129,7 @@ impl Default for TdxMetadata {
             descriptor: Default::default(),
             sections: [Default::default(); 6],
             #[cfg(feature = "boot-kernel")]
-            payload_sections: [Default::default(), 2],
+            payload_sections: [Default::default(); 2],
         };
 
         if cfg!(feature = "boot-kernel") {
