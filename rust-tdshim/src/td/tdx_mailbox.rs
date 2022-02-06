@@ -10,24 +10,15 @@ use core::{convert::TryInto, ops::RangeInclusive};
 use td_layout::memslice::{get_mem_slice_mut, SliceType};
 use tdx_tdcall::tdx;
 
-const MAILBOX_APICID_INVALID: u32 = 0xffffffff;
-const MAILBOX_APICID_BROADCAST: u32 = 0xfffffffe;
-
-const ACCEPT_CHUNK_SIZE: u64 = 0x2000000;
-const ACCEPT_PAGE_SIZE: u64 = 0x200000;
-const PAGE_SIZE_2M: u64 = 0x200000;
-const PAGE_SIZE_4K: u64 = 0x1000;
-
 // The count of AP to wakeup is limited by the heap size that can be used for stack allocation
 // The maximum size of memory used for AP stacks is 30 KB.
 const MAX_WORKING_AP_COUNT: u32 = 15;
 const AP_TEMP_STACK_SIZE: usize = 0x800;
 
-const MP_WAKEUP_COMMAND_NOOP: u32 = 0;
-const MP_WAKEUP_COMMAND_WAKEUP: u32 = 1;
-const MP_WAKEUP_COMMAND_SLEEP: u32 = 2;
-const MP_WAKEUP_COMMAND_ACCEPT_PAGES: u32 = 3;
-const MP_WAKEUP_COMMAND_AVAILABLE: u32 = 4;
+const ACCEPT_CHUNK_SIZE: u64 = 0x2000000;
+const ACCEPT_PAGE_SIZE: u64 = 0x200000;
+const PAGE_SIZE_2M: u64 = 0x200000;
+const PAGE_SIZE_4K: u64 = 0x1000;
 
 mod spec {
     pub type Field = ::core::ops::Range<usize>;
@@ -38,6 +29,15 @@ mod spec {
     pub const FW_ARGS: usize = 0x800;
     pub const CPU_ARRIVAL: Field = 0x900..0x904;
     pub const CPU_EXITING: Field = 0xa00..0xa04;
+
+    pub const MP_WAKEUP_COMMAND_NOOP: u32 = 0;
+    pub const MP_WAKEUP_COMMAND_WAKEUP: u32 = 1;
+    pub const MP_WAKEUP_COMMAND_SLEEP: u32 = 2;
+    pub const MP_WAKEUP_COMMAND_ACCEPT_PAGES: u32 = 3;
+    pub const MP_WAKEUP_COMMAND_AVAILABLE: u32 = 4;
+
+    pub const MAILBOX_APICID_INVALID: u32 = 0xffffffff;
+    pub const MAILBOX_APICID_BROADCAST: u32 = 0xfffffffe;
 }
 
 struct MailBox<'a> {
@@ -114,12 +114,13 @@ fn make_apic_range(end: u32) -> RangeInclusive<u32> {
     RangeInclusive::new(start, end)
 }
 
-// Wait for AP to responde the command set by BSP if needed.
+// Wait for AP to response the command set by BSP if needed.
 // Typically AP will set the APIC ID field in mailbox to be invalid
-fn wait_for_ap_responde(mail_box: &mut MailBox) {
+fn wait_for_ap_response(mail_box: &mut MailBox) {
     loop {
-        if mail_box.apic_id() == MAILBOX_APICID_INVALID {
-            mail_box.set_command(MP_WAKEUP_COMMAND_NOOP);
+        if mail_box.apic_id() == spec::MAILBOX_APICID_INVALID {
+            x86::fence::mfence();
+            mail_box.set_command(spec::MP_WAKEUP_COMMAND_NOOP);
             break;
         } else {
             cpu_pause();
@@ -133,11 +134,11 @@ fn wait_for_ap_arrive(ap_num: u32) {
     // BSP is the owner of the mailbox area, and APs cooperate with BSP to access the mailbox area.
     let mut mail_box = unsafe { MailBox::new(get_mem_slice_mut(SliceType::MailBox)) };
     for i in make_apic_range(ap_num) {
+        mail_box.set_command(spec::MP_WAKEUP_COMMAND_AVAILABLE);
+        x86::fence::mfence();
         mail_box.set_apic_id(i);
-        mail_box.set_command(MP_WAKEUP_COMMAND_AVAILABLE);
-        wait_for_ap_responde(&mut mail_box);
+        wait_for_ap_response(&mut mail_box);
     }
-    x86::fence::mfence();
 }
 
 pub fn ap_assign_work(apic_id: u32, stack: u64, entry: u32) {
@@ -147,10 +148,11 @@ pub fn ap_assign_work(apic_id: u32, stack: u64, entry: u32) {
 
     mail_box.set_wakeup_vector(entry);
     mail_box.set_fw_arg(0, stack);
-    mail_box.set_command(MP_WAKEUP_COMMAND_ACCEPT_PAGES);
+    mail_box.set_command(spec::MP_WAKEUP_COMMAND_ACCEPT_PAGES);
+    x86::fence::mfence();
     mail_box.set_apic_id(apic_id);
 
-    wait_for_ap_responde(&mut mail_box);
+    wait_for_ap_response(&mut mail_box);
 }
 
 fn td_accept_pages(address: u64, pages: u64, page_size: u64) {
@@ -169,6 +171,7 @@ fn td_accept_pages(address: u64, pages: u64, page_size: u64) {
                     td_accept_pages(accept_addr, 512, PAGE_SIZE_4K);
                 }
             }
+            // TODO: what happens to other error code?
         });
     }
 }
@@ -251,7 +254,6 @@ pub fn accept_memory_resource_range(mut cpu_num: u32, address: u64, size: u64) {
     parallel_accept_memory(0);
 
     td_accept_pages(address, align_low / PAGE_SIZE_4K, PAGE_SIZE_4K);
-
     td_accept_pages(
         address + align_low + major_part,
         align_high / PAGE_SIZE_4K,
@@ -259,6 +261,5 @@ pub fn accept_memory_resource_range(mut cpu_num: u32, address: u64, size: u64) {
     );
 
     wait_for_ap_arrive(active_ap_cnt);
-
     log::info!("mp_accept_memory_resource_range: done\n");
 }

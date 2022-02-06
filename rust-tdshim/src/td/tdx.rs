@@ -9,6 +9,7 @@ extern "win64" {
 
 const EXTENDED_FUNCTION_INFO: u32 = 0x80000000;
 const EXTENDED_PROCESSOR_INFO: u32 = 0x80000001;
+const HARDWARE_ENABLED_EXECUTION_DISABLE: bool = false;
 
 fn is_execute_disable_bit_available() -> bool {
     let cpuid = unsafe { core::arch::x86_64::__cpuid(EXTENDED_FUNCTION_INFO) };
@@ -36,7 +37,7 @@ fn enable_execute_disable_bit() {
 /// Enable the execute disable.
 pub fn enable_execution_disable_bit() {
     // For now EFER cannot be set in TDX, but the NX is enabled by default.
-    if false && is_execute_disable_bit_available() {
+    if !HARDWARE_ENABLED_EXECUTION_DISABLE && is_execute_disable_bit_available() {
         enable_execute_disable_bit();
     }
 }
