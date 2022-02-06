@@ -11,8 +11,6 @@
 #![allow(unused_imports)]
 
 mod acpi;
-#[cfg(feature = "cet-ss")]
-mod cet_ss;
 mod e820;
 mod heap;
 mod ipl;
@@ -22,6 +20,10 @@ mod mp;
 mod stack_guard;
 mod tcg;
 mod td;
+
+#[cfg(feature = "cet-ss")]
+mod cet_ss;
+#[cfg(feature = "secure-boot")]
 mod verify;
 
 extern "win64" {
@@ -30,25 +32,21 @@ extern "win64" {
 
 mod asm;
 
+use core::ffi::c_void;
+use core::panic::PanicInfo;
 use r_efi::efi;
-
-use tdx_tdcall::tdx;
-use uefi_pi::{fv, hob, pi};
+use scroll::{Pread, Pwrite};
+use zerocopy::{AsBytes, ByteSlice, FromBytes};
 
 use td_layout::build_time::{self, *};
 use td_layout::memslice;
 use td_layout::runtime::{self, *};
 use td_layout::RuntimeMemoryLayout;
+use tdx_tdcall::tdx;
+use uefi_pi::{fv, hob, pi};
 
-use core::panic::PanicInfo;
-
-use core::ffi::c_void;
-
-use crate::e820::create_e820_entries;
-use crate::memory::Memory;
+#[cfg(feature = "secure-boot")]
 use crate::verify::PayloadVerifier;
-use scroll::{Pread, Pwrite};
-use zerocopy::{AsBytes, ByteSlice, FromBytes};
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Pwrite, Pread)]
@@ -324,7 +322,7 @@ pub extern "win64" fn _start(
     );
 
     let memory_size = memory::get_memory_size(hob_list);
-    let mut mem = Memory::new(&runtime_memory_layout, memory_size);
+    let mut mem = memory::Memory::new(&runtime_memory_layout, memory_size);
 
     mem.setup_paging();
 
@@ -366,7 +364,7 @@ pub extern "win64" fn _start(
                 // When all the ACPI tables are put into the ACPI memory
                 // build the XSDT and RSDP
                 let rsdp = acpi_tables.finish();
-                let e820_table = create_e820_entries(&runtime_memory_layout);
+                let e820_table = e820::create_e820_entries(&runtime_memory_layout);
                 // Safe because we are handle off this buffer to linux kernel.
                 let payload = unsafe { memslice::get_mem_slice_mut(memslice::SliceType::Payload) };
 
@@ -460,13 +458,13 @@ pub extern "win64" fn _start(
     #[cfg(feature = "secure-boot")]
     {
         let cfv = memslice::get_mem_slice(memslice::SliceType::Config);
-        let verifier = PayloadVerifier::new(payload, cfv);
+        let verifier = verify::PayloadVerifier::new(payload, cfv);
         if let Some(verifier) = &verifier {
             td_event_log.create_td_event(
                 4,
                 EV_PLATFORM_CONFIG_FLAGS,
                 b"td payload",
-                PayloadVerifier::get_trust_anchor(cfv),
+                verify::PayloadVerifier::get_trust_anchor(cfv),
             );
             verifier.verify().expect("Verification fails");
             td_event_log.create_td_event(4, EV_PLATFORM_CONFIG_FLAGS, b"td payload", payload);
@@ -477,7 +475,7 @@ pub extern "win64" fn _start(
                 &u64::to_le_bytes(verifier.get_payload_svn()),
             );
             // Parse out the image from signed payload
-            payload = PayloadVerifier::get_payload_image(payload);
+            payload = verify::PayloadVerifier::get_payload_image(payload);
         } else {
             panic!("Secure Boot: Cannot read verify header from payload binary");
         }
