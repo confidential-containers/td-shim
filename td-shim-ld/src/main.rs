@@ -9,7 +9,7 @@ extern crate clap;
 use log::LevelFilter;
 use std::io;
 use std::str::FromStr;
-use td_shim_ld::TdShimLinker;
+use td_shim_ld::linker::TdShimLinker;
 
 fn main() -> io::Result<()> {
     use env_logger::Env;
