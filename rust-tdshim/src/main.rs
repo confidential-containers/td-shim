@@ -128,7 +128,7 @@ fn log_hob_list(hob_list: &[u8], td_event_log: &mut tcg::TdEventLog) {
         .pwrite(hand_off_table_pointers, 0)
         .unwrap();
 
-    td_event_log.create_td_event(
+    td_event_log.create_event_log(
         1,
         EV_EFI_HANDOFF_TABLES2,
         &tdx_handofftable_pointers_buffer,
@@ -235,7 +235,7 @@ pub extern "win64" fn _start(
             td_event_log_base as usize,
         )
     };
-    let mut td_event_log = tcg::TdEventLog::init(event_log_buf);
+    let mut td_event_log = tcg::TdEventLog::new(event_log_buf);
     log_hob_list(hob_list, &mut td_event_log);
 
     let fv_buffer = memslice::get_mem_slice(memslice::SliceType::ShimPayload);
@@ -460,15 +460,15 @@ pub extern "win64" fn _start(
         let cfv = memslice::get_mem_slice(memslice::SliceType::Config);
         let verifier = verifier::PayloadVerifier::new(payload, cfv);
         if let Ok(verifier) = &verifier {
-            td_event_log.create_td_event(
+            td_event_log.create_event_log(
                 4,
                 EV_PLATFORM_CONFIG_FLAGS,
                 b"td payload",
                 verifier::PayloadVerifier::get_trust_anchor(cfv).unwrap(),
             );
             verifier.verify().expect("Verification fails");
-            td_event_log.create_td_event(4, EV_PLATFORM_CONFIG_FLAGS, b"td payload", payload);
-            td_event_log.create_td_event(
+            td_event_log.create_event_log(4, EV_PLATFORM_CONFIG_FLAGS, b"td payload", payload);
+            td_event_log.create_event_log(
                 4,
                 EV_PLATFORM_CONFIG_FLAGS,
                 b"td payload svn",

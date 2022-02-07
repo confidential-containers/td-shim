@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
+use tdx_tdcall::tdx;
+
 extern "win64" {
     fn asm_read_msr64(index: u32) -> u64;
     fn asm_write_msr64(index: u32, value: u64) -> u64;
@@ -10,6 +12,7 @@ extern "win64" {
 const EXTENDED_FUNCTION_INFO: u32 = 0x80000000;
 const EXTENDED_PROCESSOR_INFO: u32 = 0x80000001;
 const HARDWARE_ENABLED_EXECUTION_DISABLE: bool = false;
+const SHA384_DIGEST_SIZE: usize = 48;
 
 fn is_execute_disable_bit_available() -> bool {
     let cpuid = unsafe { core::arch::x86_64::__cpuid(EXTENDED_FUNCTION_INFO) };
@@ -48,4 +51,28 @@ pub fn get_shared_page_mask() -> u64 {
 
 pub fn accept_memory_resource_range(mut cpu_num: u32, address: u64, size: u64) {
     super::tdx_mailbox::accept_memory_resource_range(cpu_num, address, size)
+}
+
+pub fn extend_rtmr(data: &[u8; SHA384_DIGEST_SIZE], pcr_index: u32) {
+    let digest = tdx::TdxDigest { data: *data };
+
+    log::info!("extend_rtmr ...\n");
+    let mr_index = match pcr_index {
+        0 => {
+            log::info!("PCR[0] should be extended vith RDMR\n");
+            0xFF
+        }
+        1 | 7 => 0,
+        2..=6 => 1,
+        8..=15 => 2,
+        _ => {
+            log::info!("invalid pcr_index 0x{:x}\n", pcr_index);
+            0xFF
+        }
+    };
+    if mr_index >= 3 {
+        return;
+    }
+
+    tdx::tdcall_extend_rtmr(&digest, mr_index);
 }

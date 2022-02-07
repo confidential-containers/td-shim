@@ -4,20 +4,18 @@
 
 use core::{convert::TryInto, mem::size_of};
 
-use tdx_tdcall::tdx;
-
 use ring::digest;
+use scroll::{ctx, Endian, Pread, Pwrite};
 use zerocopy::{AsBytes, FromBytes};
 
 use crate::acpi::{calculate_checksum, GenericSdtHeader};
 
-use scroll::{ctx, Endian, Pread, Pwrite};
-
 const SHA384_DIGEST_SIZE: usize = 48;
 const TPM_ALG_SHA384: u16 = 0xc;
-const PCR_EVENT_HEADER_SIZE: usize = 66;
-const PCR_DIGEST_NUM: usize = 1;
+// sizeof::<TpmtHa>() * PCR_DIGEST_NUM + sizeof::<u32>()
 const TPML_DIGEST_VALUES_PACKED_SIZE: usize = 54;
+const PCR_DIGEST_NUM: usize = 1;
+const PCR_EVENT_HEADER_SIZE: usize = 66;
 
 #[derive(Debug)]
 struct TpmuHa {
@@ -55,6 +53,7 @@ impl ctx::TryIntoCtx<Endian> for &TpmuHa {
     }
 }
 
+#[repr(C)]
 #[derive(Default, Pread, Pwrite)]
 struct TpmtHa {
     hash_alg: u16,
@@ -71,10 +70,10 @@ impl<'a> ctx::TryFromCtx<'a, Endian> for TpmlDigestValues {
 
     fn try_from_ctx(src: &'a [u8], endian: Endian) -> Result<(Self, usize), Self::Error> {
         let offset = &mut 0;
-
         let count = src.gread_with::<u32>(offset, endian)?;
         let mut digests: [TpmtHa; PCR_DIGEST_NUM] = [TpmtHa::default(); PCR_DIGEST_NUM];
         src.gread_inout_with(offset, &mut digests, endian)?;
+
         Ok((TpmlDigestValues { count, digests }, *offset))
     }
 }
@@ -84,7 +83,6 @@ impl ctx::TryIntoCtx<Endian> for &TpmlDigestValues {
 
     fn try_into_ctx(self, this: &mut [u8], endian: Endian) -> Result<usize, Self::Error> {
         let type_size = TPML_DIGEST_VALUES_PACKED_SIZE;
-
         if this.len() < type_size {
             return Err(scroll::Error::BadOffset(type_size));
         }
@@ -94,28 +92,18 @@ impl ctx::TryIntoCtx<Endian> for &TpmlDigestValues {
         for index in 0..PCR_DIGEST_NUM {
             this.gwrite_with::<&TpmtHa>(&self.digests[index], offset, endian)?;
         }
+
         Ok(*offset)
     }
 }
 
+#[repr(C)]
 #[derive(Pread, Pwrite)]
 struct TcgPcrEvent2Header {
     pcr_index: u32,
     event_type: u32,
     digest: TpmlDigestValues,
     event_size: u32,
-}
-
-#[allow(unused)]
-pub struct TdEventLog {
-    area: &'static mut [u8],
-    format: i32,
-    lasa: u64,
-    laml: usize,
-    size: usize,
-    last: u64,
-    started: bool,
-    truncated: bool,
 }
 
 #[repr(C, packed)]
@@ -140,8 +128,20 @@ impl Tdel {
     }
 
     pub fn checksum(&mut self) {
+        self.header.checksum = 0;
         self.header.checksum(calculate_checksum(self.as_bytes()));
     }
+}
+
+pub struct TdEventLog {
+    area: &'static mut [u8],
+    format: i32,
+    lasa: u64,
+    laml: usize,
+    size: usize,
+    last: u64,
+    started: bool,
+    truncated: bool,
 }
 
 impl TdEventLog {
@@ -149,12 +149,14 @@ impl TdEventLog {
         Tdel::new(self.laml as u64, self.lasa as u64)
     }
 
-    pub fn init(td_event_mem: &'static mut [u8]) -> TdEventLog {
+    pub fn new(td_event_mem: &'static mut [u8]) -> TdEventLog {
+        let laml = td_event_mem.len();
+
         TdEventLog {
-            laml: td_event_mem.len(),
             area: td_event_mem,
             format: 0x02,
             lasa: 0,
+            laml,
             size: 0,
             last: 0,
             started: false,
@@ -162,7 +164,8 @@ impl TdEventLog {
         }
     }
 
-    pub fn create_td_event(
+    //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<,,
+    pub fn create_event_log(
         &mut self,
         pcr_index: u32,
         event_type: u32,
@@ -172,16 +175,14 @@ impl TdEventLog {
         log::info!("calc td_hob digest ...\n");
 
         let event_data_size = event_data.len();
-
         let hash_value = digest::digest(&digest::SHA384, hash_data);
         let hash_value = hash_value.as_ref();
-
         assert_eq!(hash_value.len(), SHA384_DIGEST_SIZE);
-
-        log::info!("extend_rtmr ...\n");
-        extend_rtmr(hash_value.try_into().unwrap(), pcr_index);
-
+        // Safe to unwrap() because we have checked the size.
         let hash384_value: [u8; SHA384_DIGEST_SIZE] = hash_value.try_into().unwrap();
+
+        crate::td::extend_rtmr(&hash384_value, pcr_index);
+
         let event2_header = TcgPcrEvent2Header {
             pcr_index,
             event_type,
@@ -196,7 +197,6 @@ impl TdEventLog {
             },
             event_size: event_data_size as u32,
         };
-
         let new_log_size = PCR_EVENT_HEADER_SIZE + event2_header.event_size as usize;
         if self.size + new_log_size > self.laml {
             return;
@@ -210,39 +210,34 @@ impl TdEventLog {
     }
 
     #[allow(unused)]
-    pub fn get_td_event(&self) -> (u64, u64) {
-        self.dump_event_log();
-        (
-            self.lasa + self.area.as_ptr() as u64,
-            self.last + self.area.as_ptr() as u64,
-        )
-    }
-
-    #[allow(unused)]
     pub fn dump_event_log(&self) {
         let mut offset = 0;
 
-        let mut td_event_header = self.read_header(offset);
-        offset += PCR_EVENT_HEADER_SIZE;
-
         while offset < self.size as usize {
-            let td_event_size = td_event_header.event_size as usize;
-            let td_event_data = &self.area[offset..offset + td_event_size];
-
-            dump_event(&td_event_header, td_event_data);
-
-            offset += td_event_size;
-            td_event_header = self.read_header(offset);
-            offset += PCR_EVENT_HEADER_SIZE;
+            if let Some(td_event_header) = self.read_header(offset) {
+                offset += PCR_EVENT_HEADER_SIZE;
+                let td_event_size = td_event_header.event_size as usize;
+                if td_event_size + offset <= self.area.len() {
+                    let td_event_data = &self.area[offset..offset + td_event_size];
+                    dump_event(&td_event_header, td_event_data);
+                }
+                offset.saturating_add(td_event_size);
+            } else {
+                break;
+            }
         }
     }
 
-    fn read_header(&self, offset: usize) -> TcgPcrEvent2Header {
-        self.area.pread::<TcgPcrEvent2Header>(offset).unwrap()
+    fn read_header(&self, offset: usize) -> Option<TcgPcrEvent2Header> {
+        if let Ok(v) = self.area.pread::<TcgPcrEvent2Header>(offset) {
+            Some(v)
+        } else {
+            None
+        }
     }
 
     fn write_header(&mut self, header: &TcgPcrEvent2Header, offset: usize) {
-        self.area.pwrite(header, offset);
+        let _ = self.area.pwrite(header, offset);
     }
 
     fn write_data(&mut self, data: &[u8], offset: usize) {
@@ -250,36 +245,12 @@ impl TdEventLog {
     }
 }
 
-pub fn extend_rtmr(data: &[u8; SHA384_DIGEST_SIZE], pcr_index: u32) {
-    let digest = tdx::TdxDigest { data: *data };
-
-    let mr_index = match pcr_index {
-        0 => {
-            log::info!("PCR[0] should be extended vith RDMR\n");
-            0xFF
-        }
-        1 | 7 => 0,
-        2..=6 => 1,
-        8..=15 => 2,
-        _ => {
-            log::info!("invalid pcr_index 0x{:x}\n", pcr_index);
-            0xFF
-        }
-    };
-    if mr_index >= 3 {
-        return;
-    }
-
-    tdx::tdcall_extend_rtmr(&digest, mr_index);
-}
-
 fn dump_event(td_event_header: &TcgPcrEvent2Header, td_event_data: &[u8]) {
-    log::info!("TD Event:\n");
-
     let pcr_index = td_event_header.pcr_index;
     let event_type = td_event_header.event_type;
     let event_size = td_event_header.event_size;
 
+    log::info!("TD Event:\n");
     log::info!("    PcrIndex  - {}\n", pcr_index);
     log::info!("    EventType - 0x{:x}\n", event_type);
 
@@ -295,4 +266,57 @@ fn dump_event(td_event_header: &TcgPcrEvent2Header, td_event_data: &[u8]) {
 
     log::info!("    EventSize - 0x{:x}\n", event_size);
     log::info!("\n");
+}
+//>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use core::ptr::slice_from_raw_parts_mut;
+
+    #[test]
+    fn test_struct_size() {
+        assert_eq!(size_of::<TpmuHa>(), SHA384_DIGEST_SIZE);
+        assert_eq!(size_of::<TpmtHa>(), SHA384_DIGEST_SIZE + 2);
+        //assert_eq!(size_of::<TcgPcrEvent2Header>(), PCR_EVENT_HEADER_SIZE);
+        assert_eq!(size_of::<Tdel>(), 56);
+    }
+
+    #[test]
+    fn test_tpml_digest_value() {
+        let value = TpmlDigestValues {
+            count: 0,
+            digests: Default::default(),
+        };
+        let mut buf = [0u8; TPML_DIGEST_VALUES_PACKED_SIZE];
+
+        buf.pwrite(&value, 0).unwrap();
+    }
+
+    #[test]
+    fn test_tcg_pcr_event2_header() {
+        let hdr = TcgPcrEvent2Header {
+            pcr_index: 0,
+            event_type: 0,
+            digest: TpmlDigestValues {
+                count: 0,
+                digests: Default::default(),
+            },
+            event_size: 0,
+        };
+        let mut buf = [0u8; PCR_EVENT_HEADER_SIZE];
+        buf.pwrite(&hdr, 0).unwrap();
+    }
+
+    #[test]
+    fn test_create_event_log() {
+        let mut buf = [0u8; 128];
+        let slice = unsafe { &mut *slice_from_raw_parts_mut(buf.as_mut_ptr(), buf.len()) };
+        let mut logger = TdEventLog::new(slice);
+        let tdel = logger.create_tdel();
+        assert_eq!(tdel.laml as u64, 128);
+        assert_eq!(tdel.lasa as u64, 0);
+
+        logger.create_event_log(1, 2, &[0u8], &[08u8]);
+    }
 }
