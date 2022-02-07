@@ -7,10 +7,10 @@ edition = "2018"
 build = "build.rs"
 
 [features]
-default = ["cet-ss", "secure-boot", "boot-kernel"]
-cet-ss = []
-secure-boot = ["der"]
+default = ["boot-kernel", "cet-ss", "secure-boot"]
 boot-kernel = ["td-layout/boot-kernel"]
+cet-ss = []
+secure-boot = ["der", "td-shim-enroll-key", "td-shim-sign-payload"]
 
 [build-dependencies]
 cc = { git = "https://github.com/jyao1/cc-rs.git", branch = "uefi_support" }
@@ -18,7 +18,6 @@ td-layout = { path = "../td-layout" }
 tdx-tdcall = { path = "../tdx-tdcall" }
 
 [dependencies]
-der = {version = "0.4.5", features = ["derive", "alloc"], optional = true}
 elf-loader = { path = "../elf-loader" }
 lazy_static = { version = "1.4.0", features = ["spin_no_std"] }
 linked_list_allocator = "0.9.0"
@@ -38,5 +37,11 @@ x86 = "0.44.0"
 x86_64 = "=0.14.6"
 zerocopy = "0.6.0"
 
+# secure boot
+der = {version = "0.4.5", features = ["derive", "alloc"], optional = true}
+td-shim-enroll-key = { path = "../td-shim-enroll-key", default-features = false, optional = true }
+td-shim-sign-payload = { path = "../td-shim-sign-payload", default-features = false, optional = true }
+
+# TDX
 tdx-tdcall = { path = "../tdx-tdcall" }
 

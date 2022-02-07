@@ -1,77 +1,31 @@
+// Copyright (c) 2020 Intel Corporation
+//
+// SPDX-License-Identifier: BSD-2-Clause-Patent
+
 extern crate alloc;
+
 use alloc::vec::Vec;
-use core::{convert::TryInto, mem::size_of};
+use core::mem::size_of;
 use der::{asn1::UIntBytes, Decodable, Encodable, Message};
-use r_efi::efi::Guid;
-use scroll::{Pread, Pwrite};
-use uefi_pi::{fv, pi};
-
-const CFV_FFS_HEADER_TRUST_ANCHOR_GUID: Guid = Guid::from_fields(
-    0x77a2742e,
-    0x9340,
-    0x4ac9,
-    0x8f,
-    0x85,
-    &[0xb7, 0xb9, 0x78, 0x58, 0x0, 0x21],
-); // {77A2742E-9340-4AC9-8F85-B7B978580021}
-
-const FS_PUBKEY_HASH_GUID: Guid = Guid::from_fields(
-    0xbe8f65a3,
-    0xa83b,
-    0x415c,
-    0xa1,
-    0xfb,
-    &[0xf7, 0x8e, 0x10, 0x5e, 0x82, 0x4e],
-); // {BE8F65A3-A83B-415C-A1FB-F78E105E824E}
-
-use crate::{
-    memslice::{self, get_mem_slice, SliceType},
-    tcg::TdEventLog,
-};
 use ring::{
     digest,
     signature::{self, UnparsedPublicKey, VerificationAlgorithm},
 };
-
-const ECDSA_NIST_P384_SHA384: u32 = 1;
-const RSA_PSS_3072_SHA384: u32 = 2;
-const RSA_PUBLIC_KEY_MOD_SIZE: usize = 384;
-
-pub struct PayloadVerifier<'a> {
-    header: VerifyHeader,
-    image: &'a [u8],
-    config: &'a [u8],
-    public_key: &'a [u8],
-    formated_public_key: Vec<u8>,
-    signature: &'a [u8],
-    verify_alg: &'static dyn VerificationAlgorithm,
-}
-
-#[repr(C)]
-#[derive(Debug, Pread, Pwrite)]
-struct VerifyHeader {
-    pub type_guid: [u8; 16],
-    pub struct_version: u32,
-    pub length: u32,
-    pub payload_version: u64,
-    pub payload_svn: u64,
-    pub signing_algorithm: u32,
-    pub reserved: u32,
-}
+use scroll::{Pread, Pwrite};
+use td_shim_enroll_key::{
+    CfvPubKeyFileHeader, CFV_FFS_HEADER_TRUST_ANCHOR_GUID, CFV_FILE_HEADER_PUBKEY_GUID,
+};
+use td_shim_sign_payload::{
+    PayloadSignHeader, TD_PAYLOAD_SIGN_ECDSA_NIST_P384_SHA384, TD_PAYLOAD_SIGN_RSA_PSS_3072_SHA384,
+};
+use uefi_pi::{fv, pi};
 
 #[derive(Debug)]
 pub enum VerifyErr {
+    InvalidAlgorithm,
+    InvalidContent,
     InvalidPublicKey,
     InvalidSignature,
-}
-
-#[derive(Pread, Pwrite)]
-struct CfvDataFileHeader {
-    pub type_guid: [u8; 16],
-    pub struct_version: u32,
-    pub length: u32,
-    pub hash_algorithm: u64,
-    pub reserved: u32,
 }
 
 // rfc3279#section-2.3.1 RSA Keys
@@ -87,22 +41,39 @@ struct RsaPublicKeyDer<'a> {
     pub exponents: UIntBytes<'a>,
 }
 
+pub struct PayloadVerifier<'a> {
+    header: PayloadSignHeader,
+    config: &'a [u8],
+    image: &'a [u8],
+    public_key: &'a [u8],
+    formated_public_key: Vec<u8>,
+    signature: &'a [u8],
+    verify_alg: &'static dyn VerificationAlgorithm,
+}
+
 impl<'a> PayloadVerifier<'a> {
-    pub fn new(signed_payload: &'a [u8], config: &'a [u8]) -> Option<Self> {
-        let mut formated_public_key: Vec<u8> = Vec::new();
-        let verify_alg: &'static dyn VerificationAlgorithm;
-
-        let signature;
-        let public_key;
-
-        let header = signed_payload.pread::<VerifyHeader>(0).unwrap();
+    pub fn new(signed_payload: &'a [u8], config: &'a [u8]) -> Result<Self, VerifyErr> {
+        let header = signed_payload
+            .pread::<PayloadSignHeader>(0)
+            .map_err(|_e| VerifyErr::InvalidContent)?;
         let mut offset = header.length as usize;
+        if offset <= size_of::<PayloadSignHeader>() || offset >= signed_payload.len() {
+            return Err(VerifyErr::InvalidContent);
+        }
 
-        // The image to be veiried contains verify header and payload ELF/PE image
+        // The image to be verified contains signing header and payload ELF/PE image
         let image = &signed_payload[0..offset];
 
+        let mut formated_public_key: Vec<u8> = Vec::new();
+        let verify_alg: &'static dyn VerificationAlgorithm;
+        let signature;
+        let public_key;
         match header.signing_algorithm {
-            ECDSA_NIST_P384_SHA384 => {
+            TD_PAYLOAD_SIGN_ECDSA_NIST_P384_SHA384 => {
+                if signed_payload.len() < offset + 192 {
+                    return Err(VerifyErr::InvalidContent);
+                }
+
                 // Public key (X: first 48 bytes, Y: second 48 bytes)
                 public_key = &signed_payload[offset..offset + 96];
                 offset += 96;
@@ -116,7 +87,11 @@ impl<'a> PayloadVerifier<'a> {
 
                 verify_alg = &signature::ECDSA_P384_SHA384_FIXED;
             }
-            RSA_PSS_3072_SHA384 => {
+            TD_PAYLOAD_SIGN_RSA_PSS_3072_SHA384 => {
+                if signed_payload.len() < offset + 776 {
+                    return Err(VerifyErr::InvalidContent);
+                }
+
                 // Store the Mod(384 bytes)||Exponent(8 bytes) to the public_key to verify hash.
                 public_key = &signed_payload[offset..offset + 392];
 
@@ -132,19 +107,18 @@ impl<'a> PayloadVerifier<'a> {
                 signature = &signed_payload[offset..offset + 384];
 
                 let der = RsaPublicKeyDer {
-                    modulus: UIntBytes::new(modulus).unwrap(),
-                    exponents: UIntBytes::new(exp).unwrap(),
+                    modulus: UIntBytes::new(modulus).map_err(|_e| VerifyErr::InvalidContent)?,
+                    exponents: UIntBytes::new(exp).map_err(|_e| VerifyErr::InvalidContent)?,
                 };
-                der.encode_to_vec(&mut formated_public_key).unwrap();
+                der.encode_to_vec(&mut formated_public_key)
+                    .map_err(|_e| VerifyErr::InvalidContent)?;
 
                 verify_alg = &signature::RSA_PSS_2048_8192_SHA384;
             }
-            _ => {
-                return None;
-            }
+            _ => return Err(VerifyErr::InvalidAlgorithm),
         }
 
-        Some(PayloadVerifier {
+        Ok(PayloadVerifier {
             header,
             image,
             config,
@@ -159,31 +133,34 @@ impl<'a> PayloadVerifier<'a> {
         self.header.payload_svn
     }
 
-    pub fn get_trust_anchor(cfv: &'a [u8]) -> &'a [u8] {
+    pub fn get_trust_anchor(cfv: &'a [u8]) -> Result<&'a [u8], VerifyErr> {
         fv::get_file_from_fv(
             cfv,
             pi::fv::FV_FILETYPE_RAW,
             CFV_FFS_HEADER_TRUST_ANCHOR_GUID,
         )
-        .unwrap()
+        .ok_or(VerifyErr::InvalidContent)
     }
 
-    pub fn get_payload_image(signed_payload: &'a [u8]) -> &'a [u8] {
-        let header = signed_payload.pread::<VerifyHeader>(0).unwrap();
-        &signed_payload[size_of::<VerifyHeader>()..header.length as usize]
+    pub fn get_payload_image(signed_payload: &'a [u8]) -> Result<&'a [u8], VerifyErr> {
+        let header = signed_payload
+            .pread::<PayloadSignHeader>(0)
+            .map_err(|_e| VerifyErr::InvalidContent)?;
+        let mut offset = header.length as usize;
+
+        if offset <= size_of::<PayloadSignHeader>() || offset >= signed_payload.len() {
+            Err(VerifyErr::InvalidContent)
+        } else {
+            Ok(&signed_payload[size_of::<PayloadSignHeader>()..offset])
+        }
     }
 
-    fn verify_signature(&self) -> bool {
+    fn verify_signature(&self) -> Result<(), VerifyErr> {
         let signature_verifier =
             UnparsedPublicKey::new(self.verify_alg, self.formated_public_key.as_slice());
-        if signature_verifier
+        signature_verifier
             .verify(self.image, self.signature)
-            .is_ok()
-        {
-            return true;
-        }
-
-        false
+            .map_err(|_e| VerifyErr::InvalidSignature)
     }
 
     // Calculate the hash of public key read from signed payload, and
@@ -193,36 +170,34 @@ impl<'a> PayloadVerifier<'a> {
     //      CFV header | FFS header | data file (header | data)
     // The public key hash is stored in the data field.
     //
-    fn verify_public_key(&self) -> bool {
+    fn verify_public_key(&self) -> Result<(), VerifyErr> {
         let file = fv::get_file_from_fv(
             self.config,
             pi::fv::FV_FILETYPE_RAW,
             CFV_FFS_HEADER_TRUST_ANCHOR_GUID,
         )
-        .unwrap();
+        .ok_or(VerifyErr::InvalidPublicKey)?;
+
         let mut readlen = 0;
-        let header = file.gread::<CfvDataFileHeader>(&mut readlen).unwrap();
-
-        if &header.type_guid != FS_PUBKEY_HASH_GUID.as_bytes() {
-            return false;
-        }
-
-        let trusted_hash = &file[readlen..header.length as usize];
-
-        let real_hash = digest::digest(&digest::SHA384, self.public_key);
-        let real_hash = real_hash.as_ref();
-
-        real_hash == trusted_hash
-    }
-
-    pub fn verify(&self) -> Result<(), VerifyErr> {
-        if !self.verify_public_key() {
+        let header = file.gread::<CfvPubKeyFileHeader>(&mut readlen).unwrap();
+        if &header.type_guid != CFV_FILE_HEADER_PUBKEY_GUID.as_bytes() {
+            return Err(VerifyErr::InvalidPublicKey);
+        } else if header.length as usize > file.len() {
             return Err(VerifyErr::InvalidPublicKey);
         }
 
-        if !self.verify_signature() {
-            return Err(VerifyErr::InvalidSignature);
+        let trusted_hash = &file[readlen..header.length as usize];
+        let real_hash = digest::digest(&digest::SHA384, self.public_key);
+        if real_hash.as_ref() != trusted_hash {
+            return Err(VerifyErr::InvalidPublicKey);
         }
+
+        Ok(())
+    }
+
+    pub fn verify(&self) -> Result<(), VerifyErr> {
+        self.verify_public_key()?;
+        self.verify_signature()?;
 
         Ok(())
     }

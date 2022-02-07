@@ -24,7 +24,7 @@ mod td;
 #[cfg(feature = "cet-ss")]
 mod cet_ss;
 #[cfg(feature = "secure-boot")]
-mod verify;
+mod verifier;
 
 extern "win64" {
     fn switch_stack_call(entry_point: usize, stack_top: usize, P1: usize, P2: usize);
@@ -46,7 +46,7 @@ use tdx_tdcall::tdx;
 use uefi_pi::{fv, hob, pi};
 
 #[cfg(feature = "secure-boot")]
-use crate::verify::PayloadVerifier;
+use crate::verifier::PayloadVerifier;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Pwrite, Pread)]
@@ -458,13 +458,13 @@ pub extern "win64" fn _start(
     #[cfg(feature = "secure-boot")]
     {
         let cfv = memslice::get_mem_slice(memslice::SliceType::Config);
-        let verifier = verify::PayloadVerifier::new(payload, cfv);
-        if let Some(verifier) = &verifier {
+        let verifier = verifier::PayloadVerifier::new(payload, cfv);
+        if let Ok(verifier) = &verifier {
             td_event_log.create_td_event(
                 4,
                 EV_PLATFORM_CONFIG_FLAGS,
                 b"td payload",
-                verify::PayloadVerifier::get_trust_anchor(cfv),
+                verifier::PayloadVerifier::get_trust_anchor(cfv).unwrap(),
             );
             verifier.verify().expect("Verification fails");
             td_event_log.create_td_event(4, EV_PLATFORM_CONFIG_FLAGS, b"td payload", payload);
@@ -475,7 +475,7 @@ pub extern "win64" fn _start(
                 &u64::to_le_bytes(verifier.get_payload_svn()),
             );
             // Parse out the image from signed payload
-            payload = verify::PayloadVerifier::get_payload_image(payload);
+            payload = verifier::PayloadVerifier::get_payload_image(payload).unwrap();
         } else {
             panic!("Secure Boot: Cannot read verify header from payload binary");
         }
