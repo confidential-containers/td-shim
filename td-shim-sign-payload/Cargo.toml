@@ -8,12 +8,17 @@ license = "BSD-2-Clause-Patent"
 edition = "2018"
 
 [dependencies]
-clap = { version = "3.0", features = ["cargo"] }
-der = { version = "0.4.5", features = ["oid"]}
-env_logger = "0.9.0"
-log = "0.4.5"
-ring = { git = "https://github.com/jyao1/ring.git", branch = "uefi_support", default-features = false, features = ["alloc"]}
 r-efi = "3.2.0"
 scroll = { version = "0.10", default-features = false, features = ["derive"]}
-td-layout = { path = "../td-layout" }
-td-shim-ld = { path = "../td-shim-ld" }
+
+clap = { version = "3.0", features = ["cargo"], optional = true }
+der = { version = "0.4.5", features = ["oid"], optional = true}
+env_logger = { version = "0.9.0", optional = true }
+log = { version = "0.4.5", optional = true }
+ring = { git = "https://github.com/jyao1/ring.git", branch = "uefi_support", default-features = false, features = ["alloc"], optional = true}
+td-layout = { path = "../td-layout", optional = true }
+td-shim-ld = { path = "../td-shim-ld", default-features = false, optional = true}
+
+[features]
+default = ["signer"]
+signer = ["clap", "der", "env_logger", "log", "ring", "td-layout", "td-shim-ld/linker"]
