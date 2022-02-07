@@ -371,9 +371,9 @@ pub fn build_tdx_metadata() -> TdxMetadata {
 }
 
 pub fn build_tdx_metadata_ptr() -> TdxMetadataPtr {
-    let mut tdx_metadata_ptr = TdxMetadataPtr::default();
-    tdx_metadata_ptr.ptr = TD_SHIM_METADATA_OFFSET;
-    tdx_metadata_ptr
+    TdxMetadataPtr {
+        ptr: TD_SHIM_METADATA_OFFSET,
+    }
 }
 
 #[repr(C, align(4))]

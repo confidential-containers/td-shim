@@ -23,7 +23,7 @@ use uefi_pi::{fv, pi};
 
 #[derive(Debug)]
 pub enum VerifyErr {
-    InvalidAlgorithm,
+    UnknownAlgorithm,
     InvalidContent,
     InvalidPublicKey,
     InvalidSignature,
@@ -118,7 +118,7 @@ impl<'a> PayloadVerifier<'a> {
 
                 verify_alg = &signature::RSA_PSS_2048_8192_SHA384;
             }
-            _ => return Err(VerifyErr::InvalidAlgorithm),
+            _ => return Err(VerifyErr::UnknownAlgorithm),
         }
 
         Ok(PayloadVerifier {
@@ -183,9 +183,9 @@ impl<'a> PayloadVerifier<'a> {
 
         let mut readlen = 0;
         let header = file.gread::<CfvPubKeyFileHeader>(&mut readlen).unwrap();
-        if &header.type_guid != CFV_FILE_HEADER_PUBKEY_GUID.as_bytes() {
-            return Err(VerifyErr::InvalidPublicKey);
-        } else if header.length as usize > file.len() {
+        if &header.type_guid != CFV_FILE_HEADER_PUBKEY_GUID.as_bytes()
+            || header.length as usize > file.len()
+        {
             return Err(VerifyErr::InvalidPublicKey);
         }
 

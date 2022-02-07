@@ -16,9 +16,10 @@ r-efi = "3.2.0"
 serde = { version = "1.0", default-features = false, features = ["derive"]}
 serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
 td-layout = { path = "../td-layout" }
-td-logger =  { path = "../td-logger", optional = true }
-tdx-tdcall = { path = "../tdx-tdcall", optional = true }
+td-logger =  { path = "../td-logger" }
 uefi-pi =  { path = "../uefi-pi" }
+
+tdx-tdcall = { path = "../tdx-tdcall", optional = true }
 
 [features]
 default = []

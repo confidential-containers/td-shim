@@ -53,6 +53,22 @@ pub fn accept_memory_resource_range(mut cpu_num: u32, address: u64, size: u64) {
     super::tdx_mailbox::accept_memory_resource_range(cpu_num, address, size)
 }
 
+pub fn get_num_vcpus() -> u32 {
+    let mut td_info = tdx::TdInfoReturnData {
+        gpaw: 0,
+        attributes: 0,
+        max_vcpus: 0,
+        num_vcpus: 0,
+        rsvd: [0; 3],
+    };
+
+    tdx::tdcall_get_td_info(&mut td_info);
+    log::info!("gpaw - {:?}\n", td_info.gpaw);
+    log::info!("num_vcpus - {:?}\n", td_info.num_vcpus);
+
+    td_info.num_vcpus
+}
+
 pub fn extend_rtmr(data: &[u8; SHA384_DIGEST_SIZE], pcr_index: u32) {
     let digest = tdx::TdxDigest { data: *data };
 
