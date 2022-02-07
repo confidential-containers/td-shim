@@ -77,7 +77,7 @@ mod payload_impl {
     pub extern "win64" fn _start(hob: *const c_void) -> ! {
         #[cfg(feature = "tdx")]
         {
-            tdx_logger::init().expect("td-payload: failed to initialize tdx logger");
+            td_logger::init().expect("td-payload: failed to initialize tdx logger");
         }
         log::info!("Starting td-payload hob - {:p}\n", hob);
         log::info!("setup_exception_handlers done\n");

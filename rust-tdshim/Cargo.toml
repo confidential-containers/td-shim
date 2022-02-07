@@ -11,6 +11,7 @@ default = ["boot-kernel", "cet-ss", "secure-boot"]
 boot-kernel = ["td-layout/boot-kernel"]
 cet-ss = []
 secure-boot = ["der", "td-shim-enroll-key", "td-shim-sign-payload"]
+tdx = ["tdx-tdcall", "td-exception/tdx", "td-logger/tdx"]
 
 [build-dependencies]
 cc = { git = "https://github.com/jyao1/cc-rs.git", branch = "uefi_support" }
@@ -43,5 +44,5 @@ td-shim-enroll-key = { path = "../td-shim-enroll-key", default-features = false,
 td-shim-sign-payload = { path = "../td-shim-sign-payload", default-features = false, optional = true }
 
 # TDX
-tdx-tdcall = { path = "../tdx-tdcall" }
+tdx-tdcall = { path = "../tdx-tdcall", optional = true }
 

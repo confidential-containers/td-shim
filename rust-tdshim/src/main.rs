@@ -42,7 +42,6 @@ use td_layout::build_time::{self, *};
 use td_layout::memslice;
 use td_layout::runtime::{self, *};
 use td_layout::RuntimeMemoryLayout;
-use tdx_tdcall::tdx;
 use uefi_pi::{fv, hob, pi};
 
 #[cfg(feature = "secure-boot")]
@@ -171,17 +170,7 @@ pub extern "win64" fn _start(
     let hob_size = hob::get_hob_total_size(hob_list).unwrap();
     let hob_list = &hob_list[0..hob_size];
     hob::dump_hob(hob_list);
-    let mut td_info = tdx::TdInfoReturnData {
-        gpaw: 0,
-        attributes: 0,
-        max_vcpus: 0,
-        num_vcpus: 0,
-        rsvd: [0; 3],
-    };
-    tdx::tdcall_get_td_info(&mut td_info);
-
-    log::info!("gpaw - {:?}\n", td_info.gpaw);
-    log::info!("num_vcpus - {:?}\n", td_info.num_vcpus);
+    let num_vcpus = td::get_num_vcpus();
 
     let memory_top = hob::get_system_memory_size_below_4gb(hob_list).unwrap();
     let runtime_memory_layout = RuntimeMemoryLayout::new(memory_top);
@@ -200,7 +189,7 @@ pub extern "win64" fn _start(
                 match resource_hob.resource_type {
                     pi::hob::RESOURCE_SYSTEM_MEMORY => {
                         td::accept_memory_resource_range(
-                            td_info.num_vcpus,
+                            num_vcpus,
                             resource_hob.physical_start,
                             resource_hob.resource_length,
                         );
@@ -344,11 +333,9 @@ pub extern "win64" fn _start(
                     acpi::AcpiTables::new(acpi_slice, acpi_slice.as_ptr() as *const _ as u64);
 
                 //Create and install MADT and TDEL
-                let madt = mp::create_madt(
-                    td_info.num_vcpus as u8,
-                    build_time::TD_SHIM_MAILBOX_BASE as u64,
-                )
-                .unwrap();
+                let madt =
+                    mp::create_madt(num_vcpus as u8, build_time::TD_SHIM_MAILBOX_BASE as u64)
+                        .unwrap();
                 let tdel = td_event_log.create_tdel();
                 acpi_tables.install(&madt.data);
                 acpi_tables.install(tdel.as_bytes());
