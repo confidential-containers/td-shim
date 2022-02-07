@@ -16,7 +16,8 @@ use td_shim_enroll_key::{
     CfvPubKeyFileHeader, CFV_FFS_HEADER_TRUST_ANCHOR_GUID, CFV_FILE_HEADER_PUBKEY_GUID,
 };
 use td_shim_sign_payload::{
-    PayloadSignHeader, TD_PAYLOAD_SIGN_ECDSA_NIST_P384_SHA384, TD_PAYLOAD_SIGN_RSA_PSS_3072_SHA384,
+    PayloadSignHeader, TD_PAYLOAD_SIGN_ECDSA_NIST_P384_SHA384, TD_PAYLOAD_SIGN_HEADER_GUID,
+    TD_PAYLOAD_SIGN_RSA_PSS_3072_SHA384,
 };
 use uefi_pi::{fv, pi};
 
@@ -57,7 +58,9 @@ impl<'a> PayloadVerifier<'a> {
             .pread::<PayloadSignHeader>(0)
             .map_err(|_e| VerifyErr::InvalidContent)?;
         let mut offset = header.length as usize;
-        if offset <= size_of::<PayloadSignHeader>() || offset >= signed_payload.len() {
+        if
+        /*offset <= size_of::<PayloadSignHeader>() || offset >= signed_payload.len() || */
+        &header.type_guid != TD_PAYLOAD_SIGN_HEADER_GUID.as_bytes() {
             return Err(VerifyErr::InvalidContent);
         }
 
@@ -148,7 +151,7 @@ impl<'a> PayloadVerifier<'a> {
             .map_err(|_e| VerifyErr::InvalidContent)?;
         let mut offset = header.length as usize;
 
-        if offset <= size_of::<PayloadSignHeader>() || offset >= signed_payload.len() {
+        if offset <= size_of::<PayloadSignHeader>() || offset > signed_payload.len() {
             Err(VerifyErr::InvalidContent)
         } else {
             Ok(&signed_payload[size_of::<PayloadSignHeader>()..offset])
@@ -203,46 +206,108 @@ impl<'a> PayloadVerifier<'a> {
     }
 }
 
-/*
 #[cfg(test)]
 mod test {
     use super::*;
 
-    use super::PayloadVerifier;
-    use std::vec::Vec;
-    use td_layout::build_time::{
-        TD_SHIM_CONFIG_OFFSET, TD_SHIM_CONFIG_SIZE, TD_SHIM_PAYLOAD_OFFSET, TD_SHIM_PAYLOAD_SIZE,
-    };
+    #[test]
+    fn test_payload_verifier_new() {
+        assert!(PayloadVerifier::new(&[], &[]).is_err());
+
+        let mut hdr = PayloadSignHeader {
+            type_guid: *TD_PAYLOAD_SIGN_HEADER_GUID.as_bytes(),
+            struct_version: 1,
+            length: 0,
+            payload_version: 1,
+            payload_svn: 1,
+            signing_algorithm: 0,
+            reserved: 0,
+        };
+        assert!(PayloadVerifier::new(hdr.as_bytes(), &[]).is_err());
+        hdr.length = size_of::<PayloadSignHeader>() as u32;
+        assert!(PayloadVerifier::new(hdr.as_bytes(), &[]).is_err());
+
+        hdr.length = size_of::<PayloadSignHeader>() as u32 + 1;
+        let mut buf = [0u8; 2048];
+        buf[0..size_of::<PayloadSignHeader>()].copy_from_slice(hdr.as_bytes());
+        assert!(PayloadVerifier::new(&buf[0..size_of::<PayloadSignHeader>() + 1], &[]).is_err());
+
+        hdr.signing_algorithm = TD_PAYLOAD_SIGN_RSA_PSS_3072_SHA384;
+        buf[0..size_of::<PayloadSignHeader>()].copy_from_slice(hdr.as_bytes());
+        assert!(PayloadVerifier::new(&buf[0..size_of::<PayloadSignHeader>() + 1], &[]).is_err());
+        assert!(PayloadVerifier::new(&buf[0..size_of::<PayloadSignHeader>() + 777], &[]).is_ok());
+
+        hdr.signing_algorithm = TD_PAYLOAD_SIGN_ECDSA_NIST_P384_SHA384;
+        buf[0..size_of::<PayloadSignHeader>()].copy_from_slice(hdr.as_bytes());
+        assert!(PayloadVerifier::new(&buf[0..size_of::<PayloadSignHeader>() + 1], &[]).is_err());
+        assert!(PayloadVerifier::new(&buf[0..size_of::<PayloadSignHeader>() + 193], &[]).is_ok());
+    }
 
     #[test]
-    fn test() {
-        let bin = include_bytes!("../unit-test/input/final.sb.bin");
+    fn test_get_payload_image() {
+        assert!(PayloadVerifier::get_payload_image(&[]).is_err());
 
-        let pstart = TD_SHIM_PAYLOAD_OFFSET as usize;
-        let pend = pstart + TD_SHIM_PAYLOAD_SIZE as usize;
-        let payload_fv = &bin[pstart..pend];
+        let mut hdr = PayloadSignHeader {
+            type_guid: *TD_PAYLOAD_SIGN_HEADER_GUID.as_bytes(),
+            struct_version: 1,
+            length: 0,
+            payload_version: 1,
+            payload_svn: 1,
+            signing_algorithm: 0,
+            reserved: 0,
+        };
+        assert!(PayloadVerifier::get_payload_image(hdr.as_bytes()).is_err());
+        hdr.length = size_of::<PayloadSignHeader>() as u32;
+        assert!(PayloadVerifier::get_payload_image(hdr.as_bytes()).is_err());
 
-        let mut offset = 0;
-        let payload = fv::get_image_from_fv(
-            payload_fv,
-            pi::fv::FV_FILETYPE_DXE_CORE,
-            pi::fv::SECTION_PE32,
-        )
-        .unwrap();
-
-        let cstart = TD_SHIM_CONFIG_OFFSET as usize;
-        let cend = cstart + TD_SHIM_CONFIG_SIZE as usize;
-        let cfv = &bin[cstart..cend];
-
-        let verifier = PayloadVerifier::new(payload, cfv);
+        hdr.length = size_of::<PayloadSignHeader>() as u32 + 1;
+        let mut buf = [0u8; 2048];
+        buf[0..size_of::<PayloadSignHeader>()].copy_from_slice(hdr.as_bytes());
         assert!(
-            verifier.is_some(),
-            "Cannot get verify header from payload binary"
+            PayloadVerifier::get_payload_image(&buf[0..size_of::<PayloadSignHeader>()]).is_err()
         );
-        assert!(
-            verifier.unwrap().verify().is_ok(),
-            "Payload verification fail"
+        assert_eq!(
+            PayloadVerifier::get_payload_image(&buf[0..size_of::<PayloadSignHeader>() + 1])
+                .unwrap(),
+            &[0u8]
+        );
+        assert_eq!(
+            PayloadVerifier::get_payload_image(&buf[0..size_of::<PayloadSignHeader>() + 2])
+                .unwrap(),
+            &[0u8]
         );
     }
+
+    /*
+       #[test]
+       fn test() {
+           let bin = include_bytes!("../unit-test/input/final.sb.bin");
+
+           let pstart = TD_SHIM_PAYLOAD_OFFSET as usize;
+           let pend = pstart + TD_SHIM_PAYLOAD_SIZE as usize;
+           let payload_fv = &bin[pstart..pend];
+
+           let mut offset = 0;
+           let payload = fv::get_image_from_fv(
+               payload_fv,
+               pi::fv::FV_FILETYPE_DXE_CORE,
+               pi::fv::SECTION_PE32,
+           )
+           .unwrap();
+
+           let cstart = TD_SHIM_CONFIG_OFFSET as usize;
+           let cend = cstart + TD_SHIM_CONFIG_SIZE as usize;
+           let cfv = &bin[cstart..cend];
+
+           let verifier = PayloadVerifier::new(payload, cfv);
+           assert!(
+               verifier.is_some(),
+               "Cannot get verify header from payload binary"
+           );
+           assert!(
+               verifier.unwrap().verify().is_ok(),
+               "Payload verification fail"
+           );
+       }
+    */
 }
- */

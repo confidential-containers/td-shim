@@ -93,8 +93,7 @@ pub mod signer {
                         .public_key()
                         .modulus()
                         .big_endian_without_leading_zero();
-                    // TODO: figure out the exact upper bound.
-                    if rsa_keypair.public_modulus_len() > 4096 {
+                    if rsa_keypair.public_modulus_len() != 384 {
                         error!(
                             "Invalid RSA public modulus length: {}",
                             rsa_keypair.public_modulus_len()
@@ -166,8 +165,8 @@ pub mod signer {
 
         pub fn build_header(&self, payload_version: u64, payload_svn: u64) -> PayloadSignHeader {
             let signing_algorithm = match self.algorithm {
-                SigningAlgorithm::EcdsaNistP384Sha384(_) => 1,
-                SigningAlgorithm::Rsapss3072Sha384(_) => 2,
+                SigningAlgorithm::EcdsaNistP384Sha384(_) => TD_PAYLOAD_SIGN_ECDSA_NIST_P384_SHA384,
+                SigningAlgorithm::Rsapss3072Sha384(_) => TD_PAYLOAD_SIGN_RSA_PSS_3072_SHA384,
             };
             let length = (self.raw_image.len() + size_of::<PayloadSignHeader>()) as u32;
 
