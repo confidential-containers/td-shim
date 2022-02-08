@@ -5,8 +5,8 @@
 extern crate alloc;
 
 use alloc::vec::Vec;
-use core::{cmp::min, slice};
-use core::{convert::TryInto, ops::RangeInclusive};
+use core::cmp::min;
+use core::ops::RangeInclusive;
 use td_layout::memslice::{get_mem_slice_mut, SliceType};
 use tdx_tdcall::tdx;
 
