@@ -3,20 +3,12 @@ name = "rust-tdshim"
 version = "0.1.0"
 edition = "2018"
 
-# add build process
-build = "build.rs"
-
 [features]
 default = ["boot-kernel", "cet-ss", "secure-boot"]
 boot-kernel = ["td-layout/boot-kernel"]
 cet-ss = []
 secure-boot = ["der", "td-shim-enroll-key", "td-shim-sign-payload"]
 tdx = ["tdx-tdcall", "td-exception/tdx", "td-logger/tdx"]
-
-[build-dependencies]
-cc = { git = "https://github.com/jyao1/cc-rs.git", branch = "uefi_support" }
-td-layout = { path = "../td-layout" }
-tdx-tdcall = { path = "../tdx-tdcall" }
 
 [dependencies]
 elf-loader = { path = "../elf-loader" }

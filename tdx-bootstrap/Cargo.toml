@@ -1,0 +1,14 @@
+[package]
+name = "tdx-bootstrap"
+version = "0.1.0"
+description = "Bootstrap the TDX trusted domain with reset vector"
+repository = "https://github.com/confidential-containers/td-shim"
+homepage = "https://github.com/confidential-containers"
+license = "BSD-2-Clause-Patent"
+edition = "2018"
+build = "build.rs"
+
+[build-dependencies]
+cc = { git = "https://github.com/jyao1/cc-rs.git", branch = "uefi_support" }
+td-layout = { path = "../td-layout" }
+tdx-tdcall = { path = "../tdx-tdcall" }

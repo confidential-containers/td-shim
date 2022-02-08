@@ -54,7 +54,7 @@ Stack guard is setup at `stack_guard_enable()` in [stack_guard.rs](../rust-tdshi
 
 ### Reset vector
 
-[ResetVector](../rust-tdshim/ResetVector) is the reset vector inside of the `td-shim`. It owns the first instruction in the TD at address 0xFFFFFFF0. This is implemented in the IA32 code named [resetVector](../rust-tdshim/ResetVector/Ia32/ResetVectorVtf0.asm). The code then switches to long mode, parks application processors (APs), initializes the stack, copies the `td-shim` core to low memory (1MB) and call to `rust-tdshim` via an indirect call `call    rsi` at [main](../rust-tdshim/ResetVector/Main.asm)
+[ResetVector](../rust-tdshim/ResetVector) is the reset vector inside of the `td-shim`. It owns the first instruction in the TD at address 0xFFFFFFF0. This is implemented in the IA32 code named [resetVector](../tdx-bootstrap/ResetVector/Ia32/ResetVectorVtf0.asm). The code then switches to long mode, parks application processors (APs), initializes the stack, copies the `td-shim` core to low memory (1MB) and call to `rust-tdshim` via an indirect call `call    rsi` at [main](../tdx-bootstrap/ResetVector/Main.asm)
 
 ### TDX related lib
 

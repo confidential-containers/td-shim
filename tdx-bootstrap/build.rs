@@ -10,6 +10,9 @@ use std::{
 
 use td_layout::build_time;
 
+// TODO: move it into td-layout
+pub const INITIALLY_ACCEPTED_MEMORY_SIZE: u32 = 0x80_0000;
+
 fn nasm(file: &Path, arch: &str, out_file: &Path, args: &[&str]) -> Command {
     let oformat = match arch {
         "x86_64" => ("win64"),
@@ -89,6 +92,10 @@ fn main() {
         "-DTD_SHIM_RESET_SEC_CORE_SIZE_ADDR=0x{:X}",
         build_time::TD_SHIM_RESET_SEC_CORE_SIZE_ADDR
     );
+    let accepted_memory_size = format!(
+        "-DINITIALLY_ACCEPTED_MEMORY_SIZE=0x{:X}",
+        crate::INITIALLY_ACCEPTED_MEMORY_SIZE
+    );
 
     let _ = env::set_current_dir(reset_vector_src_dir.as_path());
     run_command(nasm(
@@ -109,6 +116,7 @@ fn main() {
             &loaded_sec_entrypoint_base,
             &loaded_sec_core_base,
             &loaded_sec_core_size,
+            &accepted_memory_size,
         ],
     ));
 }

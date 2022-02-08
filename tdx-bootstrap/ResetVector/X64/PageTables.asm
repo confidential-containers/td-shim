@@ -18,26 +18,29 @@ BITS    64
 TopLevelPageDirectory:
 
     ;
-    ; Top level Page Directory Pointers (1 * 512GB entry)
+    ; Top level/Level 5 Page Directory Pointers (1 * 256TB entry)
     ;
     DQ      PDP(0x1000)
+    TIMES 511 DQ 0
+
+    ;
+    ; Top level/Level 4 Page Directory Pointers (1 * 512GB entry)
+    ;
+    DQ      PDP(0x2000)
+    TIMES 511 DQ 0
+
     ;
     ; Next level Page Directory Pointers (4 * 1GB entries => 4GB)
     ;
-    TIMES 511 DQ 0
-
-    DQ      PDP(0x2000)
-    TIMES 511 DQ 0
     DQ      PDP(0x3000)
     DQ      PDP(0x4000)
     DQ      PDP(0x5000)
     DQ      PDP(0x6000)
+    TIMES 508 DQ 0
 
     ;
     ; Page Table Entries (2048 * 2MB entries => 4GB)
     ;
-    TIMES 508 DQ 0
-
 %assign i 0
 %rep    0x800
     DQ      PTE_2MB(i)
