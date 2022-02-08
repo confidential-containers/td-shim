@@ -12,15 +12,48 @@ use zerocopy::{AsBytes, FromBytes};
 use crate::acpi::{calculate_checksum, GenericSdtHeader};
 
 pub const SHA384_DIGEST_SIZE: usize = 48;
-pub const TPM_ALG_SHA384: u16 = 0xc;
-// sizeof::<TpmtHa>() * PCR_DIGEST_NUM + sizeof::<u32>()
+pub const TPML_ALG_SHA384: u16 = 0xc;
 pub const TPML_DIGEST_VALUES_PACKED_SIZE: usize = 54;
 pub const PCR_DIGEST_NUM: usize = 1;
 pub const PCR_EVENT_HEADER_SIZE: usize = 66;
+
 pub const EV_EFI_EVENT_BASE: u32 = 0x80000000;
-pub const EV_PLATFORM_CONFIG_FLAGS: u32 = 0x0000000A;
+pub const EV_PLATFORM_CONFIG_FLAGS: u32 = EV_EFI_EVENT_BASE + 0x0000000A;
 pub const EV_EFI_HANDOFF_TABLES2: u32 = EV_EFI_EVENT_BASE + 0xB;
 
+#[repr(C)]
+#[derive(Default, Debug, Pread, Pwrite, AsBytes, FromBytes)]
+pub struct Guid {
+    pub data1: u32,
+    pub data2: u32,
+    pub data3: u32,
+    pub data4: u32,
+}
+
+pub const TD_LOG_EFI_HANDOFF_TABLE_GUID: Guid = Guid {
+    data1: 0xf706dd8f,
+    data2: 0x11e9eebe,
+    data3: 0xa7e41499,
+    data4: 0x51e6daa0,
+};
+
+#[repr(C)]
+#[derive(Default, Debug, Pread, Pwrite)]
+pub struct TdHandoffTable {
+    pub guid: Guid,
+    pub table: u64, // should be usize, usize can't be derived by pwrite, but tdx only support 64bit
+}
+
+#[repr(C)]
+#[derive(Default, Debug, Pwrite)]
+pub struct TdHandoffTablePointers {
+    pub table_descripion_size: u8,
+    pub table_description: [u8; 8],
+    pub number_of_tables: u64,
+    pub table_entry: [TdHandoffTable; 1],
+}
+
+#[repr(C)]
 #[derive(Debug)]
 pub struct TpmuHa {
     pub sha384: [u8; SHA384_DIGEST_SIZE],
@@ -58,12 +91,14 @@ impl ctx::TryIntoCtx<Endian> for &TpmuHa {
 }
 
 #[repr(C)]
-#[derive(Default, Pread, Pwrite)]
+#[derive(Default, Debug, Pread, Pwrite)]
 pub struct TpmtHa {
     pub hash_alg: u16,
     pub digest: TpmuHa,
 }
 
+#[repr(C)]
+#[derive(Default, Debug)]
 pub struct TpmlDigestValues {
     pub count: u32,
     pub digests: [TpmtHa; PCR_DIGEST_NUM],
@@ -102,7 +137,7 @@ impl ctx::TryIntoCtx<Endian> for &TpmlDigestValues {
 }
 
 #[repr(C)]
-#[derive(Pread, Pwrite)]
+#[derive(Default, Debug, Pread, Pwrite)]
 pub struct TcgPcrEvent2Header {
     pub pcr_index: u32,
     pub event_type: u32,
@@ -250,7 +285,7 @@ impl TdEventLog {
             digest: TpmlDigestValues {
                 count: 1,
                 digests: [TpmtHa {
-                    hash_alg: TPM_ALG_SHA384,
+                    hash_alg: TPML_ALG_SHA384,
                     digest: TpmuHa {
                         sha384: hash384_value,
                     },
