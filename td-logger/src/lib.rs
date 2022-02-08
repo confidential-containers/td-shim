@@ -63,9 +63,7 @@ fn dbg_port_write(byte: u8) {
 
 #[cfg(all(not(feature = "tdx"), feature = "serial-port"))]
 fn dbg_port_write(byte: u8) {
-    unsafe {
-        x86::io::outb(SERIAL_IO_PORT, byte);
-    }
+    unsafe { x86::io::outb(SERIAL_IO_PORT, byte) };
 }
 
 #[cfg(all(not(feature = "tdx"), not(feature = "serial-port")))]
