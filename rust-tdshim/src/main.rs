@@ -17,6 +17,12 @@ use r_efi::efi;
 use scroll::{Pread, Pwrite};
 use zerocopy::{AsBytes, ByteSlice, FromBytes};
 
+use rust_tdshim::tcg::{
+    self, TdHandoffTable, TdHandoffTablePointers, TD_LOG_EFI_HANDOFF_TABLE_GUID,
+};
+use rust_tdshim::{
+    acpi, td, HobTemplate, PayloadInfo, TD_HOB_ACPI_TABLE_GUID, TD_HOB_KERNEL_INFO_GUID,
+};
 use td_layout::build_time::{self, *};
 use td_layout::memslice;
 use td_layout::runtime::{self, *};
@@ -28,7 +34,6 @@ use crate::tcg::TdEventLog;
 #[cfg(feature = "secure-boot")]
 use crate::verifier::PayloadVerifier;
 
-mod acpi;
 mod asm;
 mod e820;
 mod heap;
@@ -37,8 +42,6 @@ mod linux;
 mod memory;
 mod mp;
 mod stack_guard;
-mod tcg;
-mod td;
 
 #[cfg(feature = "cet-ss")]
 mod cet_ss;
@@ -47,20 +50,6 @@ mod verifier;
 
 extern "win64" {
     fn switch_stack_call(entry_point: usize, stack_top: usize, P1: usize, P2: usize);
-}
-
-#[repr(C)]
-#[derive(Copy, Clone, Debug, Pwrite, Pread)]
-pub struct HobTemplate {
-    pub handoff_info_table: pi::hob::HandoffInfoTable,
-    pub firmware_volume: pi::hob::FirmwareVolume,
-    pub cpu: pi::hob::Cpu,
-    pub payload: pi::hob::MemoryAllocation,
-    pub page_table: pi::hob::MemoryAllocation,
-    pub stack: pi::hob::MemoryAllocation,
-    pub memory_above_1m: pi::hob::ResourceDescription,
-    pub memory_blow_1m: pi::hob::ResourceDescription,
-    pub end_off_hob: pi::hob::Header,
 }
 
 #[cfg(not(test))]
@@ -78,50 +67,6 @@ fn alloc_error(_info: core::alloc::Layout) -> ! {
     log::info!("alloc_error ... {:?}\n", _info);
     panic!("deadloop");
 }
-
-#[derive(Pread, Pwrite)]
-struct Guid {
-    data1: u32,
-    data2: u32,
-    data3: u32,
-    data4: u32,
-}
-
-const TD_HOB_GUID: Guid = Guid {
-    data1: 0xf706dd8f,
-    data2: 0x11e9eebe,
-    data3: 0xa7e41499,
-    data4: 0x51e6daa0,
-};
-
-#[derive(Pwrite)]
-struct ConfigurationTable {
-    guid: Guid,
-    table: u64, // should be usize, usize can't be derived by pwrite, but tdx only support 64bit
-}
-
-#[derive(Pwrite)]
-struct TdxHandoffTablePointers {
-    table_descripion_size: u8,
-    table_description: [u8; 8],
-    number_of_tables: u64,
-    table_entry: [ConfigurationTable; 1],
-}
-
-#[repr(C)]
-#[derive(Default, Clone, Copy, Pread, Pwrite)]
-pub struct PayloadInfo {
-    pub image_type: u32,
-    pub entry_point: u64,
-}
-
-const HOB_ACPI_TABLE_GUID: [u8; 16] = [
-    0x70, 0x58, 0x0c, 0x6a, 0xed, 0xd4, 0xf4, 0x44, 0xa1, 0x35, 0xdd, 0x23, 0x8b, 0x6f, 0xc, 0x8d,
-];
-
-const HOB_KERNEL_INFO_GUID: [u8; 16] = [
-    0x12, 0xa4, 0x6f, 0xb9, 0x1f, 0x46, 0xe3, 0x4b, 0x8c, 0xd, 0xad, 0x80, 0x5a, 0x49, 0x7a, 0xc0,
-];
 
 /// Main entry point of the td-shim, and the bootstrap code should jump here.
 ///
@@ -183,7 +128,7 @@ pub extern "win64" fn _start(
     log_hob_list(hob_list, &mut td_event_log);
 
     // If the Kernel Information GUID HOB is present, try to boot the Linux kernel.
-    if let Some(kernel_hob) = hob::get_next_extension_guid_hob(hob_list, &HOB_KERNEL_INFO_GUID) {
+    if let Some(kernel_hob) = hob::get_next_extension_guid_hob(hob_list, &TD_HOB_KERNEL_INFO_GUID) {
         boot_linux_kernel(
             kernel_hob,
             hob_list,
@@ -237,16 +182,16 @@ pub extern "win64" fn _start(
 }
 
 fn log_hob_list(hob_list: &[u8], td_event_log: &mut tcg::TdEventLog) {
-    let hand_off_table_pointers = TdxHandoffTablePointers {
+    let hand_off_table_pointers = TdHandoffTablePointers {
         table_descripion_size: 8,
         table_description: [b't', b'd', b'_', b'h', b'o', b'b', 0, 0],
         number_of_tables: 1,
-        table_entry: [ConfigurationTable {
-            guid: TD_HOB_GUID,
+        table_entry: [TdHandoffTable {
+            guid: TD_LOG_EFI_HANDOFF_TABLE_GUID,
             table: hob_list as *const _ as *const c_void as u64,
         }],
     };
-    let mut tdx_handofftable_pointers_buffer = [0u8; size_of::<TdxHandoffTablePointers>()];
+    let mut tdx_handofftable_pointers_buffer = [0u8; size_of::<TdHandoffTablePointers>()];
 
     tdx_handofftable_pointers_buffer
         .pwrite(hand_off_table_pointers, 0)
@@ -338,7 +283,7 @@ fn prepare_acpi_tables(
     acpi_tables.install(tdel.as_bytes());
 
     let mut next_hob = hob_list;
-    while let Some(hob) = hob::get_next_extension_guid_hob(next_hob, &HOB_ACPI_TABLE_GUID) {
+    while let Some(hob) = hob::get_next_extension_guid_hob(next_hob, &TD_HOB_ACPI_TABLE_GUID) {
         let table = hob::get_guid_data(hob).expect("Failed to get data from ACPI GUID HOB");
         let header = GenericSdtHeader::read_from(&table[..size_of::<GenericSdtHeader>()])
             .expect("Faile to read table header from ACPI GUID HOB");
