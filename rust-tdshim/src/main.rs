@@ -94,10 +94,6 @@ const TD_HOB_GUID: Guid = Guid {
     data4: 0x51e6daa0,
 };
 
-const EV_EFI_EVENT_BASE: u32 = 0x80000000;
-const EV_EFI_HANDOFF_TABLES2: u32 = EV_EFI_EVENT_BASE + 0xB;
-const EV_PLATFORM_CONFIG_FLAGS: u32 = 0x0000000A;
-
 #[derive(Pwrite)]
 struct ConfigurationTable {
     guid: Guid,
@@ -257,7 +253,7 @@ fn log_hob_list(hob_list: &[u8], td_event_log: &mut tcg::TdEventLog) {
         .expect("Failed to log HOB list to the td event log");
     td_event_log.create_event_log(
         1,
-        EV_EFI_HANDOFF_TABLES2,
+        tcg::EV_EFI_HANDOFF_TABLES2,
         &tdx_handofftable_pointers_buffer,
         hob_list,
     );
@@ -518,15 +514,15 @@ fn prepare_hob_list(
         if let Ok(verifier) = &verifier {
             td_event_log.create_event_log(
                 4,
-                EV_PLATFORM_CONFIG_FLAGS,
+                tcg::EV_PLATFORM_CONFIG_FLAGS,
                 b"td payload",
                 verifier::PayloadVerifier::get_trust_anchor(cfv).unwrap(),
             );
             verifier.verify().expect("Verification fails");
-            td_event_log.create_event_log(4, EV_PLATFORM_CONFIG_FLAGS, b"td payload", payload);
+            td_event_log.create_event_log(4, tcg::EV_PLATFORM_CONFIG_FLAGS, b"td payload", payload);
             td_event_log.create_event_log(
                 4,
-                EV_PLATFORM_CONFIG_FLAGS,
+                tcg::EV_PLATFORM_CONFIG_FLAGS,
                 b"td payload svn",
                 &u64::to_le_bytes(verifier.get_payload_svn()),
             );
