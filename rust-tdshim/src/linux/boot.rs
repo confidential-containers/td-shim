@@ -5,6 +5,7 @@
 use crate::e820::E820Entry;
 use crate::linux::kernel_param::{BootParams, SetupHeader};
 use core::mem::size_of;
+use rust_tdshim::{PayloadInfo, TdKernelInfoHobType};
 use scroll::{Pread, Pwrite};
 use td_layout as layout;
 use td_layout::runtime::TD_PAYLOAD_PARAM_BASE;
@@ -25,6 +26,7 @@ const GDT: [u64; 4] = [
 
 pub enum Error {
     InvalidBzImage,
+    UnknownImageType,
 }
 
 pub fn setup_header(kernel_image: &[u8]) -> Result<SetupHeader, Error> {
@@ -52,14 +54,30 @@ pub fn setup_header(kernel_image: &[u8]) -> Result<SetupHeader, Error> {
     Ok(setup_header)
 }
 
-pub fn boot_kernel(kernel: &[u8], rsdp_addr: u64, e820: &[E820Entry]) -> Result<(), Error> {
-    let header = setup_header(kernel)?;
+pub fn boot_kernel(
+    kernel: &[u8],
+    rsdp_addr: u64,
+    e820: &[E820Entry],
+    info: &PayloadInfo,
+) -> Result<(), Error> {
     let mut params: BootParams = BootParams::default();
-
-    params.hdr = header;
     params.acpi_rsdp_addr = rsdp_addr;
     params.e820_entries = e820.len() as u8;
     params.e820_table[..e820.len()].copy_from_slice(e820);
+
+    let image_type = TdKernelInfoHobType::from(info.image_type);
+    match image_type {
+        TdKernelInfoHobType::BzImage => params.hdr = setup_header(kernel)?,
+        TdKernelInfoHobType::RawVmLinux => {
+            params.hdr.type_of_loader = 0xff;
+            params.hdr.boot_flag = 0xaa55;
+            params.hdr.header = 0x5372_6448;
+            params.hdr.kernel_alignment = 0x0100_0000;
+            //params.hdr.cmd_line_ptr = xxx as u32;
+            //params.hdr.cmdline_size = xxx as u32;
+        }
+        _ => return Err(Error::UnknownImageType),
+    }
 
     // Set the GDT, CS/DS/ES/SS, and disable interrupt
     let gdtr = DescriptorTablePointer {
