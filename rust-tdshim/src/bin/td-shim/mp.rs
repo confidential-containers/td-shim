@@ -5,7 +5,7 @@
 use core::mem::size_of;
 use zerocopy::{AsBytes, FromBytes};
 
-use crate::acpi::{self, GenericSdtHeader};
+use rust_tdshim::acpi::{self, GenericSdtHeader};
 
 // 255 vCPUs needs 2278 bytes, refer to create_madt().
 const MADT_MAX_SIZE: usize = 0xc00;

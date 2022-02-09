@@ -9,6 +9,7 @@
 #![cfg_attr(not(test), no_std)]
 #![cfg_attr(not(test), no_main)]
 #![allow(unused_imports)]
+
 use core::ffi::c_void;
 use core::mem::size_of;
 use core::panic::PanicInfo;
@@ -33,8 +34,6 @@ use uefi_pi::{fv, hob, pi};
 
 use crate::acpi::GenericSdtHeader;
 use crate::tcg::TdEventLog;
-#[cfg(feature = "secure-boot")]
-use crate::verifier::PayloadVerifier;
 
 mod asm;
 mod e820;

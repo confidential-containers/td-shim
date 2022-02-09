@@ -42,13 +42,13 @@ This repo includes a full `td-shim`, and sample `td-payload`. The consumer may c
 
 ## td-shim
 
-[rust-tdshim](../rust-tdshim) is a core of td-shim. The entrypoint is `_start()` at [main](../rust-tdshim/src/main.rs). It will initialize the td-shim and switch to td-payload at `switch_stack_call()` of [main](../rust-tdshim/src/main.rs).
+[rust-tdshim](../rust-tdshim) is a core of td-shim. The entrypoint is `_start()` at [main](../rust-tdshim/src/bin/td-shim/main.rs). It will initialize the td-shim and switch to td-payload at `switch_stack_call()` of [main](../rust-tdshim/src/bin/td-shim/main.rs).
 
 The VMM may pass a TD Hand-Off Block (HOB) to the `td-shim` as parameter. The TD HOB is measured and event log is created at `create_td_event()` in [tcg.rs](../rust-tdshim/src/tcg.rs).
 
 Data Execution Prevention (DEP) is setup at `find_and_report_entry_point()` in [ipl.rs](../rust-tdshim/src/ipl.rs). The primitive `set_nx_bit()` and `set_write_protect()` are provided by [memory.rs](../rust-tdshim/src/memory.rs).
 
-Control flow Enforcement Technology (CET) Shadow Stack is setup at `enable_cet_ss()` in [cet_ss.rs](../rust-tdshim/src/cet_ss.rs).
+Control flow Enforcement Technology (CET) Shadow Stack is setup at `enable_cet_ss()` in [cet_ss.rs](../rust-tdshim/src/bin/td-shim/cet_ss.rs).
 
 Stack guard is setup at `stack_guard_enable()` in [stack_guard.rs](../rust-tdshim/src/stack_guard.rs).
 
