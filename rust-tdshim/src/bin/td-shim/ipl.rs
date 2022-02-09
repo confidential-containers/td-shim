@@ -98,7 +98,7 @@ mod tests {
 
     #[test]
     fn test_parse_elf() {
-        let elf = include_bytes!("../../data/blobs/td-payload.elf");
+        let elf = include_bytes!("../../../../data/blobs/td-payload.elf");
         let mut loaded_buffer = vec![0u8; elf.len()];
 
         assert!(elf::is_elf(elf));
@@ -107,7 +107,7 @@ mod tests {
 
     #[test]
     fn test_parse_pe() {
-        let efi = include_bytes!("../../data/blobs/td-payload.efi");
+        let efi = include_bytes!("../../../../data/blobs/td-payload.efi");
         let mut loaded_buffer = vec![0u8; efi.len() * 2];
 
         assert!(pe::is_x86_64_pe(efi));
