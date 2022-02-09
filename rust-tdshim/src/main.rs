@@ -17,11 +17,12 @@ use r_efi::efi;
 use scroll::{Pread, Pwrite};
 use zerocopy::{AsBytes, ByteSlice, FromBytes};
 
-use rust_tdshim::tcg::{
-    self, TdHandoffTable, TdHandoffTablePointers, TD_LOG_EFI_HANDOFF_TABLE_GUID,
+use rust_tdshim::event_log::{
+    self, TdHandoffTable, TdHandoffTablePointers, EV_EFI_HANDOFF_TABLES2, EV_PLATFORM_CONFIG_FLAGS,
+    TD_LOG_EFI_HANDOFF_TABLE_GUID,
 };
 use rust_tdshim::{
-    acpi, td, HobTemplate, PayloadInfo, TD_HOB_ACPI_TABLE_GUID, TD_HOB_KERNEL_INFO_GUID,
+    acpi, HobTemplate, PayloadInfo, TD_HOB_ACPI_TABLE_GUID, TD_HOB_KERNEL_INFO_GUID,
 };
 use td_layout::build_time::{self, *};
 use td_layout::memslice;
@@ -42,6 +43,8 @@ mod linux;
 mod memory;
 mod mp;
 mod stack_guard;
+mod tcg;
+mod td;
 
 #[cfg(feature = "cet-ss")]
 mod cet_ss;
@@ -198,7 +201,7 @@ fn log_hob_list(hob_list: &[u8], td_event_log: &mut tcg::TdEventLog) {
         .expect("Failed to log HOB list to the td event log");
     td_event_log.create_event_log(
         1,
-        tcg::EV_EFI_HANDOFF_TABLES2,
+        EV_EFI_HANDOFF_TABLES2,
         &tdx_handofftable_pointers_buffer,
         hob_list,
     );
@@ -459,15 +462,15 @@ fn prepare_hob_list(
         if let Ok(verifier) = &verifier {
             td_event_log.create_event_log(
                 4,
-                tcg::EV_PLATFORM_CONFIG_FLAGS,
+                EV_PLATFORM_CONFIG_FLAGS,
                 b"td payload",
                 verifier::PayloadVerifier::get_trust_anchor(cfv).unwrap(),
             );
             verifier.verify().expect("Verification fails");
-            td_event_log.create_event_log(4, tcg::EV_PLATFORM_CONFIG_FLAGS, b"td payload", payload);
+            td_event_log.create_event_log(4, EV_PLATFORM_CONFIG_FLAGS, b"td payload", payload);
             td_event_log.create_event_log(
                 4,
-                tcg::EV_PLATFORM_CONFIG_FLAGS,
+                EV_PLATFORM_CONFIG_FLAGS,
                 b"td payload svn",
                 &u64::to_le_bytes(verifier.get_payload_svn()),
             );
