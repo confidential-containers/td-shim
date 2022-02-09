@@ -5,10 +5,14 @@
 #![no_std]
 
 use scroll::{Pread, Pwrite};
+
 use uefi_pi::pi;
 
 pub mod acpi;
 pub mod event_log;
+
+#[cfg(feature = "secure-boot")]
+pub mod secure_boot;
 
 pub const TD_ACPI_TABLE_HOB_GUID: [u8; 16] = [
     0x70, 0x58, 0x0c, 0x6a, 0xed, 0xd4, 0xf4, 0x44, 0xa1, 0x35, 0xdd, 0x23, 0x8b, 0x6f, 0xc, 0x8d,

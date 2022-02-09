@@ -1,13 +1,19 @@
 # td-shim secure boot support
 
-Secure boot in td-shim means the td-shim will verify the digital singature of the payload, beased upon a trusted anchor.
-The payload includes the digital sigature and the public key. The td-shim includes a trust anchor - hash of public key.
+Secure boot in td-shim means the td-shim will verify the digital signature of the payload, based upon a trusted anchor.
+The payload includes the digital signature and the public key. The td-shim includes a trust anchor - hash of public key.
 
-For a TD wants to perform attestation for a payload image, there are two ways. 1) image digest, 2) image Secure Version Number (SVN). One major reason to drive this is to support SVN based attestation. See detail in Attestation section below.
+For a TD wants to perform attestation for a payload image, there are two ways:
+- image digest
+- image Secure Version Number (SVN). 
+
+One major reason to drive this is to support SVN based attestation. See detail in Attestation section below.
 
 ## Signed Payload format
 
-   We do not use [authenticode-PE](https://docs.microsoft.com/en-us/windows/win32/debug/pe-format) or [signed-module](https://www.kernel.org/doc/html/v4.15/admin-guide/module-signing.html) format, because X.509/PKCS7 is complicated and authenticode does not include SVN.
+   We do not use [authenticode-PE](https://docs.microsoft.com/en-us/windows/win32/debug/pe-format) or
+   [signed-module](https://www.kernel.org/doc/html/v4.15/admin-guide/module-signing.html) format, because X.509/PKCS7
+   is complicated and authenticode does not include SVN.
 
    We define below signed payload format:
 
@@ -56,7 +62,7 @@ For a TD wants to perform attestation for a payload image, there are two ways. 1
       +--------------------------+
    ```
 
-## Trust Anchor in Td-Shim.
+## Trust Anchor in Td-Shim
 
    The trust anchor is the hash of public key.
 
@@ -97,8 +103,8 @@ For a TD wants to perform attestation for a payload image, there are two ways. 1
 
 ## Build Time Enroll and Signature Generation
 
- * A `rust-tdshim-key-enroll` tool to enroll the public key hash to CFV.
- * A sample `rust-tdpayload-signing` tool to sign the payload image.
+ * A `td-shim-enroll-key` tool to enroll the public key hash to CFV.
+ * A sample `td-shim-sign-payload` tool to sign the payload image.
 
 ## Runtime Verification and Extension in td-shim
 

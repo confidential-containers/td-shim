@@ -16,7 +16,7 @@ members = [
     "td-logger",
     "td-paging",
     "td-payload",
-    "td-shim-enroll-key",
+    "td-shim-tools",
     "td-shim-ld",
     "td-shim-sign-payload",
     "tdx-tdcall",

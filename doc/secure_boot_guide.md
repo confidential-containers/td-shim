@@ -1,10 +1,11 @@
 # Secure boot guide for td-shim
-This guide follows (secure boot specification)[secure_boot.md] for td-shim.
+
+This guide follows the [Secure Boot Specification](secure_boot.md) for td-shim.
 
 ## Build td-shim with secure boot feature enabled
 
 ```
-cargo xbuild -p rust-tdshim --features "secure-boot" --target x86_64-unknown-uefi --release
+cargo xbuild -p td-shim --features "secure-boot" --target x86_64-unknown-uefi --release
 ```
 
 ## Build payload
@@ -12,9 +13,7 @@ cargo xbuild -p rust-tdshim --features "secure-boot" --target x86_64-unknown-uef
 Refer to [README](../README.md), using ELF as example:
 
 ```
-pushd rust-td-payload
-cargo xbuild --target target.json --release
-popd
+cargo xbuild -p td-payload --target devtools/rustc-targets/x86_64-unknown-none.json --release
 ```
 
 ## Generate Key
@@ -62,23 +61,19 @@ set AR=
 
 Run the signing tool:
 ```
-pushd rust-tdpayload-signing
-cargo run -- ../target/target/release/rust-td-payload 1 1 ECDSA_NIST_P384_SHA384 ../sample_key/ecdsa-p384-private.pk8
-popd
+cargo run -p td-shim-tools --bin td-shim-sign-payload -- -A ECDSA_NIST_P384_SHA384 target/x86_64-unknown-none/release/td-payload 1 1 data/sample-keys/ecdsa-p384-private.pk8 
 ```
-The signed payload file **rust-td-payload-signed** is located in the same folder with input rust-td-payload.
+The signed payload file **td-payload-signed** is located in the same folder with input `td-payload`.
 
-## Enroll public key into CFV with [rust-tdshim-key-enroll](../td-shim-enroll-key)
+## Enroll public key into CFV with [rust-tdshim-key-enroll](../td-shim-tools)
 Build final.bin:
 ```
-cargo run -p rust-td-tool -- target/x86_64-unknown-uefi/release/ResetVector.bin target/x86_64-unknown-uefi/release/rust-tdshim.efi target/target/release/rust-td-payload-signed target/x86_64-unknown-uefi/release/final.bin
+cargo run -p td-shim-tools --bin td-shim-ld -- target/x86_64-unknown-uefi/release/ResetVector.bin target/x86_64-unknown-uefi/release/rust-tdshim.efi target/x86_64-unknown-none/release/td-payload-signed -o target/x86_64-unknown-uefi/release/final.bin
 ```
 
 Enroll public key:
 ```
-pushd rust-tdshim-key-enroll
-cargo run -- ../target/x86_64-unknown-uefi/release/final.bin ../sample_key/ecdsa-p384-public.der SHA384
-popd
+cargo run -p td-shim-tools --bin td-shim-enroll-key -- -H SHA384 target/x86_64-unknown-uefi/release/final.bin data/sample-keys/ecdsa-p384-public.der
 ```
 
 The output file **final.sb.bin** with secure boot enabled is located in the same folder with input final.bin.
