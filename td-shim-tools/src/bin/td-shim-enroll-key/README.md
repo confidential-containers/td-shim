@@ -38,10 +38,10 @@ openssl rsa -inform der -in rsa-3072-private.pk8 -pubout -outform der -out rsa-3
 
 Run the tool:
 ```
-cargo run -- {tdshim_file} {public_key_file} [-H {hash_algorithm}] [-o {output_file}]
+cargo run -p td-shim-tools --bin td-shim-enroll-key -- [-H {hash_algorithm}] [-o {output_file}] {tdshim_file} {public_key_file}
 ```
 
 For example:
 ```
-cargo run -- -H SHA384 -o final.sb.bin ../target/x86_64-unknown-uefi/release/final.bin ecdsa-p384-public.der
+cargo run -p td-shim-tools --bin td-shim-enroll-key -- -H SHA384 -o final.sb.bin target/x86_64-unknown-uefi/release/final.bin data/sample-keys/ecdsa-p384-public.der
 ```

@@ -3,30 +3,75 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
-#[macro_use]
-extern crate clap;
+use core::mem::size_of;
+use td_layout::build_time::TD_SHIM_CONFIG_SIZE;
+use td_shim_ld::{write_u24, FvFfsHeader, FvHeader};
+use uefi_pi::pi::fv::{FIRMWARE_FILE_SYSTEM3_GUID, FV_FILETYPE_RAW};
 
 use std::convert::TryFrom;
+use std::io;
 use std::path::PathBuf;
-use std::str::FromStr;
 use std::vec::Vec;
-use std::{env, io, path::Path};
 
-use log::{error, trace, LevelFilter};
+use log::error;
 use ring::digest;
+
 use td_layout::build_time::{TD_SHIM_CONFIG_OFFSET, TD_SHIM_FIRMWARE_SIZE};
-use td_shim_enroll_key::public_key::{
-    RsaPublicKeyInfo, SubjectPublicKeyInfo, ID_EC_PUBKEY_OID, RSA_PUBKEY_OID, SECP384R1_OID,
-};
-use td_shim_enroll_key::{
-    build_cfv_ffs_header, build_cfv_header, CfvPubKeyFileHeader, CFV_FILE_HEADER_PUBKEY_GUID,
-    PUBKEY_FILE_STRUCT_VERSION_V1, PUBKEY_HASH_ALGORITHM_SHA384,
+use td_shim::secure_boot::{
+    CfvPubKeyFileHeader, CFV_FILE_HEADER_PUBKEY_GUID, PUBKEY_FILE_STRUCT_VERSION_V1,
+    PUBKEY_HASH_ALGORITHM_SHA384,
 };
 use td_shim_ld::linker::{InputData, OutputFile};
 
-const TDSHIM_SB_NAME: &str = "final.sb.bin";
+use crate::public_key::{
+    RsaPublicKeyInfo, SubjectPublicKeyInfo, ID_EC_PUBKEY_OID, RSA_PUBKEY_OID, SECP384R1_OID,
+};
 
-fn enroll_key(
+/// Build a Configure Firmware Volume header for public key hash.
+pub fn build_cfv_header() -> FvHeader {
+    let mut cfv_header = FvHeader::default();
+
+    cfv_header
+        .fv_header
+        .file_system_guid
+        .copy_from_slice(FIRMWARE_FILE_SYSTEM3_GUID.as_bytes());
+    cfv_header.fv_header.fv_length = TD_SHIM_CONFIG_SIZE as u64;
+    cfv_header.fv_header.checksum = 0xdc0a;
+    cfv_header.fv_block_map[0].num_blocks = (TD_SHIM_CONFIG_SIZE as u32) / 0x1000;
+    cfv_header.fv_block_map[0].length = 0x1000;
+    cfv_header.fv_ext_header.ext_header_size = 0x14;
+
+    cfv_header
+}
+
+/// Build a Configure Firmware Volume Filesystem header for public key hash.
+pub fn build_cfv_ffs_header() -> FvFfsHeader {
+    let mut cfv_ffs_header = FvFfsHeader::default();
+    cfv_ffs_header
+        .ffs_header
+        .name
+        .copy_from_slice(td_shim::secure_boot::CFV_FFS_HEADER_TRUST_ANCHOR_GUID.as_bytes());
+
+    cfv_ffs_header.ffs_header.integrity_check = 0xaa4c;
+    cfv_ffs_header.ffs_header.r#type = FV_FILETYPE_RAW;
+    cfv_ffs_header.ffs_header.attributes = 0x00;
+    write_u24(
+        TD_SHIM_CONFIG_SIZE - size_of::<FvHeader>() as u32,
+        &mut cfv_ffs_header.ffs_header.size,
+    );
+    cfv_ffs_header.ffs_header.state = 0x07u8;
+
+    cfv_ffs_header
+}
+
+/// Enroll a public key into the Configure Firmware Volume of shim binary for secure boot.
+///
+/// Secure boot in td-shim means the td-shim will verify the digital signature of the payload,
+/// based upon a trusted anchor. The payload includes the digital signature and the public key.
+/// The td-shim includes a trust anchor - hash of public key.
+///
+/// Please refer to section "Trust Anchor in Td-Shim" in doc/secure_boot.md for definitions.
+pub fn enroll_key(
     tdshim_file: &str,
     key_file: &str,
     output_file: PathBuf,
@@ -124,83 +169,4 @@ fn enroll_key(
     output.flush()?;
 
     Ok(())
-}
-
-fn main() -> io::Result<()> {
-    use env_logger::Env;
-    let env = Env::default()
-        .filter_or("MY_LOG_LEVEL", "info")
-        .write_style_or("MY_LOG_STYLE", "always");
-    env_logger::init_from_env(env);
-
-    let matches = app_from_crate!()
-        .arg(
-            arg!([tdshim] "shim binary file")
-                .required(true)
-                .allow_invalid_utf8(false),
-        )
-        .arg(
-            arg!([key] "key file for enrollment")
-                .required(true)
-                .allow_invalid_utf8(false),
-        )
-        .arg(
-            arg!(-H --hash "hash algorithm to compute digest")
-                .required(false)
-                .takes_value(true)
-                .default_value("SHA384"),
-        )
-        .arg(
-            arg!(-l --"log-level" "logging level: [off, error, warn, info, debug, trace]")
-                .required(false)
-                .default_value("info"),
-        )
-        .arg(
-            arg!(-o --output "output of the enrolled shim binary file")
-                .required(false)
-                .takes_value(true)
-                .allow_invalid_utf8(false),
-        )
-        .get_matches();
-
-    if let Ok(lvl) = LevelFilter::from_str(matches.value_of("log-level").unwrap()) {
-        log::set_max_level(lvl);
-    }
-
-    // Safe to unwrap() because they are mandatory or have default values.
-    let tdshim_file = matches.value_of("tdshim").unwrap();
-    let key_file = matches.value_of("key").unwrap();
-    let hash_alg = matches.value_of("hash").unwrap();
-    let output_file = match matches.value_of("output") {
-        Some(v) => Path::new(v).to_path_buf(),
-        None => {
-            let p = Path::new(tdshim_file).canonicalize().map_err(|e| {
-                error!("Invalid tdshim file path {}: {}", tdshim_file, e);
-                e
-            })?;
-            p.parent().unwrap_or(Path::new("/")).join(TDSHIM_SB_NAME)
-        }
-    };
-
-    trace!(
-        "\nrust-tdpayload-signing {} {} {} to {}\n",
-        tdshim_file,
-        key_file,
-        hash_alg,
-        output_file.display(),
-    );
-
-    // Hash public key
-    let hash_alg = match hash_alg {
-        "SHA384" => &digest::SHA384,
-        _ => {
-            error!("Unsupported hash algorithm {}", hash_alg);
-            return Err(io::Error::new(
-                io::ErrorKind::Other,
-                "unsupported hash algorithm",
-            ));
-        }
-    };
-
-    enroll_key(tdshim_file, key_file, output_file, hash_alg)
 }
