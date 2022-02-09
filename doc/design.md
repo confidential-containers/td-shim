@@ -42,19 +42,19 @@ This repo includes a full `td-shim`, and sample `td-payload`. The consumer may c
 
 ## td-shim
 
-[rust-tdshim](../rust-tdshim) is a core of td-shim. The entrypoint is `_start()` at [main](../rust-tdshim/src/bin/td-shim/main.rs). It will initialize the td-shim and switch to td-payload at `switch_stack_call()` of [main](../rust-tdshim/src/bin/td-shim/main.rs).
+[rust-tdshim](../td-shim) is a core of td-shim. The entrypoint is `_start()` at [main](../td-shim/src/bin/td-shim/main.rs). It will initialize the td-shim and switch to td-payload at `switch_stack_call()` of [main](../td-shim/src/bin/td-shim/main.rs).
 
-The VMM may pass a TD Hand-Off Block (HOB) to the `td-shim` as parameter. The TD HOB is measured and event log is created at `create_td_event()` in [tcg.rs](../rust-tdshim/src/tcg.rs).
+The VMM may pass a TD Hand-Off Block (HOB) to the `td-shim` as parameter. The TD HOB is measured and event log is created at `create_td_event()` in [tcg.rs](../td-shim/src/tcg.rs).
 
-Data Execution Prevention (DEP) is setup at `find_and_report_entry_point()` in [ipl.rs](../rust-tdshim/src/ipl.rs). The primitive `set_nx_bit()` and `set_write_protect()` are provided by [memory.rs](../rust-tdshim/src/memory.rs).
+Data Execution Prevention (DEP) is setup at `find_and_report_entry_point()` in [ipl.rs](../td-shim/src/ipl.rs). The primitive `set_nx_bit()` and `set_write_protect()` are provided by [memory.rs](../td-shim/src/memory.rs).
 
-Control flow Enforcement Technology (CET) Shadow Stack is setup at `enable_cet_ss()` in [cet_ss.rs](../rust-tdshim/src/bin/td-shim/cet_ss.rs).
+Control flow Enforcement Technology (CET) Shadow Stack is setup at `enable_cet_ss()` in [cet_ss.rs](../td-shim/src/bin/td-shim/cet_ss.rs).
 
-Stack guard is setup at `stack_guard_enable()` in [stack_guard.rs](../rust-tdshim/src/stack_guard.rs).
+Stack guard is setup at `stack_guard_enable()` in [stack_guard.rs](../td-shim/src/stack_guard.rs).
 
 ### Reset vector
 
-[ResetVector](../rust-tdshim/ResetVector) is the reset vector inside of the `td-shim`. It owns the first instruction in the TD at address 0xFFFFFFF0. This is implemented in the IA32 code named [resetVector](../rust-tdshim/ResetVector/Ia32/ResetVectorVtf0.asm). The code then switches to long mode, parks application processors (APs), initializes the stack, copies the `td-shim` core to low memory (1MB) and call to `rust-tdshim` via an indirect call `call    rsi` at [main](../rust-tdshim/ResetVector/Main.asm)
+[ResetVector](../td-shim/ResetVector) is the reset vector inside of the `td-shim`. It owns the first instruction in the TD at address 0xFFFFFFF0. This is implemented in the IA32 code named [resetVector](../td-shim/ResetVector/Ia32/ResetVectorVtf0.asm). The code then switches to long mode, parks application processors (APs), initializes the stack, copies the `td-shim` core to low memory (1MB) and call to `rust-tdshim` via an indirect call `call    rsi` at [main](../td-shim/ResetVector/Main.asm)
 
 ### TDX related lib
 
