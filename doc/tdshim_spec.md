@@ -363,10 +363,13 @@ typedef enum {
   //   plus 0x200
   PayloadImageTypeBzImage,
 
+  // Payload Binary is vmlinux, follow Linux boot protocol.
+  // It's an ELF64 binary image.
+  PayloadImageTypeVmLinux,
+
   // Payload Binary is VMM loaded vmLinux, follow Linux boot protocol.
   // The entrypoint is defined at HOB_PAYLOAD_INFO_TABLE.Entrypoint.
   PayloadImageTypeRawVmLinux,
-
 
 } PAYLOAD_IMAGE_TYPE;
 
