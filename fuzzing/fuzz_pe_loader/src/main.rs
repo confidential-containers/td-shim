@@ -40,7 +40,7 @@ fn main() {
                     }
                 }
                 Err(_) => {
-                    let path = "fuzzing/in/fuzz_pe_loader/rust-tdshim.efi";
+                    let path = "fuzzing/in/fuzz_pe_loader/td-shim.efi";
                     let data = std::fs::read(path).expect("read crash file fail");
                     fuzz_pe_loader(data.as_slice());
                 }

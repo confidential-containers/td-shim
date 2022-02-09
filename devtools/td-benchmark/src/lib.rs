@@ -19,7 +19,7 @@ use td_layout::RuntimeMemoryLayout;
 pub static ALLOCATOR: MyHeap = MyHeap::empty();
 
 // stack guard is enabled and the stack needs add guard size
-// for stack layout, please refer to rust-tdshim/src/stack_guard.rs.
+// for stack layout, please refer to td-shim/src/stack_guard.rs.
 // REVISIT: need a better way to remove the duplicated definition here.
 const STACK_GUARD_PAGE_SIZE: usize = 0x1000;
 const STACK_EXCEPTION_PAGE_SIZE: usize = 0x1000;

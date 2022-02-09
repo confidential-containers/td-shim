@@ -1,12 +1,12 @@
 [workspace]
 resolver = "2"
-default-members = ["rust-tdshim", "td-payload"]
+default-members = ["td-shim", "td-payload"]
 members = [
     "devtools/td-layout-config",
     "devtools/td-benchmark",
     "devtools/test-runner-server",
     "devtools/test-runner-client",
-    "rust-tdshim",
+    "td-shim",
     "fuzzing/fuzz_pe_loader",
     "fuzzing/fuzz_elf_loader",
     "fuzzing/fuzz_fv_parser",

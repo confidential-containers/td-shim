@@ -61,21 +61,21 @@ jobs:
           AR: llvm-ar
         with:
           command: xbuild
-          args: -p rust-tdshim --target x86_64-unknown-uefi --release --features=tdx
+          args: -p td-shim --target x86_64-unknown-uefi --release --features=tdx
 
       - name: Build PE format payload
         run: |
           pushd td-payload
           cargo xbuild --target x86_64-unknown-uefi --release --features=tdx
           popd
-          cargo run -p td-shim-ld -- target/x86_64-unknown-uefi/release/ResetVector.bin target/x86_64-unknown-uefi/release/rust-tdshim.efi target/x86_64-unknown-uefi/release/td-payload.efi -o target/x86_64-unknown-uefi/release/final.bin
+          cargo run -p td-shim-ld -- target/x86_64-unknown-uefi/release/ResetVector.bin target/x86_64-unknown-uefi/release/td-shim.efi target/x86_64-unknown-uefi/release/td-payload.efi -o target/x86_64-unknown-uefi/release/final.bin
 
       - name: Build Elf format payload
         run: |
           pushd td-payload
           cargo xbuild --target ../devtools/rustc-targets/x86_64-unknown-none.json --release --features=tdx
           popd
-          cargo run -p td-shim-ld -- target/x86_64-unknown-uefi/release/ResetVector.bin target/x86_64-unknown-uefi/release/rust-tdshim.efi target/x86_64-unknown-none/release/td-payload -o target/x86_64-unknown-uefi/release/final.bin
+          cargo run -p td-shim-ld -- target/x86_64-unknown-uefi/release/ResetVector.bin target/x86_64-unknown-uefi/release/td-shim.efi target/x86_64-unknown-none/release/td-payload -o target/x86_64-unknown-uefi/release/final.bin
 
   test:
     name: Test
