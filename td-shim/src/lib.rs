@@ -10,8 +10,8 @@ use uefi_pi::pi;
 
 pub mod acpi;
 pub mod event_log;
-
-#[cfg(feature = "secure-boot")]
+pub mod fv;
+pub mod reset_vector;
 pub mod secure_boot;
 
 pub const TD_ACPI_TABLE_HOB_GUID: [u8; 16] = [
@@ -96,4 +96,12 @@ pub struct HobTemplate {
 pub struct PayloadInfo {
     pub image_type: u32,
     pub entry_point: u64,
+}
+
+/// Write three bytes from an integer value into the buffer.
+pub fn write_u24(data: u32, buf: &mut [u8]) {
+    assert!(data < 0xffffff);
+    buf[0] = (data & 0xFF) as u8;
+    buf[1] = ((data >> 8) & 0xFF) as u8;
+    buf[2] = ((data >> 16) & 0xFF) as u8;
 }

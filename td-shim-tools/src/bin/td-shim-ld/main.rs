@@ -6,10 +6,11 @@
 #[macro_use]
 extern crate clap;
 
-use log::LevelFilter;
 use std::io;
 use std::str::FromStr;
-use td_shim_ld::linker::TdShimLinker;
+
+use log::LevelFilter;
+use td_shim_tools::linker::TdShimLinker;
 
 fn main() -> io::Result<()> {
     use env_logger::Env;
@@ -19,6 +20,7 @@ fn main() -> io::Result<()> {
     env_logger::init_from_env(env);
 
     let matches = app_from_crate!()
+        .about("Link multiple shim objects into shim binary")
         .arg(
             arg!([reset_vector] "Reset_vector binary file")
                 .required(true)

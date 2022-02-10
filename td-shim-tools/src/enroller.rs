@@ -3,29 +3,26 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
-use core::mem::size_of;
-use td_layout::build_time::TD_SHIM_CONFIG_SIZE;
-use td_shim_ld::{write_u24, FvFfsHeader, FvHeader};
-use uefi_pi::pi::fv::{FIRMWARE_FILE_SYSTEM3_GUID, FV_FILETYPE_RAW};
-
 use std::convert::TryFrom;
 use std::io;
+use std::mem::size_of;
 use std::path::PathBuf;
 use std::vec::Vec;
 
 use log::error;
 use ring::digest;
-
-use td_layout::build_time::{TD_SHIM_CONFIG_OFFSET, TD_SHIM_FIRMWARE_SIZE};
+use td_layout::build_time::{TD_SHIM_CONFIG_OFFSET, TD_SHIM_CONFIG_SIZE, TD_SHIM_FIRMWARE_SIZE};
+use td_shim::fv::{FvFfsFileHeader, FvHeader};
 use td_shim::secure_boot::{
     CfvPubKeyFileHeader, CFV_FILE_HEADER_PUBKEY_GUID, PUBKEY_FILE_STRUCT_VERSION_V1,
     PUBKEY_HASH_ALGORITHM_SHA384,
 };
-use td_shim_ld::linker::{InputData, OutputFile};
+use uefi_pi::pi::fv::{FIRMWARE_FILE_SYSTEM3_GUID, FV_FILETYPE_RAW};
 
 use crate::public_key::{
     RsaPublicKeyInfo, SubjectPublicKeyInfo, ID_EC_PUBKEY_OID, RSA_PUBKEY_OID, SECP384R1_OID,
 };
+use crate::{write_u24, InputData, OutputFile};
 
 /// Build a Configure Firmware Volume header for public key hash.
 pub fn build_cfv_header() -> FvHeader {
@@ -45,8 +42,8 @@ pub fn build_cfv_header() -> FvHeader {
 }
 
 /// Build a Configure Firmware Volume Filesystem header for public key hash.
-pub fn build_cfv_ffs_header() -> FvFfsHeader {
-    let mut cfv_ffs_header = FvFfsHeader::default();
+pub fn build_cfv_ffs_header() -> FvFfsFileHeader {
+    let mut cfv_ffs_header = FvFfsFileHeader::default();
     cfv_ffs_header
         .ffs_header
         .name

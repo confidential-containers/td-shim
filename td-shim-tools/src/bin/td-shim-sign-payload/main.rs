@@ -12,8 +12,8 @@ use env_logger::Env;
 use log::{error, trace, LevelFilter};
 use ring::signature::{EcdsaKeyPair, RsaKeyPair, ECDSA_P384_SHA384_FIXED_SIGNING};
 use td_layout::build_time::TD_SHIM_PAYLOAD_SIZE;
-use td_shim_ld::linker::{InputData, OutputFile};
 use td_shim_tools::signer::{PayloadSigner, SigningAlgorithm};
+use td_shim_tools::{InputData, OutputFile};
 
 const SIGNED_TDPAYLOAD_NAME: &str = "td-payload-signed";
 

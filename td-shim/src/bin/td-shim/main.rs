@@ -18,23 +18,23 @@ use r_efi::efi;
 use scroll::{Pread, Pwrite};
 use zerocopy::{AsBytes, ByteSlice, FromBytes};
 
-use rust_tdshim::event_log::{
-    self, TdHandoffTable, TdHandoffTablePointers, EV_EFI_HANDOFF_TABLES2, EV_PLATFORM_CONFIG_FLAGS,
-    TD_LOG_EFI_HANDOFF_TABLE_GUID,
-};
-use rust_tdshim::{
-    acpi, HobTemplate, PayloadInfo, TdKernelInfoHobType, TD_ACPI_TABLE_HOB_GUID,
-    TD_KERNEL_INFO_HOB_GUID,
-};
 use td_layout::build_time::{self, *};
 use td_layout::memslice;
 use td_layout::runtime::{self, *};
 use td_layout::RuntimeMemoryLayout;
+use td_shim::acpi::GenericSdtHeader;
+use td_shim::event_log::{
+    self, TdHandoffTable, TdHandoffTablePointers, EV_EFI_HANDOFF_TABLES2, EV_PLATFORM_CONFIG_FLAGS,
+    TD_LOG_EFI_HANDOFF_TABLE_GUID,
+};
+use td_shim::{
+    HobTemplate, PayloadInfo, TdKernelInfoHobType, TD_ACPI_TABLE_HOB_GUID, TD_KERNEL_INFO_HOB_GUID,
+};
 use uefi_pi::{fv, hob, pi};
 
-use crate::acpi::GenericSdtHeader;
 use crate::tcg::TdEventLog;
 
+mod acpi;
 mod asm;
 mod e820;
 mod heap;

@@ -3,11 +3,11 @@
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
 use core::convert::TryInto;
-use rust_tdshim::event_log::{
+use scroll::{Pread, Pwrite};
+use td_shim::event_log::{
     TcgPcrEvent2Header, Tdel, TpmlDigestValues, TpmtHa, TpmuHa, PCR_EVENT_HEADER_SIZE,
     SHA384_DIGEST_SIZE, TPML_ALG_SHA384,
 };
-use scroll::{Pread, Pwrite};
 
 #[allow(unused)]
 pub struct TdEventLog {
