@@ -1,5 +1,5 @@
 export CARGO=cargo
-export BUILD_TYPE:=debug
+export BUILD_TYPE:=release
 export PREFIX:=/usr/local
 
 export TOPDIR=$(shell pwd)
@@ -12,7 +12,7 @@ endif
 LIB_CRATES = pe-loader td-exception td-layout td-logger td-paging tdx-tdcall
 SHIM_CRATES = td-shim td-payload
 TEST_CRATES = test-td-exception test-td-paging test-td-payload
-TOOL_CRATES = td-shim-ld td-shim-tools
+TOOL_CRATES = td-shim-tools
 
 # Targets for normal artifacts
 all: install-devtools build test
@@ -45,18 +45,17 @@ uninstall-devtools: uninstall-subdir-devtools $(TOOL_CRATES:%=uninstall-devtool-
 
 install-devtool-%: build-%
 	mkdir -p ${TOPDIR}/devtools/bin
-	install -m u+rx ${TOPDIR}/target/${BUILD_TYPE}/$(patsubst install-devtool-%,%,$@) ${TOPDIR}/devtools/bin/
+	cargo install --bins --target-dir ${TOPDIR}/devtools/bin/ --path $(patsubst install-devtool-%,%,$@)
 
 uninstall-devtool-%:
-	rm ${TOPDIR}/devtools/bin/$(patsubst uninstall-devtool-%,%,$@)
+	cargo uninstall --root ${TOPDIR}/devtools/bin/ --path $(patsubst uninstall-devtool-%,%,$@)
 
 # Targets for tool crates
 install-tool-%: build-%
-	mkdir -p ${TOPDIR}/devtools/bin
-	install -m u+rx ${TOPDIR}/target/${BUILD_TYPE}/$(patsubst install-tool-%,%,$@) ${PREFIX}/bin/
+	cargo install --bins --path $(patsubst install-tool-%,%,$@)
 
 uninstall-tool-%:
-	rm ${PREFIX}/bin/$(patsubst uninstall-tool-%,%,$@)
+	cargo uninstall --path $(patsubst uninstall-devtool-%,%,$@)
 
 # Targets for library crates
 lib-build: $(LIB_CRATES:%=build-%)
@@ -78,13 +77,13 @@ integration-clean: $(TEST_CRATES:%=integration-clean-%)
 
 # Target for crates which should be compiled with `x86_64-unknown-uefi` target
 uefi-build-%:
-	cargo xbuild --target x86_64-unknown-uefi -p $(patsubst uefi-build-%,%,$@) ${BUILD_TYPE_FLAG}
+	cargo xbuild --target x86_64-unknown-uefi -p $(patsubst uefi-build-%,%,$@) --features=main ${BUILD_TYPE_FLAG}
 
 uefi-check-%:
-	cargo xcheck --target x86_64-unknown-uefi -p $(patsubst uefi-check-%,%,$@) ${BUILD_TYPE_FLAG}
+	cargo xcheck --target x86_64-unknown-uefi -p $(patsubst uefi-check-%,%,$@) --features=main ${BUILD_TYPE_FLAG}
 
 uefi-clean-%:
-	cargo clean --target x86_64-unknown-uefi -p $(patsubst uefi-clean-%,%,$@) ${BUILD_TYPE_FLAG}
+	cargo clean --target x86_64-unknown-uefi -p $(patsubst uefi-clean-%,%,$@) --features=main ${BUILD_TYPE_FLAG}
 
 # Target for integration test crates which should be compiled with `x86_64-custom.json` target
 integration-build-%:

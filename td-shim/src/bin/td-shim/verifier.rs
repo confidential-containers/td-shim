@@ -12,12 +12,10 @@ use ring::{
     signature::{self, UnparsedPublicKey, VerificationAlgorithm},
 };
 use scroll::{Pread, Pwrite};
-use td_shim_enroll_key::{
-    CfvPubKeyFileHeader, CFV_FFS_HEADER_TRUST_ANCHOR_GUID, CFV_FILE_HEADER_PUBKEY_GUID,
-};
-use td_shim_sign_payload::{
-    PayloadSignHeader, TD_PAYLOAD_SIGN_ECDSA_NIST_P384_SHA384, TD_PAYLOAD_SIGN_HEADER_GUID,
-    TD_PAYLOAD_SIGN_RSA_PSS_3072_SHA384,
+use td_shim::secure_boot::{
+    CfvPubKeyFileHeader, PayloadSignHeader, CFV_FFS_HEADER_TRUST_ANCHOR_GUID,
+    CFV_FILE_HEADER_PUBKEY_GUID, PAYLOAD_SIGN_ECDSA_NIST_P384_SHA384,
+    PAYLOAD_SIGN_RSA_PSS_3072_SHA384, SIGNED_PAYLOAD_FILE_HEADER_GUID,
 };
 use uefi_pi::{fv, pi};
 
@@ -60,7 +58,7 @@ impl<'a> PayloadVerifier<'a> {
         let mut offset = header.length as usize;
         if
         /*offset <= size_of::<PayloadSignHeader>() || offset >= signed_payload.len() || */
-        &header.type_guid != TD_PAYLOAD_SIGN_HEADER_GUID.as_bytes() {
+        &header.type_guid != SIGNED_PAYLOAD_FILE_HEADER_GUID.as_bytes() {
             return Err(VerifyErr::InvalidContent);
         }
 
@@ -72,7 +70,7 @@ impl<'a> PayloadVerifier<'a> {
         let signature;
         let public_key;
         match header.signing_algorithm {
-            TD_PAYLOAD_SIGN_ECDSA_NIST_P384_SHA384 => {
+            PAYLOAD_SIGN_ECDSA_NIST_P384_SHA384 => {
                 if signed_payload.len() < offset + 192 {
                     return Err(VerifyErr::InvalidContent);
                 }
@@ -90,7 +88,7 @@ impl<'a> PayloadVerifier<'a> {
 
                 verify_alg = &signature::ECDSA_P384_SHA384_FIXED;
             }
-            TD_PAYLOAD_SIGN_RSA_PSS_3072_SHA384 => {
+            PAYLOAD_SIGN_RSA_PSS_3072_SHA384 => {
                 if signed_payload.len() < offset + 776 {
                     return Err(VerifyErr::InvalidContent);
                 }
