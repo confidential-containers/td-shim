@@ -13,8 +13,7 @@ use log::{error, trace, LevelFilter};
 use ring::signature::{EcdsaKeyPair, RsaKeyPair, ECDSA_P384_SHA384_FIXED_SIGNING};
 use td_layout::build_time::TD_SHIM_PAYLOAD_SIZE;
 use td_shim_ld::linker::{InputData, OutputFile};
-
-use td_shim_sign_payload::signer::{PayloadSigner, SigningAlgorithm};
+use td_shim_tools::signer::{PayloadSigner, SigningAlgorithm};
 
 const SIGNED_TDPAYLOAD_NAME: &str = "td-payload-signed";
 
@@ -25,6 +24,12 @@ fn main() -> io::Result<()> {
     env_logger::init_from_env(env);
 
     let matches = app_from_crate!()
+        .about("Sign shim payload with given private key")
+        .arg(
+            arg!([key] "private key file to sign the payload")
+                .required(true)
+                .allow_invalid_utf8(false),
+        )
         .arg(
             arg!([payload] "payload binary file")
                 .required(true)
@@ -37,11 +42,6 @@ fn main() -> io::Result<()> {
         )
         .arg(
             arg!([svn] "security version number")
-                .required(true)
-                .allow_invalid_utf8(false),
-        )
-        .arg(
-            arg!([key] "private key file to sign the payload")
                 .required(true)
                 .allow_invalid_utf8(false),
         )

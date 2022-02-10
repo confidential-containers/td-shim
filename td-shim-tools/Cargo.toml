@@ -11,6 +11,10 @@ edition = "2018"
 name = "td-shim-enroll-key"
 required-features = ["enroller"]
 
+[[bin]]
+name = "td-shim-sign-payload"
+required-features = ["signer"]
+
 [dependencies]
 r-efi = "3.2.0"
 scroll = { version = "0.10", default-features = false, features = ["derive"]}
@@ -26,5 +30,6 @@ log = { version = "0.4.5", optional = true }
 ring = { git = "https://github.com/jyao1/ring.git", branch = "uefi_support", default-features = false, features = ["alloc"], optional = true }
 
 [features]
-default = ["enroller"]
+default = ["enroller", "signer"]
 enroller = ["clap", "der", "env_logger", "log", "ring", "td-shim/secure-boot", "td-shim-ld/linker"]
+signer = ["clap", "der", "env_logger", "log", "ring", "td-shim/secure-boot", "td-shim-ld/linker"]
