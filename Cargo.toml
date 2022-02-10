@@ -18,7 +18,6 @@ members = [
     "td-payload",
     "td-shim-tools",
     "td-shim-ld",
-    "td-shim-sign-payload",
     "tdx-tdcall",
     "tests/test-td-exception",
     "tests/test-td-paging",

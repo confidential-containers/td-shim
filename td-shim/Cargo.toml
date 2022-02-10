@@ -38,7 +38,6 @@ x86_64 = { version = "=0.14.6", optional = true }
 
 # secure boot
 der = {version = "0.4.5", features = ["derive", "alloc"], optional = true}
-td-shim-sign-payload = { path = "../td-shim-sign-payload", default-features = false, optional = true }
 
 # TDX
 tdx-tdcall = { path = "../tdx-tdcall", optional = true }
@@ -47,7 +46,7 @@ tdx-tdcall = { path = "../tdx-tdcall", optional = true }
 default = ["boot-kernel", "cet-ss", "secure-boot"]
 boot-kernel = ["td-layout/boot-kernel"]
 cet-ss = []
-secure-boot = ["der", "td-shim-sign-payload"]
+secure-boot = ["der"]
 tdx = ["tdx-tdcall", "td-exception/tdx", "td-logger/tdx", "x86"]
 main = [
     "elf-loader",

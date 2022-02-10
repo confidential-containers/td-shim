@@ -1,6 +1,7 @@
 ## Payload signing
 
-This tool accepts **DER encoded PKCS8 format** private key file as input. It generates signed payload binary which contains verify header, public key and signature.
+This tool accepts **DER encoded PKCS8 format** private key file as input. It generates signed payload binary which
+contains verify header, public key and signature.
 
 ### Generate Key
 
@@ -35,10 +36,10 @@ set AR=
 
 Then run the tool:
 ```
-cargo run -- [-A {signing_algorithm}] [-o output] {payload_file} {payload_version} {payload_svn} {private_key_file}
+cargo run -p td-shim-tools --bin td-shim-sign-payload -- [-A {signing_algorithm}] [-o output] {private_key_file} {payload_file} {payload_version} {payload_svn}
 ```
 
 For example:
 ```
-cargo run -- -A ecdsa-p384-private.pk8 ../target/target/release/rust-td-payload 1 1 ECDSA_NIST_P384_SHA384
+cargo run -p td-shim-tools --bin td-shim-sign-payload -- -A ECDSA_NIST_P384_SHA384 data/sample-keys/ecdsa-p384-private.pk8 target/x86_64-unknown-none/release/td-payload 1 1 
 ```

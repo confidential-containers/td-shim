@@ -52,3 +52,44 @@ impl CfvPubKeyFileHeader {
         unsafe { &*slice_from_raw_parts(self as *const Self as *const u8, size_of::<Self>()) }
     }
 }
+
+/// GUID for signed payload.
+pub const SIGNED_PAYLOAD_FILE_HEADER_GUID: Guid = Guid::from_fields(
+    0xFCF2D558,
+    0x9DF5,
+    0x4F4D,
+    0xB0,
+    0xD7,
+    &[0x3e, 0x4b, 0x79, 0x8a, 0xb0, 0x66],
+); // {FCF2D558-9DF5-4F4D-B0D7-3E4B798AB066}
+
+pub const PAYLOAD_SIGN_ECDSA_NIST_P384_SHA384: u32 = 1;
+pub const PAYLOAD_SIGN_RSA_PSS_3072_SHA384: u32 = 2;
+pub const PAYLOAD_SIGN_RSA_EXPONENT_SIZE: usize = 8;
+pub const PAYLOAD_SIGN_RSA_PUBLIC_KEY_MOD_SIZE: usize = 384;
+
+/// File header for signed payload.
+///
+/// Please refer to doc/secure_boot.md for definition.
+#[repr(C, align(4))]
+#[derive(Debug, Pread, Pwrite)]
+pub struct PayloadSignHeader {
+    pub type_guid: [u8; 16],
+    pub struct_version: u32,
+    pub length: u32,
+    pub payload_version: u64,
+    pub payload_svn: u64,
+    pub signing_algorithm: u32,
+    pub reserved: u32,
+}
+
+impl PayloadSignHeader {
+    pub fn as_bytes(&self) -> &[u8] {
+        unsafe {
+            &*core::ptr::slice_from_raw_parts(
+                self as *const Self as *const u8,
+                core::mem::size_of::<Self>(),
+            )
+        }
+    }
+}

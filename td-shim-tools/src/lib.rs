@@ -6,3 +6,6 @@
 pub mod enroller;
 #[cfg(feature = "enroller")]
 pub mod public_key;
+
+#[cfg(feature = "signer")]
+pub mod signer;
