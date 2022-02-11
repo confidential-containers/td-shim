@@ -17,7 +17,8 @@
                                +--------------+
                payload_size -> | Rust Payload |
                                |     (pad)    |
-                               |   metadata   |
+                               +--------------+
+              metadata_size -> |   metadata   |
                                +--------------+
                    ipl_size -> |   Rust IPL   |
                                |     (pad)    |
@@ -32,7 +33,8 @@
         "temp_stack_guard_size": 0x001000,
         "temp_stack_size": 0x020000,
         "temp_heap_size": 0x020000,
-        "payload_size": 0xC2C000,
+        "payload_size": 0xC2B000,
+        "metadata_size": 0x001000,
         "ipl_size": 0x348000,
         "reset_vector_size": 0x008000
     },
