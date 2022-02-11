@@ -9,12 +9,9 @@ extern crate clap;
 use std::env;
 use std::fs;
 use std::io::{self, Write};
-use std::mem::size_of;
 use std::path::Path;
 
 use serde::Deserialize;
-
-use td_layout::metadata::*;
 
 const TD_LAYOUT_BUILD_TIME_RS_OUT: &str = "build_time.rs";
 const TD_LAYOUT_RUNTIME_RS_OUT: &str = "runtime.rs";
@@ -44,7 +41,8 @@ macro_rules! BUILD_TIME_TEMPLATE {
             {payload_offset:#010X} -> +--------------+ <-  {payload_base:#010X}
            ({payload_size:#010X})   | Rust Payload |
                           |     (pad)    |
-                          |   metadata   |
+            {metadata_offset:#010X} -> +--------------+
+           ({metadata_size:#010X})   |   Metadata   |
             {ipl_offset:#010X} -> +--------------+ <-  {ipl_base:#010X}
            ({ipl_size:#010X})   |   Rust IPL   |
                           |     (pad)    |
@@ -68,8 +66,9 @@ pub const TD_SHIM_TEMP_HEAP_SIZE: u32 = {temp_heap_size:#X};
 
 pub const TD_SHIM_PAYLOAD_OFFSET: u32 = {payload_offset:#X}; // TD_SHIM_TEMP_HEAP_OFFSET + TD_SHIM_TEMP_HEAP_SIZE
 pub const TD_SHIM_PAYLOAD_SIZE: u32 = {payload_size:#X};
-pub const TD_SHIM_IPL_OFFSET: u32 = {ipl_offset:#X}; // TD_SHIM_PAYLOAD_OFFSET + TD_SHIM_PAYLOAD_SIZE
-pub const TD_SHIM_METADATA_OFFSET: u32 = {metadata_offset:#X}; // TD_SHIM_IPL_OFFSET - size_of::<TdxMetadata>() + size_of::<TdxMetadataGuid>()
+pub const TD_SHIM_METADATA_OFFSET: u32 = {metadata_offset:#X}; // TD_SHIM_PAYLOAD_OFFSET + TD_SHIM_PAYLOAD_SIZE
+pub const TD_SHIM_METADATA_SIZE: u32 = {metadata_size:#X};
+pub const TD_SHIM_IPL_OFFSET: u32 = {ipl_offset:#X}; // TD_SHIM_METADATA_OFFSET + TD_SHIM_METADATA_SIZE
 pub const TD_SHIM_IPL_SIZE: u32 = {ipl_size:#X};
 pub const TD_SHIM_RESET_VECTOR_OFFSET: u32 = {rst_vec_offset:#X}; // TD_SHIM_IPL_OFFSET + TD_SHIM_IPL_SIZE
 pub const TD_SHIM_RESET_VECTOR_SIZE: u32 = {rst_vec_size:#X};
@@ -165,6 +164,7 @@ struct TdImageLayoutConfig {
     temp_stack_size: u32,
     temp_heap_size: u32,
     payload_size: u32,
+    metadata_size: u32,
     ipl_size: u32,
     reset_vector_size: u32,
 }
@@ -224,6 +224,7 @@ impl TdLayout {
             payload_size = self.img.payload_size,
             ipl_offset = self.img.ipl_offset,
             metadata_offset = self.img.metadata_offset,
+            metadata_size = self.img.metadata_size,
             ipl_size = self.img.ipl_size,
             rst_vec_offset = self.img.rst_vec_offset,
             rst_vec_size = self.img.rst_vec_size,
@@ -304,6 +305,7 @@ struct TdLayoutImage {
     payload_offset: u32,
     payload_size: u32,
     ipl_offset: u32,
+    metadata_size: u32,
     metadata_offset: u32,
     ipl_size: u32,
     rst_vec_offset: u32,
@@ -319,10 +321,8 @@ impl TdLayoutImage {
             hob_offset + config.image_layout.hob_size + config.image_layout.temp_stack_guard_size;
         let temp_heap_offset = temp_stack_offset + config.image_layout.temp_stack_size;
         let payload_offset = temp_heap_offset + config.image_layout.temp_heap_size;
-        let ipl_offset = payload_offset + config.image_layout.payload_size;
-        let metadata_offset =
-            ipl_offset - size_of::<TdxMetadata>() as u32 + size_of::<TdxMetadataGuid>() as u32;
-
+        let metadata_offset = payload_offset + config.image_layout.payload_size;
+        let ipl_offset = metadata_offset + config.image_layout.metadata_size;
         let rst_vec_offset = ipl_offset + config.image_layout.ipl_size;
         let firmware_size = rst_vec_offset + config.image_layout.reset_vector_size;
 
@@ -342,6 +342,7 @@ impl TdLayoutImage {
             payload_size: config.image_layout.payload_size,
             ipl_offset,
             metadata_offset,
+            metadata_size: config.image_layout.metadata_size,
             ipl_size: config.image_layout.ipl_size,
             rst_vec_offset,
             rst_vec_size: config.image_layout.reset_vector_size,
@@ -489,6 +490,7 @@ fn main() {
     let layout = TdLayout::new_from_config(&td_layout_config);
 
     // TODO: sanity checks on the layouts.
+    // TODO: assert!(size_of::<TdxMetadata>() <= metadata_size);
 
     // Generate config .rs file from the template and JSON inputs, then write to fs.
     fs::create_dir_all(output).expect(&format!("Failed to create target directory: {}", output));
