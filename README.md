@@ -55,23 +55,19 @@ Please follow [Secure Boot Guide](doc/secure_boot_guide.md)
 
 ### Build TdShim
 ```
-cargo xbuild -p rust-tdshim --target x86_64-unknown-uefi --release
+cargo xbuild -p td-shim --target x86_64-unknown-uefi --release --features=main,tdx
 ```
 
 ### Build PE format payload
 ```
-pushd rust-td-payload
-cargo xbuild --target x86_64-unknown-uefi --release
-popd
-cargo run -p rust-td-tool -- target/x86_64-unknown-uefi/release/ResetVector.bin target/x86_64-unknown-uefi/release/rust-tdshim.efi target/x86_64-unknown-uefi/release/rust-td-payload.efi target/x86_64-unknown-uefi/release/final.bin
+cargo xbuild -p td-payload --target x86_64-unknown-uefi --release --features=main,tdx
+cargo run -p td-shim-tools --bin td-shim-ld -- target/x86_64-unknown-uefi/release/ResetVector.bin target/x86_64-unknown-uefi/release/td-shim.efi target/x86_64-unknown-uefi/release/td-payload.efi -o target/x86_64-unknown-uefi/release/final-pe.bin
 ```
 
 ### Build Elf format payload
 ```
-pushd rust-td-payload
-cargo xbuild --target target.json --release
-popd
-cargo run -p rust-td-tool -- target/x86_64-unknown-uefi/release/ResetVector.bin target/x86_64-unknown-uefi/release/rust-tdshim.efi target/target//release/rust-td-payload target/x86_64-unknown-uefi/release/final.bin
+cargo xbuild -p td-payload --target devtools/rustc-targets/x86_64-unknown-none.json --release --features=main,tdx
+cargo run -p td-shim-tools --bin td-shim-ld -- target/x86_64-unknown-uefi/release/ResetVector.bin target/x86_64-unknown-uefi/release/td-shim.efi target/x86_64-unknown-none/release/td-payload -o target/x86_64-unknown-uefi/release/final-elf.bin
 ```
 
 ## Run
