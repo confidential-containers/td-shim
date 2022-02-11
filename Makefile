@@ -11,7 +11,7 @@ else
 	export BUILD_TYPE_FLAG=
 endif
 
-GENERIC_LIB_CRATES = td-layout
+GENERIC_LIB_CRATES = td-layout td-uefi-pi
 NIGHTLY_LIB_CRATES = td-paging tdx-tdcall
 SHIM_CRATES = 
 TEST_CRATES = 
