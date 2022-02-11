@@ -8,6 +8,7 @@ members = [
 	"devtools/test-runner-server",
 	"td-layout",
 	"td-paging",
+	"td-uefi-pi",
 	"tdx-tdcall",
 ]
 
