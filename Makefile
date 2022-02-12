@@ -1,7 +1,7 @@
 export CARGO=cargo
 export STABLE_TOOLCHAIN:=1.58.1
 export NIGHTLY_TOOLCHAIN:=nightly-2021-08-20
-export BUILD_TYPE:=debug
+export BUILD_TYPE:=release
 export PREFIX:=/usr/local
 
 export TOPDIR=$(shell pwd)
@@ -11,7 +11,8 @@ else
 	export BUILD_TYPE_FLAG=
 endif
 
-LIB_CRATES = td-layout td-paging
+GENERIC_LIB_CRATES = td-layout
+NIGHTLY_LIB_CRATES = td-paging
 SHIM_CRATES = 
 TEST_CRATES = 
 TOOL_CRATES = 
@@ -47,27 +48,26 @@ uninstall-devtools: uninstall-subdir-devtools $(TOOL_CRATES:%=uninstall-devtool-
 
 install-devtool-%: build-%
 	mkdir -p ${TOPDIR}/devtools/bin
-	install -m u+rx ${TOPDIR}/target/${BUILD_TYPE}/$(patsubst install-devtool-%,%,$@) ${TOPDIR}/devtools/bin/
+	${CARGO} install --bins --target-dir ${TOPDIR}/devtools/bin/ --path $(patsubst install-devtool-%,%,$@)
 
 uninstall-devtool-%:
-	rm ${TOPDIR}/devtools/bin/$(patsubst uninstall-devtool-%,%,$@)
+	${CARGO} uninstall --root ${TOPDIR}/devtools/bin/ --path $(patsubst uninstall-devtool-%,%,$@)
 
 # Targets for tool crates
 install-tool-%: build-%
-	mkdir -p ${TOPDIR}/devtools/bin
-	install -m u+rx ${TOPDIR}/target/${BUILD_TYPE}/$(patsubst install-tool-%,%,$@) ${PREFIX}/bin/
+	${CARGO} install --bins --path $(patsubst install-tool-%,%,$@)
 
 uninstall-tool-%:
-	rm ${PREFIX}/bin/$(patsubst uninstall-tool-%,%,$@)
+	${CARGO} uninstall --path $(patsubst uninstall-devtool-%,%,$@)
 
 # Targets for library crates
-lib-build: $(LIB_CRATES:%=build-%)
+lib-build: $(GENERIC_LIB_CRATES:%=build-%) $(NIGHTLY_LIB_CRATES:%=nightly-build-%)
 
-lib-check: $(LIB_CRATES:%=check-%)
+lib-check: $(GENERIC_LIB_CRATES:%=check-%) $(NIGHTLY_LIB_CRATES:%=nightly-check-%)
 
-lib-test: $(LIB_CRATES:%=test-%)
+lib-test: $(GENERIC_LIB_CRATES:%=test-%) $(NIGHTLY_LIB_CRATES:%=nightly-test-%)
 
-lib-clean: $(LIB_CRATES:%=clean-%)
+lib-clean: $(GENERIC_LIB_CRATES:%=clean-%) $(NIGHTLY_LIB_CRATES:%=nightly-clean-%)
 
 # Targets for integration test crates
 integration-build: $(TEST_CRATES:%=integration-build-%)
@@ -113,6 +113,19 @@ clean-%:
 
 test-%:
 	${CARGO} +${STABLE_TOOLCHAIN} test -p $(patsubst test-%,%,$@) ${BUILD_TYPE_FLAG}
+
+# Targets for normal library/binary crates
+nightly-build-%:
+	${CARGO} +${NIGHTLY_TOOLCHAIN} build -p $(patsubst nightly-build-%,%,$@) ${BUILD_TYPE_FLAG}
+
+nightly-check-%:
+	${CARGO} +${NIGHTLY_TOOLCHAIN} check -p $(patsubst nightly-check-%,%,$@) ${BUILD_TYPE_FLAG}
+
+nightly-clean-%:
+	${CARGO} +${NIGHTLY_TOOLCHAIN} clean -p $(patsubst nightly-clean-%,%,$@) ${BUILD_TYPE_FLAG}
+
+nightly-test-%:
+	${CARGO} +${NIGHTLY_TOOLCHAIN} test -p $(patsubst nightly-test-%,%,$@) ${BUILD_TYPE_FLAG}
 
 # Targets for subdirectories
 build-subdir-%:
