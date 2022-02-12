@@ -10,7 +10,8 @@ on:
 name: Library Crates
 
 env:
-  RUST_TOOLCHAIN: 1.58.1
+  STABLE_RUST_TOOLCHAIN: 1.58.1
+  NIGHTLY_RUST_TOOLCHAIN: nightly-2021-08-20
   TOOLCHAIN_PROFILE: minimal
 
 jobs:
@@ -38,7 +39,14 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: ${{ env.TOOLCHAIN_PROFILE }}
-          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          toolchain: ${{ env.STABLE_RUST_TOOLCHAIN }}
+          override: true
+
+      - name: Install nightly toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: ${{ env.TOOLCHAIN_PROFILE }}
+          toolchain: ${{ env.NIGHTLY_RUST_TOOLCHAIN }}
           override: true
 
       - name: Checkout sources
@@ -74,7 +82,14 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: ${{ env.TOOLCHAIN_PROFILE }}
-          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          toolchain: ${{ env.STABLE_RUST_TOOLCHAIN }}
+          override: true
+
+      - name: Install nightly toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: ${{ env.TOOLCHAIN_PROFILE }}
+          toolchain: ${{ env.NIGHTLY_RUST_TOOLCHAIN }}
           override: true
 
       - name: Checkout sources
