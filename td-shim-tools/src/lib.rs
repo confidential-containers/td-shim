@@ -137,4 +137,16 @@ impl OutputFile {
     pub fn flush(&mut self) -> io::Result<()> {
         self.file.flush()
     }
+
+    pub fn current_pos(&self) -> io::Result<u64> {
+        let name = &self.name;
+        Ok(self
+            .file
+            .metadata()
+            .map_err(|e| {
+                error!("Can not get size of file {:?}", name.as_os_str());
+                e
+            })?
+            .len())
+    }
 }

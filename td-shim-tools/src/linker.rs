@@ -6,7 +6,7 @@
 use std::io;
 use std::mem::size_of;
 
-use log::{error, trace};
+use log::trace;
 use pe_loader::pe;
 use r_efi::base::Guid;
 use scroll::Pwrite;
@@ -14,14 +14,14 @@ use td_layout::build_time::{
     TD_SHIM_CONFIG_BASE, TD_SHIM_CONFIG_OFFSET, TD_SHIM_CONFIG_SIZE, TD_SHIM_FIRMWARE_BASE,
     TD_SHIM_FIRMWARE_SIZE, TD_SHIM_HOB_BASE, TD_SHIM_HOB_SIZE, TD_SHIM_IPL_OFFSET,
     TD_SHIM_IPL_SIZE, TD_SHIM_MAILBOX_BASE, TD_SHIM_MAILBOX_OFFSET, TD_SHIM_MAILBOX_SIZE,
-    TD_SHIM_METADATA_OFFSET, TD_SHIM_PAYLOAD_BASE, TD_SHIM_PAYLOAD_OFFSET, TD_SHIM_PAYLOAD_SIZE,
-    TD_SHIM_RESET_VECTOR_SIZE, TD_SHIM_TEMP_HEAP_BASE, TD_SHIM_TEMP_HEAP_SIZE,
-    TD_SHIM_TEMP_STACK_BASE, TD_SHIM_TEMP_STACK_SIZE,
+    TD_SHIM_METADATA_OFFSET, TD_SHIM_METADATA_SIZE, TD_SHIM_PAYLOAD_BASE, TD_SHIM_PAYLOAD_OFFSET,
+    TD_SHIM_PAYLOAD_SIZE, TD_SHIM_RESET_VECTOR_SIZE, TD_SHIM_TEMP_HEAP_BASE,
+    TD_SHIM_TEMP_HEAP_SIZE, TD_SHIM_TEMP_STACK_BASE, TD_SHIM_TEMP_STACK_SIZE,
 };
 use td_layout::mailbox::TdxMpWakeupMailbox;
 use td_layout::metadata::{
-    TdxMetadata, TdxMetadataPtr, TDX_METADATA_ATTRIBUTES_EXTENDMR, TDX_METADATA_SECTION_TYPE_BFV,
-    TDX_METADATA_SECTION_TYPE_CFV, TDX_METADATA_SECTION_TYPE_TD_HOB,
+    TdxMetadata, TdxMetadataGuid, TdxMetadataPtr, TDX_METADATA_ATTRIBUTES_EXTENDMR,
+    TDX_METADATA_SECTION_TYPE_BFV, TDX_METADATA_SECTION_TYPE_CFV, TDX_METADATA_SECTION_TYPE_TD_HOB,
     TDX_METADATA_SECTION_TYPE_TEMP_MEM,
 };
 #[cfg(feature = "boot-kernel")]
@@ -46,7 +46,7 @@ use crate::{write_u24, InputData, OutputFile};
 pub const MAX_IPL_CONTENT_SIZE: usize =
     TD_SHIM_IPL_SIZE as usize - size_of::<IplFvHeaderByte>() - size_of::<ResetVectorHeader>();
 pub const MAX_PAYLOAD_CONTENT_SIZE: usize =
-    TD_SHIM_PAYLOAD_SIZE as usize - size_of::<FvHeaderByte>() - size_of::<TdxMetadata>();
+    TD_SHIM_PAYLOAD_SIZE as usize - size_of::<FvHeaderByte>();
 
 #[repr(C, align(4))]
 pub struct FvHeaderByte {
@@ -220,11 +220,13 @@ pub fn build_tdx_metadata() -> TdxMetadata {
 
     // BFV
     tdx_metadata.sections[0].data_offset = TD_SHIM_PAYLOAD_OFFSET;
-    tdx_metadata.sections[0].raw_data_size =
-        TD_SHIM_PAYLOAD_SIZE + TD_SHIM_IPL_SIZE + TD_SHIM_RESET_VECTOR_SIZE;
+    let data_size = (TD_SHIM_PAYLOAD_SIZE
+        + TD_SHIM_IPL_SIZE
+        + TD_SHIM_RESET_VECTOR_SIZE
+        + TD_SHIM_METADATA_SIZE) as u64;
+    tdx_metadata.sections[0].raw_data_size = data_size as u32;
     tdx_metadata.sections[0].memory_address = TD_SHIM_PAYLOAD_BASE as u64;
-    tdx_metadata.sections[0].memory_data_size =
-        (TD_SHIM_PAYLOAD_SIZE + TD_SHIM_IPL_SIZE + TD_SHIM_RESET_VECTOR_SIZE) as u64;
+    tdx_metadata.sections[0].memory_data_size = data_size;
     tdx_metadata.sections[0].r#type = TDX_METADATA_SECTION_TYPE_BFV;
     tdx_metadata.sections[0].attributes = TDX_METADATA_ATTRIBUTES_EXTENDMR;
 
@@ -292,7 +294,15 @@ pub fn build_tdx_metadata() -> TdxMetadata {
 
 pub fn build_tdx_metadata_ptr() -> TdxMetadataPtr {
     TdxMetadataPtr {
-        ptr: TD_SHIM_METADATA_OFFSET,
+        //     +---------------------+ <- TdxMetadataGuid TD_SHIM_METADATA_OFFSET
+        //     |   TdxMetadataGuid   |
+        //     +---------------------+ <- TdxMetadataDescriptor
+        //     |TdxMetadataDescriptor|
+        //     |         ...         |
+        //     +---------------------+
+        // See: https://github.com/confidential-containers/td-shim/blob/23e33997b104234b16940baf0c27f57350dafd66/doc/tdshim_spec.md
+        // Table 1.1-1 TDVF_DESCRIPTOR definition
+        ptr: TD_SHIM_METADATA_OFFSET + size_of::<TdxMetadataGuid>() as u32,
     }
 }
 
@@ -363,8 +373,7 @@ impl TdShimLinker {
         }
 
         let metadata = build_tdx_metadata();
-        let pos = TD_SHIM_PAYLOAD_OFFSET as u64 + TD_SHIM_PAYLOAD_SIZE as u64
-            - size_of::<TdxMetadata>() as u64;
+        let pos = TD_SHIM_METADATA_OFFSET as u64;
         output_file.seek_and_write(pos, metadata.as_bytes(), "metadata")?;
 
         let ipl_header = IplFvHeaderByte::build_tdx_ipl_fv_header();
@@ -380,14 +389,7 @@ impl TdShimLinker {
             0x100000
         );
         let entry_point = (reloc - 0x100000) as u32;
-        let current_pos = output_file
-            .file
-            .metadata()
-            .map_err(|e| {
-                error!("Can not get size of file {}", output_file_name);
-                e
-            })?
-            .len();
+        let current_pos = output_file.current_pos()?;
         let reset_vector_info = ResetVectorParams {
             entry_point,
             img_base: TD_SHIM_FIRMWARE_BASE + current_pos as u32,
@@ -399,6 +401,9 @@ impl TdShimLinker {
         let reset_vector_header = ResetVectorHeader::build_tdx_reset_vector_header();
         output_file.write(reset_vector_header.as_bytes(), "reset vector header")?;
         output_file.write(&reset_vector_bin.data, "reset vector content")?;
+
+        let current_pos = output_file.current_pos()?;
+        assert_eq!(current_pos, TD_SHIM_FIRMWARE_SIZE as u64);
 
         // Overwrite the ResetVectorParams and TdxMetadataPtr.
         let pos = TD_SHIM_FIRMWARE_SIZE as u64 - 0x20 - size_of::<ResetVectorParams>() as u64;
