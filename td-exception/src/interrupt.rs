@@ -406,7 +406,9 @@ fn deadloop() {
     // TBD: empty `loop {}` wastes CPU cycles
     #[allow(clippy::empty_loop)]
     loop {
-        x86_64::instructions::interrupts::enable();
-        x86_64::instructions::hlt();
+        // // Keep the same as before refactoring.
+        // x86_64::instructions::interrupts::enable();
+        // x86_64::instructions::hlt();
+        //
     }
 }

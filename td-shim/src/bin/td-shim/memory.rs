@@ -108,7 +108,6 @@ impl<'a> Memory<'a> {
             self.memory_size - runtime_memory_top,
         );
 
-        td::enable_execution_disable_bit();
         td_paging::cr3_write();
     }
 
