@@ -20,6 +20,7 @@ lazy_static = { version = "1.4.0", features = ["spin_no_std"] }
 log = "0.4.13"
 r-efi = "3.2.0"
 scroll = { version = "0.10", default-features = false, features = ["derive"] }
+td-layout = { path = "../td-layout" }
 uefi-pi =  { path = "../uefi-pi" }
 zerocopy = "0.6.0"
 
@@ -29,7 +30,6 @@ ring = { git = "https://github.com/jyao1/ring.git", branch = "uefi_support", def
 pe-loader = { path = "../pe-loader", optional = true }
 spin = { version = "0.9.2", optional = true }
 td-exception =  { path = "../td-exception", features = ["tdx"], optional = true }
-td-layout = { path = "../td-layout", optional = true }
 td-logger =  { path = "../td-logger", optional = true }
 td-paging = { path = "../td-paging", optional = true }
 x86 = { version ="0.44.0", optional = true }
@@ -55,7 +55,6 @@ main = [
     "ring",
     "spin",
     "td-exception",
-    "td-layout",
     "td-logger",
     "td-paging",
     "x86",
