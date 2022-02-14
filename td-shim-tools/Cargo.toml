@@ -35,7 +35,7 @@ ring = { git = "https://github.com/jyao1/ring.git", branch = "uefi_support", def
 
 [features]
 default = ["boot-kernel", "enroller", "linker", "signer"]
-boot-kernel = ["td-layout/boot-kernel"]
+boot-kernel = ["td-layout/boot-kernel", "td-shim/boot-kernel"]
 enroller = ["clap", "der", "env_logger", "log", "ring"]
 linker = ["clap", "env_logger", "log", "td-loader"]
 signer = ["clap", "der", "env_logger", "log", "ring"]
