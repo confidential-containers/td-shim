@@ -11,7 +11,7 @@ extern "win64" {
 
 const EXTENDED_FUNCTION_INFO: u32 = 0x80000000;
 const EXTENDED_PROCESSOR_INFO: u32 = 0x80000001;
-const HARDWARE_ENABLED_EXECUTION_DISABLE: bool = false;
+const HARDWARE_ENABLED_EXECUTION_DISABLE: bool = true;
 const SHA384_DIGEST_SIZE: usize = 48;
 
 fn is_execute_disable_bit_available() -> bool {
