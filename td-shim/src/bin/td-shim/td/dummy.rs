@@ -1,9 +1,6 @@
 // Copyright (c) 2022 Alibaba Cloud
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
-/// Enable the execute disable.
-
-pub fn enable_execution_disable_bit() {}
 
 pub fn get_shared_page_mask() -> u64 {
     0
