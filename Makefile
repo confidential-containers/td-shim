@@ -9,7 +9,7 @@ else
 	export BUILD_TYPE_FLAG=
 endif
 
-LIB_CRATES = pe-loader td-exception td-layout td-logger td-paging tdx-tdcall
+LIB_CRATES = td-loader td-exception td-layout td-logger td-paging tdx-tdcall
 SHIM_CRATES = td-shim td-payload
 TEST_CRATES = test-td-exception test-td-paging test-td-payload
 TOOL_CRATES = td-shim-tools

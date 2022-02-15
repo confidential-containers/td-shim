@@ -7,7 +7,6 @@ use std::io;
 use std::mem::size_of;
 
 use log::trace;
-use pe_loader::pe;
 use r_efi::base::Guid;
 use scroll::Pwrite;
 use td_layout::build_time::{
@@ -32,6 +31,7 @@ use td_layout::metadata::{
 use td_layout::runtime::{
     TD_PAYLOAD_BASE, TD_PAYLOAD_PARAM_BASE, TD_PAYLOAD_PARAM_SIZE, TD_PAYLOAD_SIZE,
 };
+use td_loader::pe;
 use td_shim::fv::{
     FvFfsFileHeader, FvFfsSectionHeader, FvHeader, IplFvFfsHeader, IplFvFfsSectionHeader,
     IplFvHeader,

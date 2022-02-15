@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
-use pe_loader::pe::{is_x86_64_pe, relocate, relocate_pe_mem_with_per_sections, Sections};
+use td_loader::pe::{is_x86_64_pe, relocate, relocate_pe_mem_with_per_sections, Sections};
 
 fn fuzz_pe_loader(data: &[u8]) {
     if is_x86_64_pe(data) {

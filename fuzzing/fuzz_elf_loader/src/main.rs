@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
-use elf_loader::{elf, elf64::*};
+use td_loader::{elf, elf64::*};
 
 fn fuzz_elf_loader(data: &[u8]) {
     if elf::is_elf(data) {
