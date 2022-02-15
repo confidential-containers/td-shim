@@ -66,9 +66,7 @@ Stack guard is setup at `stack_guard_enable()` in [stack_guard.rs](../td-shim/sr
 
 ### Generic lib
 
-[elf-loader](../elf-loader) is an ELF image loader.
-
-[pe-loader](../pe-loader) is an PE image loader.
+[td-loader](../td-loader) is an PE/ELF image loader.
 
 [fw-pci](../fw-pci) provides the access to PCI space.
 

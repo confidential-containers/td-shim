@@ -2,11 +2,11 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
-use elf_loader::elf;
-use elf_loader::elf64::ProgramHeader;
-use pe_loader::pe::{self, Section};
 use td_layout::memslice;
 use td_layout::runtime::{TD_PAYLOAD_BASE, TD_PAYLOAD_SIZE};
+use td_loader::elf;
+use td_loader::elf64::ProgramHeader;
+use td_loader::pe::{self, Section};
 
 use crate::memory::Memory;
 

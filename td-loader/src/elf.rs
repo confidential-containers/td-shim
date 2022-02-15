@@ -133,13 +133,13 @@ mod test_elf_loader {
 
     #[test]
     fn test_is_elf() {
-        let image_bytes = include_bytes!("../../target/target/release/td-payload");
+        let image_bytes = include_bytes!("../../data/blobs/td-payload.elf");
 
         assert_eq!(super::is_elf(image_bytes), true);
     }
     #[test]
     fn test_relocate() {
-        let pe_image = &include_bytes!("../../target/target/release/td-payload")[..];
+        let pe_image = &include_bytes!("../../data/blobs/td-payload.elf")[..];
 
         let mut loaded_buffer = vec![0u8; 0x800000];
 
