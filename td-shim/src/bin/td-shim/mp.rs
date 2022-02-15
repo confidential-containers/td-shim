@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
+use core::convert::TryInto;
 use core::mem::size_of;
 use zerocopy::{AsBytes, FromBytes};
 
@@ -12,9 +13,6 @@ const MADT_MAX_SIZE: usize = 0xc00;
 const NUM_8259_IRQS: usize = 16;
 
 const ACPI_1_0_PROCESSOR_LOCAL_APIC: u8 = 0x00;
-const ACPI_1_0_IO_APIC: u8 = 0x01;
-const ACPI_1_0_INTERRUPT_SOURCE_OVERRIDE: u8 = 0x02;
-const ACPI_1_0_LOCAL_APIC_NMI: u8 = 0x04;
 const ACPI_MADT_MPWK_STRUCT_TYPE: u8 = 0x10;
 
 pub struct Madt {
@@ -33,11 +31,19 @@ impl Madt {
     fn write(&mut self, data: &[u8]) {
         self.data[self.size..self.size + data.len()].copy_from_slice(data);
         self.size += data.len();
+
+        // Update the length field in header
+        self.data[4..8].copy_from_slice(&u32::to_le_bytes(self.size as u32));
+        self.update_checksum()
     }
 
     fn update_checksum(&mut self) {
         self.data[9] = 0;
         self.data[9] = acpi::calculate_checksum(&self.data[0..self.size]);
+    }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.data[..self.size]
     }
 }
 
@@ -53,38 +59,6 @@ struct LocalApic {
 
 #[repr(packed)]
 #[derive(Default, AsBytes, FromBytes)]
-struct LocalApicNmi {
-    pub r#type: u8,
-    pub length: u8,
-    pub acpi_processor_id: u8,
-    pub flags: u16,
-    pub local_apic_inti: u8,
-}
-
-#[repr(packed)]
-#[derive(Default, AsBytes, FromBytes)]
-struct IoApic {
-    pub r#type: u8,
-    pub length: u8,
-    pub ioapic_id: u8,
-    _reserved: u8,
-    pub apic_address: u32,
-    pub gsi_base: u32,
-}
-
-#[repr(packed)]
-#[derive(Default, AsBytes, FromBytes)]
-struct InterruptSourceOverride {
-    pub r#type: u8,
-    pub length: u8,
-    pub bus: u8,
-    pub source: u8,
-    pub gsi: u32,
-    pub flags: u16,
-}
-
-#[repr(packed)]
-#[derive(Default, AsBytes, FromBytes)]
 struct MadtMpwkStruct {
     r#type: u8,
     length: u8,
@@ -93,15 +67,41 @@ struct MadtMpwkStruct {
     mail_box_address: u64,
 }
 
-pub fn create_madt(cpu_num: u8, mailbox_base: u64) -> Option<Madt> {
+// Create ACPI MADT table based on the one from VMM
+// APIC / IRQ information should be provided by VMM
+// TD-Shim appends the MP wakeup structure to the table
+pub fn create_madt(vmm_madt: &[u8], mailbox_base: u64) -> Option<Madt> {
+    if &vmm_madt[0..4] != b"APIC" || vmm_madt.len() < size_of::<GenericSdtHeader>() {
+        return None;
+    }
+
+    // Safe since we have checked the length
+    let len = u32::from_le_bytes(vmm_madt[4..8].try_into().unwrap());
+
+    let mut madt = Madt::default();
+    madt.write(&vmm_madt[..len as usize]);
+
+    let mpwk = MadtMpwkStruct {
+        r#type: ACPI_MADT_MPWK_STRUCT_TYPE,
+        length: size_of::<MadtMpwkStruct>() as u8,
+        mail_box_version: 1,
+        reserved: 0,
+        mail_box_address: mailbox_base,
+    };
+    madt.write(mpwk.as_bytes());
+
+    Some(madt)
+}
+
+// If there is no MADT passed from VMM, construct the default
+// one which contains the APIC base / version, local APIC and
+// MP wakeup structure
+pub fn create_madt_default(cpu_num: u32, mailbox_base: u64) -> Option<Madt> {
     log::info!("create_madt(): cpu_num: {:x}\n", cpu_num);
 
     let table_length = size_of::<GenericSdtHeader>()
         + 8
         + cpu_num as usize * size_of::<LocalApic>()
-        + size_of::<IoApic>()
-        + NUM_8259_IRQS * size_of::<InterruptSourceOverride>()
-        + size_of::<LocalApicNmi>()
         + size_of::<MadtMpwkStruct>();
     if cpu_num == 0 || table_length > MADT_MAX_SIZE {
         return None;
@@ -128,47 +128,6 @@ pub fn create_madt(cpu_num: u8, mailbox_base: u64) -> Option<Madt> {
         madt.write(lapic.as_bytes());
     }
 
-    let ioapic = IoApic {
-        r#type: ACPI_1_0_IO_APIC,
-        length: size_of::<IoApic>() as u8,
-        ioapic_id: cpu_num,
-        apic_address: 0xFEC00000,
-        gsi_base: 0,
-        ..Default::default()
-    };
-    madt.write(ioapic.as_bytes());
-
-    let iso = InterruptSourceOverride {
-        r#type: ACPI_1_0_INTERRUPT_SOURCE_OVERRIDE,
-        length: size_of::<InterruptSourceOverride>() as u8,
-        bus: 0,
-        source: 0,
-        gsi: 2,
-        flags: 5,
-    };
-    madt.write(iso.as_bytes());
-
-    for irq in 1..NUM_8259_IRQS {
-        let iso = InterruptSourceOverride {
-            r#type: ACPI_1_0_INTERRUPT_SOURCE_OVERRIDE,
-            length: size_of::<InterruptSourceOverride>() as u8,
-            bus: 0,
-            source: irq as u8,
-            gsi: irq as u32,
-            flags: 5,
-        };
-        madt.write(iso.as_bytes());
-    }
-
-    let nmi = LocalApicNmi {
-        r#type: ACPI_1_0_LOCAL_APIC_NMI,
-        length: size_of::<LocalApicNmi>() as u8,
-        acpi_processor_id: 0xff,
-        flags: 0,
-        local_apic_inti: 0x01,
-    };
-    madt.write(nmi.as_bytes());
-
     let mpwk = MadtMpwkStruct {
         r#type: ACPI_MADT_MPWK_STRUCT_TYPE,
         length: size_of::<MadtMpwkStruct>() as u8,
@@ -190,8 +149,15 @@ mod tests {
 
     #[test]
     fn test_create_mdat() {
-        assert!(create_madt(0, 0x1000).is_none());
-        let madt = create_madt(255, 0x1000).unwrap();
+        assert!(create_madt_default(0, 0x1000).is_none());
+        let madt = create_madt_default(255, 0x1000).unwrap();
         assert!(madt.size < MADT_MAX_SIZE);
+
+        let mut vmm_madt = [0u8; size_of::<SdtHeader>()];
+        assert!(create_madt(&vmm_madt, 0x1000).is_none());
+
+        vmm_madt[0..4].copy_from_slice(b"APIC");
+        let madt = create_madt(&vmm_madt, mailbox).unwrap();
+        assert_eq!(madt.size, vmm_madt.len() + size_of::<MadtMpwkStruct>());
     }
 }

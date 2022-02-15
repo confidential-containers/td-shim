@@ -280,13 +280,7 @@ fn prepare_acpi_tables(
     };
     let mut acpi_tables = acpi::AcpiTables::new(acpi_slice, acpi_slice.as_ptr() as *const _ as u64);
 
-    let madt = mp::create_madt(vcpus as u8, build_time::TD_SHIM_MAILBOX_BASE as u64)
-        .expect("Failed to create ACPI MADT table");
-    acpi_tables.install(&madt.data);
-
-    let tdel = td_event_log.create_tdel();
-    acpi_tables.install(tdel.as_bytes());
-
+    let mut vmm_madt = None;
     let mut next_hob = hob_list;
     while let Some(hob) = hob::get_next_extension_guid_hob(next_hob, &TD_ACPI_TABLE_HOB_GUID) {
         let table = hob::get_guid_data(hob).expect("Failed to get data from ACPI GUID HOB");
@@ -296,8 +290,23 @@ fn prepare_acpi_tables(
         if &header.signature != b"APIC" && &header.signature != b"TDEL" {
             acpi_tables.install(table);
         }
+        if &header.signature == b"APIC" {
+            vmm_madt = Some(table);
+        }
         next_hob = hob::seek_to_next_hob(hob).unwrap();
     }
+
+    let madt = if let Some(vmm_madt) = vmm_madt {
+        mp::create_madt(vmm_madt, build_time::TD_SHIM_MAILBOX_BASE as u64)
+            .expect("Failed to create ACPI MADT table")
+    } else {
+        mp::create_madt_default(vcpus, build_time::TD_SHIM_MAILBOX_BASE as u64)
+            .expect("Failed to create ACPI MADT table")
+    };
+
+    acpi_tables.install(madt.as_bytes());
+    let tdel = td_event_log.create_tdel();
+    acpi_tables.install(tdel.as_bytes());
 
     acpi_tables.finish()
 }
