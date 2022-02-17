@@ -6,6 +6,7 @@ members = [
 	"devtools/td-layout-config",
 	"devtools/test-runner-client",
 	"devtools/test-runner-server",
+	"td-exception",
 	"td-layout",
 	"td-logger",
 	"td-paging",
