@@ -5,18 +5,19 @@
 use td_loader::pe::{is_x86_64_pe, relocate, relocate_pe_mem_with_per_sections, Sections};
 
 fn fuzz_pe_loader(data: &[u8]) {
-    if is_x86_64_pe(data) {
-        let sections = Sections::parse(data, 5 as usize).unwrap();
-        for section in sections {
-            println!("{:?}", section);
-        }
-
-        let mut loaded_buffer = vec![0u8; 0x200000];
-
-        relocate(data, loaded_buffer.as_mut_slice(), 0x100000);
-
-        relocate_pe_mem_with_per_sections(data, loaded_buffer.as_mut_slice(), |_| ());
+    if !is_x86_64_pe(data) {
+        return;
     }
+    let sections = Sections::parse(data, 5 as usize).unwrap();
+    for section in sections {
+        println!("{:?}", section);
+    }
+
+    let mut loaded_buffer = vec![0u8; 0x200000];
+
+    relocate(data, loaded_buffer.as_mut_slice(), 0x100000);
+
+    relocate_pe_mem_with_per_sections(data, loaded_buffer.as_mut_slice(), |_| ());
 }
 
 fn main() {
