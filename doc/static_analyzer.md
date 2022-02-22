@@ -1,6 +1,8 @@
-### Rust Memory Safety & Undefined Behavior Detection
+# rust static analyzer
 
-https://github.com/sslab-gatech/Rudra
+## rudra
+
+[rudra](https://github.com/sslab-gatech/Rudra) is a tool for Rust Memory Safety & Undefined Behavior Detection.
 
 [Currently rust can't work in the workspace(2021-08-31)](https://github.com/sslab-gatech/Rudra/issues/11)
 
