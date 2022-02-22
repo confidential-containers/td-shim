@@ -10,6 +10,9 @@ on:
 name: Library Crates
 
 env:
+  AR: llvm-ar
+  AS: nasm
+  CC: clang
   RUST_TOOLCHAIN: nightly-2021-08-20
   TOOLCHAIN_PROFILE: minimal
 
@@ -25,14 +28,15 @@ jobs:
           - ubuntu-20.04
           - windows-2019
     steps:
-      - name: install NASM
-        uses: ilammy/setup-nasm@v1
-
+      # Install first since it's needed to build NASM
       - name: Install LLVM and Clang
         uses: KyleMayes/install-llvm-action@v1
         with:
           version: "10.0"
           directory: ${{ runner.temp }}/llvm
+
+      - name: install NASM
+        uses: ilammy/setup-nasm@v1
 
       - name: Checkout sources
         uses: actions/checkout@v2

@@ -2,15 +2,15 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
-type Result<T> = std::result::Result<T, String>;
-
 use std::{
     env, format,
     path::{Path, PathBuf},
     process::{exit, Command},
 };
 
+use anyhow::{anyhow, Result};
 use td_layout::build_time;
+use which::which;
 
 fn nasm(file: &Path, arch: &str, out_file: &Path, args: &[&str]) -> Command {
     let oformat = match arch {
@@ -42,9 +42,115 @@ fn run_command(mut cmd: Command) {
     }
 }
 
+fn check_environment() -> Result<()> {
+    const CC_ENV_VAR: &str = "CC";
+    const AS_ENV_VAR: &str = "AS";
+    const AR_ENV_VAR: &str = "AR";
+
+    // Defaults to 'cc' but also honours the CC_ENV_VAR environment variable.
+    let cfg = cc::Build::new().try_get_compiler()?;
+
+    // GCC cannot be used as it fails to link.
+    let required_compiler = "clang";
+
+    let required_assembler = "nasm";
+    let required_archiver = "llvm-ar";
+
+    let cc_path = cfg.path().to_path_buf();
+    let as_path =
+        PathBuf::from(env::var(AS_ENV_VAR).unwrap_or_else(|_| required_assembler.to_string()));
+    let ar_path =
+        PathBuf::from(env::var(AR_ENV_VAR).unwrap_or_else(|_| required_archiver.to_string()));
+
+    struct BuildDependency<'a> {
+        path: PathBuf,
+        description: &'a str,
+        env_var: &'a str,
+        required_cmd: &'a str,
+    }
+
+    // List is not sorted alphabetically to help the user on error: the
+    // compiler name is more commonly known than the archiver name, so if
+    // that's missing, show it first.
+    //
+    // Also installing the missing compiler will probably install the archiver
+    // as a dependency.
+    let cmds = &[
+        BuildDependency {
+            path: as_path,
+            description: "assembler",
+            env_var: AS_ENV_VAR,
+            required_cmd: required_assembler,
+        },
+        BuildDependency {
+            path: cc_path,
+            description: "compiler",
+            env_var: CC_ENV_VAR,
+            required_cmd: required_compiler,
+        },
+        BuildDependency {
+            path: ar_path,
+            description: "archiver",
+            env_var: AR_ENV_VAR,
+            required_cmd: required_archiver,
+        },
+    ];
+
+    for cmd in cmds {
+        let BuildDependency {
+            path,
+            description,
+            env_var,
+            required_cmd,
+        } = cmd;
+
+        println!("cargo:rerun-if-env-changed={}", env_var);
+
+        let resolved_path = which(path)
+            .map_err(|e| {
+                anyhow!(
+                    "cannot find {:} command {:?}: {:?} (expected {:?})",
+                    description,
+                    path,
+                    e,
+                    required_cmd
+                )
+            })?
+            .canonicalize()
+            .map_err(|e| {
+                anyhow!(
+                    "cannot resolve {:} command {:?}: {:?}",
+                    description,
+                    path,
+                    e
+                )
+            })?;
+
+        if !resolved_path
+            .to_str()
+            .ok_or("cannot convert path to string")
+            .map_err(|e| anyhow!("{:?}", e))?
+            .contains(required_cmd)
+        {
+            return Err(anyhow!(
+                "{:} command {:?} is not {:?} - do you need to set ${:}?",
+                description,
+                path,
+                required_cmd,
+                env_var
+            ));
+        }
+    }
+
+    Ok(())
+}
+
 fn real_main() -> Result<()> {
     // tell cargo when to re-run the script
     println!("cargo:rerun-if-changed=build.rs");
+
+    check_environment()?;
+
     println!(
         "cargo:rerun-if-changed={}",
         Path::new("ResetVector/ResetVector.asm").to_str().unwrap()
