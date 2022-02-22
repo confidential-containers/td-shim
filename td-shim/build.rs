@@ -2,10 +2,12 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
+type Result<T> = std::result::Result<T, String>;
+
 use std::{
     env, format,
     path::{Path, PathBuf},
-    process::Command,
+    process::{exit, Command},
 };
 
 use td_layout::build_time;
@@ -40,7 +42,7 @@ fn run_command(mut cmd: Command) {
     }
 }
 
-fn main() {
+fn real_main() -> Result<()> {
     // tell cargo when to re-run the script
     println!("cargo:rerun-if-changed=build.rs");
     println!(
@@ -111,6 +113,8 @@ fn main() {
             &loaded_sec_core_size,
         ],
     ));
+
+    Ok(())
 }
 
 fn get_target_output_dir() -> PathBuf {
@@ -128,4 +132,11 @@ fn get_cargo_manifest_dir() -> PathBuf {
     // Environment variables Cargo sets for crates
     // The directory containing the manifest of your package.
     PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap())
+}
+
+fn main() {
+    if let Err(e) = real_main() {
+        eprintln!("ERROR: {:#}", e);
+        exit(1);
+    }
 }
