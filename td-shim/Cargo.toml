@@ -11,9 +11,11 @@ name = "td-shim"
 required-features = ["main"]
 
 [build-dependencies]
+anyhow = "1.0.55"
 cc = { git = "https://github.com/jyao1/cc-rs.git", branch = "uefi_support" }
 td-layout = { path = "../td-layout" }
 tdx-tdcall = { path = "../tdx-tdcall" }
+which = "4.2.4"
 
 [dependencies]
 lazy_static = { version = "1.4.0", features = ["spin_no_std"] }
