@@ -106,7 +106,7 @@ Stack guard is setup at `stack_guard_enable()` in [stack_guard.rs](../td-shim/sr
 
 [test-coverage](doc/unit_test_coverage.md) describes how to collect the coverage data.
 
-[rudra](doc/rudra.md) describes how to scan the vulnerable rust code by using [rudra](https://github.com/sslab-gatech/Rudra).
+[static_analyzer](doc/static_analyzer.md) describes how to scan the vulnerable rust code, such as [rudra](https://github.com/sslab-gatech/Rudra).
 
 [cargo-deny](../.github/workflows/deny.yml) is used to scan the vulnerable rust crate dependency according to [rustsec](https://rustsec.org/).
 
