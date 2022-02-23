@@ -149,7 +149,7 @@ fn wait_for_ap_arrive(ap_num: u32) {
     }
 }
 
-pub fn ap_assign_work(apic_id: u32, stack: u64, entry: u32) {
+pub fn ap_assign_work(cpu_index: u32, stack: u64, entry: u32) {
     // Safety:
     // BSP is the owner of the mailbox area, and APs cooperate with BSP to access the mailbox area.
     let mut mail_box = unsafe { MailBox::new(get_mem_slice_mut(SliceType::MailBox)) };
@@ -158,7 +158,7 @@ pub fn ap_assign_work(apic_id: u32, stack: u64, entry: u32) {
     mail_box.set_fw_arg(0, stack);
     mail_box.set_command(spec::MP_WAKEUP_COMMAND_ACCEPT_PAGES);
     x86::fence::mfence();
-    mail_box.set_apic_id(apic_id);
+    mail_box.set_apic_id(cpu_index);
 
     wait_for_ap_response(&mut mail_box);
 }
@@ -184,7 +184,7 @@ fn td_accept_pages(address: u64, pages: u64, page_size: u64) {
     }
 }
 
-fn parallel_accept_memory(apic_id: u64) {
+fn parallel_accept_memory(cpu_index: u64) {
     // Safety:
     // During this state, all the BSPs/APs are accessing the mailbox in shared immutable mode.
     let mail_box = unsafe { MailBox::new(get_mem_slice_mut(SliceType::MailBox)) };
@@ -196,7 +196,7 @@ fn parallel_accept_memory(apic_id: u64) {
     let end = mail_box.fw_arg(3);
 
     let stride = ACCEPT_CHUNK_SIZE * cpu_num;
-    let mut phys_addr = start + ACCEPT_CHUNK_SIZE * apic_id;
+    let mut phys_addr = start + ACCEPT_CHUNK_SIZE * cpu_index;
 
     while phys_addr < end {
         let page_num = min(ACCEPT_CHUNK_SIZE, end - phys_addr) / ACCEPT_PAGE_SIZE;
