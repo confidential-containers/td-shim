@@ -7,8 +7,10 @@ extern crate alloc;
 use alloc::vec::Vec;
 use core::cmp::min;
 use core::ops::RangeInclusive;
-use td_layout::memslice::{get_mem_slice_mut, SliceType};
+use td_layout::memslice::{get_dynamic_mem_slice_mut, get_mem_slice_mut, SliceType};
 use tdx_tdcall::tdx;
+
+use crate::asm::{ap_relocated_func, ap_relocated_func_size};
 
 // The count of AP to wakeup is limited by the heap size that can be used for stack allocation
 // The maximum size of memory used for AP stacks is 30 KB.
@@ -19,6 +21,12 @@ const ACCEPT_CHUNK_SIZE: u64 = 0x2000000;
 const ACCEPT_PAGE_SIZE: u64 = 0x200000;
 const PAGE_SIZE_2M: u64 = 0x200000;
 const PAGE_SIZE_4K: u64 = 0x1000;
+const MAILBOX_SIZE: usize = 0x1000;
+
+#[derive(Debug)]
+pub enum MailboxError {
+    Relocation,
+}
 
 mod spec {
     pub type Field = ::core::ops::Range<usize>;
@@ -262,4 +270,46 @@ pub fn accept_memory_resource_range(mut cpu_num: u32, address: u64, size: u64) {
 
     wait_for_ap_arrive(active_ap_cnt);
     log::info!("mp_accept_memory_resource_range: done\n");
+}
+
+pub fn relocate_mailbox(address: u32) -> Result<(), MailboxError> {
+    // Safety:
+    // During this state, all the BSPs/APs are accessing the mailbox in shared immutable mode.
+    let mut mail_box = unsafe { MailBox::new(get_mem_slice_mut(SliceType::MailBox)) };
+
+    // Safe because the relocated mailbox is statically reserved
+    // in runtime memory layout
+    let mut mailbox =
+        unsafe { get_dynamic_mem_slice_mut(SliceType::RelocatedMailbox, address as usize) };
+
+    // Get the new AP function and its size
+    let func_addr = ap_relocated_func as *const fn() as u64;
+    let mut func_size = 0u64;
+    unsafe { ap_relocated_func_size(&mut func_size as *mut u64) };
+
+    // Ensure that the Mailbox memory can hold the AP loop function
+    if func_size as usize > mailbox.len() {
+        return Err(MailboxError::Relocation);
+    }
+
+    // Safety:
+    // the code size is calculated according to the ASM symbol address
+    // in the code section
+    let ap_func =
+        unsafe { core::slice::from_raw_parts(func_addr as *const u8, func_size as usize) };
+
+    // Copy AP function into Mailbox memory
+    // The layout of Mailbox memory: |---Mailbox---|---Relocated function---|
+    mailbox[MAILBOX_SIZE..MAILBOX_SIZE + ap_func.len()].copy_from_slice(ap_func);
+
+    // Wakeup APs to complete the relocation of mailbox and AP function
+    mail_box.set_wakeup_vector(address + MAILBOX_SIZE as u32);
+    // Put new mailbox base address to the first FW arg
+    mail_box.set_fw_arg(0, address as u64);
+
+    // Broadcast the wakeup command to all the APs
+    mail_box.set_command(spec::MP_WAKEUP_COMMAND_WAKEUP);
+    mail_box.set_apic_id(spec::MAILBOX_APICID_BROADCAST);
+
+    Ok(())
 }

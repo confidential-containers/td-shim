@@ -22,6 +22,10 @@ pub fn accept_memory_resource_range(mut cpu_num: u32, address: u64, size: u64) {
     super::tdx_mailbox::accept_memory_resource_range(cpu_num, address, size)
 }
 
+pub fn relocate_mailbox(address: u32) {
+    super::tdx_mailbox::relocate_mailbox(address).expect("Unable to relocate mailbox");
+}
+
 pub fn get_num_vcpus() -> u32 {
     let mut td_info = tdx::TdInfoReturnData {
         gpaw: 0,
