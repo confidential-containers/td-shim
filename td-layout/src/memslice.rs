@@ -102,3 +102,176 @@ pub unsafe fn get_dynamic_mem_slice_mut<'a>(t: SliceType, base_address: usize) -
         _ => panic!("get_dynamic_mem_slice_mut: not support"),
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    const TEST_BASE_ADDRESS: usize = 0xF000_0000;
+
+    #[test]
+    fn test_get_mem_slice_with_type_config() {
+        let config = get_mem_slice(SliceType::Config);
+        assert_eq!(config.len(), TD_SHIM_CONFIG_SIZE as usize);
+    }
+
+    #[test]
+    fn test_get_mem_slice_with_type_shimhob() {
+        let hob_list = get_mem_slice(SliceType::ShimHob);
+        assert_eq!(hob_list.len(), TD_SHIM_HOB_SIZE as usize);
+    }
+
+    #[test]
+    fn test_get_mem_slice_with_type_shimpayload() {
+        let payload = get_mem_slice(SliceType::ShimPayload);
+        assert_eq!(payload.len(), TD_SHIM_PAYLOAD_SIZE as usize);
+    }
+
+    #[test]
+    fn test_get_mem_slice_with_type_payload() {
+        let payload = get_mem_slice(SliceType::Payload);
+        assert_eq!(payload.len(), TD_PAYLOAD_SIZE as usize);
+    }
+
+    #[test]
+    #[should_panic(expected = "get_mem_slice: not support")]
+    fn test_get_mem_slice_with_type_payloadhob() {
+        get_mem_slice(SliceType::PayloadHob);
+    }
+
+    #[test]
+    #[should_panic(expected = "get_mem_slice: not support")]
+    fn test_get_mem_slice_with_type_mailbox() {
+        get_mem_slice(SliceType::MailBox);
+    }
+
+    #[test]
+    #[should_panic(expected = "get_mem_slice: not support")]
+    fn test_get_mem_slice_with_type_eventlog() {
+        get_mem_slice(SliceType::EventLog);
+    }
+
+    #[test]
+    #[should_panic(expected = "get_mem_slice: not support")]
+    fn test_get_mem_slice_with_type_acpi() {
+        get_mem_slice(SliceType::Acpi);
+    }
+
+    #[test]
+    fn test_get_mem_slice_mut_with_type_payload() {
+        let payload = unsafe { get_mem_slice_mut(SliceType::Payload) };
+        assert_eq!(payload.len(), TD_PAYLOAD_SIZE as usize);
+    }
+
+    #[test]
+    fn test_get_mem_slice_mut_with_type_mailbox() {
+        let mailbox = unsafe { get_mem_slice_mut(SliceType::MailBox) };
+        assert_eq!(mailbox.len(), TD_SHIM_MAILBOX_SIZE as usize);
+    }
+
+    #[test]
+    #[should_panic(expected = "get_mem_slice_mut: read only")]
+    fn test_get_mem_slice_mut_with_type_shimhob() {
+        unsafe {
+            get_mem_slice_mut(SliceType::ShimHob);
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "get_mem_slice_mut: read only")]
+    fn test_get_mem_slice_mut_with_type_shimpayload() {
+        unsafe {
+            get_mem_slice_mut(SliceType::ShimPayload);
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "get_mem_slice_mut: not support")]
+    fn test_get_mem_slice_mut_with_type_config() {
+        unsafe {
+            get_mem_slice_mut(SliceType::Config);
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "get_mem_slice_mut: not support")]
+    fn test_get_mem_slice_mut_with_type_payloadhob() {
+        unsafe {
+            get_mem_slice_mut(SliceType::PayloadHob);
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "get_mem_slice_mut: not support")]
+    fn test_get_mem_slice_mut_with_type_eventlog() {
+        unsafe {
+            get_mem_slice_mut(SliceType::EventLog);
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "get_mem_slice_mut: not support")]
+    fn test_get_mem_slice_mut_with_type_acpi() {
+        unsafe {
+            get_mem_slice_mut(SliceType::Acpi);
+        }
+    }
+
+    #[test]
+    fn test_get_dynamic_mem_slice_mut_with_type_payloadhob() {
+        let hob_buffer =
+            unsafe { get_dynamic_mem_slice_mut(SliceType::PayloadHob, TEST_BASE_ADDRESS) };
+        assert_eq!(hob_buffer.len(), TD_PAYLOAD_HOB_SIZE as usize);
+    }
+
+    #[test]
+    fn test_get_dynamic_mem_slice_mut_with_type_eventlog() {
+        let eventlog = unsafe { get_dynamic_mem_slice_mut(SliceType::EventLog, TEST_BASE_ADDRESS) };
+        assert_eq!(eventlog.len(), TD_PAYLOAD_EVENT_LOG_SIZE as usize);
+    }
+
+    #[test]
+    fn test_get_dynamic_mem_slice_mut_with_type_acpi() {
+        let acpi = unsafe { get_dynamic_mem_slice_mut(SliceType::Acpi, TEST_BASE_ADDRESS) };
+        assert_eq!(acpi.len(), TD_PAYLOAD_ACPI_SIZE as usize);
+    }
+
+    #[test]
+    #[should_panic(expected = "get_dynamic_mem_slice_mut: not support")]
+    fn test_get_dynamic_mem_slice_mut_with_type_config() {
+        unsafe {
+            get_dynamic_mem_slice_mut(SliceType::Config, TEST_BASE_ADDRESS);
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "get_dynamic_mem_slice_mut: not support")]
+    fn test_get_dynamic_mem_slice_mut_with_type_shimhob() {
+        unsafe {
+            get_dynamic_mem_slice_mut(SliceType::ShimHob, TEST_BASE_ADDRESS);
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "get_dynamic_mem_slice_mut: not support")]
+    fn test_get_dynamic_mem_slice_mut_with_type_shimpayload() {
+        unsafe {
+            get_dynamic_mem_slice_mut(SliceType::ShimPayload, TEST_BASE_ADDRESS);
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "get_dynamic_mem_slice_mut: not support")]
+    fn test_get_dynamic_mem_slice_mut_with_type_mailbox() {
+        unsafe {
+            get_dynamic_mem_slice_mut(SliceType::MailBox, TEST_BASE_ADDRESS);
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "get_dynamic_mem_slice_mut: not support")]
+    fn test_get_dynamic_mem_slice_mut_with_type_payload() {
+        unsafe {
+            get_dynamic_mem_slice_mut(SliceType::Payload, TEST_BASE_ADDRESS);
+        }
+    }
+}
