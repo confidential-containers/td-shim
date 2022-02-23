@@ -17,6 +17,8 @@ use lazy_static::lazy_static;
 
 use crate::interrupt;
 
+const IDT_ENTRY_COUNT: usize = 256;
+
 extern "win64" {
     fn sidt_call(addr: usize);
     fn lidt_call(addr: usize);
@@ -47,7 +49,7 @@ pub unsafe fn init() {
     lidt_call(&idtr as *const DescriptorTablePointer as usize);
 }
 
-pub type IdtEntries = [IdtEntry; 256];
+pub type IdtEntries = [IdtEntry; IDT_ENTRY_COUNT];
 
 // 8 alignment required
 #[repr(C, align(8))]
@@ -64,7 +66,7 @@ impl Default for Idt {
 impl Idt {
     pub fn new() -> Self {
         let mut idt = Self {
-            entries: [IdtEntry::new(); 256],
+            entries: [IdtEntry::new(); IDT_ENTRY_COUNT],
         };
         idt.init();
         idt
@@ -73,7 +75,8 @@ impl Idt {
     pub fn init(&mut self) {
         let current_idt = &mut self.entries;
 
-        // Set up exceptions
+        // Set up exceptions handler according to Intel64 & IA32 Software Developer Manual
+        // Reference: https://www.intel.com/content/www/us/en/developer/articles/technical/intel-sdm.html
         current_idt[0].set_func(interrupt::divide_by_zero);
         current_idt[1].set_func(interrupt::debug);
         current_idt[2].set_func(interrupt::non_maskable);
@@ -84,18 +87,30 @@ impl Idt {
         current_idt[7].set_func(interrupt::device_not_available);
         current_idt[8].set_func(interrupt::double_fault);
         // 9 no longer available
+        current_idt[9].set_func(interrupt::default_exception);
         current_idt[10].set_func(interrupt::invalid_tss);
         current_idt[11].set_func(interrupt::segment_not_present);
         current_idt[12].set_func(interrupt::stack_segment);
         current_idt[13].set_func(interrupt::protection);
         current_idt[14].set_func(interrupt::page);
         // 15 reserved
+        current_idt[15].set_func(interrupt::default_exception);
         current_idt[16].set_func(interrupt::fpu);
         current_idt[17].set_func(interrupt::alignment_check);
         current_idt[18].set_func(interrupt::machine_check);
         current_idt[19].set_func(interrupt::simd);
         #[cfg(feature = "tdx")]
         current_idt[20].set_func(interrupt::virtualization);
+        #[cfg(not(feature = "tdx"))]
+        current_idt[20].set_func(interrupt::default_exception);
+        // reset exception reserved
+        for i in 21..32 {
+            current_idt[i].set_func(interrupt::default_exception);
+        }
+        // Setup reset potential interrupt handler.
+        for i in 32..IDT_ENTRY_COUNT {
+            current_idt[i].set_func(interrupt::default_interrupt);
+        }
     }
 }
 
