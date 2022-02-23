@@ -119,6 +119,9 @@ pub extern "win64" fn _start(
     let mut mem = memory::Memory::new(&runtime_memory_layout, memory_all);
     mem.setup_paging();
 
+    // Relocate Mailbox along side with the AP function
+    td::relocate_mailbox(runtime_memory_layout.runtime_mailbox_base as u32);
+
     // Set up the TD event log buffer.
     // Safe because it's used to initialize the EventLog subsystem which ensures safety.
     let event_log_buf = unsafe {
@@ -297,10 +300,10 @@ fn prepare_acpi_tables(
     }
 
     let madt = if let Some(vmm_madt) = vmm_madt {
-        mp::create_madt(vmm_madt, build_time::TD_SHIM_MAILBOX_BASE as u64)
+        mp::create_madt(vmm_madt, layout.runtime_mailbox_base as u64)
             .expect("Failed to create ACPI MADT table")
     } else {
-        mp::create_madt_default(vcpus, build_time::TD_SHIM_MAILBOX_BASE as u64)
+        mp::create_madt_default(vcpus, layout.runtime_mailbox_base as u64)
             .expect("Failed to create ACPI MADT table")
     };
 

@@ -94,8 +94,8 @@ pub fn create_e820_entries(runtime_memory: &RuntimeMemoryLayout) -> E820Table {
     );
     table.add_range(
         E820Type::Nvs,
-        build_time::TD_SHIM_MAILBOX_BASE as u64,
-        build_time::TD_SHIM_MAILBOX_SIZE as u64,
+        runtime_memory.runtime_mailbox_base,
+        runtime::TD_PAYLOAD_MAILBOX_SIZE as u64,
     );
     // TODO: above memory above 4G? Should those memory be reported as `Memory`?
 
