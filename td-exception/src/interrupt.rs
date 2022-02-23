@@ -5,6 +5,7 @@
 #[cfg(feature = "tdx")]
 use tdx_tdcall::tdx;
 
+// the order is aligned with scratch_push!() and scratch_pop!()
 #[repr(C, packed)]
 struct ScratchRegisters {
     r11: usize,
@@ -220,6 +221,18 @@ macro_rules! interrupt_error {
     };
 }
 
+interrupt_no_error!(default_exception, stack, {
+    log::info!("default exception\n");
+    stack.dump();
+    deadloop();
+});
+
+interrupt_no_error!(default_interrupt, stack, {
+    log::info!("default interrupt\n");
+    stack.dump();
+    deadloop();
+});
+
 #[cfg(feature = "integration-test")]
 interrupt_no_error!(divide_by_zero, stack, {
     log::info!("Divide by zero\n");
@@ -323,7 +336,7 @@ interrupt_no_error!(fpu, stack, {
 });
 
 interrupt_error!(alignment_check, stack, {
-    log::info!("Alignment check fault");
+    log::info!("Alignment check fault\n");
     stack.dump();
     deadloop();
 });
@@ -341,41 +354,80 @@ interrupt_no_error!(simd, stack, {
 });
 
 #[cfg(feature = "tdx")]
+const OP_CODE_IN_AL_IMM8: u8 = 0xE4;
+#[cfg(feature = "tdx")]
+const OP_CODE_IN_EAX_IMM8: u8 = 0xE5;
+#[cfg(feature = "tdx")]
+const OP_CODE_IN_AL_DX: u8 = 0xEC;
+#[cfg(feature = "tdx")]
+const OP_CODE_IN_EAX_DX: u8 = 0xED;
+#[cfg(feature = "tdx")]
+const OP_CODE_OUT_IMM8_AL: u8 = 0xE6;
+#[cfg(feature = "tdx")]
+const OP_CODE_OUT_IMM8_EAX: u8 = 0xE7;
+#[cfg(feature = "tdx")]
+const OP_CODE_OUT_DX_AL: u8 = 0xEE;
+#[cfg(feature = "tdx")]
+const OP_CODE_OUT_DX_EAX: u8 = 0xEF;
+
+#[cfg(feature = "tdx")]
 interrupt_no_error!(virtualization, stack, {
     let op_code: u8 = *(stack.iret.rip as *const u8);
     match op_code {
         // IN
-        0xE4 => {
-            log::info!("<IN AL, IMM8>")
+        OP_CODE_IN_AL_IMM8 => {
+            // log::info!("<IN AL, IMM8> ")
+            let port: u8 = *((stack.iret.rip + 1) as *const u8);
+            let al = tdx::tdvmcall_io_read_8(port as u16);
+            stack.scratch.rax = (stack.scratch.rax & 0xFFFF_FFFF_FFFF_FF00_usize) | al as usize;
+            stack.iret.rip += 2;
+            // log::info!("Fault done\n");
+            return;
         }
-        0xE5 => {
-            log::info!("<IN EAX, IMM8>")
+        OP_CODE_IN_EAX_IMM8 => {
+            // log::info!("<IN EAX, IMM8> ")
+            let port: u8 = *((stack.iret.rip + 1) as *const u8);
+            let eax = tdx::tdvmcall_io_read_32(port as u16);
+            stack.scratch.rax = (stack.scratch.rax & 0xFFFF_FFFF_0000_0000_usize) | eax as usize;
+            stack.iret.rip += 2;
+            // log::info!("Fault done\n");
+            return;
         }
-        0xEC => {
-            // log::info!("<IN AL, DX>\n");
+        OP_CODE_IN_AL_DX => {
+            // log::info!("<IN AL, DX> ");
             let al = tdx::tdvmcall_io_read_8((stack.scratch.rdx & 0xFFFF) as u16);
             stack.scratch.rax = (stack.scratch.rax & 0xFFFF_FFFF_FFFF_FF00_usize) | al as usize;
             stack.iret.rip += 1;
             // log::info!("Fault done\n");
             return;
         }
-        0xED => {
-            log::info!("<IN EAX, DX>");
-            let al = tdx::tdvmcall_io_read_32((stack.scratch.rdx & 0xFFFF) as u16);
-            stack.scratch.rax = (stack.scratch.rax & 0xFFFF_FFFF_0000_0000_usize) | al as usize;
+        OP_CODE_IN_EAX_DX => {
+            // log::info!("<IN EAX, DX> ");
+            let eax = tdx::tdvmcall_io_read_32((stack.scratch.rdx & 0xFFFF) as u16);
+            stack.scratch.rax = (stack.scratch.rax & 0xFFFF_FFFF_0000_0000_usize) | eax as usize;
             stack.iret.rip += 1;
-            log::info!("Fault done\n");
+            // log::info!("Fault done\n");
             return;
         }
         // OUT
-        0xE6 => {
-            log::info!("<OUT IMM8, AL>")
+        OP_CODE_OUT_IMM8_AL => {
+            // log::info!("<OUT IMM8, AL> ")
+            let port: u8 = *((stack.iret.rip + 1) as *const u8);
+            tdx::tdvmcall_io_write_8(port as u16, (stack.scratch.rax & 0xFF) as u8);
+            stack.iret.rip += 2;
+            // log::info!("Fault done\n");
+            return;
         }
-        0xE7 => {
-            log::info!("<OUT IMM8, EAX>")
+        OP_CODE_OUT_IMM8_EAX => {
+            // log::info!("<OUT IMM8, EAX> ")
+            let port: u8 = *((stack.iret.rip + 1) as *const u8);
+            tdx::tdvmcall_io_write_32(port as u16, (stack.scratch.rax & 0xFFFF_FFFF) as u32);
+            stack.iret.rip += 2;
+            // log::info!("Fault done\n");
+            return;
         }
-        0xEE => {
-            // log::info!("<OUT DX, AL>\n");
+        OP_CODE_OUT_DX_AL => {
+            // log::info!("<OUT DX, AL> ");
             tdx::tdvmcall_io_write_8(
                 (stack.scratch.rdx & 0xFFFF) as u16,
                 (stack.scratch.rax & 0xFF) as u8,
@@ -384,31 +436,41 @@ interrupt_no_error!(virtualization, stack, {
             // log::info!("Fault done\n");
             return;
         }
-        0xEF => {
-            log::info!("<OUT DX, EAX>");
+        OP_CODE_OUT_DX_EAX => {
+            // log::info!("<OUT DX, EAX> ");
             tdx::tdvmcall_io_write_32(
                 (stack.scratch.rdx & 0xFFFF) as u16,
-                (stack.scratch.rax & 0xFFFFFFFF) as u32,
+                (stack.scratch.rax & 0xFFFF_FFFF) as u32,
             );
             stack.iret.rip += 1;
-            log::info!("Fault done\n");
+            // log::info!("Fault done\n");
             return;
         }
         // Unknown
-        _ => {}
+        _ => log::warn!("unknown opcode: {:#x} ", op_code),
     };
     log::info!("Virtualization fault\n");
     stack.dump();
     deadloop();
 });
 
+#[cfg(feature = "tdx")]
 fn deadloop() {
     // TBD: empty `loop {}` wastes CPU cycles
     #[allow(clippy::empty_loop)]
     loop {
-        // // Keep the same as before refactoring.
+        // TDX does not allow HLT instruction.
+        // TDVMCALL<HLT> may be used here. TBD later.
         // x86_64::instructions::interrupts::enable();
         // x86_64::instructions::hlt();
-        //
+    }
+}
+
+#[cfg(not(feature = "tdx"))]
+fn deadloop() {
+    #[allow(clippy::empty_loop)]
+    loop {
+        x86_64::instructions::interrupts::enable();
+        x86_64::instructions::hlt();
     }
 }
