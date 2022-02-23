@@ -126,6 +126,8 @@ macro_rules! RUNTIME_TEMPLATE {
                     |    TD_HOB    |    ({hob_size:#010X})
                     +--------------+ <-  {acpi_base:#010X}
                     |     ACPI     |    ({acpi_size:#010X})
+                    +--------------+ <-  {mailbox_base:#010X}
+                    |    MAILBOX   |    ({mailbox_size:#010X})
                     +--------------+ <-  {event_log_base:#010X}
                     | TD_EVENT_LOG |    ({event_log_size:#010X})
                     +--------------+ <-  0x80000000 (2G) - for example
@@ -133,6 +135,7 @@ macro_rules! RUNTIME_TEMPLATE {
 
 pub const TD_PAYLOAD_EVENT_LOG_SIZE: u32 = {event_log_size:#X};
 pub const TD_PAYLOAD_ACPI_SIZE: u32 = {acpi_size:#X};
+pub const TD_PAYLOAD_MAILBOX_SIZE: u32 = {mailbox_size:#X};
 pub const TD_PAYLOAD_HOB_SIZE: u32 = {hob_size:#X};
 pub const TD_PAYLOAD_SHADOW_STACK_SIZE: u32 = {shadow_stack_size:#X};
 pub const TD_PAYLOAD_STACK_SIZE: u32 = {stack_size:#X};
@@ -173,6 +176,7 @@ struct TdImageLayoutConfig {
 struct TdRuntimeLayoutConfig {
     event_log_size: u32,
     acpi_size: u32,
+    mailbox_size: u32,
     hob_size: u32,
     shadow_stack_size: u32,
     stack_size: u32,
@@ -271,6 +275,8 @@ impl TdLayout {
             shadow_stack_size = self.runtime.shadow_stack_size,
             hob_base = self.runtime.hob_base,
             hob_size = self.runtime.hob_size,
+            mailbox_base = self.runtime.mailbox_base,
+            mailbox_size = self.runtime.mailbox_size,
             event_log_base = self.runtime.event_log_base,
             event_log_size = self.runtime.event_log_size,
             acpi_base = self.runtime.acpi_base,
@@ -420,12 +426,15 @@ struct TdLayoutRuntime {
     event_log_size: u32,
     acpi_base: u32,
     acpi_size: u32,
+    mailbox_base: u32,
+    mailbox_size: u32,
 }
 
 impl TdLayoutRuntime {
     fn new_from_config(config: &TdLayoutConfig) -> Self {
         let event_log_base = 0x80000000 - config.runtime_layout.event_log_size; // TODO: 0x80000000 is hardcoded LOW_MEM_TOP, to remove
-        let acpi_base = event_log_base - config.runtime_layout.acpi_size;
+        let mailbox_base = event_log_base - config.runtime_layout.mailbox_size;
+        let acpi_base = mailbox_base - config.runtime_layout.acpi_size;
         let hob_base = acpi_base - config.runtime_layout.hob_size;
         let shadow_stack_base = hob_base - config.runtime_layout.shadow_stack_size;
         let stack_base = shadow_stack_base - config.runtime_layout.stack_size;
@@ -453,6 +462,8 @@ impl TdLayoutRuntime {
             event_log_size: config.runtime_layout.event_log_size,
             acpi_base,
             acpi_size: config.runtime_layout.acpi_size,
+            mailbox_base,
+            mailbox_size: config.runtime_layout.mailbox_size,
             payload_param_base,
             payload_param_size: config.runtime_layout.payload_param_size,
         }

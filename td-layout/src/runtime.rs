@@ -19,18 +19,20 @@
                     |    PAYLOAD   |    (0x02000000)
                     +--------------+
                     |   ........   |
-                    +--------------+ <-  0x7D000000
+                    +--------------+ <-  0x7CFFE000
                     |     DMA      |    (0x01000000)
-                    +--------------+ <-  0x7E000000
+                    +--------------+ <-  0x7DFFE000
                     |     HEAP     |    (0x01000000)
-                    +--------------+ <-  0x7F000000
+                    +--------------+ <-  0x7EFFE000
                     |     STACK    |    (0x00800000)
-                    +--------------+ <-  0x7F800000
+                    +--------------+ <-  0x7F7FE000
                     |      SS      |    (0x00200000)
-                    +--------------+ <-  0x7FA00000
+                    +--------------+ <-  0x7F9FE000
                     |    TD_HOB    |    (0x00400000)
-                    +--------------+ <-  0x7FE00000
+                    +--------------+ <-  0x7FDFE000
                     |     ACPI     |    (0x00100000)
+                    +--------------+ <-  0x7FEFE000
+                    |    MAILBOX   |    (0x00002000)
                     +--------------+ <-  0x7FF00000
                     | TD_EVENT_LOG |    (0x00100000)
                     +--------------+ <-  0x80000000 (2G) - for example
@@ -38,6 +40,7 @@
 
 pub const TD_PAYLOAD_EVENT_LOG_SIZE: u32 = 0x100000;
 pub const TD_PAYLOAD_ACPI_SIZE: u32 = 0x100000;
+pub const TD_PAYLOAD_MAILBOX_SIZE: u32 = 0x2000;
 pub const TD_PAYLOAD_HOB_SIZE: u32 = 0x400000;
 pub const TD_PAYLOAD_SHADOW_STACK_SIZE: u32 = 0x200000;
 pub const TD_PAYLOAD_STACK_SIZE: u32 = 0x800000;
