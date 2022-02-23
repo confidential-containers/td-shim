@@ -71,6 +71,7 @@
                 +--------------+ <-  0x80000000 (2G) - for example
         */
         "event_log_size": 0x100000,
+        "mailbox_size": 0x2000,
         "acpi_size": 0x100000,
         "hob_size": 0x400000,
         "shadow_stack_size": 0x200000,
