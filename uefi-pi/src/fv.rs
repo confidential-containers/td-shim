@@ -25,7 +25,7 @@ pub fn get_image_from_fv(
     section_type: SectionType,
 ) -> Option<&[u8]> {
     let fv_header: FirmwareVolumeHeader = fv_data.pread(0).ok()?;
-    if fv_header.signature != FVH_SIGNATURE {
+    if fv_header.signature != FVH_SIGNATURE || fv_header.header_length as usize >= fv_data.len() {
         return None;
     }
 
@@ -77,6 +77,10 @@ struct Sections<'a> {
 
 impl<'a> Sections<'a> {
     pub fn parse(sections_buffer: &'a [u8], offset: usize) -> Option<Self> {
+        if offset >= sections_buffer.len() {
+            return None;
+        }
+
         Some(Sections {
             buffer: &sections_buffer[offset..],
         })
@@ -114,6 +118,10 @@ struct Files<'a> {
 
 impl<'a> Files<'a> {
     pub fn parse(fv_buffer: &'a [u8], fv_header_size: usize) -> Option<Self> {
+        if fv_header_size >= fv_buffer.len() {
+            return None;
+        }
+
         Some(Files {
             buffer: &fv_buffer[fv_header_size..],
         })
