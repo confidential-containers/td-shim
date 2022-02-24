@@ -207,6 +207,7 @@ pub fn relocate_with_per_section(
         loaded_buffer[dst_start..dst_end].copy_from_slice(&image_buffer[src_start..src_end]);
         if section.virtual_size as usize > section_size {
             let fill_end = dst_start.checked_add(section.virtual_size as usize)?;
+            loaded_buffer.len().checked_sub(fill_end)?;
             loaded_buffer[dst_end..fill_end].fill(0);
         }
     }
