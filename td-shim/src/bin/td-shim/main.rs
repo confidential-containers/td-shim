@@ -152,6 +152,12 @@ pub extern "win64" fn _start(
         pi::fv::SECTION_PE32,
     )
     .expect("Failed to get image file from Firmware Volume");
+
+    #[cfg(feature = "secure-boot")]
+    {
+        payload = secure_boot_verify_payload(payload, &mut td_event_log);
+    }
+
     let (entry, basefw, basefwsize) =
         ipl::find_and_report_entry_point(&mut mem, payload).expect("Entry point not found!");
     let entry = entry as usize;
@@ -170,8 +176,6 @@ pub extern "win64" fn _start(
     let hob_base = prepare_hob_list(
         hob_list,
         &runtime_memory_layout,
-        &mut td_event_log,
-        payload,
         basefw,
         basefwsize,
         memory_top_below_4gb,
@@ -317,8 +321,6 @@ fn prepare_acpi_tables(
 fn prepare_hob_list(
     hob_list: &[u8],
     layout: &RuntimeMemoryLayout,
-    td_event_log: &mut TdEventLog,
-    mut payload: &[u8],
     basefw: u64,
     basefwsize: u64,
     memory_top_below_4gb: u64,
@@ -469,32 +471,6 @@ fn prepare_hob_list(
         resource_length: 0x80000u64 + 0x20000u64,
     };
 
-    #[cfg(feature = "secure-boot")]
-    {
-        let cfv = memslice::get_mem_slice(memslice::SliceType::Config);
-        let verifier = verifier::PayloadVerifier::new(payload, cfv);
-        if let Ok(verifier) = &verifier {
-            td_event_log.create_event_log(
-                4,
-                EV_PLATFORM_CONFIG_FLAGS,
-                b"td payload",
-                verifier::PayloadVerifier::get_trust_anchor(cfv).unwrap(),
-            );
-            verifier.verify().expect("Verification fails");
-            td_event_log.create_event_log(4, EV_PLATFORM_CONFIG_FLAGS, b"td payload", payload);
-            td_event_log.create_event_log(
-                4,
-                EV_PLATFORM_CONFIG_FLAGS,
-                b"td payload svn",
-                &u64::to_le_bytes(verifier.get_payload_svn()),
-            );
-            // Parse out the image from signed payload
-            payload = verifier::PayloadVerifier::get_payload_image(payload).unwrap();
-        } else {
-            panic!("Secure Boot: Cannot read verify header from payload binary");
-        }
-    }
-
     const PAYLOAD_NAME_GUID: efi::Guid = efi::Guid::from_fields(
         0x6948d4a,
         0xd359,
@@ -542,4 +518,29 @@ fn prepare_hob_list(
     let _res = hob_slice.pwrite(hob_template, 0);
 
     hob_base
+}
+
+#[cfg(feature = "secure-boot")]
+fn secure_boot_verify_payload<'a>(payload: &'a [u8], td_event_log: &mut TdEventLog) -> &'a [u8] {
+    let cfv = memslice::get_mem_slice(memslice::SliceType::Config);
+    let verifier = verifier::PayloadVerifier::new(payload, cfv)
+        .expect("Secure Boot: Cannot read verify header from payload binary");
+
+    td_event_log.create_event_log(
+        4,
+        EV_PLATFORM_CONFIG_FLAGS,
+        b"td payload",
+        verifier::PayloadVerifier::get_trust_anchor(cfv).unwrap(),
+    );
+    verifier.verify().expect("Verification fails");
+    td_event_log.create_event_log(4, EV_PLATFORM_CONFIG_FLAGS, b"td payload", payload);
+    td_event_log.create_event_log(
+        4,
+        EV_PLATFORM_CONFIG_FLAGS,
+        b"td payload svn",
+        &u64::to_le_bytes(verifier.get_payload_svn()),
+    );
+    // Parse out the image from signed payload
+    return verifier::PayloadVerifier::get_payload_image(payload)
+        .expect("Unable to get payload image from signed binary");
 }
