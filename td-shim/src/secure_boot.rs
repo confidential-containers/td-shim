@@ -38,13 +38,14 @@ pub const PUBKEY_FILE_STRUCT_VERSION_V1: u32 = 0x01;
 pub const PUBKEY_HASH_ALGORITHM_SHA384: u64 = 1;
 
 #[repr(C, align(4))]
-#[derive(Debug, Pread, Pwrite)]
+#[derive(Debug, Default, Pread, Pwrite)]
 pub struct CfvPubKeyFileHeader {
     pub type_guid: [u8; 16],
     pub struct_version: u32,
     pub length: u32,
     pub hash_algorithm: u64,
-    pub reserved: u32,
+    pub _reserved: u32,
+    pub _pad: u32,
 }
 
 impl CfvPubKeyFileHeader {
