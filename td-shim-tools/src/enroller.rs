@@ -17,7 +17,7 @@ use td_shim::secure_boot::{
     CfvPubKeyFileHeader, CFV_FILE_HEADER_PUBKEY_GUID, PUBKEY_FILE_STRUCT_VERSION_V1,
     PUBKEY_HASH_ALGORITHM_SHA384,
 };
-use uefi_pi::pi::fv::{FIRMWARE_FILE_SYSTEM3_GUID, FV_FILETYPE_RAW};
+use uefi_pi::pi::fv::{FIRMWARE_FILE_SYSTEM3_GUID, FVH_REVISION, FVH_SIGNATURE, FV_FILETYPE_RAW};
 
 use crate::public_key::{
     RsaPublicKeyInfo, SubjectPublicKeyInfo, ID_EC_PUBKEY_OID, RSA_PUBKEY_OID, SECP384R1_OID,
@@ -32,8 +32,12 @@ pub fn build_cfv_header() -> FvHeader {
         .fv_header
         .file_system_guid
         .copy_from_slice(FIRMWARE_FILE_SYSTEM3_GUID.as_bytes());
+    cfv_header.fv_header.signature = FVH_SIGNATURE;
+    cfv_header.fv_header.header_length = size_of::<FvHeader>() as u16;
     cfv_header.fv_header.fv_length = TD_SHIM_CONFIG_SIZE as u64;
-    cfv_header.fv_header.checksum = 0xdc0a;
+    cfv_header.fv_header.revision = FVH_REVISION;
+    cfv_header.fv_header.update_checksum();
+
     cfv_header.fv_block_map[0].num_blocks = (TD_SHIM_CONFIG_SIZE as u32) / 0x1000;
     cfv_header.fv_block_map[0].length = 0x1000;
     cfv_header.fv_ext_header.ext_header_size = 0x14;

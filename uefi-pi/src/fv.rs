@@ -19,15 +19,31 @@ use scroll::Pread;
 
 use crate::pi::fv::*;
 
+// Read FV header from slice and validate its integrity
+pub fn read_fv_header(fv_data: &[u8]) -> Option<FirmwareVolumeHeader> {
+    let header: FirmwareVolumeHeader = fv_data.pread(0).ok()?;
+
+    // Do the sanity check for FV header.
+    // Verify the header signature, ffsguid, zerovetor, revision,
+    // fvlength and checksum
+    if header.signature != FVH_SIGNATURE
+        || header.header_length as usize > fv_data.len()
+        || header.zero_vector != [0u8; 16]
+        || header.revision != FVH_REVISION
+        || header.fv_length != fv_data.len() as u64
+        || !header.validate_checksum()
+    {
+        return None;
+    }
+    Some(header)
+}
+
 pub fn get_image_from_fv(
     fv_data: &[u8],
     fv_file_type: FvFileType,
     section_type: SectionType,
 ) -> Option<&[u8]> {
-    let fv_header: FirmwareVolumeHeader = fv_data.pread(0).ok()?;
-    if fv_header.signature != FVH_SIGNATURE || fv_header.header_length as usize >= fv_data.len() {
-        return None;
-    }
+    let fv_header = read_fv_header(fv_data)?;
 
     let files = Files::parse(fv_data, fv_header.header_length as usize)?;
     for (file_header, file_data) in files {
@@ -44,10 +60,7 @@ pub fn get_file_from_fv(
     fv_file_type: FvFileType,
     file_name: Guid,
 ) -> Option<&[u8]> {
-    let fv_header: FirmwareVolumeHeader = fv_data.pread(0).ok()?;
-    if fv_header.signature != FVH_SIGNATURE {
-        return None;
-    }
+    let fv_header = read_fv_header(fv_data)?;
 
     let files = Files::parse(fv_data, fv_header.header_length as usize)?;
     for (file_header, file_data) in files {
@@ -156,6 +169,8 @@ impl<'a> Iterator for Files<'a> {
 
 #[cfg(test)]
 mod test {
+    use core::mem::size_of;
+
     use super::*;
 
     const TEST_GUID1: Guid = Guid::from_fields(
@@ -262,5 +277,38 @@ mod test {
         let res = get_file_from_fv(bytes, FV_FILETYPE_RAW, TEST_GUID2);
 
         assert_eq!(res, None);
+    }
+
+    #[test]
+    fn test_read_fvh() {
+        let mut fv = [0u8; 0x100];
+        let mut header = FirmwareVolumeHeader::default();
+
+        // Valide header
+        header.revision = FVH_REVISION;
+        header.signature = FVH_SIGNATURE;
+        header.header_length = size_of::<FirmwareVolumeHeader>() as u16;
+        header.fv_length = 0x100;
+        header.update_checksum();
+        fv[..size_of::<FirmwareVolumeHeader>()].copy_from_slice(header.as_bytes());
+        assert!(read_fv_header(&fv).is_some());
+
+        // Fail to verify checksum
+        header.checksum = 0;
+        fv[..size_of::<FirmwareVolumeHeader>()].copy_from_slice(header.as_bytes());
+        assert!(!read_fv_header(&fv).is_some());
+
+        // Fail to verify header length
+        header.header_length = 0x200;
+        header.update_checksum();
+        fv[..size_of::<FirmwareVolumeHeader>()].copy_from_slice(header.as_bytes());
+        assert!(!read_fv_header(&fv).is_some());
+
+        // Fail to verify zero vector
+        header.header_length = size_of::<FirmwareVolumeHeader>() as u16;
+        header.zero_vector = [0x10u8; 16];
+        header.update_checksum();
+        fv[..size_of::<FirmwareVolumeHeader>()].copy_from_slice(header.as_bytes());
+        assert!(!read_fv_header(&fv).is_some());
     }
 }

@@ -38,7 +38,8 @@ use td_shim::fv::{
 };
 use td_shim::reset_vector::{ResetVectorHeader, ResetVectorParams};
 use uefi_pi::pi::fv::{
-    FfsFileHeader, FV_FILETYPE_DXE_CORE, FV_FILETYPE_SECURITY_CORE, SECTION_PE32,
+    FfsFileHeader, FVH_REVISION, FVH_SIGNATURE, FV_FILETYPE_DXE_CORE, FV_FILETYPE_SECURITY_CORE,
+    SECTION_PE32,
 };
 
 use crate::{write_u24, InputData, OutputFile};
@@ -72,7 +73,11 @@ impl FvHeaderByte {
 
         let mut tdx_payload_fv_header = FvHeader::default();
         tdx_payload_fv_header.fv_header.fv_length = TD_SHIM_PAYLOAD_SIZE as u64;
-        tdx_payload_fv_header.fv_header.checksum = 0xdc0a;
+        tdx_payload_fv_header.fv_header.signature = FVH_SIGNATURE;
+        tdx_payload_fv_header.fv_header.header_length = size_of::<FvHeader>() as u16;
+        tdx_payload_fv_header.fv_header.revision = FVH_REVISION;
+        tdx_payload_fv_header.fv_header.update_checksum();
+
         tdx_payload_fv_header.fv_block_map[0].num_blocks = (TD_SHIM_PAYLOAD_SIZE as u32) / 0x1000;
         tdx_payload_fv_header.fv_block_map[0].length = 0x1000;
         tdx_payload_fv_header.fv_ext_header.fv_name.copy_from_slice(
