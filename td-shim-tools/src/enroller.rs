@@ -144,9 +144,9 @@ pub fn enroll_key(
     let pub_key_header = CfvPubKeyFileHeader {
         type_guid: *CFV_FILE_HEADER_PUBKEY_GUID.as_bytes(),
         struct_version: PUBKEY_FILE_STRUCT_VERSION_V1,
-        length: (36 + hash.len()) as u32,
+        length: (size_of::<CfvPubKeyFileHeader>() + hash.len()) as u32,
         hash_algorithm: PUBKEY_HASH_ALGORITHM_SHA384,
-        reserved: 0,
+        ..Default::default()
     };
 
     // Create and write the td-shim binary with key enrolled.
