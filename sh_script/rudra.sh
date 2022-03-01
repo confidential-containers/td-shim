@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [[ ! $PWD =~ rust-td$ ]];then
+if [[ ! $PWD =~ td-shim$ ]]; then
     pushd ..
 fi
 
@@ -8,39 +8,36 @@ type rudra
 
 if [[ $? != 0 ]]; then
     echo -e "\033[31m Please install rudra \033[0m"
-    exit
+    exit 1
 fi
 
-origin=`cat rust-toolchain`
+rudra_rust_version=nightly-2021-08-20
 
-flag=false
-if [[ ! $origin =~ "nightly-2021-08-20" ]];then
-    flag=true
-    echo "nightly-2021-08-20" > rust-toolchain
-    echo $origin
+if [[ ! $(cat rust-toolchain) =~ $rudra_rust_version ]]; then
+    echo -e "\033[31m Now rudra version supports $rudra_rust_version, please refer to https://github.com/sslab-gatech/Rudra or doc/static_analyzer.md \033[0m"
+    exit 1
 fi
 paths=(
-    "elf-loader"
-    "pe-loader"
-    "r-uefi-pi"
-    "rust-paging"
-    "rust-td-layout"
-    "rust-td-payload"
-    "rust-td-tool"
-    "rust-tdshim"
-    "tdx-exception"
-    "tdx-logger"
+    "td-exception"
+    "td-layout"
+    "td-loader"
+    "td-logger"
+    "td-paging"
+    "td-payload"
+    "td-shim"
+    "uefi-pi"
+    "td-shim-tools"
     "tdx-tdcall"
     "uefi-pi"
 )
 
-for i in ${paths[@]};do
-    echo $PWD/$i
+for i in ${paths[@]}; do
     pushd $PWD/$i
-    cargo rudra
+
+    case "$i" in
+    td-shim) cargo rudra --features main,tdx ;;
+    *) cargo rudra ;;
+    esac
+
     popd
 done
-
-if [ $flag == true ];then
-    echo $origin > rust-toolchain
-fi
