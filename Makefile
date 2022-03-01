@@ -43,6 +43,9 @@ install-devtools: build-subdir-devtools install-subdir-devtools $(TOOL_CRATES:%=
 
 uninstall-devtools: uninstall-subdir-devtools $(TOOL_CRATES:%=uninstall-devtool-%)
 
+.PHONY: tools-devtools
+tools-devtools: tools-subdir-devtools
+
 install-devtool-%: build-%
 	mkdir -p ${TOPDIR}/devtools/bin
 	cargo install --bins --target-dir ${TOPDIR}/devtools/bin/ --path $(patsubst install-devtool-%,%,$@)
@@ -126,3 +129,6 @@ install-subdir-%:
 
 uninstall-subdir-%:
 	make -C $(patsubst uninstall-subdir-%,%,$@) uninstall
+
+tools-subdir-%:
+	make -C $(patsubst tools-subdir-%,%,$@) all-tools

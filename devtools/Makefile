@@ -25,3 +25,23 @@ uninstall:
 	rm ${TOPDIR}/devtools/bin/td-layout-config
 	rm ${TOPDIR}/devtools/bin/test-runner-server
 
+tools-init:
+	docker build -t tools dev_container
+
+fuzz_test_afl: tools-init
+	docker run -t --rm -v ${TOPDIR}:/td-shim -w /td-shim tools bash sh_script/fuzzing.sh afl
+
+fuzz_test_libfuzzer: tools-init
+	docker run -t --rm -v ${TOPDIR}:/td-shim -w /td-shim tools bash sh_script/fuzzing.sh
+
+static_analyzer_rudra: tools-init
+	mkdir -p ${TOPDIR}/target/report
+	docker run -t --rm \
+		--env RUDRA_REPORT_PATH=/td-shim/target/report/report \
+		--env SCCACHE_DIR=/td-shim/target/sccache_home \
+		--env SCCACHE_CACHE_SIZE=10T \
+		-v ${TOPDIR}:/td-shim \
+		-v ${TOPDIR}/target/report:/td-shim/target/report  \
+		-w /td-shim tools bash sh_script/rudra.sh
+
+all-tools: tools-init fuzz_test_afl fuzz_test_libfuzzer static_analyzer_rudra
