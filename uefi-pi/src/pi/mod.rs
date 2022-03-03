@@ -16,4 +16,5 @@
 
 pub mod boot_mode;
 pub mod fv;
+pub mod guid;
 pub mod hob;
