@@ -8,7 +8,7 @@ license = "BSD-2-Clause-Patent"
 edition = "2018"
 
 [[bin]]
-name = "td-shim-enroll-key"
+name = "td-shim-enroll"
 required-features = ["enroller"]
 
 [[bin]]

@@ -14,8 +14,8 @@ use ring::digest;
 use td_layout::build_time::{TD_SHIM_CONFIG_OFFSET, TD_SHIM_CONFIG_SIZE, TD_SHIM_FIRMWARE_SIZE};
 use td_shim::fv::{FvFfsFileHeader, FvHeader};
 use td_shim::secure_boot::{
-    CfvPubKeyFileHeader, CFV_FILE_HEADER_PUBKEY_GUID, PUBKEY_FILE_STRUCT_VERSION_V1,
-    PUBKEY_HASH_ALGORITHM_SHA384,
+    CfvPubKeyFileHeader, CFV_FFS_HEADER_TRUST_ANCHOR_GUID, CFV_FILE_HEADER_PUBKEY_GUID,
+    PUBKEY_FILE_STRUCT_VERSION_V1, PUBKEY_HASH_ALGORITHM_SHA384,
 };
 use uefi_pi::pi::fv::{FIRMWARE_FILE_SYSTEM3_GUID, FVH_REVISION, FVH_SIGNATURE, FV_FILETYPE_RAW};
 
@@ -24,8 +24,50 @@ use crate::public_key::{
 };
 use crate::{write_u24, InputData, OutputFile};
 
+// Used to construct a firmware file with a ffs header
+// and FV_FILETYPE_RAW type
+pub struct FirmwareRawFile {
+    data: Vec<u8>,
+    // Record the real size of data without padding
+    real_size: usize,
+}
+
+impl FirmwareRawFile {
+    pub fn new(name: &[u8; 16]) -> Self {
+        let mut data: Vec<u8> = Vec::new();
+        let ffs_header = build_cfv_ffs_header(name);
+        data.extend_from_slice(ffs_header.as_bytes());
+
+        Self {
+            data,
+            real_size: size_of::<FvFfsFileHeader>(),
+        }
+    }
+
+    pub fn append(&mut self, data: &[u8]) {
+        // Remove the padding zeros before push the data
+        self.data.truncate(self.real_size);
+        self.data.extend_from_slice(data);
+
+        self.real_size = self.data.len();
+
+        // padding zero to ensure the file size is align with 8 bytes
+        let padding = 8 - (self.data.len() & 0x7);
+        for _ in 0..padding {
+            self.data.push(0);
+        }
+
+        // Update lengh field
+        write_u24(self.data.len() as u32, &mut self.data[20..23]);
+    }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        self.data.as_slice()
+    }
+}
+
 /// Build a Configure Firmware Volume header for public key hash.
-pub fn build_cfv_header() -> FvHeader {
+fn build_cfv_header() -> FvHeader {
     let mut cfv_header = FvHeader::default();
 
     cfv_header
@@ -46,12 +88,9 @@ pub fn build_cfv_header() -> FvHeader {
 }
 
 /// Build a Configure Firmware Volume Filesystem header for public key hash.
-pub fn build_cfv_ffs_header() -> FvFfsFileHeader {
+fn build_cfv_ffs_header(name: &[u8; 16]) -> FvFfsFileHeader {
     let mut cfv_ffs_header = FvFfsFileHeader::default();
-    cfv_ffs_header
-        .ffs_header
-        .name
-        .copy_from_slice(td_shim::secure_boot::CFV_FFS_HEADER_TRUST_ANCHOR_GUID.as_bytes());
+    cfv_ffs_header.ffs_header.name.copy_from_slice(name);
 
     cfv_ffs_header.ffs_header.integrity_check = 0xaa4c;
     cfv_ffs_header.ffs_header.r#type = FV_FILETYPE_RAW;
@@ -65,24 +104,56 @@ pub fn build_cfv_ffs_header() -> FvFfsFileHeader {
     cfv_ffs_header
 }
 
-/// Enroll a public key into the Configure Firmware Volume of shim binary for secure boot.
+pub fn enroll_files(
+    input_file: &str,
+    output_file: PathBuf,
+    firmware_files: Vec<FirmwareRawFile>,
+) -> io::Result<()> {
+    let tdshim_bin = InputData::new(
+        input_file,
+        TD_SHIM_FIRMWARE_SIZE as usize..=TD_SHIM_FIRMWARE_SIZE as usize,
+        "shim binary",
+    )?;
+
+    // Build the CFV header and write on the top of CFV
+    let mut output = OutputFile::new(output_file)?;
+    // Write the clean shim binary into the new one
+    output.seek_and_write(0, tdshim_bin.as_bytes(), "enrolled shim binary")?;
+    let cfv_header = build_cfv_header();
+    output.seek_and_write(
+        TD_SHIM_CONFIG_OFFSET as u64,
+        cfv_header.as_bytes(),
+        "firmware volume header",
+    )?;
+
+    for f in firmware_files {
+        output.write(f.as_bytes(), "firmware file")?;
+    }
+
+    output.flush()?;
+
+    Ok(())
+}
+
+/// Build a firmware file which contains public key bytes for secure boot.
 ///
 /// Secure boot in td-shim means the td-shim will verify the digital signature of the payload,
 /// based upon a trusted anchor. The payload includes the digital signature and the public key.
 /// The td-shim includes a trust anchor - hash of public key.
 ///
 /// Please refer to section "Trust Anchor in Td-Shim" in doc/secure_boot.md for definitions.
-pub fn enroll_key(
-    tdshim_file: &str,
-    key_file: &str,
-    output_file: PathBuf,
-    hash_alg: &'static digest::Algorithm,
-) -> io::Result<()> {
-    let tdshim_bin = InputData::new(
-        tdshim_file,
-        TD_SHIM_FIRMWARE_SIZE as usize..=TD_SHIM_FIRMWARE_SIZE as usize,
-        "shim binary",
-    )?;
+pub fn create_key_file(key_file: &str, hash_alg: &str) -> io::Result<FirmwareRawFile> {
+    let hash_alg = match hash_alg {
+        "SHA384" => &digest::SHA384,
+        _ => {
+            error!("Unsupported hash algorithm {}", hash_alg);
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                "unsupported hash algorithm",
+            ));
+        }
+    };
+
     let key_data = InputData::new(key_file, 1..=1024 * 1024, "public key")?;
     let key = SubjectPublicKeyInfo::try_from(key_data.as_bytes()).map_err(|e| {
         error!("Can not load key from file {}: {}", key_file, e);
@@ -141,9 +212,12 @@ pub fn enroll_key(
         }
     }
 
+    // Hash public key
     let hash = digest::digest(hash_alg, public_bytes.as_slice());
     let hash = hash.as_ref();
 
+    // Create a firmware file to hold secure boot contens
+    let mut ff = FirmwareRawFile::new(CFV_FFS_HEADER_TRUST_ANCHOR_GUID.as_bytes());
     //Build public key header in CFV
     let pub_key_header = CfvPubKeyFileHeader {
         type_guid: *CFV_FILE_HEADER_PUBKEY_GUID.as_bytes(),
@@ -152,22 +226,34 @@ pub fn enroll_key(
         hash_algorithm: PUBKEY_HASH_ALGORITHM_SHA384,
         ..Default::default()
     };
+    ff.append(pub_key_header.as_bytes());
+    // public key hash value
+    ff.append(hash);
 
-    // Create and write the td-shim binary with key enrolled.
-    let mut output = OutputFile::new(output_file)?;
-    let cfv_header = build_cfv_header();
-    let cfv_ffs_header = build_cfv_ffs_header();
+    Ok(ff)
+}
 
-    output.seek_and_write(0, tdshim_bin.as_bytes(), "enrolled shim binary")?;
-    output.seek_and_write(
-        TD_SHIM_CONFIG_OFFSET as u64,
-        cfv_header.as_bytes(),
-        "firmware volume header",
-    )?;
-    output.write(cfv_ffs_header.as_bytes(), "firmware volume fs header")?;
-    output.write(pub_key_header.as_bytes(), "firmware key")?;
-    output.write(hash, "firmware hash value")?;
-    output.flush()?;
+#[cfg(test)]
+mod test {
+    use super::*;
+    use uefi_pi::pi::guid;
 
-    Ok(())
+    #[test]
+    fn test_firmware_file() {
+        // {214D240F-77A3-441B-9DA8-C588E43192C1}
+        let name = guid::Guid::parse_str("214D240F-77A3-441B-9DA8-C588E43192C1").unwrap();
+        let size: usize = size_of::<FvFfsFileHeader>();
+
+        let mut ff = FirmwareRawFile::new(name.as_bytes());
+        assert_eq!(ff.as_bytes().len(), size);
+
+        ff.append("Firmware file test.".as_bytes());
+        assert_eq!(ff.as_bytes().len(), size + 24);
+
+        ff.append("\n".as_bytes());
+        assert_eq!(ff.as_bytes().len(), size + 24);
+
+        ff.append("Done.".as_bytes());
+        assert_eq!(ff.as_bytes().len(), size + 32);
+    }
 }
