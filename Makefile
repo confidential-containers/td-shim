@@ -11,7 +11,7 @@ endif
 
 LIB_CRATES = td-loader td-exception td-layout td-logger td-paging tdx-tdcall
 SHIM_CRATES = td-shim td-payload
-TEST_CRATES = test-td-exception test-td-paging test-td-payload
+TEST_CRATES = test-td-exception test-td-paging
 TOOL_CRATES = td-shim-tools
 
 # Targets for normal artifacts
