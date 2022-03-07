@@ -110,7 +110,3 @@ jobs:
         shell: pwsh
       - name: "Print QEMU Version"
         run: qemu-system-x86_64 --version
-
-      - name: "test td-payload"
-        working-directory: tests/test-td-payload
-        run: cargo xtest --target ../../devtools/rustc-targets/x86_64-custom.json
