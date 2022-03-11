@@ -10,9 +10,9 @@ on:
 name: RUN CODE
 
 env:
-  AR: llvm-ar
   AS: nasm
-  CC: clang
+  AR_x86_64_unknown_uefi: llvm-ar
+  CC_x86_64_unknown_uefi: clang
   RUST_TOOLCHAIN: nightly-2021-08-20
   TOOLCHAIN_PROFILE: minimal
 
