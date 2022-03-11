@@ -2,15 +2,13 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
+use anyhow::Result;
 use std::{
     env, format,
     path::{Path, PathBuf},
     process::{exit, Command},
 };
-
-use anyhow::{anyhow, Result};
 use td_layout::build_time;
-use which::which;
 
 fn nasm(file: &Path, arch: &str, out_file: &Path, args: &[&str]) -> Command {
     let oformat = match arch {
@@ -42,10 +40,14 @@ fn run_command(mut cmd: Command) {
     }
 }
 
+#[cfg(target = "x86_64-unknown-uefi")]
+// clang is only required when building ring with the x86_64-unknown-uefi target. #109
 fn check_environment() -> Result<()> {
-    const CC_ENV_VAR: &str = "CC";
+    use anyhow::anyhow;
+    use which::which;
+    const CC_ENV_VAR: &str = "CC_x86_64_unknown_uefi";
     const AS_ENV_VAR: &str = "AS";
-    const AR_ENV_VAR: &str = "AR";
+    const AR_ENV_VAR: &str = "AR_x86_64_unknown_uefi";
 
     // Defaults to 'cc' but also honours the CC_ENV_VAR environment variable.
     let cfg = cc::Build::new().try_get_compiler()?;
@@ -149,6 +151,7 @@ fn real_main() -> Result<()> {
     // tell cargo when to re-run the script
     println!("cargo:rerun-if-changed=build.rs");
 
+    #[cfg(target = "x86_64-unknown-uefi")]
     check_environment()?;
 
     println!(
