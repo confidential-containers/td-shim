@@ -3,9 +3,9 @@ on: [push, pull_request]
 name: Format and Clippy
 
 env:
-  AR: llvm-ar
   AS: nasm
-  CC: clang
+  AR_x86_64_unknown_uefi: llvm-ar
+  CC_x86_64_unknown_uefi: clang
 
 jobs:
   clippy:
