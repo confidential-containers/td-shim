@@ -44,8 +44,8 @@ Please make sure clang can be found in PATH.
 Set env:
 
 ```
-set CC=clang
-set AR=llvm-ar
+set CC_x86_64_unknown_uefi=clang
+set AR_x86_64_unknown_uefi=llvm-ar
 ```
 
 ### Secure boot support
