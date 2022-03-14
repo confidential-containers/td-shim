@@ -1,0 +1,17 @@
+[package]
+name = "td-loader"
+version = "0.1.0"
+edition = "2018"
+description = "Parser and loader for 64 bit Portable Executable (PE+) or 32/64 bit Executable and Linkable Format(ELF) binary objects"
+repository = "https://github.com/confidential-containers/td-shim"
+homepage = "https://github.com/confidential-containers"
+license = "Apache 2.0"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+log = "0.4.13"
+scroll = { version = "0.10", default-features=false, features = ["derive"] }
+
+[dev-dependencies]
+env_logger = "0.9.0"
