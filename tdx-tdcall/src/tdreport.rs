@@ -30,12 +30,12 @@ pub struct ReportType {
 #[derive(Debug, Pread, Pwrite)]
 pub struct ReportMac {
     pub report_type: ReportType,
-    reserved0: [u8; 12],
+    pub reserved0: [u8; 12],
     pub cpu_svn: [u8; 16],
     pub tee_tcb_info_hash: [u8; 48],
     pub tee_info_hash: [u8; 48],
     pub report_data: [u8; 64],
-    reserved1: [u8; 32],
+    pub reserved1: [u8; 32],
     pub mac: [u8; 32],
 }
 
@@ -68,7 +68,7 @@ pub struct TeeTcbInfo {
     pub mrseam: [u8; 48],
     pub mrsigner_seam: [u8; 48],
     pub attributes: [u8; 8],
-    reserved: [u8; 111],
+    pub reserved: [u8; 111],
 }
 
 impl fmt::Display for TeeTcbInfo {
@@ -97,7 +97,7 @@ pub struct TdInfo {
     pub rtmr1: [u8; 48],
     pub rtmr2: [u8; 48],
     pub rtmr3: [u8; 48],
-    reserved: [u8; 112],
+    pub reserved: [u8; 112],
 }
 
 impl fmt::Display for TdInfo {
@@ -129,7 +129,7 @@ impl fmt::Display for TdInfo {
 pub struct TdxReport {
     pub report_mac: ReportMac,
     pub tee_tcb_info: TeeTcbInfo,
-    reserved: [u8; 17],
+    pub reserved: [u8; 17],
     pub td_info: TdInfo,
 }
 
