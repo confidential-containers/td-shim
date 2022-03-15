@@ -34,6 +34,20 @@ use r_efi::efi::Guid;
 use scroll::{Pread, Pwrite};
 
 pub type FvbAttributes2 = u32;
+pub const FVH_REVISION: u8 = 2;
+
+// Calculate the 16-bit sum of all elements in a u8 slice
+fn sum16(data: &[u8]) -> u16 {
+    let mut sum = 0u16;
+    let cnt = data.len() / 2;
+    for i in 0..cnt {
+        sum = sum.wrapping_add((data[i * 2 + 1] as u16) << 8 | data[i * 2] as u16);
+    }
+    if cnt * 2 == data.len() - 1 {
+        sum = sum.wrapping_add(data[cnt * 2] as u16)
+    }
+    sum
+}
 
 /// Firmware volume signature defined in [UEFI-PI] section 3.2.1
 pub const FVH_SIGNATURE: u32 = 0x4856465F; // '_','F','V','H'
@@ -61,6 +75,18 @@ pub struct FirmwareVolumeHeader {
 impl FirmwareVolumeHeader {
     pub fn as_bytes(&self) -> &[u8] {
         unsafe { &*slice_from_raw_parts(self as *const Self as *const u8, size_of::<Self>()) }
+    }
+
+    // Calculate and update the checksum of the FirmwareVolumeHeader
+    pub fn update_checksum(&mut self) {
+        // Clear the existing one before we calculate the chesum
+        self.checksum = 0;
+        self.checksum = u16::MAX - sum16(self.as_bytes()) + 1;
+    }
+
+    // Validate the checksum of the FirmwareVolumeHeader
+    pub fn validate_checksum(&self) -> bool {
+        sum16(self.as_bytes()) == 0
     }
 }
 
@@ -264,5 +290,32 @@ pub struct CommonSectionHeader2 {
 impl CommonSectionHeader2 {
     pub fn as_bytes(&self) -> &[u8] {
         unsafe { &*slice_from_raw_parts(self as *const Self as *const u8, size_of::<Self>()) }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_fvh_checksum() {
+        let mut header = FirmwareVolumeHeader::default();
+        header.attributes = 0x4feff;
+        header.revision = FVH_REVISION;
+        header.signature = FVH_SIGNATURE;
+        header.header_length = size_of::<FirmwareVolumeHeader>() as u16;
+        header.fv_length = 0x1000;
+        header.checksum = 0x3fef;
+        header.update_checksum();
+
+        assert_eq!(header.checksum, 0x6010);
+        assert!(header.validate_checksum());
+
+        header.checksum = 0x3fe6;
+        assert!(!header.validate_checksum());
+
+        header.update_checksum();
+        assert_eq!(header.checksum, 0x6010);
+        assert!(header.validate_checksum());
     }
 }
