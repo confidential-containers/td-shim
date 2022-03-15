@@ -160,13 +160,13 @@ impl InterruptErrorStack {
 }
 
 #[macro_export]
-macro_rules! interrupt_no_error {
-    ($name:ident, $stack: ident, $func:block) => {
+macro_rules! interrupt_common {
+    ($name:ident, $stack: ident, $stack_type:ty, $func:block, $asm_epilogue:literal) => {
         #[naked]
         #[no_mangle]
         pub unsafe extern fn $name () {
             #[inline(never)]
-            unsafe extern "win64" fn inner($stack: &mut InterruptNoErrorStack) {
+            unsafe extern "win64" fn inner($stack: &mut $stack_type) {
                 $func
             }
 
@@ -180,7 +180,7 @@ macro_rules! interrupt_no_error {
                 ",
                 preserved_pop!(),
                 scratch_pop!(),
-                "iret"
+                $asm_epilogue
                 ),
                 inner = sym inner,
                 options(noreturn),
@@ -190,34 +190,33 @@ macro_rules! interrupt_no_error {
 }
 
 #[macro_export]
+macro_rules! interrupt_no_error {
+    ($name:ident, $stack: ident, $func:block) => {
+        interrupt_common!(
+            $name,
+            $stack,
+            InterruptNoErrorStack,
+            $func,
+            "
+            iret
+            "
+        );
+    };
+}
+
+#[macro_export]
 macro_rules! interrupt_error {
-    ($name:ident, $stack:ident, $func:block) => {
-        #[naked]
-        #[no_mangle]
-        pub unsafe extern fn $name () {
-            #[inline(never)]
-            unsafe extern "win64" fn inner($stack: &mut InterruptErrorStack) {
-                $func
-            }
-            // Push scratch registers
-            asm!( concat!(
-                scratch_push!(),
-                preserved_push!(),
-                "
-                mov rcx, rsp
-                call {inner}
-                ",
-                preserved_pop!(),
-                scratch_pop!(),
-                "
-                add rsp, 8
-                iret
-                "
-                ),
-                inner = sym inner,
-                options(noreturn),
-            )
-        }
+    ($name:ident, $stack: ident, $func:block) => {
+        interrupt_common!(
+            $name,
+            $stack,
+            InterruptErrorStack,
+            $func,
+            "
+            add rsp, 8
+            iret
+            "
+        );
     };
 }
 
