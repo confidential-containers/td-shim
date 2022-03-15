@@ -2,12 +2,6 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
-//! X86 exception and interrupt manager.
-//!
-//! The `td-exception` crate manages x86 exceptions and interrupts for td-shim, which implements:
-//! - interrupt/exception handlers
-//! - IDT(interrupt descriptor table) manager
-
 #![no_std]
 #![feature(asm)]
 #![feature(naked_functions)]
