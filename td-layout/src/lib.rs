@@ -37,6 +37,7 @@ pub struct RuntimeMemoryLayout {
 
     pub runtime_event_log_base: u64,
     pub runtime_acpi_base: u64,
+    pub runtime_mailbox_base: u64,
     pub runtime_hob_base: u64,
     pub runtime_shadow_stack_base: u64,
     pub runtime_stack_base: u64,
@@ -60,6 +61,9 @@ impl RuntimeMemoryLayout {
 
         let current_base = current_base - TD_PAYLOAD_EVENT_LOG_SIZE as u64;
         let runtime_event_log_base = current_base;
+
+        let current_base = current_base - TD_PAYLOAD_MAILBOX_SIZE as u64;
+        let runtime_mailbox_base = current_base;
 
         let current_base = current_base - TD_PAYLOAD_ACPI_SIZE as u64;
         let runtime_acpi_base = current_base;
@@ -92,6 +96,7 @@ impl RuntimeMemoryLayout {
             runtime_payload_param_base,
             runtime_payload_base,
             runtime_event_log_base,
+            runtime_mailbox_base,
             runtime_hob_base,
             runtime_acpi_base,
             runtime_shadow_stack_base,
