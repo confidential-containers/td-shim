@@ -8,7 +8,7 @@ use crate::build_time::{
 };
 use crate::runtime::{
     TD_PAYLOAD_ACPI_SIZE, TD_PAYLOAD_BASE, TD_PAYLOAD_EVENT_LOG_SIZE, TD_PAYLOAD_HOB_SIZE,
-    TD_PAYLOAD_SIZE,
+    TD_PAYLOAD_MAILBOX_SIZE, TD_PAYLOAD_SIZE,
 };
 
 /// Type of build time and runtime memory regions.
@@ -25,6 +25,8 @@ pub enum SliceType {
     Payload,
     /// The `TD_HOB` region in runtime memory layout
     PayloadHob,
+    /// The 'Mailbox' region in runtime memory layout
+    RelocatedMailbox,
     /// The `TD_EVENT_LOG` region in runtime memory layout
     EventLog,
     /// The `ACPI` region in runtime memory layout
@@ -95,10 +97,15 @@ pub unsafe fn get_dynamic_mem_slice_mut<'a>(t: SliceType, base_address: usize) -
             base_address as *const u8 as *mut u8,
             TD_PAYLOAD_EVENT_LOG_SIZE as usize,
         ),
+        SliceType::RelocatedMailbox => core::slice::from_raw_parts_mut(
+            base_address as *const u8 as *mut u8,
+            TD_PAYLOAD_MAILBOX_SIZE as usize,
+        ),
         SliceType::Acpi => core::slice::from_raw_parts_mut(
             base_address as *const u8 as *mut u8,
             TD_PAYLOAD_ACPI_SIZE as usize,
         ),
+
         _ => panic!("get_dynamic_mem_slice_mut: not support"),
     }
 }
