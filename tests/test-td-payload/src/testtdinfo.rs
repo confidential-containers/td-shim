@@ -40,7 +40,7 @@ impl TestCase for Tdinfo {
      * set up the Test case of Tdinfo
      */
     fn setup(&mut self) {
-        self.result = TestResult::Pass;
+        self.result = TestResult::Fail;
     }
 
     /**
@@ -57,7 +57,6 @@ impl TestCase for Tdinfo {
         tdx::tdcall_get_td_info(&mut td_info);
 
         if (self.expected.gpaw != td_info.gpaw) {
-            self.result = TestResult::Fail;
             log::info!(
                 "Check gpaw fail - Expected {:?}: Actual {:?}\n",
                 self.expected.gpaw,
@@ -69,7 +68,6 @@ impl TestCase for Tdinfo {
         }
 
         if (self.expected.max_vcpus != td_info.max_vcpus) {
-            self.result = TestResult::Fail;
             log::info!(
                 "Check max_vcpus fail - Expected {:?}: Actual {:?}\n",
                 self.expected.max_vcpus,
@@ -81,7 +79,6 @@ impl TestCase for Tdinfo {
         }
 
         if (self.expected.num_vcpus != td_info.num_vcpus) {
-            self.result = TestResult::Fail;
             log::info!(
                 "Check num_vcpus fail - Expected {:?}: Actual {:?}\n",
                 self.expected.num_vcpus,
@@ -93,7 +90,6 @@ impl TestCase for Tdinfo {
         }
 
         if (self.expected.max_vcpus != td_info.num_vcpus) {
-            self.result = TestResult::Fail;
             log::info!(
                 "max_vcpus should be equal num_vcpus fail - max_vcpus {:?}: num_vcpus {:?}\n",
                 self.expected.max_vcpus,
@@ -103,7 +99,6 @@ impl TestCase for Tdinfo {
         }
 
         if (self.expected.rsvd != td_info.rsvd) {
-            self.result = TestResult::Fail;
             log::info!(
                 "Check rsvd fail - Expected {:?}: Actual {:?}\n",
                 self.expected.rsvd,
@@ -113,6 +108,8 @@ impl TestCase for Tdinfo {
         } else {
             log::info!("rsvd - {:?}\n", td_info.rsvd);
         }
+
+        self.result = TestResult::Pass;
     }
 
     /**
