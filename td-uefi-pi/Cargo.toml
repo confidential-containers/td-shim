@@ -1,5 +1,5 @@
 [package]
-name = "uefi-pi"
+name = "td-uefi-pi"
 version = "0.1.0"
 description = "UEFI Platform Initializaiton data structures and accessors"
 repository = "https://github.com/confidential-containers/td-shim"

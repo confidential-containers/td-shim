@@ -37,7 +37,7 @@ use td_shim::fv::{
     IplFvHeader,
 };
 use td_shim::reset_vector::{ResetVectorHeader, ResetVectorParams};
-use uefi_pi::pi::fv::{
+use td_uefi_pi::pi::fv::{
     FfsFileHeader, FVH_REVISION, FVH_SIGNATURE, FV_FILETYPE_DXE_CORE, FV_FILETYPE_SECURITY_CORE,
     SECTION_PE32,
 };

@@ -28,7 +28,7 @@ use alloc::vec::Vec;
 use r_efi::efi::Guid;
 use serde::{Deserialize, Serialize};
 use serde_json::{Result, Value};
-use uefi_pi::{fv, hob, pi};
+use td_uefi_pi::{fv, hob, pi};
 
 #[derive(Debug, Serialize, Deserialize)]
 // The test cases' data structure corresponds to the test config json data structure

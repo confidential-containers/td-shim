@@ -4,7 +4,7 @@
 
 use td_layout::runtime::{TD_PAYLOAD_EVENT_LOG_SIZE, TD_PAYLOAD_SIZE};
 use td_layout::RuntimeMemoryLayout;
-use uefi_pi::hob;
+use td_uefi_pi::hob;
 use x86_64::{
     structures::paging::PageTableFlags as Flags,
     structures::paging::{OffsetPageTable, PageTable},

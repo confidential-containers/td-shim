@@ -1,6 +1,6 @@
 
 [package]
-name = "uefi-pi-fuzz"
+name = "td-uefi-pi-fuzz"
 version = "0.0.0"
 authors = ["Automatically generated"]
 publish = false
@@ -12,7 +12,7 @@ cargo-fuzz = true
 [dependencies]
 libfuzzer-sys = "0.4"
 
-[dependencies.uefi-pi]
+[dependencies.td-uefi-pi]
 path = ".."
 
 # Prevent this from interfering with workspaces

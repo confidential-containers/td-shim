@@ -24,7 +24,7 @@ r-efi = "3.2.0"
 scroll = { version = "0.10", default-features = false, features = ["derive"]}
 td-layout = { path = "../td-layout" }
 td-shim = { path = "../td-shim", default-features = false }
-uefi-pi =  { path = "../uefi-pi" }
+td-uefi-pi =  { path = "../td-uefi-pi" }
 
 clap = { version = "3.0", features = ["cargo"], optional = true }
 der = { version = "0.4.5", features = ["oid"], optional = true }

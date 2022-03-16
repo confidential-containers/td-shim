@@ -25,10 +25,9 @@ paths=(
     "td-paging"
     "td-payload"
     "td-shim"
-    "uefi-pi"
+    "td-uefi-pi"
     "td-shim-tools"
     "tdx-tdcall"
-    "uefi-pi"
 )
 
 for i in ${paths[@]}; do
