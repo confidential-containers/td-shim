@@ -11,7 +11,7 @@ mod logger;
 pub use logger::*;
 
 macro_rules! tdlog {
-    ($($arg:tt)*) => (crate::logger::_log_ex(crate::logger::LOG_LEVEL_VERBOSE, crate::logger::LOG_MASK_COMMON, format_args!($($arg)*)));
+    ($($arg:tt)*) => (crate::logger::_log_ex(crate::logger::LOG_LEVEL_INFO, crate::logger::LOG_MASK_ALL, format_args!($($arg)*)));
 }
 
 /// Logger backend for td-shim.
@@ -31,6 +31,7 @@ impl log::Log for LoggerBackend {
     fn flush(&self) {}
 }
 
+/// Logger backend for the log crate
 static LOGGER_BACKEND: LoggerBackend = LoggerBackend;
 
 pub fn init() -> Result<(), SetLoggerError> {
@@ -77,13 +78,13 @@ mod tests {
     fn test_logger() {
         init().unwrap();
 
-        assert_eq!(LOGGER.lock().get_level(), LOG_LEVEL_VERBOSE);
+        assert_eq!(LOGGER.lock().get_level(), LOG_LEVEL_INFO);
         LOGGER.lock().set_level(LOG_LEVEL_ERROR);
         assert_eq!(LOGGER.lock().get_level(), LOG_LEVEL_ERROR);
 
         assert_eq!(LOGGER.lock().get_mask(), LOG_MASK_ALL);
-        LOGGER.lock().set_mask(LOG_MASK_FILE_SYSTEM);
-        assert_eq!(LOGGER.lock().get_mask(), LOG_MASK_FILE_SYSTEM);
+        LOGGER.lock().set_mask(LOG_MASK_COMMON);
+        assert_eq!(LOGGER.lock().get_mask(), LOG_MASK_COMMON);
 
         log::error!("just a test");
     }
