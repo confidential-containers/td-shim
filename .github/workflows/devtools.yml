@@ -47,7 +47,6 @@ jobs:
         with:
           profile: ${{ env.TOOLCHAIN_PROFILE }}
           toolchain: ${{ env.STABLE_RUST_TOOLCHAIN }}
-          override: true
 
       - name: Cache
         uses: Swatinem/rust-cache@v1

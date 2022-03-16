@@ -4,6 +4,7 @@ default-members = ["fake"]
 members = [
 	"fake",
 	"devtools/td-layout-config",
+	"devtools/td-benchmark",
 	"devtools/test-runner-client",
 	"devtools/test-runner-server",
 	"td-exception",
