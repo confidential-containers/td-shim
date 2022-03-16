@@ -30,7 +30,7 @@ use td_shim::event_log::{
 use td_shim::{
     HobTemplate, PayloadInfo, TdKernelInfoHobType, TD_ACPI_TABLE_HOB_GUID, TD_KERNEL_INFO_HOB_GUID,
 };
-use uefi_pi::{fv, hob, pi};
+use td_uefi_pi::{fv, hob, pi};
 
 use crate::tcg::TdEventLog;
 

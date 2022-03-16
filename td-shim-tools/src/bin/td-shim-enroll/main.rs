@@ -12,7 +12,7 @@ use std::vec::Vec;
 use std::{env, io, path::Path};
 use td_shim_tools::enroller::{create_key_file, enroll_files, FirmwareRawFile};
 use td_shim_tools::InputData;
-use uefi_pi::pi::guid;
+use td_uefi_pi::pi::guid;
 const TDSHIM_SB_NAME: &str = "final.sb.bin";
 
 struct Config {

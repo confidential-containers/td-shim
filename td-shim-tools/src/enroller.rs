@@ -17,7 +17,9 @@ use td_shim::secure_boot::{
     CfvPubKeyFileHeader, CFV_FFS_HEADER_TRUST_ANCHOR_GUID, CFV_FILE_HEADER_PUBKEY_GUID,
     PUBKEY_FILE_STRUCT_VERSION_V1, PUBKEY_HASH_ALGORITHM_SHA384,
 };
-use uefi_pi::pi::fv::{FIRMWARE_FILE_SYSTEM3_GUID, FVH_REVISION, FVH_SIGNATURE, FV_FILETYPE_RAW};
+use td_uefi_pi::pi::fv::{
+    FIRMWARE_FILE_SYSTEM3_GUID, FVH_REVISION, FVH_SIGNATURE, FV_FILETYPE_RAW,
+};
 
 use crate::public_key::{
     RsaPublicKeyInfo, SubjectPublicKeyInfo, ID_EC_PUBKEY_OID, RSA_PUBKEY_OID, SECP384R1_OID,
@@ -236,7 +238,7 @@ pub fn create_key_file(key_file: &str, hash_alg: &str) -> io::Result<FirmwareRaw
 #[cfg(test)]
 mod test {
     use super::*;
-    use uefi_pi::pi::guid;
+    use td_uefi_pi::pi::guid;
 
     #[test]
     fn test_firmware_file() {
