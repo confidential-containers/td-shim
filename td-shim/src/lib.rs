@@ -6,7 +6,7 @@
 
 use scroll::{Pread, Pwrite};
 
-use uefi_pi::pi;
+use td_uefi_pi::pi;
 
 pub mod acpi;
 pub mod event_log;

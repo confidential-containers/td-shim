@@ -23,7 +23,7 @@ log = "0.4.13"
 r-efi = "3.2.0"
 scroll = { version = "0.10", default-features = false, features = ["derive"] }
 td-layout = { path = "../td-layout" }
-uefi-pi =  { path = "../uefi-pi" }
+td-uefi-pi =  { path = "../td-uefi-pi" }
 zerocopy = "0.6.0"
 
 td-loader = { path = "../td-loader", optional = true }

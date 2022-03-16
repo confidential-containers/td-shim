@@ -5,7 +5,7 @@
 use libfuzzer_sys::fuzz_target;
 
 
-use uefi_pi::{fv, pi};
+use td_uefi_pi::{fv, pi};
 
 fn fuzz_fv_parser(data: &[u8]) {
     let res = fv::get_image_from_fv(data, pi::fv::FV_FILETYPE_DXE_CORE, pi::fv::SECTION_PE32);

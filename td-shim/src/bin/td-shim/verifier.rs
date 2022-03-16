@@ -17,7 +17,7 @@ use td_shim::secure_boot::{
     CFV_FILE_HEADER_PUBKEY_GUID, PAYLOAD_SIGN_ECDSA_NIST_P384_SHA384,
     PAYLOAD_SIGN_RSA_PSS_3072_SHA384, SIGNED_PAYLOAD_FILE_HEADER_GUID,
 };
-use uefi_pi::{fv, pi};
+use td_uefi_pi::{fv, pi};
 
 #[derive(Debug)]
 pub enum VerifyErr {

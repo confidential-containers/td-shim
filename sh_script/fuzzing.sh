@@ -98,7 +98,7 @@ afl() {
 libfuzzer() {
     cmds=(
         "td-loader"
-        "uefi-pi"
+        "td-uefi-pi"
     )
     for i in ${cmds[@]}; do
         pushd $i
