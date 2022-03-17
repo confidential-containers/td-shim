@@ -242,7 +242,7 @@ mod test {
 
     #[test]
     fn test_get_file_from_fv() {
-        let bytes = include_bytes!("../../fuzzing/in/fuzz_cfv_parser/cfv.bin");
+        let bytes = include_bytes!("../../fuzzing/in/fuzz_cfv_parser/cfv");
 
         let res = get_file_from_fv(bytes, FV_FILETYPE_RAW, TEST_GUID1);
 
@@ -271,7 +271,7 @@ mod test {
 
     #[test]
     fn test_get_file_from_fv_with_wrong_guid() {
-        let bytes = include_bytes!("../../fuzzing/in/fuzz_cfv_parser/cfv.bin");
+        let bytes = include_bytes!("../../fuzzing/in/fuzz_cfv_parser/cfv");
 
         // Cannot find this GUID
         let res = get_file_from_fv(bytes, FV_FILETYPE_RAW, TEST_GUID2);
