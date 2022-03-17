@@ -6,6 +6,10 @@ edition = "2018"
 # add build process
 build = "build.rs"
 
+[[bin]]
+name = "td-shim"
+required-features = ["main"]
+
 [build-dependencies]
 anyhow = "1.0.55"
 cc = { git = "https://github.com/jyao1/cc-rs.git", branch = "uefi_support" }

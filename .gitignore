@@ -4,8 +4,8 @@
 Cargo.lock
 target/
 *.bin
+*.obj
 # afl fuzz 
-out
 *.profraw
 # Intellj working directory
 .idea
