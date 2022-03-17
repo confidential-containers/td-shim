@@ -5,7 +5,7 @@ This guide follows the [Secure Boot Specification](secure_boot.md) for td-shim.
 ## Build td-shim with secure boot feature enabled
 
 ```
-cargo xbuild -p td-shim --features "secure-boot" --target x86_64-unknown-uefi --release
+cargo xbuild -p td-shim --target x86_64-unknown-uefi --release --features=main,tdx,secure-boot
 ```
 
 ## Build payload
@@ -13,7 +13,7 @@ cargo xbuild -p td-shim --features "secure-boot" --target x86_64-unknown-uefi --
 Refer to [README](../README.md), using ELF as example:
 
 ```
-cargo xbuild -p td-payload --target devtools/rustc-targets/x86_64-unknown-none.json --release
+cargo xbuild -p td-payload --target devtools/rustc-targets/x86_64-unknown-none.json --release --features=main,tdx
 ```
 
 ## Generate Key
@@ -53,10 +53,10 @@ openssl rsa -inform der -in rsa-3072-private.pk8 -pubout -outform der -out rsa-3
 ## Sign payload with [rust-tdpayload-signing](../td-shim-sign-payload)
 Using ECDSA NIST P384 as example:
 
-Clear environment varibles CC and AR at first:
+Set environment varibles CC and AR:
 ```
-set CC=
-set AR=
+set CC=clang
+set AR=llvm-ar
 ```
 
 Run the signing tool:
@@ -68,12 +68,12 @@ The signed payload file **td-payload-signed** is located in the same folder with
 ## Enroll public key into CFV with [rust-tdshim-key-enroll](../td-shim-tools)
 Build final.bin:
 ```
-cargo run -p td-shim-tools --bin td-shim-ld -- target/x86_64-unknown-uefi/release/ResetVector.bin target/x86_64-unknown-uefi/release/rust-tdshim.efi target/x86_64-unknown-none/release/td-payload-signed -o target/x86_64-unknown-uefi/release/final.bin
+cargo run -p td-shim-tools --bin td-shim-ld -- target/x86_64-unknown-uefi/release/ResetVector.bin target/x86_64-unknown-uefi/release/td-shim.efi target/x86_64-unknown-none/release/td-payload-signed -o target/x86_64-unknown-uefi/release/final.bin
 ```
 
 Enroll public key:
 ```
-cargo run -p td-shim-tools --bin td-shim-enroll-key -- -H SHA384 target/x86_64-unknown-uefi/release/final.bin data/sample-keys/ecdsa-p384-public.der
+cargo run -p td-shim-tools --bin td-shim-enroll -- target/x86_64-unknown-uefi/release/final.bin -H SHA384 -k data/sample-keys/ecdsa-p384-public.der
 ```
 
 The output file **final.sb.bin** with secure boot enabled is located in the same folder with input final.bin.
