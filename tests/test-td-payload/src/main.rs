@@ -9,23 +9,26 @@
 #[macro_use]
 
 mod lib;
+mod testiorw32;
+mod testiorw8;
 mod testtdinfo;
 mod testtdreport;
 
 extern crate alloc;
+use alloc::boxed::Box;
+use alloc::string::String;
 use alloc::string::ToString;
+use alloc::vec::Vec;
 use core::ffi::c_void;
 use core::panic::PanicInfo;
 use linked_list_allocator::LockedHeap;
 use td_layout::memslice;
-use tdx_tdcall::tdx;
 
 use crate::lib::{TestResult, TestSuite};
+use crate::testiorw32::Tdiorw32;
+use crate::testiorw8::Tdiorw8;
 use crate::testtdinfo::Tdinfo;
 use crate::testtdreport::Tdreport;
-use alloc::boxed::Box;
-use alloc::string::String;
-use alloc::vec::Vec;
 
 use r_efi::efi::Guid;
 use serde::{Deserialize, Serialize};
@@ -39,6 +42,8 @@ pub struct TestCases {
     pub tcs002: Tdinfo,
     pub tcs003: Tdinfo,
     pub tcs004: Tdreport,
+    pub tcs005: Tdiorw8,
+    pub tcs006: Tdiorw32,
 }
 
 pub const CFV_FFS_HEADER_TEST_CONFIG_GUID: Guid = Guid::from_fields(
@@ -146,6 +151,14 @@ extern "win64" fn _start(hob: *const c_void) -> ! {
 
     if tcs.tcs004.run {
         ts.testsuite.push(Box::new(tcs.tcs004));
+    }
+
+    if tcs.tcs005.run {
+        ts.testsuite.push(Box::new(tcs.tcs005));
+    }
+
+    if tcs.tcs006.run {
+        ts.testsuite.push(Box::new(tcs.tcs006));
     }
 
     // run the TestSuite which contains the test cases

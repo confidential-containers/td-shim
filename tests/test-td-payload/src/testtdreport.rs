@@ -20,7 +20,7 @@ pub struct TdxReportRetInfo {
 }
 
 /**
- * Test Tdinfo
+ * Test Td Report
  */
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Tdreport {
@@ -32,11 +32,11 @@ pub struct Tdreport {
 }
 
 /**
- * Implement the TestCase trait for Tdinfo
+ * Implement the TestCase trait for Tdreport
  */
 impl TestCase for Tdreport {
     /**
-     * set up the Test case of Tdinfo
+     * set up the Test case of Tdreport
      */
     fn setup(&mut self) {
         self.result = TestResult::Fail;
@@ -50,6 +50,7 @@ impl TestCase for Tdreport {
                 .try_into()
                 .unwrap(),
         );
+        log::info!("{}", tdx_report);
 
         if (self.expected.r#type != tdx_report.report_mac.report_type.r#type) {
             log::info!(

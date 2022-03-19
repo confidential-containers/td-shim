@@ -50,7 +50,12 @@
         "run": true 
     },
     "tcs005": {
-        "name": "veinfo001",     
+        "name": "testiorw8",     
+        "result": "None",
+        "run": true 
+    },
+    "tcs006": {
+        "name": "testiorw32",     
         "result": "None",
         "run": true 
     }
