@@ -9,6 +9,7 @@
 #[macro_use]
 
 mod lib;
+mod testacpi;
 mod testiorw32;
 mod testiorw8;
 mod testtdinfo;
@@ -26,6 +27,7 @@ use linked_list_allocator::LockedHeap;
 use td_layout::memslice;
 
 use crate::lib::{TestResult, TestSuite};
+use crate::testacpi::{TdAcpi, TestTdAcpi};
 use crate::testiorw32::Tdiorw32;
 use crate::testiorw8::Tdiorw8;
 use crate::testtdinfo::Tdinfo;
@@ -47,6 +49,7 @@ pub struct TestCases {
     pub tcs005: Tdiorw8,
     pub tcs006: Tdiorw32,
     pub tcs007: TdVE,
+    pub tcs008: TdAcpi,
 }
 
 pub const CFV_FFS_HEADER_TEST_CONFIG_GUID: Guid = Guid::from_fields(
@@ -137,7 +140,7 @@ extern "win64" fn _start(hob: *const c_void) -> ! {
     };
 
     // build test cases with test configuration data in CFV
-    let tcs = build_testcases();
+    let mut tcs = build_testcases();
 
     // Add test cases in ts.testsuite
     if tcs.tcs001.run {
@@ -162,6 +165,14 @@ extern "win64" fn _start(hob: *const c_void) -> ! {
 
     if tcs.tcs006.run {
         ts.testsuite.push(Box::new(tcs.tcs006));
+    }
+
+    if tcs.tcs008.run && tcs.tcs008.expected.num > 0 {
+        let test_acpi = TestTdAcpi {
+            hob_address: hob as usize,
+            td_acpi: tcs.tcs008,
+        };
+        ts.testsuite.push(Box::new(test_acpi));
     }
 
     if tcs.tcs007.run {
