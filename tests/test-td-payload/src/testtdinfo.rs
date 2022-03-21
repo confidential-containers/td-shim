@@ -27,6 +27,7 @@ pub struct TdInfoRetData {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Tdinfo {
     pub name: String,
+    pub hob: usize,
     pub expected: TdInfoRetData,
     pub result: TestResult,
     pub run: bool,

@@ -10,6 +10,7 @@
 
 mod lib;
 mod testtdinfo;
+mod testacpi;
 
 extern crate alloc;
 use alloc::string::ToString;
@@ -21,6 +22,7 @@ use tdx_tdcall::tdx;
 
 use crate::lib::{TestResult, TestSuite};
 use crate::testtdinfo::Tdinfo;
+use crate::testacpi::TdAcpi;
 use alloc::boxed::Box;
 use alloc::string::String;
 use alloc::vec::Vec;
@@ -36,6 +38,7 @@ pub struct TestCases {
     pub tcs001: Tdinfo,
     pub tcs002: Tdinfo,
     pub tcs003: Tdinfo,
+    pub tcs004: TdAcpi,
 }
 
 pub const CFV_FFS_HEADER_TEST_CONFIG_GUID: Guid = Guid::from_fields(
@@ -126,7 +129,7 @@ extern "win64" fn _start(hob: *const c_void) -> ! {
     };
 
     // build test cases with test configuration data in CFV
-    let tcs = build_testcases();
+    let mut tcs = build_testcases();
 
     // Add test cases in ts.testsuite
     if tcs.tcs001.run {
@@ -139,6 +142,11 @@ extern "win64" fn _start(hob: *const c_void) -> ! {
 
     if tcs.tcs003.run {
         ts.testsuite.push(Box::new(tcs.tcs003));
+    }
+
+    if tcs.tcs004.run && tcs.tcs004.expected.num > 0 {
+        tcs.tcs004.hob = hob as usize;
+        ts.testsuite.push(Box::new(tcs.tcs004));
     }
 
     // run the TestSuite which contains the test cases

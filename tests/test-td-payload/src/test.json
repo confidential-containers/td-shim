@@ -1,6 +1,7 @@
 {	    
     "tcs001": {
         "name": "tdinfo001",
+        "hob": 0,
         "expected": {
             "gpaw": 52,
             "attributes": 0,
@@ -13,6 +14,7 @@
     },
     "tcs002": {
         "name": "tdinfo002",
+        "hob": 0,
         "expected": {
             "gpaw": 52,
             "attributes": 0,
@@ -25,6 +27,7 @@
     },  
     "tcs003": {
         "name": "tdinfo003",
+        "hob": 0,
         "expected": {
             "gpaw": 48,
             "attributes": 0,
@@ -34,5 +37,29 @@
         },
         "result": "None",
         "run": false 
-    }        
+    },
+    "tcs004": {
+        "name": "tdacpi001",
+        "hob": 0,
+        "expected": {
+            "num": 2,
+            "tables":[
+                {
+                    "name": "APIC",
+                    "signature": [65, 80, 73, 67],
+                    "valid": 1,
+                    "exist": 1
+                },
+                {
+                    "name": "TDEL",
+                    "signature": [84, 68, 69, 76],
+                    "valid": 1,
+                    "exist": 1
+                }
+            ]
+        },
+        "result": "None",
+        "run": true
+    }
+
 }
