@@ -7,6 +7,11 @@ target/
 # afl fuzz 
 out
 *.profraw
+
+# libfuzz
+corpus
+artifacts
+
 # Intellj working directory
 .idea
 
