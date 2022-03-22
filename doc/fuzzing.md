@@ -31,15 +31,17 @@ $ sudo mount -t tmpfs -o size=1024M tmpfs in
 
 ### Build the fuzz target
 
-`$ cargo afl build -p fuzz_pe_loader`
+`$ cd td-loader/fuzz`
+`$ cargo afl build --bin afl_pe --no-default-features`
 
 ### Example
 
-`$ cargo afl fuzz -i fuzz-target/in/pe_loader/ -o fuzz-target/out/ target/debug/fuzz_pe_loader`
+`$ mkdir -p artifacts/afl_pe`
+`$ cargo afl fuzz -i seeds/pe/ -o artifacts/afl_pe target/debug/afl_pe`
 
 As soon as you run this command, you should see AFL’s interface start up:
 
-![image-20210628084437384](../fuzzing/fuzz1.png)
+![image-20210628084437384](fuzz.png)
 
 ### view coverage
 
@@ -54,10 +56,7 @@ Can run at the same time but merge will cause problems.
 $ sudo apt install screen expect
 # Run each fuzz for one hour
 $ bash sh_script/fuzzing.sh afl
-# Run each fuzz for one hour and generate source-based coverage report
-$ bash sh_script/fuzzing.sh afl S
-# Run each fuzz for one hour and generate gcov-based coverage report
-$ bash sh_script/fuzzing.sh afl G
+
 
 # If there is an error in fuzzing, please follow, and switch to the root
 user to execute the command if the error is reported.
