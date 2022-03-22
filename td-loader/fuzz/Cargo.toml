@@ -30,3 +30,16 @@ name = "elf"
 path = "fuzz_targets/elf.rs"
 test = false
 doc = false
+
+[[bin]]
+name = "afl_pe"
+path = "fuzz_targets/afl_pe.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "afl_elf"
+path = "fuzz_targets/afl_elf.rs"
+test = false
+doc = false
+
