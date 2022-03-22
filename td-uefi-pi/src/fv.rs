@@ -193,7 +193,7 @@ mod test {
 
     #[test]
     fn test_get_image_from_fv() {
-        let bytes = include_bytes!("../../fuzzing/in/fuzz_fv_parser/fv_buffer");
+        let bytes = include_bytes!("../fuzz/seeds/fv_parser/fv_buffer");
 
         let res = get_image_from_fv(bytes, FV_FILETYPE_DXE_CORE, SECTION_PE32);
 
@@ -222,7 +222,7 @@ mod test {
 
     #[test]
     fn test_get_image_from_fv_with_wrong_fv_file_type() {
-        let bytes = include_bytes!("../../fuzzing/in/fuzz_fv_parser/fv_buffer");
+        let bytes = include_bytes!("../fuzz/seeds/fv_parser/fv_buffer");
 
         // Cannot find fv file type FV_FILETYPE_PEI_CORE
         let res = get_image_from_fv(bytes, FV_FILETYPE_PEI_CORE, SECTION_PE32);
@@ -232,7 +232,7 @@ mod test {
 
     #[test]
     fn test_get_image_from_fv_with_wrong_section_type() {
-        let bytes = include_bytes!("../../fuzzing/in/fuzz_fv_parser/fv_buffer");
+        let bytes = include_bytes!("../fuzz/seeds/fv_parser/fv_buffer");
 
         // Cannot find section type SECTION_PIC
         let res = get_image_from_fv(bytes, FV_FILETYPE_DXE_CORE, SECTION_PIC);
@@ -242,7 +242,7 @@ mod test {
 
     #[test]
     fn test_get_file_from_fv() {
-        let bytes = include_bytes!("../../fuzzing/in/fuzz_cfv_parser/cfv");
+        let bytes = include_bytes!("../fuzz/seeds/cfv_parser/cfv");
 
         let res = get_file_from_fv(bytes, FV_FILETYPE_RAW, TEST_GUID1);
 
@@ -271,7 +271,7 @@ mod test {
 
     #[test]
     fn test_get_file_from_fv_with_wrong_guid() {
-        let bytes = include_bytes!("../../fuzzing/in/fuzz_cfv_parser/cfv");
+        let bytes = include_bytes!("../fuzz/seeds/cfv_parser/cfv");
 
         // Cannot find this GUID
         let res = get_file_from_fv(bytes, FV_FILETYPE_RAW, TEST_GUID2);
