@@ -35,6 +35,7 @@ use td_uefi_pi::{fv, hob, pi};
 use crate::tcg::TdEventLog;
 
 mod acpi;
+mod asm;
 
 #[cfg(not(test))]
 #[panic_handler]
