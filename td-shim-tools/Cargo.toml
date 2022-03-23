@@ -7,6 +7,18 @@ homepage = "https://github.com/confidential-containers"
 license = "BSD-2-Clause-Patent"
 edition = "2018"
 
+[[bin]]
+name = "td-shim-enroll"
+required-features = ["enroller"]
+
+[[bin]]
+name = "td-shim-ld"
+required-features = ["linker"]
+
+[[bin]]
+name = "td-shim-sign-payload"
+required-features = ["signer"]
+
 [dependencies]
 r-efi = "3.2.0"
 scroll = { version = "0.10", default-features = false, features = ["derive"]}
