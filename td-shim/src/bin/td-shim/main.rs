@@ -36,6 +36,7 @@ use crate::tcg::TdEventLog;
 
 mod acpi;
 mod asm;
+mod linux;
 
 #[cfg(not(test))]
 #[panic_handler]
