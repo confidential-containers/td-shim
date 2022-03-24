@@ -133,6 +133,25 @@ pub extern "win64" fn _start(
     let mut td_event_log = tcg::TdEventLog::new(event_log_buf);
     log_hob_list(hob_list, &mut td_event_log);
 
+    // If the Kernel Information GUID HOB is present, try to boot the Linux kernel.
+    if let Some(kernel_hob) = hob::get_next_extension_guid_hob(hob_list, &TD_KERNEL_INFO_HOB_GUID) {
+        boot_linux_kernel(
+            kernel_hob,
+            hob_list,
+            &runtime_memory_layout,
+            &mut td_event_log,
+            num_vcpus,
+        );
+    }
+
+    // Get and parse image file from the payload firmware volume.
+    let fv_buffer = memslice::get_mem_slice(memslice::SliceType::ShimPayload);
+    let mut payload = fv::get_image_from_fv(
+        fv_buffer,
+        pi::fv::FV_FILETYPE_DXE_CORE,
+        pi::fv::SECTION_PE32,
+    )
+    .expect("Failed to get image file from Firmware Volume");
     panic!("payload entry() should not return here, deadloop!!!");
 }
 
@@ -185,4 +204,80 @@ fn accept_memory_resources(hob_list: &[u8], num_vcpus: u32) {
         offset = hob::align_to_next_hob_offset(hob_list.len(), offset, header.length)
             .expect("Failed to find next HOB entry");
     }
+}
+
+fn boot_linux_kernel(
+    kernel_hob: &[u8],
+    hob_list: &[u8],
+    layout: &RuntimeMemoryLayout,
+    td_event_log: &mut TdEventLog,
+    vcpus: u32,
+) {
+    let kernel_info = hob::get_guid_data(kernel_hob)
+        .expect("Can not fetch kernel data from the Kernel Info GUID HOB!!!");
+    let vmm_kernel = kernel_info
+        .pread::<PayloadInfo>(0)
+        .expect("Can not fetch PayloadInfo structure from the Kernel Info GUID HOB");
+
+    let image_type = TdKernelInfoHobType::from(vmm_kernel.image_type);
+    match image_type {
+        TdKernelInfoHobType::ExecutablePayload => return,
+        TdKernelInfoHobType::BzImage | TdKernelInfoHobType::RawVmLinux => {}
+        _ => panic!("Unknown kernel image type {}!!!", vmm_kernel.image_type),
+    };
+
+    let rsdp = prepare_acpi_tables(hob_list, layout, td_event_log, vcpus);
+    let e820_table = e820::create_e820_entries(layout);
+    // Safe because we are handle off this buffer to linux kernel.
+    let payload = unsafe { memslice::get_mem_slice_mut(memslice::SliceType::Payload) };
+
+    linux::boot::boot_kernel(payload, rsdp, e820_table.as_slice(), &vmm_kernel);
+    panic!("Linux kernel should not return here!!!");
+}
+
+// Prepare ACPI tables for the virtual machine and panics if error happens.
+fn prepare_acpi_tables(
+    hob_list: &[u8],
+    layout: &RuntimeMemoryLayout,
+    td_event_log: &mut TdEventLog,
+    vcpus: u32,
+) -> u64 {
+    // Safe because BSP is the only active vCPU so it's single-threaded context.
+    let acpi_slice = unsafe {
+        memslice::get_dynamic_mem_slice_mut(
+            memslice::SliceType::Acpi,
+            layout.runtime_acpi_base as usize,
+        )
+    };
+    let mut acpi_tables = acpi::AcpiTables::new(acpi_slice, acpi_slice.as_ptr() as *const _ as u64);
+
+    let mut vmm_madt = None;
+    let mut next_hob = hob_list;
+    while let Some(hob) = hob::get_next_extension_guid_hob(next_hob, &TD_ACPI_TABLE_HOB_GUID) {
+        let table = hob::get_guid_data(hob).expect("Failed to get data from ACPI GUID HOB");
+        let header = GenericSdtHeader::read_from(&table[..size_of::<GenericSdtHeader>()])
+            .expect("Faile to read table header from ACPI GUID HOB");
+        // Protect MADT and TDEL from overwritten by the VMM.
+        if &header.signature != b"APIC" && &header.signature != b"TDEL" {
+            acpi_tables.install(table);
+        }
+        if &header.signature == b"APIC" {
+            vmm_madt = Some(table);
+        }
+        next_hob = hob::seek_to_next_hob(hob).unwrap();
+    }
+
+    let madt = if let Some(vmm_madt) = vmm_madt {
+        mp::create_madt(vmm_madt, layout.runtime_mailbox_base as u64)
+            .expect("Failed to create ACPI MADT table")
+    } else {
+        mp::create_madt_default(vcpus, layout.runtime_mailbox_base as u64)
+            .expect("Failed to create ACPI MADT table")
+    };
+
+    acpi_tables.install(madt.as_bytes());
+    let tdel = td_event_log.create_tdel();
+    acpi_tables.install(tdel.as_bytes());
+
+    acpi_tables.finish()
 }
