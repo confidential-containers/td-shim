@@ -14,8 +14,10 @@
                     +--------------+ <-  0x00800000
                     |  Page Table  |
                     +--------------+ <-  0x01000000
-                    | PAYLOAD PARAM|    (0x00100000)
+                    |    TD HOB    |
                     +--------------+ <-  0x01100000
+                    | PAYLOAD PARAM|    (0x00100000)
+                    +--------------+ <-  0x01200000
                     |    PAYLOAD   |    (0x02000000)
                     +--------------+
                     |   ........   |
@@ -28,7 +30,7 @@
                     +--------------+ <-  0x7F7FE000
                     |      SS      |    (0x00200000)
                     +--------------+ <-  0x7F9FE000
-                    |    TD_HOB    |    (0x00400000)
+                    |  PAYLOAD_HOB |    (0x00400000)
                     +--------------+ <-  0x7FDFE000
                     |     ACPI     |    (0x00100000)
                     +--------------+ <-  0x7FEFE000
@@ -48,7 +50,9 @@ pub const TD_PAYLOAD_HEAP_SIZE: usize = 0x1000000;
 pub const TD_PAYLOAD_DMA_SIZE: usize = 0x1000000;
 
 pub const TD_PAYLOAD_PAGE_TABLE_BASE: u64 = 0x800000;
-pub const TD_PAYLOAD_PARAM_BASE: u64 = 0x1000000;
+pub const TD_HOB_BASE: u64 = 0x1000000;
+pub const TD_HOB_SIZE: u64 = 0x20000;
+pub const TD_PAYLOAD_PARAM_BASE: u64 = 0x1100000;
 pub const TD_PAYLOAD_PARAM_SIZE: u64 = 0x100000;
-pub const TD_PAYLOAD_BASE: u64 = 0x1100000;
+pub const TD_PAYLOAD_BASE: u64 = 0x1200000;
 pub const TD_PAYLOAD_SIZE: usize = 0x2000000;
