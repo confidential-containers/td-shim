@@ -1,0 +1,16 @@
+[package]
+name = "td-benchmark"
+version = "0.1.0"
+description = "Library to support benchmark for no_std binaries"
+repository = "https://github.com/confidential-containers/td-shim"
+homepage = "https://github.com/confidential-containers"
+license = "BSD-2-Clause-Patent"
+edition = "2018"
+
+[dependencies]
+linked_list_allocator = "0.9.0"
+log = "0.4.13"
+scroll = { version = "0.10", default-features = false, features = ["derive"]}
+td-layout = { path = "../../td-layout" }
+# Lock down to 0.44, otherwise it depends on inline asm
+x86 = "0.44.0"
