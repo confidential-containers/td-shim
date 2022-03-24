@@ -1,0 +1,62 @@
+{	    
+    "tcs001": {
+        "name": "tdinfo001",
+        "expected": {
+            "gpaw": 52,
+            "attributes": 0,
+            "max_vcpus": 1,
+            "num_vcpus": 1,
+            "rsvd": [0,0,0]
+        },
+        "result": "None",
+        "run": true  
+    },
+    "tcs002": {
+        "name": "tdinfo002",
+        "expected": {
+            "gpaw": 52,
+            "attributes": 0,
+            "max_vcpus": 8,
+            "num_vcpus": 8,
+            "rsvd": [0,0,0]
+        },
+        "result": "None",
+        "run": false  
+    },  
+    "tcs003": {
+        "name": "tdinfo003",
+        "expected": {
+            "gpaw": 48,
+            "attributes": 0,
+            "max_vcpus": 1,
+            "num_vcpus": 1,
+            "rsvd": [0,0,0]
+        },
+        "result": "None",
+        "run": false 
+    },
+    "tcs004": {
+        "name": "tdreport001",
+        "input": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        "expected": {
+            "type": 129,
+            "subtype": 0,
+            "version": 0
+        },     
+        "result": "None",
+        "run": true 
+    },
+    "tcs005": {
+        "name": "testiorw8",     
+        "result": "None",
+        "run": true 
+    },
+    "tcs006": {
+        "name": "testiorw32",     
+        "result": "None",
+        "run": true 
+    }
+}
