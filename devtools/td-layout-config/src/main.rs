@@ -468,7 +468,7 @@ impl TdLayoutRuntime {
 }
 
 fn main() {
-    let matches = app_from_crate!()
+    let matches = command!()
         .arg(
             arg!([output] "Directory to store the generated layout files")
                 .required(true)
