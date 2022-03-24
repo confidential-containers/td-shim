@@ -46,8 +46,6 @@ mod stack_guard;
 mod tcg;
 mod td;
 
-#[cfg(feature = "cet-ss")]
-mod cet_ss;
 #[cfg(feature = "secure-boot")]
 mod verifier;
 
@@ -152,6 +150,12 @@ pub extern "win64" fn _start(
         pi::fv::SECTION_PE32,
     )
     .expect("Failed to get image file from Firmware Volume");
+
+    #[cfg(feature = "secure-boot")]
+    {
+        payload = secure_boot_verify_payload(payload, &mut td_event_log);
+    }
+
     panic!("payload entry() should not return here, deadloop!!!");
 }
 
@@ -280,4 +284,29 @@ fn prepare_acpi_tables(
     acpi_tables.install(tdel.as_bytes());
 
     acpi_tables.finish()
+}
+
+#[cfg(feature = "secure-boot")]
+fn secure_boot_verify_payload<'a>(payload: &'a [u8], td_event_log: &mut TdEventLog) -> &'a [u8] {
+    let cfv = memslice::get_mem_slice(memslice::SliceType::Config);
+    let verifier = verifier::PayloadVerifier::new(payload, cfv)
+        .expect("Secure Boot: Cannot read verify header from payload binary");
+
+    td_event_log.create_event_log(
+        4,
+        EV_PLATFORM_CONFIG_FLAGS,
+        b"td payload",
+        verifier::PayloadVerifier::get_trust_anchor(cfv).unwrap(),
+    );
+    verifier.verify().expect("Verification fails");
+    td_event_log.create_event_log(4, EV_PLATFORM_CONFIG_FLAGS, b"td payload", payload);
+    td_event_log.create_event_log(
+        4,
+        EV_PLATFORM_CONFIG_FLAGS,
+        b"td payload svn",
+        &u64::to_le_bytes(verifier.get_payload_svn()),
+    );
+    // Parse out the image from signed payload
+    return verifier::PayloadVerifier::get_payload_image(payload)
+        .expect("Unable to get payload image from signed binary");
 }
