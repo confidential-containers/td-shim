@@ -103,7 +103,7 @@ pub extern "win64" fn _start(
     heap::init();
 
     // Get HOB list
-    let hob_list = memslice::get_mem_slice(memslice::SliceType::ShimHob);
+    let hob_list = memslice::get_mem_slice(memslice::SliceType::TdHob);
     let hob_size = hob::get_hob_total_size(hob_list).expect("failed to get size of hob list");
     let hob_list = &hob_list[0..hob_size];
     hob::dump_hob(hob_list);
