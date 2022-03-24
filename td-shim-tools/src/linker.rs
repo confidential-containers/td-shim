@@ -11,11 +11,11 @@ use r_efi::base::Guid;
 use scroll::Pwrite;
 use td_layout::build_time::{
     TD_SHIM_CONFIG_BASE, TD_SHIM_CONFIG_OFFSET, TD_SHIM_CONFIG_SIZE, TD_SHIM_FIRMWARE_BASE,
-    TD_SHIM_FIRMWARE_SIZE, TD_SHIM_HOB_BASE, TD_SHIM_HOB_SIZE, TD_SHIM_IPL_OFFSET,
-    TD_SHIM_IPL_SIZE, TD_SHIM_MAILBOX_BASE, TD_SHIM_MAILBOX_OFFSET, TD_SHIM_MAILBOX_SIZE,
-    TD_SHIM_METADATA_OFFSET, TD_SHIM_METADATA_SIZE, TD_SHIM_PAYLOAD_BASE, TD_SHIM_PAYLOAD_OFFSET,
-    TD_SHIM_PAYLOAD_SIZE, TD_SHIM_RESET_VECTOR_SIZE, TD_SHIM_TEMP_HEAP_BASE,
-    TD_SHIM_TEMP_HEAP_SIZE, TD_SHIM_TEMP_STACK_BASE, TD_SHIM_TEMP_STACK_SIZE,
+    TD_SHIM_FIRMWARE_SIZE, TD_SHIM_IPL_OFFSET, TD_SHIM_IPL_SIZE, TD_SHIM_MAILBOX_BASE,
+    TD_SHIM_MAILBOX_OFFSET, TD_SHIM_MAILBOX_SIZE, TD_SHIM_METADATA_OFFSET, TD_SHIM_METADATA_SIZE,
+    TD_SHIM_PAYLOAD_BASE, TD_SHIM_PAYLOAD_OFFSET, TD_SHIM_PAYLOAD_SIZE, TD_SHIM_RESET_VECTOR_SIZE,
+    TD_SHIM_TEMP_HEAP_BASE, TD_SHIM_TEMP_HEAP_SIZE, TD_SHIM_TEMP_STACK_BASE,
+    TD_SHIM_TEMP_STACK_SIZE,
 };
 use td_layout::mailbox::TdxMpWakeupMailbox;
 use td_layout::metadata::{
@@ -27,6 +27,7 @@ use td_layout::metadata::{
 use td_layout::metadata::{
     TDX_METADATA_SECTION_TYPE_PAYLOAD, TDX_METADATA_SECTION_TYPE_PAYLOAD_PARAM,
 };
+use td_layout::runtime::{TD_HOB_BASE, TD_HOB_SIZE};
 #[cfg(feature = "boot-kernel")]
 use td_layout::runtime::{
     TD_PAYLOAD_BASE, TD_PAYLOAD_PARAM_BASE, TD_PAYLOAD_PARAM_SIZE, TD_PAYLOAD_SIZE,
@@ -262,8 +263,8 @@ pub fn build_tdx_metadata() -> TdxMetadata {
     // TD_HOB
     tdx_metadata.sections[4].data_offset = 0;
     tdx_metadata.sections[4].raw_data_size = 0;
-    tdx_metadata.sections[4].memory_address = TD_SHIM_HOB_BASE as u64;
-    tdx_metadata.sections[4].memory_data_size = TD_SHIM_HOB_SIZE as u64;
+    tdx_metadata.sections[4].memory_address = TD_HOB_BASE as u64;
+    tdx_metadata.sections[4].memory_data_size = TD_HOB_SIZE as u64;
     tdx_metadata.sections[4].r#type = TDX_METADATA_SECTION_TYPE_TD_HOB;
     tdx_metadata.sections[4].attributes = 0;
 

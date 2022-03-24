@@ -31,8 +31,6 @@ macro_rules! BUILD_TIME_TEMPLATE {
                           |     VAR      |
             {mailbox_offset:#010X} -> +--------------+ <-  {mailbox_base:#010X}
                           |  TD_MAILBOX  |
-            {hob_offset:#010X} -> +--------------+ <-  {hob_base:#010X}
-                          |    TD_HOB    |
             {temp_stack_offset:#010X} -> +--------------+ <-  {temp_stack_base:#010X}
                           |    (Guard)   |
                           |  TEMP_STACK  |
@@ -56,8 +54,6 @@ pub const TD_SHIM_CONFIG_OFFSET: u32 = {config_offset:#X};
 pub const TD_SHIM_CONFIG_SIZE: u32 = {config_size:#X};
 pub const TD_SHIM_MAILBOX_OFFSET: u32 = {mailbox_offset:#X}; // TD_SHIM_CONFIG_OFFSET + TD_SHIM_CONFIG_SIZE
 pub const TD_SHIM_MAILBOX_SIZE: u32 = {mailbox_size:#X};
-pub const TD_SHIM_HOB_OFFSET: u32 = {hob_offset:#X}; // TD_SHIM_MAILBOX_OFFSET + TD_SHIM_MAILBOX_SIZE
-pub const TD_SHIM_HOB_SIZE: u32 = {hob_size:#X};
 pub const TD_SHIM_TEMP_STACK_GUARD_SIZE: u32 = {temp_stack_guard_size:#X};
 pub const TD_SHIM_TEMP_STACK_OFFSET: u32 = {temp_stack_offset:#X}; // TD_SHIM_HOB_OFFSET + TD_SHIM_HOB_SIZE + TD_SHIM_TEMP_STACK_GUARD_SIZE
 pub const TD_SHIM_TEMP_STACK_SIZE: u32 = {temp_stack_size:#X};
@@ -78,7 +74,6 @@ pub const TD_SHIM_FIRMWARE_SIZE: u32 = {firmware_size:#X}; // TD_SHIM_RESET_VECT
 pub const TD_SHIM_FIRMWARE_BASE: u32 = {firmware_base:#X}; // 0xFFFFFFFF - TD_SHIM_FIRMWARE_SIZE + 1
 pub const TD_SHIM_CONFIG_BASE: u32 = {config_base:#X}; // TD_SHIM_FIRMWARE_BASE + TD_SHIM_CONFIG_OFFSET
 pub const TD_SHIM_MAILBOX_BASE: u32 = {mailbox_base:#X}; // TD_SHIM_FIRMWARE_BASE + TD_SHIM_MAILBOX_OFFSET
-pub const TD_SHIM_HOB_BASE: u32 = {hob_base:#X}; // TD_SHIM_FIRMWARE_BASE + TD_SHIM_HOB_OFFSET
 pub const TD_SHIM_TEMP_STACK_BASE: u32 = {temp_stack_base:#X}; // TD_SHIM_FIRMWARE_BASE + TD_SHIM_TEMP_STACK_OFFSET
 pub const TD_SHIM_TEMP_HEAP_BASE: u32 = {temp_heap_base:#X}; // TD_SHIM_FIRMWARE_BASE + TD_SHIM_TEMP_HEAP_OFFSET
 pub const TD_SHIM_PAYLOAD_BASE: u32 = {payload_base:#X}; // TD_SHIM_FIRMWARE_BASE + TD_SHIM_PAYLOAD_OFFSET
@@ -108,6 +103,8 @@ macro_rules! RUNTIME_TEMPLATE {
                     |   ........   |
                     +--------------+ <-  {pt_base:#010X}
                     |  Page Table  |
+                    +--------------+ <-  {td_hob_base:#010X}
+                    |    TD HOB    |
                     +--------------+ <-  {payload_param_base:#010X}
                     | PAYLOAD PARAM|    ({payload_param_size:#010X})
                     +--------------+ <-  {payload_base:#010X}
@@ -122,8 +119,8 @@ macro_rules! RUNTIME_TEMPLATE {
                     |     STACK    |    ({stack_size:#010X})
                     +--------------+ <-  {shadow_stack_base:#010X}
                     |      SS      |    ({shadow_stack_size:#010X})
-                    +--------------+ <-  {hob_base:#010X}
-                    |    TD_HOB    |    ({hob_size:#010X})
+                    +--------------+ <-  {payload_hob_base:#010X}
+                    |  PAYLOAD_HOB |    ({payload_hob_size:#010X})
                     +--------------+ <-  {acpi_base:#010X}
                     |     ACPI     |    ({acpi_size:#010X})
                     +--------------+ <-  {mailbox_base:#010X}
@@ -136,13 +133,15 @@ macro_rules! RUNTIME_TEMPLATE {
 pub const TD_PAYLOAD_EVENT_LOG_SIZE: u32 = {event_log_size:#X};
 pub const TD_PAYLOAD_ACPI_SIZE: u32 = {acpi_size:#X};
 pub const TD_PAYLOAD_MAILBOX_SIZE: u32 = {mailbox_size:#X};
-pub const TD_PAYLOAD_HOB_SIZE: u32 = {hob_size:#X};
+pub const TD_PAYLOAD_HOB_SIZE: u32 = {payload_hob_size:#X};
 pub const TD_PAYLOAD_SHADOW_STACK_SIZE: u32 = {shadow_stack_size:#X};
 pub const TD_PAYLOAD_STACK_SIZE: u32 = {stack_size:#X};
 pub const TD_PAYLOAD_HEAP_SIZE: usize = {heap_size:#X};
 pub const TD_PAYLOAD_DMA_SIZE: usize = {dma_size:#X};
 
 pub const TD_PAYLOAD_PAGE_TABLE_BASE: u64 = {pt_base:#X};
+pub const TD_HOB_BASE: u64 = {td_hob_base:#X};
+pub const TD_HOB_SIZE: u64 = {td_hob_size:#X};
 pub const TD_PAYLOAD_PARAM_BASE: u64 = {payload_param_base:#X};
 pub const TD_PAYLOAD_PARAM_SIZE: u64 = {payload_param_size:#X};
 pub const TD_PAYLOAD_BASE: u64 = {payload_base:#X};
@@ -162,7 +161,6 @@ struct TdImageLayoutConfig {
     config_offset: u32,
     config_size: u32,
     mailbox_size: u32,
-    hob_size: u32,
     temp_stack_guard_size: u32,
     temp_stack_size: u32,
     temp_heap_size: u32,
@@ -177,14 +175,16 @@ struct TdRuntimeLayoutConfig {
     event_log_size: u32,
     acpi_size: u32,
     mailbox_size: u32,
-    hob_size: u32,
+    payload_hob_size: u32,
     shadow_stack_size: u32,
     stack_size: u32,
     heap_size: u32,
     dma_size: u32,
     payload_size: u32,
-    payload_param_base: u32,
     payload_param_size: u32,
+    payload_param_base: u32,
+    td_hob_size: u32,
+    page_table_size: u32,
     page_table_base: u32,
 }
 
@@ -217,8 +217,6 @@ impl TdLayout {
             config_size = self.img.config_size,
             mailbox_offset = self.img.mailbox_offset,
             mailbox_size = self.img.mailbox_size,
-            hob_offset = self.img.hob_offset,
-            hob_size = self.img.hob_size,
             temp_stack_guard_size = self.img.temp_stack_guard_size,
             temp_stack_offset = self.img.temp_stack_offset,
             temp_stack_size = self.img.temp_stack_size,
@@ -237,7 +235,6 @@ impl TdLayout {
             firmware_base = self.img_loaded.firmware_base,
             config_base = self.img_loaded.config_base,
             mailbox_base = self.img_loaded.mailbox_base,
-            hob_base = self.img_loaded.hob_base,
             temp_stack_base = self.img_loaded.temp_stack_base,
             temp_heap_base = self.img_loaded.temp_heap_base,
             payload_base = self.img_loaded.payload_base,
@@ -263,6 +260,8 @@ impl TdLayout {
             &mut to_generate,
             RUNTIME_TEMPLATE!(),
             pt_base = self.runtime.pt_base,
+            td_hob_base = self.runtime.td_hob_base,
+            td_hob_size = self.runtime.td_hob_size,
             payload_base = self.runtime.payload_base,
             payload_size = self.runtime.payload_size,
             dma_base = self.runtime.dma_base,
@@ -273,8 +272,8 @@ impl TdLayout {
             stack_size = self.runtime.stack_size,
             shadow_stack_base = self.runtime.shadow_stack_base,
             shadow_stack_size = self.runtime.shadow_stack_size,
-            hob_base = self.runtime.hob_base,
-            hob_size = self.runtime.hob_size,
+            payload_hob_base = self.runtime.payload_hob_base,
+            payload_hob_size = self.runtime.payload_hob_size,
             mailbox_base = self.runtime.mailbox_base,
             mailbox_size = self.runtime.mailbox_size,
             event_log_base = self.runtime.event_log_base,
@@ -301,8 +300,6 @@ struct TdLayoutImage {
     config_size: u32,
     mailbox_offset: u32,
     mailbox_size: u32,
-    hob_offset: u32,
-    hob_size: u32,
     temp_stack_guard_size: u32,
     temp_stack_offset: u32,
     temp_stack_size: u32,
@@ -322,9 +319,9 @@ struct TdLayoutImage {
 impl TdLayoutImage {
     fn new_from_config(config: &TdLayoutConfig) -> Self {
         let mailbox_offset = config.image_layout.config_offset + config.image_layout.config_size;
-        let hob_offset = mailbox_offset + config.image_layout.mailbox_size;
-        let temp_stack_offset =
-            hob_offset + config.image_layout.hob_size + config.image_layout.temp_stack_guard_size;
+        let temp_stack_offset = mailbox_offset
+            + config.image_layout.mailbox_size
+            + config.image_layout.temp_stack_guard_size;
         let temp_heap_offset = temp_stack_offset + config.image_layout.temp_stack_size;
         let payload_offset = temp_heap_offset + config.image_layout.temp_heap_size;
         let metadata_offset = payload_offset + config.image_layout.payload_size;
@@ -337,8 +334,6 @@ impl TdLayoutImage {
             config_size: config.image_layout.config_size,
             mailbox_offset,
             mailbox_size: config.image_layout.mailbox_size,
-            hob_offset,
-            hob_size: config.image_layout.hob_size,
             temp_stack_guard_size: config.image_layout.temp_stack_guard_size,
             temp_stack_offset,
             temp_stack_size: config.image_layout.temp_stack_size,
@@ -362,7 +357,6 @@ struct TdLayoutImageLoaded {
     firmware_base: u32,
     config_base: u32,
     mailbox_base: u32,
-    hob_base: u32,
     temp_stack_base: u32,
     temp_heap_base: u32,
     payload_base: u32,
@@ -378,7 +372,6 @@ impl TdLayoutImageLoaded {
         let firmware_base = 0xFFFFFFFF - img.firmware_size + 1;
         let config_base = firmware_base + img.config_offset;
         let mailbox_base = firmware_base + img.mailbox_offset;
-        let bt_hob_base = firmware_base + img.hob_offset;
         let temp_stack_base = firmware_base + img.temp_stack_offset;
         let temp_heap_base = firmware_base + img.temp_heap_offset;
         let payload_base = firmware_base + img.payload_offset;
@@ -392,7 +385,6 @@ impl TdLayoutImageLoaded {
             firmware_base,
             config_base,
             mailbox_base,
-            hob_base: bt_hob_base,
             temp_stack_base,
             temp_heap_base,
             payload_base,
@@ -408,6 +400,8 @@ impl TdLayoutImageLoaded {
 #[derive(Debug, Default, PartialEq)]
 struct TdLayoutRuntime {
     pt_base: u32,
+    td_hob_base: u32,
+    td_hob_size: u32,
     payload_base: u32,
     payload_size: u32,
     payload_param_base: u32,
@@ -420,8 +414,8 @@ struct TdLayoutRuntime {
     stack_size: u32,
     shadow_stack_base: u32,
     shadow_stack_size: u32,
-    hob_base: u32,
-    hob_size: u32,
+    payload_hob_base: u32,
+    payload_hob_size: u32,
     event_log_base: u32,
     event_log_size: u32,
     acpi_base: u32,
@@ -435,17 +429,22 @@ impl TdLayoutRuntime {
         let event_log_base = 0x80000000 - config.runtime_layout.event_log_size; // TODO: 0x80000000 is hardcoded LOW_MEM_TOP, to remove
         let mailbox_base = event_log_base - config.runtime_layout.mailbox_size;
         let acpi_base = mailbox_base - config.runtime_layout.acpi_size;
-        let hob_base = acpi_base - config.runtime_layout.hob_size;
-        let shadow_stack_base = hob_base - config.runtime_layout.shadow_stack_size;
+        let payload_hob_base = acpi_base - config.runtime_layout.payload_hob_size;
+        let shadow_stack_base = payload_hob_base - config.runtime_layout.shadow_stack_size;
         let stack_base = shadow_stack_base - config.runtime_layout.stack_size;
         let heap_base = stack_base - config.runtime_layout.heap_size;
         let dma_base = heap_base - config.runtime_layout.dma_size;
-        let payload_param_base = config.runtime_layout.payload_param_base;
+        let td_hob_base =
+            config.runtime_layout.page_table_base + config.runtime_layout.page_table_size;
         let payload_base =
             config.runtime_layout.payload_param_base + config.runtime_layout.payload_param_size;
 
         TdLayoutRuntime {
             pt_base: config.runtime_layout.page_table_base,
+            td_hob_base,
+            td_hob_size: config.runtime_layout.td_hob_size,
+            payload_param_base: config.runtime_layout.payload_param_base,
+            payload_param_size: config.runtime_layout.payload_param_size,
             payload_base,
             payload_size: config.runtime_layout.payload_size,
             dma_base,
@@ -456,16 +455,14 @@ impl TdLayoutRuntime {
             stack_size: config.runtime_layout.stack_size,
             shadow_stack_base,
             shadow_stack_size: config.runtime_layout.shadow_stack_size,
-            hob_base,
-            hob_size: config.runtime_layout.hob_size,
+            payload_hob_base,
+            payload_hob_size: config.runtime_layout.payload_hob_size,
             event_log_base,
             event_log_size: config.runtime_layout.event_log_size,
             acpi_base,
             acpi_size: config.runtime_layout.acpi_size,
             mailbox_base,
             mailbox_size: config.runtime_layout.mailbox_size,
-            payload_param_base,
-            payload_param_size: config.runtime_layout.payload_param_size,
         }
     }
 }

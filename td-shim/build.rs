@@ -8,7 +8,7 @@ use std::{
     path::{Path, PathBuf},
     process::{exit, Command},
 };
-use td_layout::build_time;
+use td_layout::{build_time, runtime};
 
 fn nasm(file: &Path, arch: &str, out_file: &Path, args: &[&str]) -> Command {
     let oformat = match arch {
@@ -173,8 +173,8 @@ fn real_main() -> Result<()> {
     let td_shim_ipl_base_arg = format!("-DTOP_OF_BFV=0x{:X}", build_time::TD_SHIM_IPL_BASE);
     let td_mailbox_base_arg = format!("-DTD_MAILBOX_BASE=0x{:X}", build_time::TD_SHIM_MAILBOX_BASE);
     let td_mailbox_size_arg = format!("-DTD_MAILBOX_SIZE=0x{:X}", build_time::TD_SHIM_MAILBOX_SIZE);
-    let td_shim_hob_base_arg = format!("-DTD_HOB_BASE=0x{:X}", build_time::TD_SHIM_HOB_BASE);
-    let td_shim_hob_size_arg = format!("-DTD_HOB_SIZE=0x{:X}", build_time::TD_SHIM_HOB_SIZE);
+    let td_shim_hob_base_arg = format!("-DTD_HOB_BASE=0x{:X}", runtime::TD_HOB_BASE);
+    let td_shim_hob_size_arg = format!("-DTD_HOB_SIZE=0x{:X}", runtime::TD_HOB_SIZE);
     let td_shim_tmp_stack_base_arg = format!(
         "-DTEMP_STACK_BASE=0x{:X}",
         build_time::TD_SHIM_TEMP_STACK_BASE

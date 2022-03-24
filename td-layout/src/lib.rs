@@ -152,6 +152,7 @@ impl fmt::Debug for RuntimeMemoryLayout {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::runtime::TD_PAYLOAD_EVENT_LOG_SIZE;
 
     #[test]
     #[should_panic]
@@ -163,8 +164,9 @@ mod tests {
     fn test_runtime_memory_layout_new() {
         let layout = RuntimeMemoryLayout::new(MIN_MEMORY_SIZE + 0x1000);
 
-        assert_eq!(layout.runtime_event_log_base, MIN_MEMORY_SIZE - 0x100000);
-        assert_eq!(layout.runtime_payload_base, 0x1100000);
-        assert_eq!(layout.runtime_page_table_base, 0x800000);
+        assert_eq!(
+            layout.runtime_event_log_base,
+            MIN_MEMORY_SIZE - TD_PAYLOAD_EVENT_LOG_SIZE as u64
+        );
     }
 }
