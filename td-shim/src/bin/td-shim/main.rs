@@ -36,9 +36,20 @@ use crate::tcg::TdEventLog;
 
 mod acpi;
 mod asm;
+mod e820;
 mod heap;
+mod ipl;
 mod linux;
+mod memory;
+mod mp;
+mod stack_guard;
+mod tcg;
 mod td;
+
+#[cfg(feature = "cet-ss")]
+mod cet_ss;
+#[cfg(feature = "secure-boot")]
+mod verifier;
 
 extern "win64" {
     fn switch_stack_call(entry_point: usize, stack_top: usize, P1: usize, P2: usize);
@@ -91,5 +102,87 @@ pub extern "win64" fn _start(
     // First initialize the heap allocator so that we have a normal rust world to live in...
     heap::init();
 
-    panic!("Linux kernel should not return here!!!");
+    // Get HOB list
+    let hob_list = memslice::get_mem_slice(memslice::SliceType::ShimHob);
+    let hob_size = hob::get_hob_total_size(hob_list).expect("failed to get size of hob list");
+    let hob_list = &hob_list[0..hob_size];
+    hob::dump_hob(hob_list);
+
+    // Initialize memory subsystem.
+    let num_vcpus = td::get_num_vcpus();
+    accept_memory_resources(hob_list, num_vcpus);
+    td_paging::init();
+    let memory_top_below_4gb = hob::get_system_memory_size_below_4gb(hob_list)
+        .expect("failed to figure out memory below 4G from hob list");
+    let runtime_memory_layout = RuntimeMemoryLayout::new(memory_top_below_4gb);
+    let memory_all = memory::get_memory_size(hob_list);
+    let mut mem = memory::Memory::new(&runtime_memory_layout, memory_all);
+    mem.setup_paging();
+
+    // Relocate Mailbox along side with the AP function
+    td::relocate_mailbox(runtime_memory_layout.runtime_mailbox_base as u32);
+
+    // Set up the TD event log buffer.
+    // Safe because it's used to initialize the EventLog subsystem which ensures safety.
+    let event_log_buf = unsafe {
+        memslice::get_dynamic_mem_slice_mut(
+            memslice::SliceType::EventLog,
+            runtime_memory_layout.runtime_event_log_base as usize,
+        )
+    };
+    let mut td_event_log = tcg::TdEventLog::new(event_log_buf);
+    log_hob_list(hob_list, &mut td_event_log);
+
+    panic!("payload entry() should not return here, deadloop!!!");
+}
+
+fn log_hob_list(hob_list: &[u8], td_event_log: &mut tcg::TdEventLog) {
+    let hand_off_table_pointers = TdHandoffTablePointers {
+        table_descripion_size: 8,
+        table_description: [b't', b'd', b'_', b'h', b'o', b'b', 0, 0],
+        number_of_tables: 1,
+        table_entry: [TdHandoffTable {
+            guid: TD_LOG_EFI_HANDOFF_TABLE_GUID,
+            table: hob_list as *const _ as *const c_void as u64,
+        }],
+    };
+    let mut tdx_handofftable_pointers_buffer = [0u8; size_of::<TdHandoffTablePointers>()];
+
+    tdx_handofftable_pointers_buffer
+        .pwrite(hand_off_table_pointers, 0)
+        .expect("Failed to log HOB list to the td event log");
+    td_event_log.create_event_log(
+        1,
+        EV_EFI_HANDOFF_TABLES2,
+        &tdx_handofftable_pointers_buffer,
+        hob_list,
+    );
+}
+
+fn accept_memory_resources(hob_list: &[u8], num_vcpus: u32) {
+    let mut offset: usize = 0;
+    loop {
+        let hob = &hob_list[offset..];
+        let header: pi::hob::Header = hob.pread(0).expect("Failed to read HOB header");
+
+        match header.r#type {
+            pi::hob::HOB_TYPE_RESOURCE_DESCRIPTOR => {
+                let resource_hob: pi::hob::ResourceDescription = hob.pread(0).unwrap();
+                if resource_hob.resource_type == pi::hob::RESOURCE_SYSTEM_MEMORY {
+                    td::accept_memory_resource_range(
+                        num_vcpus,
+                        resource_hob.physical_start,
+                        resource_hob.resource_length,
+                    );
+                }
+            }
+            pi::hob::HOB_TYPE_END_OF_HOB_LIST => {
+                break;
+            }
+            _ => {}
+        }
+
+        offset = hob::align_to_next_hob_offset(hob_list.len(), offset, header.length)
+            .expect("Failed to find next HOB entry");
+    }
 }
