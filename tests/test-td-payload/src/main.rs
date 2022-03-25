@@ -13,6 +13,7 @@ mod testiorw32;
 mod testiorw8;
 mod testtdinfo;
 mod testtdreport;
+mod testtdve;
 
 extern crate alloc;
 use alloc::boxed::Box;
@@ -29,6 +30,7 @@ use crate::testiorw32::Tdiorw32;
 use crate::testiorw8::Tdiorw8;
 use crate::testtdinfo::Tdinfo;
 use crate::testtdreport::Tdreport;
+use crate::testtdve::TdVE;
 
 use r_efi::efi::Guid;
 use serde::{Deserialize, Serialize};
@@ -44,6 +46,7 @@ pub struct TestCases {
     pub tcs004: Tdreport,
     pub tcs005: Tdiorw8,
     pub tcs006: Tdiorw32,
+    pub tcs007: TdVE,
 }
 
 pub const CFV_FFS_HEADER_TEST_CONFIG_GUID: Guid = Guid::from_fields(
@@ -159,6 +162,10 @@ extern "win64" fn _start(hob: *const c_void) -> ! {
 
     if tcs.tcs006.run {
         ts.testsuite.push(Box::new(tcs.tcs006));
+    }
+
+    if tcs.tcs007.run {
+        ts.testsuite.push(Box::new(tcs.tcs007));
     }
 
     // run the TestSuite which contains the test cases

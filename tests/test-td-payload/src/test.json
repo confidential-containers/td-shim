@@ -58,5 +58,10 @@
         "name": "testiorw32",     
         "result": "None",
         "run": true 
+    },
+    "tcs007": {
+        "name": "testve",     
+        "result": "None",
+        "run": true
     }
 }
