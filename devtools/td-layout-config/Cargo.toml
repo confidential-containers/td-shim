@@ -1,7 +1,7 @@
 [package]
 name = "td-layout-config"
 version = "0.1.0"
-description = "Generate TD layout constants from configuration files"
+description = "Generate td-shim build-time/runtime layout from a json configuration file"
 repository = "https://github.com/confidential-containers/td-shim"
 homepage = "https://github.com/confidential-containers"
 license = "BSD-2-Clause-Patent"
