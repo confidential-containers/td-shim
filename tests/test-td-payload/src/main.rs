@@ -15,6 +15,7 @@ mod testiorw8;
 mod testmemmap;
 mod testtdinfo;
 mod testtdreport;
+mod testtdve;
 
 extern crate alloc;
 use alloc::boxed::Box;
@@ -33,6 +34,7 @@ use crate::testiorw8::Tdiorw8;
 use crate::testmemmap::MemoryMap;
 use crate::testtdinfo::Tdinfo;
 use crate::testtdreport::Tdreport;
+use crate::testtdve::TdVE;
 
 use r_efi::efi::Guid;
 use serde::{Deserialize, Serialize};
