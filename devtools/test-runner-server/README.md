@@ -32,4 +32,3 @@ And all vm-based test cases are implemented as dedicated crates under directory 
 For more detailed design information, please refer to:
 - [Writing an OS in Rust: Testing](https://os.phil-opp.com/testing/)
 - [How to Build a Custom Test Harness in Rust](https://www.infinyon.com/blog/2021/04/rust-custom-test-harness/)
-- [Test Framework Example](https://github.com/rust-osdev/bootloader/tree/main/examples/test_framework)
