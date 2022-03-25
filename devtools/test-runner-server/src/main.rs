@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use clap::{app_from_crate, arg};
+use clap::{arg, command};
 use std::{
     io,
     path::{Path, PathBuf},
@@ -33,7 +33,7 @@ const TEST_ARGS: &[&str] = &[
 const TEST_TIMEOUT_SECS: u64 = 10;
 
 fn main() {
-    let matches = app_from_crate!()
+    let matches = command!()
         .arg(
             arg!([kernel] "Path of kernel file be executed by the virtual machine")
                 .required(true)
