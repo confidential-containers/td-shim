@@ -25,7 +25,7 @@ jobs:
       - name: install NASM
         uses: ilammy/setup-nasm@v1
 
-      - name: Install nightly toolchain with clippy available
+      - name: Install toolchain with clippy available
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -54,7 +54,7 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v2
 
-      - name: Install nightly toolchain with rustfmt available
+      - name: Install toolchain with rustfmt available
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
