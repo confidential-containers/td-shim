@@ -93,7 +93,6 @@ impl BMFrameAllocator {
     // - base + size doesn't wrap around
     fn new(base: usize, size: usize) -> Self {
         let mut inner = FrameAlloc::default();
-        let base = base / PAGE_SIZE;
         let page_count = size / PAGE_SIZE;
 
         inner.free(0..page_count);
@@ -108,14 +107,16 @@ impl BMFrameAllocator {
     }
 
     pub(crate) fn reserve(&mut self, addr: u64) {
-        let idx = addr as usize / PAGE_SIZE;
-        if addr > usize::MAX as u64 || idx < self.base || idx >= self.base + self.size {
+        if addr > usize::MAX as u64
+            || (addr as usize) < self.base
+            || (addr as usize) >= self.base + self.size
+        {
             panic!(
                 "Invalid address 0x{:x} to BMFrameAllocator::reserve()",
                 addr
             );
         }
-        self.inner.reserve(idx - self.base);
+        self.inner.reserve((addr as usize - self.base) / PAGE_SIZE);
     }
 }
 
@@ -131,6 +132,9 @@ pub(super) fn init() {
     let mut allocator = FRAME_ALLOCATOR.lock();
     if allocator.base == 0 && allocator.size == 0 {
         *allocator = BMFrameAllocator::new(TD_PAYLOAD_PAGE_TABLE_BASE as usize, PAGE_TABLE_SIZE);
+        // The first frame should've already been allocated to level 4 PT
+        // Safe since the PAGE_TABLE_SIZE can be ensured
+        allocator.alloc().unwrap();
         info!(
             "Frame allocator init done: {:#x?}\n",
             TD_PAYLOAD_PAGE_TABLE_BASE..TD_PAYLOAD_PAGE_TABLE_BASE + PAGE_TABLE_SIZE as u64
@@ -229,11 +233,12 @@ mod tests {
         init();
         let mut allocator = FRAME_ALLOCATOR.lock();
 
-        allocator.reserve(TD_PAYLOAD_PAGE_TABLE_BASE);
+        // First page has been allocated by init(), try second page
+        allocator.reserve(TD_PAYLOAD_PAGE_TABLE_BASE + PAGE_SIZE as u64);
         allocator.reserve(TD_PAYLOAD_PAGE_TABLE_BASE + PAGE_TABLE_SIZE as u64 - 1);
         assert_eq!(
             allocator.allocate_frame().unwrap().start_address().as_u64(),
-            0x1000
+            TD_PAYLOAD_PAGE_TABLE_BASE + 2 * PAGE_SIZE as u64
         );
     }
 }
