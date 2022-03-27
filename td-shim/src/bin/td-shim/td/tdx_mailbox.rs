@@ -150,13 +150,13 @@ fn wait_for_ap_arrive(ap_num: u32) {
     }
 }
 
-pub fn ap_assign_work(cpu_index: u32, stack: u64, entry: u32) {
+pub fn ap_assign_work(cpu_index: u32, stack_top: u64, entry: u32) {
     // Safety:
     // BSP is the owner of the mailbox area, and APs cooperate with BSP to access the mailbox area.
     let mut mail_box = unsafe { MailBox::new(get_mem_slice_mut(SliceType::MailBox)) };
 
     mail_box.set_wakeup_vector(entry);
-    mail_box.set_fw_arg(0, stack);
+    mail_box.set_fw_arg(0, stack_top);
     mail_box.set_command(spec::MP_WAKEUP_COMMAND_ACCEPT_PAGES);
     x86::fence::mfence();
     mail_box.set_apic_id(cpu_index);
@@ -255,8 +255,9 @@ pub fn accept_memory_resource_range(mut cpu_num: u32, address: u64, size: u64) {
     if major_part > 0 {
         // 0 is the bootstrap processor running this code
         for i in make_apic_range(active_ap_cnt) {
-            let ap_stack = stacks.as_ptr() as u64 + (i - 1) as u64 * 0x800;
-            ap_assign_work(i, ap_stack, parallel_accept_memory as *const () as u32);
+            // rsp should be at the top of the memory allocated for each ap
+            let stack_top = stacks.as_ptr() as u64 + i as u64 * AP_TEMP_STACK_SIZE as u64;
+            ap_assign_work(i, stack_top, parallel_accept_memory as *const () as u32);
         }
     }
 
