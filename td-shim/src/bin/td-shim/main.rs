@@ -197,7 +197,7 @@ pub extern "win64" fn _start(
         boot_linux_kernel(
             &payload_info,
             &td_hob_info.acpi_tables,
-            &mem.layout,
+            &mem,
             &mut td_event_log,
             num_vcpus,
         );
@@ -269,7 +269,7 @@ fn log_hob_list(hob_list: &[u8], td_event_log: &mut tcg::TdEventLog) {
 fn boot_linux_kernel(
     kernel_info: &PayloadInfo,
     acpi_tables: &Vec<&[u8]>,
-    layout: &RuntimeMemoryLayout,
+    mem: &memory::Memory,
     td_event_log: &mut TdEventLog,
     vcpus: u32,
 ) {
@@ -280,8 +280,9 @@ fn boot_linux_kernel(
         _ => panic!("Unknown kernel image type {}!!!", kernel_info.image_type),
     };
 
-    let rsdp = prepare_acpi_tables(acpi_tables, layout, td_event_log, vcpus);
-    let e820_table = e820::create_e820_entries(layout);
+    let rsdp = prepare_acpi_tables(acpi_tables, &mem.layout, td_event_log, vcpus);
+    let e820_table = mem.create_e820();
+    log::info!("e820 table: {:x?}\n", e820_table.as_slice());
     // Safe because we are handle off this buffer to linux kernel.
     let payload = unsafe { memslice::get_mem_slice_mut(memslice::SliceType::Payload) };
 
