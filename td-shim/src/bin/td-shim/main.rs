@@ -10,9 +10,16 @@
 #![cfg_attr(not(test), no_main)]
 #![allow(unused_imports)]
 
+extern crate alloc;
+use alloc::vec::Vec;
 use core::ffi::c_void;
 use core::mem::size_of;
 use core::panic::PanicInfo;
+use td_uefi_pi::pi::hob::{
+    GuidExtension, ResourceDescription, HOB_TYPE_END_OF_HOB_LIST, HOB_TYPE_GUID_EXTENSION,
+    HOB_TYPE_HANDOFF, HOB_TYPE_RESOURCE_DESCRIPTOR, RESOURCE_MEMORY_RESERVED,
+    RESOURCE_SYSTEM_MEMORY,
+};
 
 use r_efi::efi;
 use scroll::{Pread, Pwrite};
@@ -71,6 +78,61 @@ fn alloc_error(_info: core::alloc::Layout) -> ! {
     panic!("deadloop");
 }
 
+pub struct TdHobInfo<'a> {
+    pub memory: Vec<ResourceDescription>,
+    pub acpi_tables: Vec<&'a [u8]>,
+    pub payload_info: Option<PayloadInfo>,
+    pub payload_param: Option<&'a [u8]>,
+}
+
+impl<'a> TdHobInfo<'a> {
+    pub fn read_from_hob(raw: &'a [u8]) -> Option<Self> {
+        let mut offset = 0;
+        let mut payload_info = None;
+        let mut payload_param = None;
+        let mut acpi_tables: Vec<&[u8]> = Vec::new();
+        let mut memory: Vec<ResourceDescription> = Vec::new();
+
+        loop {
+            let hob = &raw[offset..];
+            let header: pi::hob::Header = hob.pread(0).ok()?;
+            match header.r#type {
+                HOB_TYPE_RESOURCE_DESCRIPTOR => {
+                    let resource_hob = hob.pread::<ResourceDescription>(0).ok()?;
+                    if resource_hob.resource_type == RESOURCE_SYSTEM_MEMORY
+                        || resource_hob.resource_type == RESOURCE_MEMORY_RESERVED
+                    {
+                        memory.push(resource_hob)
+                    }
+                }
+                HOB_TYPE_GUID_EXTENSION => {
+                    let guided_hob: GuidExtension = hob.pread(0).ok()?;
+                    let hob_data = hob::get_guid_data(hob)?;
+                    if guided_hob.name == TD_KERNEL_INFO_HOB_GUID {
+                        payload_info = Some(hob_data.pread::<PayloadInfo>(0).ok()?);
+                    } else if guided_hob.name == TD_ACPI_TABLE_HOB_GUID {
+                        acpi_tables.push(hob_data);
+                    }
+                }
+                HOB_TYPE_END_OF_HOB_LIST => {
+                    break;
+                }
+                HOB_TYPE_HANDOFF => {}
+                _ => {
+                    return None;
+                }
+            }
+            offset = hob::align_to_next_hob_offset(raw.len(), offset, header.length)?;
+        }
+        Some(Self {
+            payload_info,
+            payload_param,
+            acpi_tables,
+            memory,
+        })
+    }
+}
+
 /// Main entry point of the td-shim, and the bootstrap code should jump here.
 ///
 /// The bootstrap should prepare the context to satisfy `_start()`'s expectation:
@@ -107,10 +169,12 @@ pub extern "win64" fn _start(
     let hob_size = hob::get_hob_total_size(hob_list).expect("failed to get size of hob list");
     let hob_list = &hob_list[0..hob_size];
     hob::dump_hob(hob_list);
+    let td_hob_info =
+        TdHobInfo::read_from_hob(hob_list).expect("Error occurs reading from VMM HOB");
 
     // Initialize memory subsystem.
     let num_vcpus = td::get_num_vcpus();
-    accept_memory_resources(hob_list, num_vcpus);
+    accept_memory_resources(&td_hob_info.memory, num_vcpus);
     td_paging::init();
     let memory_top_below_4gb = hob::get_system_memory_size_below_4gb(hob_list)
         .expect("failed to figure out memory below 4G from hob list");
@@ -133,11 +197,11 @@ pub extern "win64" fn _start(
     let mut td_event_log = tcg::TdEventLog::new(event_log_buf);
     log_hob_list(hob_list, &mut td_event_log);
 
-    // If the Kernel Information GUID HOB is present, try to boot the Linux kernel.
-    if let Some(kernel_hob) = hob::get_next_extension_guid_hob(hob_list, &TD_KERNEL_INFO_HOB_GUID) {
+    // If the Payload Information GUID HOB is present, try to boot the Linux kernel.
+    if let Some(payload_info) = td_hob_info.payload_info {
         boot_linux_kernel(
-            kernel_hob,
-            hob_list,
+            &payload_info,
+            &td_hob_info.acpi_tables,
             &runtime_memory_layout,
             &mut td_event_log,
             num_vcpus,
@@ -214,66 +278,40 @@ fn log_hob_list(hob_list: &[u8], td_event_log: &mut tcg::TdEventLog) {
     );
 }
 
-fn accept_memory_resources(hob_list: &[u8], num_vcpus: u32) {
-    let mut offset: usize = 0;
-    loop {
-        let hob = &hob_list[offset..];
-        let header: pi::hob::Header = hob.pread(0).expect("Failed to read HOB header");
-
-        match header.r#type {
-            pi::hob::HOB_TYPE_RESOURCE_DESCRIPTOR => {
-                let resource_hob: pi::hob::ResourceDescription = hob.pread(0).unwrap();
-                if resource_hob.resource_type == pi::hob::RESOURCE_SYSTEM_MEMORY {
-                    td::accept_memory_resource_range(
-                        num_vcpus,
-                        resource_hob.physical_start,
-                        resource_hob.resource_length,
-                    );
-                }
-            }
-            pi::hob::HOB_TYPE_END_OF_HOB_LIST => {
-                break;
-            }
-            _ => {}
+fn accept_memory_resources(resources: &[ResourceDescription], num_vcpus: u32) {
+    for r in resources {
+        if r.resource_type == pi::hob::RESOURCE_SYSTEM_MEMORY {
+            td::accept_memory_resource_range(num_vcpus, r.physical_start, r.resource_length);
         }
-
-        offset = hob::align_to_next_hob_offset(hob_list.len(), offset, header.length)
-            .expect("Failed to find next HOB entry");
     }
 }
 
 fn boot_linux_kernel(
-    kernel_hob: &[u8],
-    hob_list: &[u8],
+    kernel_info: &PayloadInfo,
+    acpi_tables: &Vec<&[u8]>,
     layout: &RuntimeMemoryLayout,
     td_event_log: &mut TdEventLog,
     vcpus: u32,
 ) {
-    let kernel_info = hob::get_guid_data(kernel_hob)
-        .expect("Can not fetch kernel data from the Kernel Info GUID HOB!!!");
-    let vmm_kernel = kernel_info
-        .pread::<PayloadInfo>(0)
-        .expect("Can not fetch PayloadInfo structure from the Kernel Info GUID HOB");
-
-    let image_type = TdKernelInfoHobType::from(vmm_kernel.image_type);
+    let image_type = TdKernelInfoHobType::from(kernel_info.image_type);
     match image_type {
         TdKernelInfoHobType::ExecutablePayload => return,
         TdKernelInfoHobType::BzImage | TdKernelInfoHobType::RawVmLinux => {}
-        _ => panic!("Unknown kernel image type {}!!!", vmm_kernel.image_type),
+        _ => panic!("Unknown kernel image type {}!!!", kernel_info.image_type),
     };
 
-    let rsdp = prepare_acpi_tables(hob_list, layout, td_event_log, vcpus);
+    let rsdp = prepare_acpi_tables(acpi_tables, layout, td_event_log, vcpus);
     let e820_table = e820::create_e820_entries(layout);
     // Safe because we are handle off this buffer to linux kernel.
     let payload = unsafe { memslice::get_mem_slice_mut(memslice::SliceType::Payload) };
 
-    linux::boot::boot_kernel(payload, rsdp, e820_table.as_slice(), &vmm_kernel);
+    linux::boot::boot_kernel(payload, rsdp, e820_table.as_slice(), kernel_info);
     panic!("Linux kernel should not return here!!!");
 }
 
 // Prepare ACPI tables for the virtual machine and panics if error happens.
 fn prepare_acpi_tables(
-    hob_list: &[u8],
+    acpi_tables: &Vec<&[u8]>,
     layout: &RuntimeMemoryLayout,
     td_event_log: &mut TdEventLog,
     vcpus: u32,
@@ -285,22 +323,19 @@ fn prepare_acpi_tables(
             layout.runtime_acpi_base as usize,
         )
     };
-    let mut acpi_tables = acpi::AcpiTables::new(acpi_slice, acpi_slice.as_ptr() as *const _ as u64);
+    let mut acpi = acpi::AcpiTables::new(acpi_slice, acpi_slice.as_ptr() as *const _ as u64);
 
     let mut vmm_madt = None;
-    let mut next_hob = hob_list;
-    while let Some(hob) = hob::get_next_extension_guid_hob(next_hob, &TD_ACPI_TABLE_HOB_GUID) {
-        let table = hob::get_guid_data(hob).expect("Failed to get data from ACPI GUID HOB");
+    for &table in acpi_tables {
         let header = GenericSdtHeader::read_from(&table[..size_of::<GenericSdtHeader>()])
             .expect("Faile to read table header from ACPI GUID HOB");
         // Protect MADT and TDEL from overwritten by the VMM.
         if &header.signature != b"APIC" && &header.signature != b"TDEL" {
-            acpi_tables.install(table);
+            acpi.install(table);
         }
         if &header.signature == b"APIC" {
             vmm_madt = Some(table);
         }
-        next_hob = hob::seek_to_next_hob(hob).unwrap();
     }
 
     let madt = if let Some(vmm_madt) = vmm_madt {
@@ -311,11 +346,11 @@ fn prepare_acpi_tables(
             .expect("Failed to create ACPI MADT table")
     };
 
-    acpi_tables.install(madt.as_bytes());
+    acpi.install(madt.as_bytes());
     let tdel = td_event_log.create_tdel();
-    acpi_tables.install(tdel.as_bytes());
+    acpi.install(tdel.as_bytes());
 
-    acpi_tables.finish()
+    acpi.finish()
 }
 
 fn prepare_hob_list(
