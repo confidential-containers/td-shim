@@ -5,7 +5,7 @@
 use core::cmp::min;
 use log::{info, trace};
 use x86_64::{
-    structures::paging::PageTableFlags as Flags,
+    structures::paging::{mapper::MapToError, PageTableFlags as Flags},
     structures::paging::{
         mapper::MappedFrame, mapper::TranslateResult, Mapper, OffsetPageTable, Page, PageSize,
         PhysFrame, Size1GiB, Size2MiB, Size4KiB, Translate,
@@ -29,6 +29,40 @@ pub fn cr3_write() {
         x86::controlregs::cr3_write(TD_PAYLOAD_PAGE_TABLE_BASE);
     }
     info!("Cr3 - {:x}\n", unsafe { x86::controlregs::cr3() });
+}
+
+// Map a frame of size S from physical address
+// to virtual address
+fn map_page<'a, S: PageSize>(
+    pt: &mut OffsetPageTable<'a>,
+    pa: PhysAddr,
+    va: VirtAddr,
+    flags: Flags,
+    allocator: &mut BMFrameAllocator,
+) where
+    OffsetPageTable<'a>: Mapper<S>,
+{
+    let page: Page<S> = Page::containing_address(va);
+    let frame: PhysFrame<S> = PhysFrame::containing_address(pa);
+    trace!(
+        "Mapping {:016x} to {:016x} with granularity: {:x}\n",
+        pa.as_u64(),
+        va.as_u64(),
+        S::SIZE,
+    );
+    unsafe {
+        match pt.map_to(page, frame, flags, allocator) {
+            Ok(mapper) => mapper.flush(),
+            Err(e) => match e {
+                MapToError::PageAlreadyMapped(_) => {}
+                _ => panic!(
+                    "failed to map address: {:x}, size: {:x}",
+                    pa.as_u64(),
+                    S::SIZE
+                ),
+            },
+        }
+    }
 }
 
 /// Create page table entries to map `[va, va + sz)` to `[pa, ps + sz)` with page size `ps` and
@@ -65,56 +99,14 @@ pub fn create_mapping_with_flags(
             min(pa.as_u64().trailing_zeros(), va.as_u64().trailing_zeros()),
         ) as u64;
         let mapped_size = if addr_align >= ALIGN_1G_BITS && sz >= ALIGN_1G {
-            trace!(
-                "1GB {} {:016x} /{:016x} {:016x}\n",
-                addr_align,
-                sz,
-                pa.as_u64(),
-                va.as_u64()
-            );
-            type S = Size1GiB;
-            let page: Page<S> = Page::containing_address(va);
-            let frame: PhysFrame<S> = PhysFrame::containing_address(pa);
-            unsafe {
-                pt.map_to(page, frame, flags, allocator)
-                    .expect("map_to failed")
-                    .flush();
-            }
-            S::SIZE
+            map_page::<Size1GiB>(pt, pa, va, flags, allocator);
+            Size1GiB::SIZE
         } else if addr_align >= ALIGN_2M_BITS && sz >= ALIGN_2M {
-            trace!(
-                "2MB {} {:016x} /{:016x} {:016x}\n",
-                addr_align,
-                sz,
-                pa.as_u64(),
-                va.as_u64()
-            );
-            type S = Size2MiB;
-            let page: Page<S> = Page::containing_address(va);
-            let frame: PhysFrame<S> = PhysFrame::containing_address(pa);
-            unsafe {
-                pt.map_to(page, frame, flags, allocator)
-                    .expect("map_to failed")
-                    .flush();
-            }
-            S::SIZE
+            map_page::<Size2MiB>(pt, pa, va, flags, allocator);
+            Size2MiB::SIZE
         } else {
-            trace!(
-                "4KB {} {:016x} /{:016x} {:016x}\n",
-                addr_align,
-                sz,
-                pa.as_u64(),
-                va.as_u64()
-            );
-            type S = Size4KiB;
-            let page: Page<S> = Page::containing_address(va);
-            let frame: PhysFrame<S> = PhysFrame::containing_address(pa);
-            unsafe {
-                pt.map_to(page, frame, flags, allocator)
-                    .expect("map_to failed")
-                    .flush();
-            }
-            S::SIZE
+            map_page::<Size4KiB>(pt, pa, va, flags, allocator);
+            Size4KiB::SIZE
         };
 
         sz -= mapped_size;
