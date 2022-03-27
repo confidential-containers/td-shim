@@ -134,6 +134,31 @@ impl<'a> Memory<'a> {
         td_paging::cr3_write();
     }
 
+    pub fn create_e820(&self) -> E820Table {
+        let mut table = E820Table::new();
+        for r in &self.regions {
+            table.add_range(E820Type::Memory, r.physical_start, r.resource_length);
+        }
+
+        table.convert_range(
+            E820Type::Acpi,
+            self.layout.runtime_acpi_base,
+            runtime::TD_PAYLOAD_ACPI_SIZE as u64,
+        );
+        table.convert_range(
+            E820Type::Nvs,
+            self.layout.runtime_event_log_base,
+            runtime::TD_PAYLOAD_EVENT_LOG_SIZE as u64,
+        );
+        table.convert_range(
+            E820Type::Nvs,
+            self.layout.runtime_mailbox_base as u64,
+            runtime::TD_PAYLOAD_MAILBOX_SIZE as u64,
+        );
+
+        table
+    }
+
     #[cfg(feature = "tdx")]
     pub fn accept_memory_resources(&self, num_vcpus: u32) {
         use td_uefi_pi::pi;
