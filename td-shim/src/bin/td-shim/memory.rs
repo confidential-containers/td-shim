@@ -1,118 +1,160 @@
-// Copyright (c) 2020 Intel Corporation
+// Copyright (c) 2020-2022 Intel Corporation
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
-use td_layout::runtime::{TD_PAYLOAD_EVENT_LOG_SIZE, TD_PAYLOAD_SIZE};
-use td_layout::RuntimeMemoryLayout;
+use alloc::vec::Vec;
+use td_layout::build_time::{TD_SHIM_FIRMWARE_BASE, TD_SHIM_FIRMWARE_SIZE};
+use td_layout::runtime::{
+    self, TD_PAYLOAD_BASE, TD_PAYLOAD_DMA_SIZE, TD_PAYLOAD_EVENT_LOG_SIZE,
+    TD_PAYLOAD_PAGE_TABLE_BASE, TD_PAYLOAD_SIZE,
+};
+use td_layout::{RuntimeMemoryLayout, MIN_MEMORY_SIZE};
 use td_uefi_pi::hob;
+use td_uefi_pi::pi::hob::ResourceDescription;
 use x86_64::{
     structures::paging::PageTableFlags as Flags,
     structures::paging::{OffsetPageTable, PageTable},
     PhysAddr, VirtAddr,
 };
 
+use crate::e820::{E820Table, E820Type};
 use crate::td;
 
 const EXTENDED_FUNCTION_INFO: u32 = 0x80000000;
 const VIRT_PHYS_MEM_SIZES: u32 = 0x80000008;
+const MEMORY_4G: u64 = 0x1_0000_0000;
+const LOW_MEM_TOP: u64 = TD_PAYLOAD_BASE + TD_PAYLOAD_SIZE as u64;
 
 pub struct Memory<'a> {
-    pub layout: &'a RuntimeMemoryLayout,
+    pub layout: RuntimeMemoryLayout,
     pt: OffsetPageTable<'a>,
-    memory_size: u64,
+    regions: Vec<ResourceDescription>,
 }
 
 impl<'a> Memory<'a> {
-    pub fn new(layout: &RuntimeMemoryLayout, memory_size: u64) -> Memory {
+    pub fn new(resources: &[ResourceDescription]) -> Option<Self> {
+        let mut regions: Vec<ResourceDescription> = Vec::new();
+
+        // Look for the top region with appropriate size above the
+        // low memory and below 4G.
+        let mut runtime_top = 0;
+        for entry in resources {
+            let entry_top = entry.physical_start + entry.resource_length;
+            if entry_top - MIN_MEMORY_SIZE >= LOW_MEM_TOP
+                && entry_top < MEMORY_4G
+                && entry.resource_length >= MIN_MEMORY_SIZE
+                && entry_top > runtime_top
+            {
+                runtime_top = entry_top;
+            }
+
+            // Filter out the resources covers image space
+            // TBD: it should be ensured by VMM that this kind of resources should be MMIO
+            if entry.physical_start >= TD_SHIM_FIRMWARE_BASE as u64
+                && entry.physical_start < MEMORY_4G
+            {
+                if entry_top > MEMORY_4G {
+                    let mut new = *entry;
+                    new.physical_start = MEMORY_4G;
+                    new.resource_length = entry_top - MEMORY_4G;
+                    regions.push(new);
+                }
+            } else {
+                regions.push(*entry);
+            }
+        }
+
+        // Create the runtime layout if a suitable memory region can be found
+        if runtime_top == 0 {
+            return None;
+        }
+        let layout = RuntimeMemoryLayout::new(runtime_top);
+
+        // Create an offset page table instance to manage the paging
         let pt = unsafe {
             OffsetPageTable::new(
-                &mut *(layout.runtime_page_table_base as *mut PageTable),
+                &mut *(TD_PAYLOAD_PAGE_TABLE_BASE as *mut PageTable),
                 VirtAddr::new(td_paging::PHYS_VIRT_OFFSET as u64),
             )
         };
 
-        Memory {
+        Some(Memory {
             pt,
             layout,
-            memory_size,
-        }
+            regions,
+        })
     }
 
     pub fn setup_paging(&mut self) {
-        let shared_page_flag = td::get_shared_page_mask();
-        let flags = Flags::PRESENT | Flags::WRITABLE;
-        let with_s_flags = unsafe { Flags::from_bits_unchecked(flags.bits() | shared_page_flag) };
-        let with_nx_flags = flags | Flags::NO_EXECUTE;
-        log::info!(
-            "shared page flags - smask: {:#x} flags: {:?}\n",
-            shared_page_flag,
-            with_s_flags
-        );
-
-        // 0..runtime_payload_base
+        // Init frame allocator
+        td_paging::init();
+        // Create mapping for firmware image space
         td_paging::create_mapping(
             &mut self.pt,
-            PhysAddr::new(0),
-            VirtAddr::new(0),
-            td_paging::PAGE_SIZE_DEFAULT as u64,
-            self.layout.runtime_payload_base, // self.layout.runtime_payload_base - 0
-        );
-
-        // runtime_payload_base..runtime_payload_end
-        td_paging::create_mapping(
-            &mut self.pt,
-            PhysAddr::new(self.layout.runtime_payload_base),
-            VirtAddr::new(self.layout.runtime_payload_base),
+            PhysAddr::new(TD_SHIM_FIRMWARE_BASE as u64),
+            VirtAddr::new(TD_SHIM_FIRMWARE_BASE as u64),
             td_paging::PAGE_SIZE_4K as u64,
-            TD_PAYLOAD_SIZE as u64,
+            TD_SHIM_FIRMWARE_SIZE as u64,
         );
 
-        let runtime_payload_end = self.layout.runtime_payload_base + TD_PAYLOAD_SIZE as u64;
-        // runtime_payload_end..runtime_dma_base
-        td_paging::create_mapping(
-            &mut self.pt,
-            PhysAddr::new(runtime_payload_end),
-            VirtAddr::new(runtime_payload_end),
-            td_paging::PAGE_SIZE_DEFAULT as u64,
-            self.layout.runtime_dma_base - runtime_payload_end,
-        );
+        // Setup page table only for system memory resources
+        // - Frame size below 4G is 4K bytes since we will configure page-table
+        //   level protection for some spaces under 4G.
+        // - Frame size upper 4G is 1G bytes.
+        for m in &self.regions {
+            let r_end = m.physical_start + m.resource_length;
+            if r_end < MEMORY_4G as u64 {
+                td_paging::create_mapping(
+                    &mut self.pt,
+                    PhysAddr::new(m.physical_start),
+                    VirtAddr::new(m.physical_start),
+                    td_paging::PAGE_SIZE_4K as u64,
+                    m.resource_length,
+                );
+            } else {
+                td_paging::create_mapping(
+                    &mut self.pt,
+                    PhysAddr::new(m.physical_start),
+                    VirtAddr::new(m.physical_start),
+                    td_paging::PAGE_SIZE_DEFAULT as u64,
+                    m.resource_length,
+                );
+            }
+        }
 
-        // runtime_dma_base..runtime_heap_base with Shared flag
-        td_paging::create_mapping_with_flags(
-            &mut self.pt,
-            PhysAddr::new(self.layout.runtime_dma_base),
-            VirtAddr::new(self.layout.runtime_dma_base),
-            td_paging::PAGE_SIZE_DEFAULT as u64,
-            self.layout.runtime_heap_base - self.layout.runtime_dma_base,
-            with_s_flags | with_nx_flags,
+        // Setup page-table level protection
+        // - Enable Non-Excutable for non-code spaces
+        // - Set Shared bit for DMA memory in TDX
+        self.set_nx_bit(
+            self.layout.runtime_memory_bottom,
+            self.layout.runtime_memory_top - self.layout.runtime_memory_bottom,
         );
-
-        let runtime_memory_top =
-            self.layout.runtime_event_log_base + TD_PAYLOAD_EVENT_LOG_SIZE as u64;
-        // runtime_heap_base..memory_top with NX flag
-        td_paging::create_mapping_with_flags(
-            &mut self.pt,
-            PhysAddr::new(self.layout.runtime_heap_base),
-            VirtAddr::new(self.layout.runtime_heap_base),
-            td_paging::PAGE_SIZE_4K as u64,
-            runtime_memory_top - self.layout.runtime_heap_base,
-            with_nx_flags,
-        );
-
-        // runtime_memory_top..memory_size (end)
-        td_paging::create_mapping(
-            &mut self.pt,
-            PhysAddr::new(runtime_memory_top),
-            VirtAddr::new(runtime_memory_top),
-            td_paging::PAGE_SIZE_DEFAULT as u64,
-            self.memory_size - runtime_memory_top,
-        );
+        self.set_shared_bit(self.layout.runtime_dma_base, TD_PAYLOAD_DMA_SIZE as u64);
 
         td_paging::cr3_write();
     }
 
+    #[cfg(feature = "tdx")]
+    pub fn accept_memory_resources(&self, num_vcpus: u32) {
+        use td_uefi_pi::pi;
+
+        for r in &self.regions {
+            if r.resource_type == pi::hob::RESOURCE_SYSTEM_MEMORY {
+                td::accept_memory_resource_range(num_vcpus, r.physical_start, r.resource_length);
+            }
+        }
+    }
+
     pub fn set_write_protect(&mut self, address: u64, size: u64) {
         let flags = Flags::PRESENT | Flags::USER_ACCESSIBLE;
+
+        td_paging::set_page_flags(&mut self.pt, VirtAddr::new(address), size as i64, flags);
+    }
+
+    pub fn set_shared_bit(&mut self, address: u64, size: u64) {
+        let shared_page_flag = td::get_shared_page_mask();
+        let mut flags = Flags::PRESENT | Flags::WRITABLE;
+        flags = unsafe { Flags::from_bits_unchecked(flags.bits() | shared_page_flag) };
 
         td_paging::set_page_flags(&mut self.pt, VirtAddr::new(address), size as i64, flags);
     }
@@ -147,16 +189,5 @@ pub fn cpu_get_memory_space_size() -> u8 {
         size_of_mem_space
     );
 
-    // TBD: Currently we only map the 64GB memory, change back to size_of_mem_space once page table
-    // allocator can be ready.
-    core::cmp::min(36, size_of_mem_space)
-}
-
-pub fn get_memory_size(hob: &[u8]) -> u64 {
-    let cpu_men_space_size = cpu_get_memory_space_size() as u32;
-    let cpu_memory_size = 2u64.pow(cpu_men_space_size);
-    let hob_memory_size = hob::get_total_memory_top(hob).unwrap();
-    let mem_size = core::cmp::min(cpu_memory_size, hob_memory_size);
-    log::info!("memory_size: 0x{:x}\n", mem_size);
-    mem_size
+    size_of_mem_space
 }
