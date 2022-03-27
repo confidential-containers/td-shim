@@ -9,7 +9,8 @@ edition = "2018"
 cargo-fuzz = true
 
 [dependencies]
-libfuzzer-sys = "0.4"
+libfuzzer-sys = {version = "0.4", optional = true }
+afl = {version = "*", optional = true }
 
 [dependencies.td-loader]
 path = ".."
@@ -18,6 +19,9 @@ path = ".."
 [workspace]
 members = ["."]
 
+[features]
+default = ["libfuzzer-sys"]
+fuzz = ["afl"]
 
 [[bin]]
 name = "pe"
@@ -30,3 +34,16 @@ name = "elf"
 path = "fuzz_targets/elf.rs"
 test = false
 doc = false
+
+[[bin]]
+name = "afl_pe"
+path = "fuzz_targets/afl_pe.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "afl_elf"
+path = "fuzz_targets/afl_elf.rs"
+test = false
+doc = false
+
