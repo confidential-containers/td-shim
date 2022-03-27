@@ -171,25 +171,22 @@ pub extern "win64" fn _start(
         TdHobInfo::read_from_hob(hob_list).expect("Error occurs reading from VMM HOB");
 
     // Initialize memory subsystem.
+    let mut mem = memory::Memory::new(&td_hob_info.memory)
+        .expect("Unable to find a piece of suitable memory for runtime");
     let num_vcpus = td::get_num_vcpus();
-    accept_memory_resources(&td_hob_info.memory, num_vcpus);
-    td_paging::init();
-    let memory_top_below_4gb = hob::get_system_memory_size_below_4gb(hob_list)
-        .expect("failed to figure out memory below 4G from hob list");
-    let runtime_memory_layout = RuntimeMemoryLayout::new(memory_top_below_4gb);
-    let memory_all = memory::get_memory_size(hob_list);
-    let mut mem = memory::Memory::new(&runtime_memory_layout, memory_all);
+    #[cfg(feature = "tdx")]
+    mem.accept_memory_resources(num_vcpus);
     mem.setup_paging();
 
     // Relocate Mailbox along side with the AP function
-    td::relocate_mailbox(runtime_memory_layout.runtime_mailbox_base as u32);
+    td::relocate_mailbox(mem.layout.runtime_mailbox_base as u32);
 
     // Set up the TD event log buffer.
     // Safe because it's used to initialize the EventLog subsystem which ensures safety.
     let event_log_buf = unsafe {
         memslice::get_dynamic_mem_slice_mut(
             memslice::SliceType::EventLog,
-            runtime_memory_layout.runtime_event_log_base as usize,
+            mem.layout.runtime_event_log_base as usize,
         )
     };
     let mut td_event_log = tcg::TdEventLog::new(event_log_buf);
@@ -200,7 +197,7 @@ pub extern "win64" fn _start(
         boot_linux_kernel(
             &payload_info,
             &td_hob_info.acpi_tables,
-            &runtime_memory_layout,
+            &mem.layout,
             &mut td_event_log,
             num_vcpus,
         );
@@ -228,20 +225,13 @@ pub extern "win64" fn _start(
     stack_guard::stack_guard_enable(&mut mem);
     #[cfg(feature = "cet-ss")]
     cet_ss::enable_cet_ss(
-        runtime_memory_layout.runtime_shadow_stack_base,
-        runtime_memory_layout.runtime_shadow_stack_top,
+        mem.layout.runtime_shadow_stack_base,
+        mem.layout.runtime_shadow_stack_top,
     );
-    let stack_top =
-        (runtime_memory_layout.runtime_stack_base + TD_PAYLOAD_STACK_SIZE as u64) as usize;
+    let stack_top = (mem.layout.runtime_stack_base + TD_PAYLOAD_STACK_SIZE as u64) as usize;
 
     // Prepare the HOB list to run the image
-    let hob_base = prepare_hob_list(
-        hob_list,
-        &runtime_memory_layout,
-        basefw,
-        basefwsize,
-        memory_top_below_4gb,
-    );
+    let hob_base = prepare_hob_list(hob_list, &mem.layout, basefw, basefwsize);
 
     // Finally let's switch stack and jump to the image entry point...
     log::info!(
@@ -274,14 +264,6 @@ fn log_hob_list(hob_list: &[u8], td_event_log: &mut tcg::TdEventLog) {
         &tdx_handofftable_pointers_buffer,
         hob_list,
     );
-}
-
-fn accept_memory_resources(resources: &[ResourceDescription], num_vcpus: u32) {
-    for r in resources {
-        if r.resource_type == pi::hob::RESOURCE_SYSTEM_MEMORY {
-            td::accept_memory_resource_range(num_vcpus, r.physical_start, r.resource_length);
-        }
-    }
 }
 
 fn boot_linux_kernel(
@@ -356,7 +338,6 @@ fn prepare_hob_list(
     layout: &RuntimeMemoryLayout,
     basefw: u64,
     basefwsize: u64,
-    memory_top_below_4gb: u64,
 ) -> u64 {
     let hob_base = layout.runtime_hob_base;
     let memory_bottom = layout.runtime_memory_bottom;
@@ -369,9 +350,9 @@ fn prepare_hob_list(
         },
         version: 9u32,
         boot_mode: pi::boot_mode::BOOT_WITH_FULL_CONFIGURATION,
-        efi_memory_top: memory_top_below_4gb,
+        efi_memory_top: layout.runtime_memory_top,
         efi_memory_bottom: memory_bottom,
-        efi_free_memory_top: memory_top_below_4gb,
+        efi_free_memory_top: layout.runtime_memory_top,
         efi_free_memory_bottom: memory_bottom
             + ipl::efi_page_to_size(ipl::efi_size_to_page(size_of::<HobTemplate>() as u64)),
         efi_end_of_hob_list: hob_base + size_of::<HobTemplate>() as u64,
