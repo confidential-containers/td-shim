@@ -1,0 +1,36 @@
+#!/bin/bash
+
+export CC=clang
+export AR=llvm-ar
+
+if [[ ! $PWD =~ td-shim$ ]];then
+    pushd ..
+fi
+
+cargo xbuild -p td-shim --target x86_64-unknown-uefi --release --features=main,tdx --no-default-features
+
+final_pe() {
+    echo final-pe
+    cargo xbuild -p td-payload --target x86_64-unknown-uefi --release --features=main,tdx --no-default-features
+    cargo run -p td-shim-tools --features="linker" --no-default-features --bin td-shim-ld -- \
+        target/x86_64-unknown-uefi/release/ResetVector.bin \
+        target/x86_64-unknown-uefi/release/td-shim.efi \
+        target/x86_64-unknown-uefi/release/td-payload.efi \
+        -o target/x86_64-unknown-uefi/release/final-pe.bin
+}
+
+final_elf() {
+    echo final-elf
+    cargo xbuild -p td-payload --target devtools/rustc-targets/x86_64-unknown-none.json --release --features=main,tdx
+    cargo run -p td-shim-tools --features="linker" --no-default-features --bin td-shim-ld -- \
+    target/x86_64-unknown-uefi/release/ResetVector.bin \
+        target/x86_64-unknown-uefi/release/td-shim.efi \
+        target/x86_64-unknown-none/release/td-payload \
+        -o target/x86_64-unknown-uefi/release/final-elf.bin 
+}
+
+case "${1:-}" in
+    elf) final_elf ;;
+    pe) final_pe ;;
+    *) final_pe && final_elf ;;
+esac
