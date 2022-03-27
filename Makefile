@@ -1,4 +1,6 @@
 export CARGO=cargo
+export STABLE_TOOLCHAIN:=1.58.1
+export NIGHTLY_TOOLCHAIN:=nightly-2021-08-20
 export BUILD_TYPE:=release
 export PREFIX:=/usr/local
 
@@ -9,7 +11,8 @@ else
 	export BUILD_TYPE_FLAG=
 endif
 
-LIB_CRATES = td-loader td-exception td-layout td-logger td-paging tdx-tdcall
+GENERIC_LIB_CRATES = td-layout td-logger td-uefi-pi
+NIGHTLY_LIB_CRATES = td-exception td-paging tdx-tdcall
 SHIM_CRATES = td-shim td-payload
 TEST_CRATES = test-td-exception test-td-paging
 TOOL_CRATES = td-shim-tools
@@ -46,28 +49,28 @@ uninstall-devtools: uninstall-subdir-devtools $(TOOL_CRATES:%=uninstall-devtool-
 .PHONY: tools-devtools
 tools-devtools: tools-subdir-devtools
 
-install-devtool-%: build-%
+install-devtool-%: nightly-build-%
 	mkdir -p ${TOPDIR}/devtools/bin
-	cargo install --bins --target-dir ${TOPDIR}/devtools/bin/ --path $(patsubst install-devtool-%,%,$@)
+	${CARGO} install --bins --target-dir ${TOPDIR}/devtools/bin/ --path $(patsubst install-devtool-%,%,$@)
 
 uninstall-devtool-%:
-	cargo uninstall --root ${TOPDIR}/devtools/bin/ --path $(patsubst uninstall-devtool-%,%,$@)
+	${CARGO} uninstall --root ${TOPDIR}/devtools/bin/ --path $(patsubst uninstall-devtool-%,%,$@)
 
 # Targets for tool crates
 install-tool-%: build-%
-	cargo install --bins --path $(patsubst install-tool-%,%,$@)
+	${CARGO} install --bins --path $(patsubst install-tool-%,%,$@)
 
 uninstall-tool-%:
-	cargo uninstall --path $(patsubst uninstall-devtool-%,%,$@)
+	${CARGO} uninstall --path $(patsubst uninstall-devtool-%,%,$@)
 
 # Targets for library crates
-lib-build: $(LIB_CRATES:%=build-%)
+lib-build: $(GENERIC_LIB_CRATES:%=build-%) $(NIGHTLY_LIB_CRATES:%=nightly-build-%)
 
-lib-check: $(LIB_CRATES:%=check-%)
+lib-check: $(GENERIC_LIB_CRATES:%=check-%) $(NIGHTLY_LIB_CRATES:%=nightly-check-%)
 
-lib-test: $(LIB_CRATES:%=test-%)
+lib-test: $(GENERIC_LIB_CRATES:%=test-%) $(NIGHTLY_LIB_CRATES:%=nightly-test-%)
 
-lib-clean: $(LIB_CRATES:%=clean-%)
+lib-clean: $(GENERIC_LIB_CRATES:%=clean-%) $(NIGHTLY_LIB_CRATES:%=nightly-clean-%)
 
 # Targets for integration test crates
 integration-build: $(TEST_CRATES:%=integration-build-%)
@@ -80,39 +83,52 @@ integration-clean: $(TEST_CRATES:%=integration-clean-%)
 
 # Target for crates which should be compiled with `x86_64-unknown-uefi` target
 uefi-build-%:
-	cargo xbuild --target x86_64-unknown-uefi -p $(patsubst uefi-build-%,%,$@) --features=main ${BUILD_TYPE_FLAG}
+	${CARGO} +${NIGHTLY_TOOLCHAIN} xbuild --target x86_64-unknown-uefi -p $(patsubst uefi-build-%,%,$@) ${BUILD_TYPE_FLAG}
 
 uefi-check-%:
-	cargo xcheck --target x86_64-unknown-uefi -p $(patsubst uefi-check-%,%,$@) --features=main ${BUILD_TYPE_FLAG}
+	 ${CARGO} +${NIGHTLY_TOOLCHAIN}xcheck --target x86_64-unknown-uefi -p $(patsubst uefi-check-%,%,$@) ${BUILD_TYPE_FLAG}
 
 uefi-clean-%:
-	cargo clean --target x86_64-unknown-uefi -p $(patsubst uefi-clean-%,%,$@) --features=main ${BUILD_TYPE_FLAG}
+	${CARGO} +${NIGHTLY_TOOLCHAIN} clean --target x86_64-unknown-uefi -p $(patsubst uefi-clean-%,%,$@) ${BUILD_TYPE_FLAG}
 
 # Target for integration test crates which should be compiled with `x86_64-custom.json` target
 integration-build-%:
-	cargo xbuild --target ${TOPDIR}/devtools/rustc-targets/x86_64-custom.json -p $(patsubst integration-build-%,%,$@) ${BUILD_TYPE_FLAG}
+	${CARGO} +${NIGHTLY_TOOLCHAIN} xbuild --target ${TOPDIR}/devtools/rustc-targets/x86_64-custom.json -p $(patsubst integration-build-%,%,$@) ${BUILD_TYPE_FLAG}
 
 integration-check-%:
-	cargo xcheck --target ${TOPDIR}/devtools/rustc-targets/x86_64-custom.json -p $(patsubst integration-check-%,%,$@) ${BUILD_TYPE_FLAG}
+	${CARGO} +${NIGHTLY_TOOLCHAIN} xcheck --target ${TOPDIR}/devtools/rustc-targets/x86_64-custom.json -p $(patsubst integration-check-%,%,$@) ${BUILD_TYPE_FLAG}
 
 integration-test-%:
-	cargo xtest --target ${TOPDIR}/devtools/rustc-targets/x86_64-custom.json -p $(patsubst integration-test-%,%,$@) ${BUILD_TYPE_FLAG}
+	${CARGO} +${NIGHTLY_TOOLCHAIN} xtest --target ${TOPDIR}/devtools/rustc-targets/x86_64-custom.json -p $(patsubst integration-test-%,%,$@) ${BUILD_TYPE_FLAG}
 
 integration-clean-%:
-	cargo clean --target ${TOPDIR}/devtools/rustc-targets/x86_64-custom.json -p $(patsubst integration-clean-%,%,$@) ${BUILD_TYPE_FLAG}
+	${CARGO} +${NIGHTLY_TOOLCHAIN} clean --target ${TOPDIR}/devtools/rustc-targets/x86_64-custom.json -p $(patsubst integration-clean-%,%,$@) ${BUILD_TYPE_FLAG}
 
 # Targets for normal library/binary crates
 build-%:
-	cargo build -p $(patsubst build-%,%,$@) ${BUILD_TYPE_FLAG}
+	${CARGO} +${STABLE_TOOLCHAIN} build -p $(patsubst build-%,%,$@) ${BUILD_TYPE_FLAG}
 
 check-%:
-	cargo check -p $(patsubst check-%,%,$@) ${BUILD_TYPE_FLAG}
+	${CARGO} +${STABLE_TOOLCHAIN} check -p $(patsubst check-%,%,$@) ${BUILD_TYPE_FLAG}
 
 clean-%:
-	cargo clean -p $(patsubst clean-%,%,$@) ${BUILD_TYPE_FLAG}
+	${CARGO} +${STABLE_TOOLCHAIN} clean -p $(patsubst clean-%,%,$@) ${BUILD_TYPE_FLAG}
 
 test-%:
-	cargo test -p $(patsubst test-%,%,$@) ${BUILD_TYPE_FLAG}
+	${CARGO} +${STABLE_TOOLCHAIN} test -p $(patsubst test-%,%,$@) ${BUILD_TYPE_FLAG}
+
+# Targets for normal library/binary crates
+nightly-build-%:
+	${CARGO} +${NIGHTLY_TOOLCHAIN} build -p $(patsubst nightly-build-%,%,$@) ${BUILD_TYPE_FLAG}
+
+nightly-check-%:
+	${CARGO} +${NIGHTLY_TOOLCHAIN} check -p $(patsubst nightly-check-%,%,$@) ${BUILD_TYPE_FLAG}
+
+nightly-clean-%:
+	${CARGO} +${NIGHTLY_TOOLCHAIN} clean -p $(patsubst nightly-clean-%,%,$@) ${BUILD_TYPE_FLAG}
+
+nightly-test-%:
+	${CARGO} +${NIGHTLY_TOOLCHAIN} test -p $(patsubst nightly-test-%,%,$@) ${BUILD_TYPE_FLAG}
 
 # Targets for subdirectories
 build-subdir-%:

@@ -1,20 +1,20 @@
 build:
-	cargo build ${BUILD_TYPE_FLAG} -p td-layout-config
-	cargo build ${BUILD_TYPE_FLAG} -p td-benchmark
-	cargo build ${BUILD_TYPE_FLAG} -p test-runner-client
-	cargo build ${BUILD_TYPE_FLAG} -p test-runner-server
+	${CARGO} +${STABLE_TOOLCHAIN} build ${BUILD_TYPE_FLAG} -p td-layout-config
+	${CARGO} +${NIGHTLY_TOOLCHAIN} build ${BUILD_TYPE_FLAG} -p td-benchmark
+	${CARGO} +${NIGHTLY_TOOLCHAIN} build ${BUILD_TYPE_FLAG} -p test-runner-client
+	${CARGO} +${STABLE_TOOLCHAIN} build ${BUILD_TYPE_FLAG} -p test-runner-server
 
 check:
-	cargo check ${BUILD_TYPE_FLAG} -p td-layout-config
-	cargo check ${BUILD_TYPE_FLAG} -p td-benchmark
-	cargo check ${BUILD_TYPE_FLAG} -p test-runner-client
-	cargo check ${BUILD_TYPE_FLAG} -p test-runner-server
+	${CARGO} +${STABLE_TOOLCHAIN} check ${BUILD_TYPE_FLAG} -p td-layout-config
+	${CARGO} +${NIGHTLY_TOOLCHAIN} check ${BUILD_TYPE_FLAG} -p td-benchmark
+	${CARGO} +${NIGHTLY_TOOLCHAIN} check ${BUILD_TYPE_FLAG} -p test-runner-client
+	${CARGO} +${STABLE_TOOLCHAIN} check ${BUILD_TYPE_FLAG} -p test-runner-server
 
 clean:
-	cargo clean ${BUILD_TYPE_FLAG} -p td-layout-config
-	cargo clean ${BUILD_TYPE_FLAG} -p td-benchmark
-	cargo clean ${BUILD_TYPE_FLAG} -p test-runner-client
-	cargo clean ${BUILD_TYPE_FLAG} -p test-runner-server
+	${CARGO} +${STABLE_TOOLCHAIN} clean ${BUILD_TYPE_FLAG} -p td-layout-config
+	${CARGO} +${NIGHTLY_TOOLCHAIN} clean ${BUILD_TYPE_FLAG} -p td-benchmark
+	${CARGO} +${NIGHTLY_TOOLCHAIN} clean ${BUILD_TYPE_FLAG} -p test-runner-client
+	${CARGO} +${STABLE_TOOLCHAIN} clean ${BUILD_TYPE_FLAG} -p test-runner-server
 
 install:
 	mkdir -p ${TOPDIR}/devtools/bin
