@@ -9,8 +9,8 @@ use core::ptr::slice_from_raw_parts;
 use r_efi::efi::Guid;
 use scroll::{Pread, Pwrite};
 use td_uefi_pi::pi::fv::{
-    CommonSectionHeader, FfsFileHeader, FirmwareVolumeExtHeader, FirmwareVolumeHeader, FvBlockMap,
-    FIRMWARE_FILE_SYSTEM2_GUID, FVH_SIGNATURE, FV_FILETYPE_FFS_PAD,
+    Checksum, CommonSectionHeader, FfsFileHeader, FirmwareVolumeExtHeader, FirmwareVolumeHeader,
+    FvBlockMap, FIRMWARE_FILE_SYSTEM2_GUID, FVH_SIGNATURE, FV_FILETYPE_FFS_PAD,
 };
 
 use crate::write_u24;
@@ -37,6 +37,11 @@ impl Default for FvHeader {
         let mut header_sz = [0u8; 3];
         write_u24(0x2c, &mut header_sz);
 
+        let ffs_checksum = Checksum {
+            header: 0x00,
+            file: 0x00,
+        };
+
         FvHeader {
             fv_header: FirmwareVolumeHeader {
                 zero_vector: [0u8; 16],
@@ -61,7 +66,7 @@ impl Default for FvHeader {
                     &[0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
                 )
                 .as_bytes(),
-                integrity_check: 0xaae4,
+                integrity_check: ffs_checksum,
                 r#type: FV_FILETYPE_FFS_PAD,
                 attributes: 0x00,
                 size: header_sz,

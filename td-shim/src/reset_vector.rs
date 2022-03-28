@@ -40,14 +40,13 @@ impl ResetVectorHeader {
             )
             .as_bytes(),
         );
-        tdx_reset_vector_header.ffs_header.integrity_check = 0xaa5a;
         tdx_reset_vector_header.ffs_header.r#type = FV_FILETYPE_RAW;
-        tdx_reset_vector_header.ffs_header.attributes = 0x08;
+        tdx_reset_vector_header.ffs_header.attributes = 0x00;
         write_u24(
             TD_SHIM_RESET_VECTOR_SIZE + size_of::<ResetVectorHeader>() as u32,
             &mut tdx_reset_vector_header.ffs_header.size,
         );
-        tdx_reset_vector_header.ffs_header.state = 0x07u8;
+        tdx_reset_vector_header.ffs_header.update_checksum();
 
         write_u24(0x0c, &mut tdx_reset_vector_header.section_header_pad.size);
         tdx_reset_vector_header.section_header_pad.r#type = SECTION_RAW;

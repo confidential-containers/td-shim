@@ -109,14 +109,13 @@ impl FvHeaderByte {
             )
             .as_bytes(),
         );
-        tdx_payload_fv_ffs_header.ffs_header.integrity_check = 0xaa4c;
         tdx_payload_fv_ffs_header.ffs_header.r#type = FV_FILETYPE_DXE_CORE;
         tdx_payload_fv_ffs_header.ffs_header.attributes = 0x00;
         write_u24(
             TD_SHIM_PAYLOAD_SIZE - fv_header_size as u32,
             &mut tdx_payload_fv_ffs_header.ffs_header.size,
         );
-        tdx_payload_fv_ffs_header.ffs_header.state = 0x07u8;
+        tdx_payload_fv_ffs_header.ffs_header.update_checksum();
         // Safe to unwrap() because space is enough.
         let res = hdr
             .data
@@ -183,14 +182,14 @@ impl FvHeaderByte {
             )
             .as_bytes(),
         );
-        tdx_ipl_fv_ffs_header.ffs_header.integrity_check = 0xaa0d;
+
         tdx_ipl_fv_ffs_header.ffs_header.r#type = FV_FILETYPE_SECURITY_CORE;
         tdx_ipl_fv_ffs_header.ffs_header.attributes = 0x00;
         write_u24(
             TD_SHIM_IPL_SIZE - fv_header_size as u32,
             &mut tdx_ipl_fv_ffs_header.ffs_header.size,
         );
-        tdx_ipl_fv_ffs_header.ffs_header.state = 0x07u8;
+        tdx_ipl_fv_ffs_header.ffs_header.update_checksum();
         // Safe to unwrap() because space is enough.
         let res = hdr
             .data
