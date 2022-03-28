@@ -38,6 +38,17 @@ pub fn read_fv_header(fv_data: &[u8]) -> Option<FirmwareVolumeHeader> {
     Some(header)
 }
 
+// Validate Ffs File header
+pub fn validate_ffs_file_header(header: FfsFileHeader) -> bool {
+    // Do the sanity check for Ffs header.
+    // Verify the header integrity,
+    //
+    if !header.validate_checksum() {
+        return false;
+    }
+    true
+}
+
 pub fn get_image_from_fv(
     fv_data: &[u8],
     fv_file_type: FvFileType,
@@ -47,6 +58,9 @@ pub fn get_image_from_fv(
 
     let files = Files::parse(fv_data, fv_header.header_length as usize)?;
     for (file_header, file_data) in files {
+        if !validate_ffs_file_header(file_header) {
+            return None;
+        }
         if file_header.r#type == fv_file_type {
             return get_image_from_sections(file_data, section_type);
         }
@@ -64,6 +78,9 @@ pub fn get_file_from_fv(
 
     let files = Files::parse(fv_data, fv_header.header_length as usize)?;
     for (file_header, file_data) in files {
+        if !validate_ffs_file_header(file_header) {
+            return None;
+        }
         if file_header.r#type == fv_file_type && &file_header.name == file_name.as_bytes() {
             return Some(file_data);
         }
