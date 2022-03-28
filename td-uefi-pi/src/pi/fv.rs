@@ -36,6 +36,16 @@ use scroll::{Pread, Pwrite};
 pub type FvbAttributes2 = u32;
 pub const FVH_REVISION: u8 = 2;
 
+// Calculate the 8-bit sum of all elements in a u8 slice
+fn sum8(data: &[u8]) -> u8 {
+    let mut sum = 0u8;
+    let cnt = data.len();
+    for item in data.iter().take(cnt) {
+        sum = sum.wrapping_add(*item);
+    }
+    sum
+}
+
 // Calculate the 16-bit sum of all elements in a u8 slice
 fn sum16(data: &[u8]) -> u16 {
     let mut sum = 0u16;
@@ -186,8 +196,37 @@ pub const FV_FILETYPE_MM_STANDALONE: u8 = 0x0E;
 pub const FV_FILETYPE_MM_CORE_STANDALONE: u8 = 0x0F;
 pub const FV_FILETYPE_FFS_PAD: u8 = 0xF0;
 
+//
+// FFS File Attributes.
+//
+pub const FFS_ATTRIB_LARGE_FILE: u8 = 0x01;
+pub const FFS_ATTRIB_DATA_ALIGNMENT2: u8 = 0x02;
+pub const FFS_ATTRIB_FIXED: u8 = 0x04;
+pub const FFS_ATTRIB_DATA_ALIGNMENT: u8 = 0x38;
+pub const FFS_ATTRIB_CHECKSUM: u8 = 0x40;
+//
+// FFS_FIXED_CHECKSUM is the checksum value used when the
+// FFS_ATTRIB_CHECKSUM attribute bit is clear
+//
+pub const FFS_FIXED_CHECKSUM: u8 = 0xAA;
+
+// FFS File State Bits
+pub const EFI_FILE_HEADER_CONSTRUCTION: u8 = 0x01;
+pub const EFI_FILE_HEADER_VALID: u8 = 0x02;
+pub const EFI_FILE_DATA_VALID: u8 = 0x04;
+pub const EFI_FILE_MARKED_FOR_UPDATE: u8 = 0x08;
+pub const EFI_FILE_DELETED: u8 = 0x10;
+pub const EFI_FILE_HEADER_INVALID: u8 = 0x20;
+
 pub type FfsFileAttributes = u8;
 pub type FfsFileState = u8;
+
+#[repr(C)]
+#[derive(Copy, Clone, Debug, Pread, Pwrite, Default)]
+pub struct Checksum {
+    pub header: u8,
+    pub file: u8,
+}
 
 /// File Header for files smaller than 16Mb, define in [UEFI-PI Spec] section 2.2.3
 ///
@@ -202,7 +241,7 @@ pub type FfsFileState = u8;
 #[derive(Copy, Clone, Debug, Pread, Pwrite, Default)]
 pub struct FfsFileHeader {
     pub name: [u8; 16], // Guid,
-    pub integrity_check: u16,
+    pub integrity_check: Checksum,
     pub r#type: FvFileType,
     pub attributes: FfsFileAttributes,
     pub size: [u8; 3],
@@ -212,6 +251,26 @@ pub struct FfsFileHeader {
 impl FfsFileHeader {
     pub fn as_bytes(&self) -> &[u8] {
         unsafe { &*slice_from_raw_parts(self as *const Self as *const u8, size_of::<Self>()) }
+    }
+
+    // Calculate and update the checksum of the FfsFileHeader
+    pub fn update_checksum(&mut self) {
+        // Clear the existing one before we calculate the checksum
+        self.integrity_check.header = 0;
+        self.integrity_check.file = 0;
+        self.state = 0;
+        self.integrity_check.header = u8::MAX - sum8(self.as_bytes()) + 1;
+
+        self.integrity_check.file = FFS_FIXED_CHECKSUM;
+        self.state = EFI_FILE_HEADER_CONSTRUCTION | EFI_FILE_HEADER_VALID | EFI_FILE_DATA_VALID;
+    }
+
+    // Validate the checksum of the FfsFileHeader
+    pub fn validate_checksum(&self) -> bool {
+        let sum = sum8(self.as_bytes());
+        sum ^ ((EFI_FILE_HEADER_CONSTRUCTION | EFI_FILE_HEADER_VALID | EFI_FILE_DATA_VALID) as u8
+            + FFS_FIXED_CHECKSUM as u8)
+            == 0
     }
 }
 
@@ -316,6 +375,30 @@ mod tests {
 
         header.update_checksum();
         assert_eq!(header.checksum, 0x6010);
+        assert!(header.validate_checksum());
+    }
+
+    #[test]
+    fn test_ffsh_checksum() {
+        let mut header = FfsFileHeader::default();
+        header.r#type = FV_FILETYPE_FFS_PAD;
+
+        header.update_checksum();
+        assert_eq!(header.integrity_check.header, 0x10);
+        assert!(header.validate_checksum());
+
+        header.name = *Guid::from_fields(
+            0x00000001,
+            0x0000,
+            0x0000,
+            0x00,
+            0x00,
+            &[0x02, 0x00, 0x00, 0x00, 0x00, 0x01],
+        )
+        .as_bytes();
+        assert!(!header.validate_checksum());
+        header.update_checksum();
+        assert_eq!(header.integrity_check.header, 0xC);
         assert!(header.validate_checksum());
     }
 }

@@ -26,6 +26,28 @@ use crate::public_key::{
 };
 use crate::{write_u24, InputData, OutputFile};
 
+//
+// FFS File Header offset
+//
+const FFS_HEADER_HEADER_CHECKSUM_OFFSET: usize = 0x10;
+const FFS_HEADER_FILE_CHECKSUM_OFFSET: usize = 0x11;
+const FFS_HEADER_FILE_STATE_OFFSET: usize = 0x17;
+
+fn update_checksum(data: &mut [u8]) {
+    // Clear header checksum bit to zero
+    data[FFS_HEADER_HEADER_CHECKSUM_OFFSET] = 0x0u8;
+
+    let mut sum = 0x0u8;
+    for offset in 0..size_of::<FvFfsFileHeader>() {
+        if offset == FFS_HEADER_FILE_CHECKSUM_OFFSET || offset == FFS_HEADER_FILE_STATE_OFFSET {
+            continue;
+        } else {
+            sum = sum.wrapping_add(data[offset] as u8);
+        }
+    }
+
+    data[FFS_HEADER_HEADER_CHECKSUM_OFFSET] = u8::MAX - sum + 1;
+}
 // Used to construct a firmware file with a ffs header
 // and FV_FILETYPE_RAW type
 pub struct FirmwareRawFile {
@@ -61,6 +83,9 @@ impl FirmwareRawFile {
 
         // Update lengh field
         write_u24(self.data.len() as u32, &mut self.data[20..23]);
+
+        // Update Checksum
+        update_checksum(&mut self.data);
     }
 
     pub fn as_bytes(&self) -> &[u8] {
@@ -94,14 +119,13 @@ fn build_cfv_ffs_header(name: &[u8; 16]) -> FvFfsFileHeader {
     let mut cfv_ffs_header = FvFfsFileHeader::default();
     cfv_ffs_header.ffs_header.name.copy_from_slice(name);
 
-    cfv_ffs_header.ffs_header.integrity_check = 0xaa4c;
     cfv_ffs_header.ffs_header.r#type = FV_FILETYPE_RAW;
     cfv_ffs_header.ffs_header.attributes = 0x00;
     write_u24(
         TD_SHIM_CONFIG_SIZE - size_of::<FvHeader>() as u32,
         &mut cfv_ffs_header.ffs_header.size,
     );
-    cfv_ffs_header.ffs_header.state = 0x07u8;
+    cfv_ffs_header.ffs_header.update_checksum();
 
     cfv_ffs_header
 }
