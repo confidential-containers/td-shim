@@ -1,8 +1,7 @@
 [workspace]
 resolver = "2"
-default-members = ["fake"]
+default-members = []
 members = [
-	"fake",
 	"devtools/td-layout-config",
 	"devtools/test-runner-client",
 	"devtools/test-runner-server",
