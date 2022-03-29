@@ -12,6 +12,7 @@ cargo-fuzz = true
 [dependencies]
 libfuzzer-sys = {version = "0.4", optional = true }
 afl = {version = "*", optional = true }
+r-efi = "3.2.0"
 
 [dependencies.td-uefi-pi]
 path = ".."
@@ -25,8 +26,14 @@ default = ["libfuzzer-sys"]
 fuzz = ["afl"]
 
 [[bin]]
-name = "fv_parser"
-path = "fuzz_targets/fv_parser.rs"
+name = "payload_parser"
+path = "fuzz_targets/payload_parser.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "cfv_parser"
+path = "fuzz_targets/cfv_parser.rs"
 test = false
 doc = false
 
@@ -43,7 +50,13 @@ test = false
 doc = false
 
 [[bin]]
-name = "afl_fv_parser"
-path = "fuzz_targets/afl_fv_parser.rs"
+name = "afl_payload_parser"
+path = "fuzz_targets/afl_payload_parser.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "afl_cfv_parser"
+path = "fuzz_targets/afl_cfv_parser.rs"
 test = false
 doc = false

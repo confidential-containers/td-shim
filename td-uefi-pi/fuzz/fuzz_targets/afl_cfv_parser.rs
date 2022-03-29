@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
 mod fuzzlib;
-use fuzzlib::fuzz_fv_parser;
+use fuzzlib::fuzz_cfv_parser;
 
 fn main() {
     #[cfg(not(feature = "fuzz"))]
@@ -13,13 +13,13 @@ fn main() {
         if let Some(arg) = args.next() {
             println!("{}", arg);
             let data = std::fs::read(arg).expect("read crash file fail");
-            fuzz_fv_parser(data.as_slice());
+            fuzz_cfv_parser(data.as_slice());
         } else {
             let crashes_path = "../artifacts/afl_fv_parser/default/crashes";
             let single_run = || {
-                let path = "../seeds/fv_buffer";
+                let path = "../seeds/cfv_parser/cfv";
                 let data = std::fs::read(path).expect("read crash file fail");
-                fuzz_fv_parser(data.as_slice());
+                fuzz_cfv_parser(data.as_slice());
             };
             // Read the crashes folder
             match std::fs::read_dir(crashes_path) {
@@ -36,7 +36,7 @@ fn main() {
                                 continue;
                             }
                             let data = std::fs::read(path).expect("read crash file fail");
-                            fuzz_fv_parser(data.as_slice());
+                            fuzz_cfv_parser(data.as_slice());
                         }
                     }
                 }
@@ -49,6 +49,6 @@ fn main() {
     }
     #[cfg(feature = "fuzz")]
     afl::fuzz!(|data: &[u8]| {
-        fuzz_fv_parser(data);
+        fuzz_cfv_parser(data);
     });
 }
