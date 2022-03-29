@@ -4,9 +4,9 @@
 #![no_main]
 
 mod fuzzlib;
-use fuzzlib::fuzz_fv_parser;
+use fuzzlib::fuzz_cfv_parser;
 
 libfuzzer_sys::fuzz_target!(|data: &[u8]| {
     // fuzzed code goes here
-    fuzz_fv_parser(data);
+    fuzz_cfv_parser(data);
 });
