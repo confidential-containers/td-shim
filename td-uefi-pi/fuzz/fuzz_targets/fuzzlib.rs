@@ -29,5 +29,4 @@ pub fn fuzz_hob_parser(buffer: &[u8]) {
 
 pub fn fuzz_fv_parser(data: &[u8]) {
     let res = fv::get_image_from_fv(data, pi::fv::FV_FILETYPE_DXE_CORE, pi::fv::SECTION_PE32);
-    println!("{:?}", res.unwrap_or_default().len());
 }
