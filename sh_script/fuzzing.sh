@@ -11,10 +11,12 @@ cmds=(
     "td-uefi-pi"
 )
 
+fuzz_time=3600
+
 afl() {
     if [ "core" != $(cat /proc/sys/kernel/core_pattern) ]; then
         if [ $(id -u) -ne 0 ]; then
-            if [[ $PWD =~ rust-td$ ]]; then
+            if [[ $PWD =~ td-shim$ ]]; then
                 pushd sh_script
                 expect switch_root_run_cmd.sh
                 popd
@@ -29,27 +31,28 @@ afl() {
         fi
     fi
 
-    for i in ${cmds[@]}; do
-        pushd $i/fuzz
-        fuzz_list=$(ls fuzz_targets | grep afl | cut -d. -f1)
-        for j in $fuzz_list; do
-            screen -ls | grep $j
+    for path in ${cmds[@]}; do
+        pushd $path
+        fuzz_list=$(ls fuzz/fuzz_targets | grep afl | cut -d. -f1)
+        for fuzz in $fuzz_list; do
+            screen -ls | grep $fuzz
             if [[ $? -ne 0 ]]; then
-                screen -dmS $j
+                screen -dmS $fuzz
             fi
-            if [[ ! -d artifacts/$j ]]; then
-                mkdir artifacts/$j
+            if [[ ! -d fuzz/artifacts/$fuzz ]]; then
+                mkdir -p fuzz/artifacts/$fuzz
             fi
-            if [[ "$(ls -A artifacts/$j/default/crashes)" != "" ]]; then
+            if [[ "$(ls -A fuzz/artifacts/$fuzz/default/crashes)" != "" ]]; then
                 echo echo -e "\033[31m There are some crashes \033[0m"
-                echo -e "\033[31m Path in $i/fuzz/artifacts/$j/default/crashes \033[0m"
+                echo -e "\033[31m Path in $path/fuzz/artifacts/$fuzz/default/crashes \033[0m"
             fi
-            cargo afl build --bin $j --features fuzz --no-default-features
-            seed=$(echo $j | cut -d_ -f2)
-            screen -x -S $j -p 0 -X stuff "cargo afl fuzz -i seeds/$seed -o artifacts/$j target/debug/$j"
-            screen -x -S $j -p 0 -X stuff $'\n'
-            sleep 10
-            screen -S $j -X quit
+            cargo afl build --manifest-path fuzz/Cargo.toml --bin $fuzz --features fuzz --no-default-features
+            seed=$(echo $fuzz | cut -d_ -f2)
+            screen -x -S $fuzz -p 0 -X stuff "cargo afl fuzz -i fuzz/seeds/$seed -o fuzz/artifacts/$fuzz fuzz/target/debug/$fuzz"
+            screen -x -S $fuzz -p 0 -X stuff $'\n'
+            echo "fuzzing... $fuzz_time seconds ..."
+            sleep $fuzz_time
+            screen -S $fuzz -X quit
             sleep 5
         done
         popd
@@ -58,25 +61,26 @@ afl() {
 
 libfuzzer() {
 
-    for i in ${cmds[@]}; do
-        pushd $i
+    for path in ${cmds[@]}; do
+        pushd $path
         fuzz_list=$(cargo fuzz list)
-        for j in $fuzz_list; do
-            if [[ $j =~ "afl" ]]; then
+        for fuzz in $fuzz_list; do
+            if [[ $fuzz =~ "afl" ]]; then
                 continue
             fi
-            if [ ! -d "fuzz/corpus/$j" ]; then
-                mkdir -p fuzz/corpus/$j
+            if [ ! -d "fuzz/corpus/$fuzz" ]; then
+                mkdir -p fuzz/corpus/$fuzz
             fi
-            cp fuzz/seeds/$j/* fuzz/corpus/$j
-            screen -ls | grep $j
+            cp fuzz/seeds/$fuzz/* fuzz/corpus/$fuzz
+            screen -ls | grep $fuzz
             if [[ $? -ne 0 ]]; then
-                screen -dmS $j
+                screen -dmS $fuzz
             fi
-            screen -x -S $j -p 0 -X stuff "cargo fuzz run $j"
-            screen -x -S $j -p 0 -X stuff $'\n'
-            sleep 3600
-            screen -S $j -X quit
+            screen -x -S $fuzz -p 0 -X stuff "cargo fuzz run $fuzz"
+            screen -x -S $fuzz -p 0 -X stuff $'\n'
+            echo "fuzzing... $fuzz_time seconds ..."
+            sleep $fuzz_time
+            screen -S $fuzz -X quit
             sleep 5
         done
         popd
