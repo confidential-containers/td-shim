@@ -32,7 +32,7 @@ $ sudo mount -t tmpfs -o size=1024M tmpfs in
 ### Build the fuzz target
 
 `$ cd td-loader/fuzz`
-`$ cargo afl build --bin afl_pe --no-default-features`
+`$ cargo afl build --bin afl_pe --features fuzz --no-default-features`
 
 ### Example
 
@@ -160,7 +160,10 @@ $ cargo fuzz list
 
 # Copy the torrent to the default torrent folder, so you don't have to process the generated torrent file.
 $ mkdir fuzz/corpus/pe
-$ cp fuzz/seeds/pe_send/td-shim.efi fuzz/corpus/pe
+$ cp data/fuzz_seeds/pe_send/td-shim.efi fuzz/corpus/pe
+
+# You can specify the seeds diretory
+$ cargo fuzz run pe -- -corpus_prefix ../data/fuzz_seeds/pe/
 
 # Run pe fuzz.
 $ cargo fuzz run pe
