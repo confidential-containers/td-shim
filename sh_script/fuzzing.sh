@@ -14,7 +14,7 @@ cmds=(
 afl() {
     if [ "core" != $(cat /proc/sys/kernel/core_pattern) ]; then
         if [ $(id -u) -ne 0 ]; then
-            if [[ $PWD =~ rust-td$ ]]; then
+            if [[ $PWD =~ td-shim$ ]]; then
                 pushd sh_script
                 expect switch_root_run_cmd.sh
                 popd
@@ -38,7 +38,7 @@ afl() {
                 screen -dmS $j
             fi
             if [[ ! -d artifacts/$j ]]; then
-                mkdir artifacts/$j
+                mkdir -p artifacts/$j
             fi
             if [[ "$(ls -A artifacts/$j/default/crashes)" != "" ]]; then
                 echo echo -e "\033[31m There are some crashes \033[0m"
@@ -46,9 +46,9 @@ afl() {
             fi
             cargo afl build --bin $j --features fuzz --no-default-features
             seed=$(echo $j | cut -d_ -f2)
-            screen -x -S $j -p 0 -X stuff "cargo afl fuzz -i seeds/$seed -o artifacts/$j target/debug/$j"
+            screen -x -S $j -p 0 -X stuff "cargo afl fuzz -i ../../data/fuzz_seeds/$seed -o artifacts/$j target/debug/$j"
             screen -x -S $j -p 0 -X stuff $'\n'
-            sleep 10
+            sleep 3600
             screen -S $j -X quit
             sleep 5
         done
@@ -68,7 +68,7 @@ libfuzzer() {
             if [ ! -d "fuzz/corpus/$j" ]; then
                 mkdir -p fuzz/corpus/$j
             fi
-            cp fuzz/seeds/$j/* fuzz/corpus/$j
+            cp ../data/fuzz_seeds/$j/* fuzz/corpus/$j
             screen -ls | grep $j
             if [[ $? -ne 0 ]]; then
                 screen -dmS $j
