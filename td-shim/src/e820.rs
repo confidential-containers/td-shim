@@ -14,6 +14,7 @@ pub enum E820Type {
     Unusable = 5,
     Disabled = 6,
     Pmem = 7,
+    Unaccepted = 8,
     Unknown = 0xff,
 }
 
@@ -27,6 +28,7 @@ impl From<u32> for E820Type {
             5 => E820Type::Unusable,
             6 => E820Type::Disabled,
             7 => E820Type::Pmem,
+            8 => E820Type::Unaccepted,
             _ => E820Type::Unknown,
         }
     }
