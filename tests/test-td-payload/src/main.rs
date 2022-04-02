@@ -12,6 +12,7 @@ mod lib;
 mod testacpi;
 mod testiorw32;
 mod testiorw8;
+mod testmemmap;
 mod testtdinfo;
 mod testtdreport;
 
@@ -29,6 +30,7 @@ use crate::lib::{TestResult, TestSuite};
 use crate::testacpi::{TdAcpi, TestTdAcpi};
 use crate::testiorw32::Tdiorw32;
 use crate::testiorw8::Tdiorw8;
+use crate::testmemmap::MemoryMap;
 use crate::testtdinfo::Tdinfo;
 use crate::testtdreport::Tdreport;
 
@@ -48,6 +50,7 @@ pub struct TestCases {
     pub tcs006: Tdiorw32,
     pub tcs007: TdVE,
     pub tcs008: TdAcpi,
+    pub tcs009: MemoryMap,
 }
 
 pub const CFV_FFS_HEADER_TEST_CONFIG_GUID: Guid = Guid::from_fields(
@@ -107,6 +110,7 @@ fn build_testcases() -> TestCases {
 #[cfg_attr(target_os = "uefi", export_name = "efi_main")]
 extern "win64" fn _start(hob: *const c_void) -> ! {
     use td_layout::runtime::*;
+    use testmemmap::TestMemoryMap;
 
     td_logger::init();
     log::info!("Starting rust-tdcall-payload hob - {:p}\n", hob);
@@ -171,6 +175,14 @@ extern "win64" fn _start(hob: *const c_void) -> ! {
             td_acpi: tcs.tcs008,
         };
         ts.testsuite.push(Box::new(test_acpi));
+    }
+
+    if tcs.tcs009.run {
+        let test_memory_map = TestMemoryMap {
+            hob_address: hob as usize,
+            case: tcs.tcs009,
+        };
+        ts.testsuite.push(Box::new(test_memory_map));
     }
 
     if tcs.tcs007.run {
