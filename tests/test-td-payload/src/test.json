@@ -85,5 +85,13 @@
         },
         "result": "None",
         "run": true
+    },
+    "tcs009": {
+        "name": "memorymap",
+        "expected": {
+            "size": "8G"
+        },
+        "result": "None",
+        "run": true
     }
 }
