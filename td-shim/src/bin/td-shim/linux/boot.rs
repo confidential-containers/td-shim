@@ -6,7 +6,7 @@ use core::mem::size_of;
 use scroll::{Pread, Pwrite};
 use td_layout as layout;
 use td_layout::runtime::TD_PAYLOAD_PARAM_BASE;
-use td_shim::{PayloadInfo, TdKernelInfoHobType};
+use td_shim::{e820::E820Entry, PayloadInfo, TdKernelInfoHobType};
 use x86_64::{
     instructions::{segmentation::Segment, tables::lgdt},
     registers::segmentation as seg,
@@ -14,7 +14,6 @@ use x86_64::{
     PrivilegeLevel as RPL, VirtAddr,
 };
 
-use crate::e820::E820Entry;
 use crate::linux::kernel_param::{BootParams, SetupHeader};
 
 const KERNEL_64BIT_ENTRY_OFFSET: u64 = 0x200;

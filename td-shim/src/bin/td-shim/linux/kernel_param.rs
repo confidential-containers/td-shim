@@ -5,7 +5,7 @@
 use core::mem::size_of;
 use zerocopy::{AsBytes, FromBytes};
 
-use crate::e820::E820Entry;
+use td_shim::e820::E820Entry;
 
 #[derive(Clone, Copy, Default, Debug, AsBytes, FromBytes)]
 #[repr(C, packed)]
