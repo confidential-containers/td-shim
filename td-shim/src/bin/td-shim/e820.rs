@@ -3,56 +3,10 @@
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
 use alloc::vec::Vec;
-use td_layout::{build_time, runtime, RuntimeMemoryLayout};
+use td_shim::e820::{E820Entry, E820Type};
 
 // Linux BootParam supports 128 e820 entries, so...
 const MAX_E820_ENTRY: usize = 128;
-
-#[derive(Clone, Copy)]
-#[repr(u32)]
-pub enum E820Type {
-    Memory = 1,
-    Reserved = 2,
-    Acpi = 3,
-    Nvs = 4,
-    Unusable = 5,
-    Disabled = 6,
-    Pmem = 7,
-    Unknown = 0xff,
-}
-
-impl From<u32> for E820Type {
-    fn from(i: u32) -> Self {
-        match i {
-            1 => E820Type::Memory,
-            2 => E820Type::Reserved,
-            3 => E820Type::Acpi,
-            4 => E820Type::Nvs,
-            5 => E820Type::Unusable,
-            6 => E820Type::Disabled,
-            7 => E820Type::Pmem,
-            _ => E820Type::Unknown,
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, Default)]
-#[repr(C, packed)]
-pub struct E820Entry {
-    pub addr: u64,
-    pub size: u64,
-    pub r#type: u32,
-}
-
-impl E820Entry {
-    pub fn new(addr: u64, size: u64, r#type: E820Type) -> Self {
-        E820Entry {
-            addr,
-            size,
-            r#type: r#type as u32,
-        }
-    }
-}
 
 #[derive(Debug)]
 pub struct E820Table {
@@ -220,16 +174,6 @@ impl E820Table {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core::mem::size_of;
-
-    #[test]
-    fn test_e820_entry_size() {
-        assert_eq!(size_of::<E820Entry>(), 20);
-        assert_eq!(
-            size_of::<[E820Entry; MAX_E820_ENTRY]>(),
-            20 * MAX_E820_ENTRY
-        );
-    }
 
     #[test]
     fn test_e820_table_add_range() {

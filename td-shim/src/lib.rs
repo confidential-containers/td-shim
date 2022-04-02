@@ -9,6 +9,7 @@ use scroll::{Pread, Pwrite};
 use td_uefi_pi::pi;
 
 pub mod acpi;
+pub mod e820;
 pub mod event_log;
 pub mod fv;
 pub mod reset_vector;

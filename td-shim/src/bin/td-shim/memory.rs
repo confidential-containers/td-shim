@@ -9,6 +9,7 @@ use td_layout::runtime::{
     TD_PAYLOAD_PAGE_TABLE_BASE, TD_PAYLOAD_SIZE,
 };
 use td_layout::{RuntimeMemoryLayout, MIN_MEMORY_SIZE};
+use td_shim::e820::E820Type;
 use td_uefi_pi::hob;
 use td_uefi_pi::pi::hob::ResourceDescription;
 use x86_64::{
@@ -17,7 +18,7 @@ use x86_64::{
     PhysAddr, VirtAddr,
 };
 
-use crate::e820::{E820Table, E820Type};
+use crate::e820::E820Table;
 use crate::td;
 
 const EXTENDED_FUNCTION_INFO: u32 = 0x80000000;
