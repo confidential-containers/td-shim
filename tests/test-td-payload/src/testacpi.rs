@@ -75,7 +75,7 @@ impl TestTdAcpi {
         let hob_list = &hob_buffer[..hob_size];
 
         let mut next_hob = hob_list;
-        while let Some(hob) = hob::get_next_extension_guid_hob(next_hob, &TD_ACPI_TABLE_HOB_GUID) {
+        while let Some(hob) = hob::get_next_extension_guid_hob(next_hob, TD_ACPI_TABLE_HOB_GUID.as_bytes()) {
             let table = hob::get_guid_data(hob).expect("Failed to get data from ACPI GUID HOB");
             let header = GenericSdtHeader::read_from(&table[..size_of::<GenericSdtHeader>()])
                 .expect("Faile to read table header from ACPI GUID HOB");
