@@ -6,7 +6,7 @@
 
 use scroll::{Pread, Pwrite};
 
-use td_uefi_pi::pi;
+use td_uefi_pi::pi::{self, guid};
 
 pub mod acpi;
 pub mod e820;
@@ -15,17 +15,35 @@ pub mod fv;
 pub mod reset_vector;
 pub mod secure_boot;
 
-pub const TD_ACPI_TABLE_HOB_GUID: [u8; 16] = [
-    0x70, 0x58, 0x0c, 0x6a, 0xed, 0xd4, 0xf4, 0x44, 0xa1, 0x35, 0xdd, 0x23, 0x8b, 0x6f, 0xc, 0x8d,
-];
+// This GUID is used for ACPI GUID Extension HOB
+// Please refer to:
+// https://github.com/confidential-containers/td-shim/blob/main/doc/tdshim_spec.md#acpi-guid-extension-hob
+pub const TD_ACPI_TABLE_HOB_GUID: guid::Guid = guid::Guid::from_fields(
+    0x6a0c5870,
+    0xd4ed,
+    0x44f4,
+    [0xa1, 0x35, 0xdd, 0x23, 0x8b, 0x6f, 0xc, 0x8d],
+);
 
-pub const TD_KERNEL_INFO_HOB_GUID: [u8; 16] = [
-    0x12, 0xa4, 0x6f, 0xb9, 0x1f, 0x46, 0xe3, 0x4b, 0x8c, 0xd, 0xad, 0x80, 0x5a, 0x49, 0x7a, 0xc0,
-];
+// This GUID is used for TD Payload Info GUID Extension HOB
+// Please refer to:
+// https://github.com/confidential-containers/td-shim/blob/main/doc/tdshim_spec.md#td-payload-info-guid-extension-hob
+pub const TD_KERNEL_INFO_HOB_GUID: guid::Guid = guid::Guid::from_fields(
+    0xb96fa412,
+    0x461f,
+    0x4be3,
+    [0x8c, 0xd, 0xad, 0x80, 0x5a, 0x49, 0x7a, 0xc0],
+);
 
-pub const TD_E820_TABLE_HOB_GUID: [u8; 16] = [
-    0xea, 0x72, 0x80, 0x8f, 0x86, 0x34, 0x47, 0x4b, 0x86, 0xa7, 0x23, 0x53, 0xb8, 0x8a, 0x87, 0x73,
-];
+// This GUID is used for E820 Memory Map GUID Extension HOB
+// Please refer to:
+// https://github.com/confidential-containers/td-shim/blob/main/doc/tdshim_spec.md#e820-memory-map-guid-extension-hob
+pub const TD_E820_TABLE_HOB_GUID: pi::guid::Guid = pi::guid::Guid::from_fields(
+    0x8f8072ea,
+    0x3486,
+    0x4b47,
+    [0x86, 0xa7, 0x23, 0x53, 0xb8, 0x8a, 0x87, 0x73],
+);
 
 #[repr(u32)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
