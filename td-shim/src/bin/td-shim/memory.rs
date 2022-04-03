@@ -29,7 +29,7 @@ const LOW_MEM_TOP: u64 = TD_PAYLOAD_BASE + TD_PAYLOAD_SIZE as u64;
 pub struct Memory<'a> {
     pub layout: RuntimeMemoryLayout,
     pt: OffsetPageTable<'a>,
-    regions: Vec<ResourceDescription>,
+    pub regions: Vec<ResourceDescription>,
 }
 
 impl<'a> Memory<'a> {
