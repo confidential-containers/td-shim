@@ -212,44 +212,8 @@ pub extern "win64" fn _start(
         );
     }
 
-    // Get and parse image file from the payload firmware volume.
-    let fv_buffer = memslice::get_mem_slice(memslice::SliceType::ShimPayload);
-    let mut payload = fv::get_image_from_fv(
-        fv_buffer,
-        pi::fv::FV_FILETYPE_DXE_CORE,
-        pi::fv::SECTION_PE32,
-    )
-    .expect("Failed to get image file from Firmware Volume");
+    boot_builtin_payload(&mut mem, &mut td_event_log, &td_hob_info.acpi_tables);
 
-    #[cfg(feature = "secure-boot")]
-    {
-        payload = secure_boot_verify_payload(payload, &mut td_event_log);
-    }
-
-    let (entry, basefw, basefwsize) =
-        ipl::find_and_report_entry_point(&mut mem, payload).expect("Entry point not found!");
-    let entry = entry as usize;
-
-    // Initialize the stack to run the image
-    stack_guard::stack_guard_enable(&mut mem);
-    #[cfg(feature = "cet-ss")]
-    cet_ss::enable_cet_ss(
-        mem.layout.runtime_shadow_stack_base,
-        mem.layout.runtime_shadow_stack_top,
-    );
-    let stack_top = (mem.layout.runtime_stack_base + TD_PAYLOAD_STACK_SIZE as u64) as usize;
-
-    // Prepare the HOB list to run the image
-    payload_hob::build_payload_hob(&td_hob_info.acpi_tables, &mem)
-        .expect("Fail to create payload HOB");
-
-    // Finally let's switch stack and jump to the image entry point...
-    log::info!(
-        " start launching payload {:p} and switch stack {:p}...\n",
-        entry as *const usize,
-        stack_top as *const usize
-    );
-    unsafe { switch_stack_call(entry, stack_top, mem.layout.runtime_hob_base as usize, 0) };
     panic!("payload entry() should not return here, deadloop!!!");
 }
 
@@ -298,6 +262,50 @@ fn boot_linux_kernel(
 
     linux::boot::boot_kernel(payload, rsdp, e820_table.as_slice(), kernel_info);
     panic!("Linux kernel should not return here!!!");
+}
+
+fn boot_builtin_payload(
+    mem: &mut memory::Memory,
+    td_event_log: &mut TdEventLog,
+    acpi_tables: &Vec<&[u8]>,
+) {
+    // Get and parse image file from the payload firmware volume.
+    let fv_buffer = memslice::get_mem_slice(memslice::SliceType::ShimPayload);
+    let mut payload = fv::get_image_from_fv(
+        fv_buffer,
+        pi::fv::FV_FILETYPE_DXE_CORE,
+        pi::fv::SECTION_PE32,
+    )
+    .expect("Failed to get image file from Firmware Volume");
+
+    #[cfg(feature = "secure-boot")]
+    {
+        payload = secure_boot_verify_payload(payload, td_event_log);
+    }
+
+    let (entry, basefw, basefwsize) =
+        ipl::find_and_report_entry_point(mem, payload).expect("Entry point not found!");
+    let entry = entry as usize;
+
+    // Initialize the stack to run the image
+    stack_guard::stack_guard_enable(mem);
+    #[cfg(feature = "cet-ss")]
+    cet_ss::enable_cet_ss(
+        mem.layout.runtime_shadow_stack_base,
+        mem.layout.runtime_shadow_stack_top,
+    );
+    let stack_top = (mem.layout.runtime_stack_base + TD_PAYLOAD_STACK_SIZE as u64) as usize;
+
+    // Prepare the HOB list to run the image
+    payload_hob::build_payload_hob(acpi_tables, &mem).expect("Fail to create payload HOB");
+
+    // Finally let's switch stack and jump to the image entry point...
+    log::info!(
+        " start launching payload {:p} and switch stack {:p}...\n",
+        entry as *const usize,
+        stack_top as *const usize
+    );
+    unsafe { switch_stack_call(entry, stack_top, mem.layout.runtime_hob_base as usize, 0) };
 }
 
 // Install ACPI tables into ACPI reclaimable memory for the virtual machine
