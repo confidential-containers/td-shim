@@ -106,9 +106,9 @@ impl<'a> TdHobInfo<'a> {
                 HOB_TYPE_GUID_EXTENSION => {
                     let guided_hob: GuidExtension = hob.pread(0).ok()?;
                     let hob_data = hob::get_guid_data(hob)?;
-                    if guided_hob.name == TD_KERNEL_INFO_HOB_GUID {
+                    if &guided_hob.name == TD_KERNEL_INFO_HOB_GUID.as_bytes() {
                         payload_info = Some(hob_data.pread::<PayloadInfo>(0).ok()?);
-                    } else if guided_hob.name == TD_ACPI_TABLE_HOB_GUID {
+                    } else if &guided_hob.name == TD_ACPI_TABLE_HOB_GUID.as_bytes() {
                         acpi_tables.push(hob_data);
                     }
                 }
