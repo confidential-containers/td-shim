@@ -101,20 +101,6 @@ pub struct TdxHandoffTablePointers {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone, Debug, Pwrite, Pread)]
-pub struct HobTemplate {
-    pub handoff_info_table: pi::hob::HandoffInfoTable,
-    pub firmware_volume: pi::hob::FirmwareVolume,
-    pub cpu: pi::hob::Cpu,
-    pub payload: pi::hob::MemoryAllocation,
-    pub page_table: pi::hob::MemoryAllocation,
-    pub stack: pi::hob::MemoryAllocation,
-    pub memory_above_1m: pi::hob::ResourceDescription,
-    pub memory_blow_1m: pi::hob::ResourceDescription,
-    pub end_off_hob: pi::hob::Header,
-}
-
-#[repr(C)]
 #[derive(Default, Clone, Copy, Pread, Pwrite)]
 pub struct PayloadInfo {
     pub image_type: u32,
