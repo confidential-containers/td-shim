@@ -167,7 +167,7 @@ pub extern "win64" fn _start(
     let hob_size = hob::get_hob_total_size(hob_list).expect("failed to get size of hob list");
     let hob_list = &hob_list[0..hob_size];
     hob::dump_hob(hob_list);
-    let td_hob_info =
+    let mut td_hob_info =
         TdHobInfo::read_from_hob(hob_list).expect("Error occurs reading from VMM HOB");
 
     // Initialize memory subsystem.
@@ -191,6 +191,16 @@ pub extern "win64" fn _start(
     };
     let mut td_event_log = tcg::TdEventLog::new(event_log_buf);
     log_hob_list(hob_list, &mut td_event_log);
+
+    //Create MADT and TDEL
+    let (madt, tdel) = prepare_acpi_tables(
+        &mut td_hob_info.acpi_tables,
+        &mem.layout,
+        &mut td_event_log,
+        num_vcpus,
+    );
+    td_hob_info.acpi_tables.push(madt.as_bytes());
+    td_hob_info.acpi_tables.push(tdel.as_bytes());
 
     // If the Payload Information GUID HOB is present, try to boot the Linux kernel.
     if let Some(payload_info) = td_hob_info.payload_info {
@@ -280,7 +290,7 @@ fn boot_linux_kernel(
         _ => panic!("Unknown kernel image type {}!!!", kernel_info.image_type),
     };
 
-    let rsdp = prepare_acpi_tables(acpi_tables, &mem.layout, td_event_log, vcpus);
+    let rsdp = install_acpi_tables(acpi_tables, &mem.layout);
     let e820_table = mem.create_e820();
     log::info!("e820 table: {:x?}\n", e820_table.as_slice());
     // Safe because we are handle off this buffer to linux kernel.
@@ -290,13 +300,9 @@ fn boot_linux_kernel(
     panic!("Linux kernel should not return here!!!");
 }
 
-// Prepare ACPI tables for the virtual machine and panics if error happens.
-fn prepare_acpi_tables(
-    acpi_tables: &Vec<&[u8]>,
-    layout: &RuntimeMemoryLayout,
-    td_event_log: &mut TdEventLog,
-    vcpus: u32,
-) -> u64 {
+// Install ACPI tables into ACPI reclaimable memory for the virtual machine
+// and panics if error happens.
+fn install_acpi_tables(acpi_tables: &Vec<&[u8]>, layout: &RuntimeMemoryLayout) -> u64 {
     // Safe because BSP is the only active vCPU so it's single-threaded context.
     let acpi_slice = unsafe {
         memslice::get_dynamic_mem_slice_mut(
@@ -306,17 +312,31 @@ fn prepare_acpi_tables(
     };
     let mut acpi = acpi::AcpiTables::new(acpi_slice, acpi_slice.as_ptr() as *const _ as u64);
 
-    let mut vmm_madt = None;
     for &table in acpi_tables {
+        acpi.install(table);
+    }
+
+    acpi.finish()
+}
+
+// Prepare ACPI tables for payload and panic if error happens
+fn prepare_acpi_tables(
+    acpi_tables: &mut Vec<&[u8]>,
+    layout: &RuntimeMemoryLayout,
+    td_event_log: &mut TdEventLog,
+    vcpus: u32,
+) -> (mp::Madt, event_log::Tdel) {
+    let mut vmm_madt = None;
+    let mut idx = 0;
+    while idx < acpi_tables.len() {
+        let table = acpi_tables[idx];
         let header = GenericSdtHeader::read_from(&table[..size_of::<GenericSdtHeader>()])
             .expect("Faile to read table header from ACPI GUID HOB");
-        // Protect MADT and TDEL from overwritten by the VMM.
-        if &header.signature != b"APIC" && &header.signature != b"TDEL" {
-            acpi.install(table);
-        }
         if &header.signature == b"APIC" {
             vmm_madt = Some(table);
+            acpi_tables.remove(idx);
         }
+        idx += 1;
     }
 
     let madt = if let Some(vmm_madt) = vmm_madt {
@@ -327,11 +347,9 @@ fn prepare_acpi_tables(
             .expect("Failed to create ACPI MADT table")
     };
 
-    acpi.install(madt.as_bytes());
     let tdel = td_event_log.create_tdel();
-    acpi.install(tdel.as_bytes());
 
-    acpi.finish()
+    (madt, tdel)
 }
 
 fn prepare_hob_list(
