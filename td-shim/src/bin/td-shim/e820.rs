@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
+use core::ptr::slice_from_raw_parts;
+
 use alloc::vec::Vec;
 use td_shim::e820::{E820Entry, E820Type};
 
@@ -31,6 +33,15 @@ impl Default for E820Table {
 impl E820Table {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        unsafe {
+            &*slice_from_raw_parts(
+                self.entries.as_ptr() as *const u8,
+                core::mem::size_of::<E820Entry>() * self.entries.len(),
+            )
+        }
     }
 
     // Add a new range to the table
