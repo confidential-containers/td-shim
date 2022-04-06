@@ -22,6 +22,9 @@ pub mod linker;
 #[cfg(feature = "signer")]
 pub mod signer;
 
+#[cfg(feature = "loader")]
+pub mod loader;
+
 /// Write three bytes from an integer value into the buffer.
 pub fn write_u24(data: u32, buf: &mut [u8]) {
     assert!(data < 0xffffff);
