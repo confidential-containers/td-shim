@@ -1,7 +1,7 @@
 *~
 
 # Cargo Junk
-Cargo.lock
+# Cargo.lock
 target/
 *.bin
 # afl fuzz 
