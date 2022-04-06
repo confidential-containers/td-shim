@@ -1,12 +1,16 @@
 use core::{convert::TryInto, mem::size_of, ptr::slice_from_raw_parts, str::FromStr};
 
+use scroll::{Pread, Pwrite};
+
+// use alloc::borrow::ToOwned;
+
 const GUID_STRING_LEN: usize = 36;
 const GUID_SPLITTER: u8 = b'-';
 
 // A GUID is a 128-bit integer (16 bytes) that can be
 // used as a unique identifier.
 #[repr(C)]
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq, Eq, Pwrite, Pread)]
 pub struct Guid {
     f0: u32,
     f1: u16,
@@ -32,6 +36,16 @@ impl Guid {
                 .try_into()
                 .unwrap()
         }
+    }
+
+    pub fn from_bytes(buffer: &[u8; 16]) -> Guid {
+        let f0 = u32::from_le_bytes(buffer[0..4].try_into().unwrap());
+        let f1 = u16::from_le_bytes(buffer[4..6].try_into().unwrap());
+        let f2 = u16::from_le_bytes(buffer[6..8].try_into().unwrap());
+        let mut f3: [u8; 8] = [0; 8];
+        f3.copy_from_slice(&buffer[8..]);
+
+        Self { f0, f1, f2, f3 }
     }
 }
 
