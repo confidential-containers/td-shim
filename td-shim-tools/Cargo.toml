@@ -19,6 +19,10 @@ required-features = ["linker"]
 name = "td-shim-sign-payload"
 required-features = ["signer"]
 
+[[bin]]
+name = "td-shim-checker"
+required-features = ["loader"]
+
 [dependencies]
 r-efi = "3.2.0"
 scroll = { version = "0.10", default-features = false, features = ["derive"]}
@@ -34,8 +38,9 @@ td-loader = { path = "../td-loader", optional = true }
 ring = { git = "https://github.com/jyao1/ring.git", branch = "uefi_support", default-features = false, features = ["alloc"], optional = true }
 
 [features]
-default = ["boot-kernel", "enroller", "linker", "signer"]
+default = ["boot-kernel", "enroller", "linker", "signer", "loader"]
 boot-kernel = ["td-layout/boot-kernel", "td-shim/boot-kernel"]
 enroller = ["clap", "der", "env_logger", "log", "ring"]
 linker = ["clap", "env_logger", "log", "td-loader"]
 signer = ["clap", "der", "env_logger", "log", "ring"]
+loader = ["clap", "env_logger", "log"]
