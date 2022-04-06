@@ -13,6 +13,7 @@ boot-kernel = []
 [dependencies]
 scroll = { version = "0.10", default-features = false, features = ["derive"]}
 log = "0.4.13"
+td-uefi-pi =  { path = "../td-uefi-pi" }
 
 [dev-dependencies]
 memoffset = "0.6"
