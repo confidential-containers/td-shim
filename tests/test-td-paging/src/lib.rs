@@ -8,6 +8,7 @@
 // Any function, const, or static can be annotated with `#[test_case]` causing it to be aggregated
 // (like #[test]) and be passed to the test runner determined by the `#![test_runner]` crate
 // attribute.
+#![feature(default_alloc_error_handler)]
 #![feature(custom_test_frameworks)]
 #![test_runner(test_runner)]
 // Reexport the test harness main function under a different symbol.
