@@ -15,8 +15,6 @@
 
 #![no_std]
 #![cfg_attr(not(test), no_main)]
-#![feature(global_asm)]
-#![feature(asm)]
 #![allow(unused)]
 
 #[macro_use]

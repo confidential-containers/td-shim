@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
 #![no_std]
-#![feature(global_asm)]
 
 #[cfg(feature = "use_tdx_emulation")]
 pub const USE_TDX_EMULATION: bool = true;

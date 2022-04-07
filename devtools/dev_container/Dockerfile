@@ -17,7 +17,7 @@ RUN apt-get update && \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install rustup and a fixed version of Rust.
-RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain nightly-2021-08-20
+RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain nightly-2022-04-07
 RUN rustup toolchain install 1.58.1
 RUN rustup component add rust-src
 RUN rustup component add llvm-tools-preview

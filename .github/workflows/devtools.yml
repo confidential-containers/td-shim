@@ -11,7 +11,7 @@ name: Devtools
 
 env:
   STABLE_RUST_TOOLCHAIN: 1.58.1
-  NIGHTLY_RUST_TOOLCHAIN: nightly-2021-08-20
+  NIGHTLY_RUST_TOOLCHAIN: nightly-2022-04-07
   TOOLCHAIN_PROFILE: minimal
 
 jobs:

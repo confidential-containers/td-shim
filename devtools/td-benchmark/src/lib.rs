@@ -3,14 +3,13 @@
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
 #![no_std]
-#![feature(asm)]
 #![allow(unused)]
 
 #[macro_use]
 extern crate alloc;
-
 use core::alloc::GlobalAlloc;
 use core::alloc::Layout;
+use core::arch::asm;
 use linked_list_allocator::LockedHeap;
 use scroll::Pread;
 use td_layout::RuntimeMemoryLayout;

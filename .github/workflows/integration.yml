@@ -7,7 +7,7 @@ on:
       - "**.md"
   workflow_dispatch:
 
-name: RUN CODE
+name: Ingetration Test
 
 env:
   AS: nasm
@@ -18,7 +18,7 @@ env:
 
 jobs:
   system_compile:
-    name: Compile the final.bin file
+    name: Run Integration Test
     runs-on: ${{ matrix.host_os }}
     timeout-minutes: 30
 
@@ -26,7 +26,7 @@ jobs:
       matrix:
         host_os:
           - ubuntu-20.04
-          - windows-2019
+#          - windows-2019
     steps:
       # Install first since it's needed to build NASM
       - name: Install LLVM and Clang
@@ -47,34 +47,10 @@ jobs:
           profile: ${{ env.TOOLCHAIN_PROFILE }}
           toolchain: ${{ env.RUST_TOOLCHAIN }}
           override: true
-          components: rust-src
+          components: rust-src, llvm-tools-preview
 
       - name: Cache
         uses: Swatinem/rust-cache@v1
-
-      - name: Run cargo install cargo-xbuild
-        uses: actions-rs/cargo@v1
-        with:
-          command: install
-          args: cargo-xbuild
-
-  test:
-    name: Test
-
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-20.04, windows-2019]
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
-
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          override: true
-          components: rust-src, llvm-tools-preview
 
       - name: Run cargo install cargo-xbuild
         uses: actions-rs/cargo@v1
@@ -94,3 +70,6 @@ jobs:
         shell: pwsh
       - name: "Print QEMU Version"
         run: qemu-system-x86_64 --version
+
+      - name: Run Tests
+        run: make integration-test
