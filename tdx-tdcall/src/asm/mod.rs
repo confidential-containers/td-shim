@@ -1,6 +1,7 @@
 // Copyright (c) 2020 Intel Corporation
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
+use core::arch::global_asm;
 
 #[cfg(feature = "use_tdx_emulation")]
 global_asm!(include_str!("tdcall_emu.asm"));

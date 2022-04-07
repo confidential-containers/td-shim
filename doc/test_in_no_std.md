@@ -62,7 +62,7 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 ```toml
 [dependencies]
 # add bootloader
-bootloader = "0.10.9"
+bootloader = "0.10.12"
 
 [package.metadata.bootloader]
 # To map the complete physical memory starting at virtual address.

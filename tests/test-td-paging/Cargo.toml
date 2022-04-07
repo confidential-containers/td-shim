@@ -9,13 +9,13 @@ edition = "2018"
 
 [dependencies]
 # Keep it as `dependencies` to satisfy bootloader-locator's requirement, though it should be `dev-dependencies`
-bootloader = "=0.10.9"
+bootloader = "0.10.12"
 
 [dev-dependencies]
 td-paging = { path = "../../td-paging" }
 td-layout = { path = "../../td-layout" }
 test-runner-client = { path = "../../devtools/test-runner-client" }
-x86_64 = "=0.14.6"
+x86_64 = "0.14.9"
 
 [package.metadata.bootloader]
 map-physical-memory = true

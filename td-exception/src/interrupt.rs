@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
+use core::arch::asm;
 #[cfg(feature = "tdx")]
 use tdx_tdcall::tdx;
 

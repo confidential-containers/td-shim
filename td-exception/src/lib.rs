@@ -3,9 +3,8 @@
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
 #![no_std]
-#![feature(asm)]
 #![feature(naked_functions)]
-#![feature(global_asm)]
+#![feature(asm_sym)]
 
 pub mod asm;
 pub mod idt;
