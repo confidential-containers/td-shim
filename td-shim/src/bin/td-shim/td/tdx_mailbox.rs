@@ -5,6 +5,7 @@
 extern crate alloc;
 
 use alloc::vec::Vec;
+use core::arch::asm;
 use core::cmp::min;
 use core::ops::RangeInclusive;
 use td_layout::memslice::{get_dynamic_mem_slice_mut, get_mem_slice_mut, SliceType};
