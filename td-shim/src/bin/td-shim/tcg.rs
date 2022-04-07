@@ -38,7 +38,7 @@ impl TdEventLog {
     }
 
     pub fn create_tdel(&self) -> Tdel {
-        Tdel::new(self.laml as u64, self.lasa as u64)
+        Tdel::new(self.laml as u64, self.area.as_ptr() as u64)
     }
 
     pub fn create_event_log(
