@@ -16,6 +16,7 @@ mod testmemmap;
 mod testtdinfo;
 mod testtdreport;
 mod testtdve;
+mod testtrustedboot;
 
 extern crate alloc;
 use alloc::boxed::Box;
@@ -35,6 +36,7 @@ use crate::testmemmap::MemoryMap;
 use crate::testtdinfo::Tdinfo;
 use crate::testtdreport::Tdreport;
 use crate::testtdve::TdVE;
+use crate::testtrustedboot::{TdTrustedBoot, TestTdTrustedBoot};
 
 use r_efi::efi::Guid;
 use serde::{Deserialize, Serialize};
@@ -53,6 +55,7 @@ pub struct TestCases {
     pub tcs007: TdVE,
     pub tcs008: TdAcpi,
     pub tcs009: MemoryMap,
+    pub tcs010: TdTrustedBoot,
 }
 
 pub const CFV_FFS_HEADER_TEST_CONFIG_GUID: Guid = Guid::from_fields(
@@ -171,6 +174,10 @@ extern "win64" fn _start(hob: *const c_void) -> ! {
         ts.testsuite.push(Box::new(tcs.tcs006));
     }
 
+    if tcs.tcs007.run {
+        ts.testsuite.push(Box::new(tcs.tcs007));
+    }
+
     if tcs.tcs008.run && tcs.tcs008.expected.num > 0 {
         let test_acpi = TestTdAcpi {
             hob_address: hob as usize,
@@ -187,8 +194,12 @@ extern "win64" fn _start(hob: *const c_void) -> ! {
         ts.testsuite.push(Box::new(test_memory_map));
     }
 
-    if tcs.tcs007.run {
-        ts.testsuite.push(Box::new(tcs.tcs007));
+    if tcs.tcs010.run {
+        let test_tboot = TestTdTrustedBoot {
+            hob_address: hob as usize,
+            case: tcs.tcs010,
+        };
+        ts.testsuite.push(Box::new(test_tboot));
     }
 
     // run the TestSuite which contains the test cases

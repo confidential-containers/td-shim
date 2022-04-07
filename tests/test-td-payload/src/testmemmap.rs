@@ -66,9 +66,7 @@ impl TestMemoryMap {
         let hob_list = &hob_buffer[..hob_size];
 
         let mut next_hob = hob_list;
-        if let Some(hob) =
-            hob::get_next_extension_guid_hob(next_hob, TD_E820_TABLE_HOB_GUID.as_bytes())
-        {
+        if let Some(hob) = hob::get_next_extension_guid_hob(next_hob, &TD_E820_TABLE_HOB_GUID) {
             let table = hob::get_guid_data(hob).expect("Failed to get data from ACPI GUID HOB");
 
             let mut offset = 0;
