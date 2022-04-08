@@ -19,11 +19,9 @@ The threat model analysis is at [td-shim threat model](doc/threat_model.md).
 
 1. Install [RUST](https://www.rust-lang.org/)
 
-please use nightly-2021-08-20.
+please use nightly-2022-04-07.
 
 NOTE: We need install nightly version because we use cargo-xbuild.
-
-The version nightly-2021-08-20 is chosen because we run [rudra](https://github.com/bjorn3/Rudra.git) tool, which depends upon this version.
 
 1.1. Install xbuild
 
