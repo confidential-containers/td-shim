@@ -1,11 +1,15 @@
 *~
 
 # Cargo Junk
-# Cargo.lock
+Cargo.lock
 target/
 *.bin
-# afl fuzz 
-out
+*.obj
+bin
+# afl fuzz and cargo fuzz
 *.profraw
+corpus
+artifacts
+coverage
 # Intellj working directory
 .idea
