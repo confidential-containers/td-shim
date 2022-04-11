@@ -31,13 +31,13 @@ $ sudo mount -t tmpfs -o size=1024M tmpfs in
 
 ### Build the fuzz target
 
-`$ cd td-loader/fuzz`
-`$ cargo afl build --bin afl_pe --no-default-features`
+`$ cd td-loader`
+`$ cargo afl build --manifest-path fuzz/Cargo.toml --bin afl_pe --features fuzz --no-default-features`
 
 ### Example
 
-`$ mkdir -p artifacts/afl_pe`
-`$ cargo afl fuzz -i seeds/pe/ -o artifacts/afl_pe target/debug/afl_pe`
+`$ mkdir -p fuzz/artifacts/afl_pe`
+`$ cargo afl fuzz -i fuzz/seeds/pe/ -o fuzz/artifacts/afl_pe fuzz/target/debug/afl_pe`
 
 As soon as you run this command, you should see AFL’s interface start up:
 
@@ -45,11 +45,22 @@ As soon as you run this command, you should see AFL’s interface start up:
 
 ### view coverage
 
-If you need to view coverage, Script fuzzing.sh runs for a period of time in each case.
-Add the coverage string after the script collects info information and generates html files. 
-The html file location is target/debug/fuzz_coverage. 
-If you need to run a specific case, please modify the cmd tuple in the script.
-Can run at the same time but merge will cause problems.
+If you need to view coverage, follow the steps below
+```
+# Set environment variable
+$ export RUSTFLAGS="-Zinstrument-coverage"
+$ export LLVM_PROFILE_FILE="fuzz-%p-%m.profraw"
+$ cd td-uefi-pi
+
+# Build 
+$ cargo afl build --manifest-path fuzz/Cargo.toml --bin afl_fv_parser --features fuzz --no-default-features
+
+# Run fuzz, press Ctrl + c when you want to stop
+$ cargo afl fuzz -i fuzz/seeds/fv_parser -o fuzz/artifacts/afl_fv_parser fuzz/target/debug/afl_fv_parser
+
+# Generate report
+$ grcov . --binary-path fuzz/target/debug/ -s . -t html --branch --ignore-not-existing -o coverage
+```
 
 ```
 # Install requrired tools
@@ -128,14 +139,8 @@ libFuzzer needs LLVM sanitizer support, so this only works on x86-64 Linux, x86-
 
 ### Installing
 
-|    rust-version    | libfuzzer | td-shim | successful                                                                                                   |
-| :----------------: | :-------: | :-----: | :----------------------------------------------------------------------------------------------------------- |
-| nightly-2022-02-08 |  0.11.0   | staging | no (td-shim fails to compile in this version)                                                                |
-| nightly-2021-08-20 |  0.10.2   | staging | yes                                                                                                          |
-| nightly-2021-08-20 |  0.11.0   | staging | no (libfuzzer failed to start and related issues [#290](https://github.com/rust-fuzz/cargo-fuzz/issues/290)) |
-
 ```
-$ cargo install cargo-fuzz --version 0.10.2
+$ cargo install cargo-fuzz
 
 # Viewing coverage reports requires installation
 $ rustup component add llvm-tools-preview rust-src
@@ -161,6 +166,9 @@ $ cargo fuzz list
 # Copy the torrent to the default torrent folder, so you don't have to process the generated torrent file.
 $ mkdir fuzz/corpus/pe
 $ cp fuzz/seeds/pe_send/td-shim.efi fuzz/corpus/pe
+
+# You can specify the seeds diretory
+$ cargo fuzz run pe -- -corpus_prefix fuzz/seeds/pe/
 
 # Run pe fuzz.
 $ cargo fuzz run pe
