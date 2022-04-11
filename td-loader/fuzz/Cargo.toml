@@ -11,6 +11,7 @@ cargo-fuzz = true
 [dependencies]
 libfuzzer-sys = {version = "0.4", optional = true }
 afl = {version = "*", optional = true }
+log = "0.4.13"
 
 [dependencies.td-loader]
 path = ".."
