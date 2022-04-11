@@ -16,22 +16,22 @@ pub fn fuzz_elf_loader(data: &[u8]) {
     let _ = elf::parse_finit_array_section(data);
 
     if let Some(elf) = Elf::parse(data) {
-        println!("{:?}\n", elf.header);
+        log::info!("{:?}\n", elf.header);
 
         if let Some(hd) = elf.program_headers().next() {
             let status = hd.is_executable();
-            println!("executable status: {}", status);
+            log::info!("executable status: {}", status);
             let status = hd.is_write();
-            println!("write status: {}", status);
+            log::info!("write status: {}", status);
         }
 
         for header in elf.program_headers() {
-            println!("header: {:?}\n", header);
+            log::info!("header: {:?}\n", header);
         }
 
         for relocs in elf.relocations() {
             for rel in relocs {
-                println!("rel:{:?}", rel);
+                log::info!("rel:{:?}", rel);
             }
         }
     }
@@ -100,15 +100,15 @@ pub fn fuzz_elf_loader(data: &[u8]) {
 
     for d in str_slice_16.iter() {
         let str = et_to_str(*d);
-        println!("{:?}", &str);
+        log::info!("{:?}", &str);
     }
     for d in str_slice_32.iter() {
         let str = pt_to_str(*d);
-        println!("{:?}", &str);
+        log::info!("{:?}", &str);
     }
     for d in str_slice_64.iter() {
         let str = tag_to_str(*d);
-        println!("{:?}", &str);
+        log::info!("{:?}", &str);
     }
 }
 
@@ -120,7 +120,7 @@ pub fn fuzz_pe_loader(data: &[u8]) {
         if sections.is_some() {
             let sections = sections.unwrap();
             for section in sections {
-                println!("{:?}", section);
+                log::info!("{:?}", section);
             }
 
             let mut loaded_buffer = vec![0u8; 0x200000];
