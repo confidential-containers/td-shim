@@ -34,7 +34,7 @@ impl From<u32> for E820Type {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, FromBytes, AsBytes)]
+#[derive(Clone, Copy, Debug, Default, FromBytes, AsBytes, PartialEq)]
 #[repr(C, packed)]
 pub struct E820Entry {
     pub addr: u64,
