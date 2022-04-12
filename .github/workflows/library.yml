@@ -10,9 +10,9 @@ on:
 name: Library Crates
 
 env:
-  AR: llvm-ar
   AS: nasm
-  CC: clang
+  AR_x86_64_unknown_uefi: llvm-ar
+  CC_x86_64_unknown_uefi: clang
   STABLE_RUST_TOOLCHAIN: 1.58.1
   NIGHTLY_RUST_TOOLCHAIN: nightly-2022-04-07
   TOOLCHAIN_PROFILE: minimal

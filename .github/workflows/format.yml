@@ -3,9 +3,9 @@ on: [push, pull_request]
 name: Format and Clippy
 
 env:
-  AR: llvm-ar
   AS: nasm
-  CC: clang
+  AR_x86_64_unknown_uefi: llvm-ar
+  CC_x86_64_unknown_uefi: clang
 
 jobs:
   clippy:
@@ -29,7 +29,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: 1.58.1
+          toolchain: nightly-2022-04-07
           override: true
           components: clippy
 
@@ -58,7 +58,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: 1.58.1
+          toolchain: nightly-2022-04-07
           override: true
           components: rustfmt
 
