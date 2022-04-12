@@ -12,14 +12,17 @@ chrono = { version = "0.4.19", default-features = false, features = ["serde"]}
 linked_list_allocator = "0.9.0"
 log = "0.4.13"
 r-efi = "3.2.0"
+scroll = { version = "0.10", default-features = false, features = ["derive"]}
 serde = { version = "1.0", default-features = false, features = ["derive"]}
 serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
 td-layout = { path = "../td-layout" }
 td-logger =  { path = "../td-logger" }
+td-shim = { path = "../td-shim"}
 td-uefi-pi =  { path = "../td-uefi-pi" }
 
 td-benchmark = { path = "../devtools/td-benchmark", optional = true }
 tdx-tdcall = { path = "../tdx-tdcall", optional = true }
+zerocopy = "0.6.0"
 
 [features]
 default = []

@@ -37,8 +37,6 @@ pub struct RuntimeMemoryLayout {
     pub runtime_hob_base: u64,
     pub runtime_shadow_stack_base: u64,
     pub runtime_stack_base: u64,
-    pub runtime_heap_base: u64,
-    pub runtime_dma_base: u64,
     pub runtime_stack_top: u64,
     pub runtime_shadow_stack_top: u64,
     pub runtime_memory_bottom: u64,
@@ -74,12 +72,6 @@ impl RuntimeMemoryLayout {
         let current_base = current_base - TD_PAYLOAD_STACK_SIZE as u64;
         let runtime_stack_base = current_base;
 
-        let current_base = current_base - TD_PAYLOAD_HEAP_SIZE as u64;
-        let runtime_heap_base = current_base;
-
-        let current_base = current_base - TD_PAYLOAD_DMA_SIZE as u64;
-        let runtime_dma_base = current_base;
-
         RuntimeMemoryLayout {
             runtime_event_log_base,
             runtime_mailbox_base,
@@ -89,8 +81,6 @@ impl RuntimeMemoryLayout {
             runtime_shadow_stack_top,
             runtime_stack_base,
             runtime_stack_top,
-            runtime_heap_base,
-            runtime_dma_base,
             runtime_memory_bottom: current_base,
             runtime_memory_top: memory_top,
         }
@@ -115,14 +105,6 @@ impl fmt::Debug for RuntimeMemoryLayout {
             .field(
                 "runtime_stack_top",
                 &format_args!("0x{:x}", self.runtime_stack_top),
-            )
-            .field(
-                "runtime_heap_base",
-                &format_args!("0x{:x}", self.runtime_heap_base),
-            )
-            .field(
-                "runtime_dma_base",
-                &format_args!("0x{:x}", self.runtime_dma_base),
             )
             .finish()
     }

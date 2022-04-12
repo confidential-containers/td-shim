@@ -10,11 +10,7 @@ use scroll::Pwrite;
 use td_layout::build_time::*;
 use td_layout::runtime::*;
 use td_shim::e820::E820Type;
-use td_shim::MEMORY_ALLOCATION_PAGE_TABLE_GUID;
-use td_shim::MEMORY_ALLOCATION_RUNTIME_GUID;
-use td_shim::MEMORY_ALLOCTION_PAYLOAD_GUID;
-use td_shim::TD_ACPI_TABLE_HOB_GUID;
-use td_shim::TD_E820_TABLE_HOB_GUID;
+use td_shim::{TD_ACPI_TABLE_HOB_GUID, TD_E820_TABLE_HOB_GUID};
 use td_uefi_pi::pi::hob::ResourceDescription;
 use td_uefi_pi::{hob, pi, pi::guid};
 
