@@ -21,10 +21,6 @@
                     |    PAYLOAD   |    (0x02000000)
                     +--------------+
                     |   ........   |
-                    +--------------+ <-  0x7CFFE000
-                    |     DMA      |    (0x01000000)
-                    +--------------+ <-  0x7DFFE000
-                    |     HEAP     |    (0x01000000)
                     +--------------+ <-  0x7EFFE000
                     |     STACK    |    (0x00800000)
                     +--------------+ <-  0x7F7FE000
@@ -46,8 +42,6 @@ pub const TD_PAYLOAD_MAILBOX_SIZE: u32 = 0x2000;
 pub const TD_PAYLOAD_HOB_SIZE: u32 = 0x400000;
 pub const TD_PAYLOAD_SHADOW_STACK_SIZE: u32 = 0x200000;
 pub const TD_PAYLOAD_STACK_SIZE: u32 = 0x800000;
-pub const TD_PAYLOAD_HEAP_SIZE: usize = 0x1000000;
-pub const TD_PAYLOAD_DMA_SIZE: usize = 0x1000000;
 
 pub const TD_PAYLOAD_PAGE_TABLE_BASE: u64 = 0x800000;
 pub const TD_HOB_BASE: u64 = 0x1000000;
