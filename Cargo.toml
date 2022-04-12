@@ -1,17 +1,22 @@
 [workspace]
 resolver = "2"
-default-members = ["fake"]
+default-members = ["td-shim", "td-payload"]
 members = [
-	"fake",
-	"devtools/td-layout-config",
-	"devtools/test-runner-client",
-	"devtools/test-runner-server",
-	"td-exception",
-	"td-layout",
-	"td-logger",
-	"td-paging",
-	"td-uefi-pi",
-	"tdx-tdcall",
+    "devtools/td-layout-config",
+    "devtools/td-benchmark",
+    "devtools/test-runner-server",
+    "devtools/test-runner-client",
+    "td-exception",
+    "td-layout",
+    "td-logger",
+    "td-paging",
+    "td-payload",
+    "td-shim",
+    "td-shim-tools",
+    "tdx-tdcall",
+    "tests/test-td-exception",
+    "tests/test-td-paging",
+    "tests/test-td-payload",
 ]
 
 # the profile used for `cargo build`
