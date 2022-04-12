@@ -111,10 +111,6 @@ macro_rules! RUNTIME_TEMPLATE {
                     |    PAYLOAD   |    ({payload_size:#010X})
                     +--------------+
                     |   ........   |
-                    +--------------+ <-  {dma_base:#010X}
-                    |     DMA      |    ({dma_size:#010X})
-                    +--------------+ <-  {heap_base:#010X}
-                    |     HEAP     |    ({heap_size:#010X})
                     +--------------+ <-  {stack_base:#010X}
                     |     STACK    |    ({stack_size:#010X})
                     +--------------+ <-  {shadow_stack_base:#010X}
@@ -136,8 +132,6 @@ pub const TD_PAYLOAD_MAILBOX_SIZE: u32 = {mailbox_size:#X};
 pub const TD_PAYLOAD_HOB_SIZE: u32 = {payload_hob_size:#X};
 pub const TD_PAYLOAD_SHADOW_STACK_SIZE: u32 = {shadow_stack_size:#X};
 pub const TD_PAYLOAD_STACK_SIZE: u32 = {stack_size:#X};
-pub const TD_PAYLOAD_HEAP_SIZE: usize = {heap_size:#X};
-pub const TD_PAYLOAD_DMA_SIZE: usize = {dma_size:#X};
 
 pub const TD_PAYLOAD_PAGE_TABLE_BASE: u64 = {pt_base:#X};
 pub const TD_HOB_BASE: u64 = {td_hob_base:#X};
@@ -178,8 +172,6 @@ struct TdRuntimeLayoutConfig {
     payload_hob_size: u32,
     shadow_stack_size: u32,
     stack_size: u32,
-    heap_size: u32,
-    dma_size: u32,
     payload_size: u32,
     payload_param_size: u32,
     payload_param_base: u32,
@@ -264,10 +256,6 @@ impl TdLayout {
             td_hob_size = self.runtime.td_hob_size,
             payload_base = self.runtime.payload_base,
             payload_size = self.runtime.payload_size,
-            dma_base = self.runtime.dma_base,
-            dma_size = self.runtime.dma_size,
-            heap_base = self.runtime.heap_base,
-            heap_size = self.runtime.heap_size,
             stack_base = self.runtime.stack_base,
             stack_size = self.runtime.stack_size,
             shadow_stack_base = self.runtime.shadow_stack_base,
@@ -406,10 +394,6 @@ struct TdLayoutRuntime {
     payload_size: u32,
     payload_param_base: u32,
     payload_param_size: u32,
-    dma_base: u32,
-    dma_size: u32,
-    heap_base: u32,
-    heap_size: u32,
     stack_base: u32,
     stack_size: u32,
     shadow_stack_base: u32,
@@ -432,8 +416,6 @@ impl TdLayoutRuntime {
         let payload_hob_base = acpi_base - config.runtime_layout.payload_hob_size;
         let shadow_stack_base = payload_hob_base - config.runtime_layout.shadow_stack_size;
         let stack_base = shadow_stack_base - config.runtime_layout.stack_size;
-        let heap_base = stack_base - config.runtime_layout.heap_size;
-        let dma_base = heap_base - config.runtime_layout.dma_size;
         let td_hob_base =
             config.runtime_layout.page_table_base + config.runtime_layout.page_table_size;
         let payload_base =
@@ -447,10 +429,6 @@ impl TdLayoutRuntime {
             payload_param_size: config.runtime_layout.payload_param_size,
             payload_base,
             payload_size: config.runtime_layout.payload_size,
-            dma_base,
-            dma_size: config.runtime_layout.dma_size,
-            heap_base,
-            heap_size: config.runtime_layout.heap_size,
             stack_base,
             stack_size: config.runtime_layout.stack_size,
             shadow_stack_base,

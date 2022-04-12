@@ -24,6 +24,7 @@ use alloc::string::String;
 use alloc::string::ToString;
 use alloc::vec::Vec;
 use core::ffi::c_void;
+use core::mem::size_of;
 use core::panic::PanicInfo;
 use linked_list_allocator::LockedHeap;
 use td_layout::memslice;
@@ -41,7 +42,13 @@ use crate::testtrustedboot::{TdTrustedBoot, TestTdTrustedBoot};
 use r_efi::efi::Guid;
 use serde::{Deserialize, Serialize};
 use serde_json::{Result, Value};
+use td_shim::e820::{E820Entry, E820Type};
+use td_shim::{TD_ACPI_TABLE_HOB_GUID, TD_E820_TABLE_HOB_GUID};
 use td_uefi_pi::{fv, hob, pi};
+use zerocopy::FromBytes;
+
+const E820_TABLE_SIZE: usize = 128;
+const PAYLOAD_HEAP_SIZE: usize = 0x100_0000;
 
 #[derive(Debug, Serialize, Deserialize)]
 // The test cases' data structure corresponds to the test config json data structure
@@ -128,16 +135,13 @@ extern "win64" fn _start(hob: *const c_void) -> ! {
     let hob_size = hob::get_hob_total_size(hob_buffer).unwrap();
     let hob_list = &hob_buffer[..hob_size];
 
-    init_heap(
-        (hob::get_system_memory_size_below_4gb(hob_list).unwrap() as usize
-            - (TD_PAYLOAD_HOB_SIZE
-                + TD_PAYLOAD_STACK_SIZE
-                + TD_PAYLOAD_SHADOW_STACK_SIZE
-                + TD_PAYLOAD_ACPI_SIZE
-                + TD_PAYLOAD_EVENT_LOG_SIZE) as usize
-            - TD_PAYLOAD_HEAP_SIZE as usize),
-        TD_PAYLOAD_HEAP_SIZE as usize,
-    );
+    // There is no heap at this moment, put the E820 table on the stack
+    let mut memory_map = [E820Entry::default(); E820_TABLE_SIZE];
+    get_memory_map(hob_list, &mut memory_map);
+
+    let heap_base = find_heap_memory(&memory_map).expect("Cannot find memory for heap");
+    log::info!("Init heap: {:X} - {:X}\n", heap_base, PAYLOAD_HEAP_SIZE);
+    init_heap(heap_base, PAYLOAD_HEAP_SIZE);
 
     // create TestSuite to hold the test cases
     let mut ts = TestSuite {
@@ -215,4 +219,50 @@ extern "win64" fn _start(hob: *const c_void) -> ! {
     );
 
     panic!("deadloop");
+}
+
+fn get_memory_map(hob_list: &[u8], e820: &mut [E820Entry]) {
+    if let Some(hob) = hob::get_next_extension_guid_hob(hob_list, TD_E820_TABLE_HOB_GUID.as_bytes())
+    {
+        let table = hob::get_guid_data(hob).expect("Failed to get data from E820 GUID HOB");
+        let entry_num = table.len() / size_of::<E820Entry>();
+        if entry_num > E820_TABLE_SIZE {
+            panic!("Invalid E820 table size");
+        }
+
+        let mut offset = 0;
+        let mut idx = 0;
+        while idx < entry_num {
+            if let Some(entry) =
+                E820Entry::read_from(&table[offset..offset + size_of::<E820Entry>()])
+            {
+                // Ignore the padding zero in GUIDed HOB
+                if idx == entry_num - 1 && entry == E820Entry::default() {
+                    return;
+                }
+                // save it to table
+                e820[idx] = entry;
+                idx += 1;
+                offset += size_of::<E820Entry>();
+            } else {
+                panic!("Error parsing E820 table\n");
+            }
+        }
+    } else {
+        panic!("There's no E820 table can be found in Payload HOB\n");
+    }
+}
+
+fn find_heap_memory(memory_map: &[E820Entry]) -> Option<usize> {
+    let mut target = None;
+    // Find the highest usable memory for heap
+    for entry in memory_map {
+        if entry.r#type == E820Type::Memory as u32 && entry.size >= PAYLOAD_HEAP_SIZE as u64 {
+            target = Some(entry);
+        }
+    }
+    if let Some(entry) = target {
+        return Some((entry.addr + entry.size) as usize - PAYLOAD_HEAP_SIZE);
+    }
+    None
 }

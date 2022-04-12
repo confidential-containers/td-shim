@@ -5,8 +5,7 @@
 use alloc::vec::Vec;
 use td_layout::build_time::{TD_SHIM_FIRMWARE_BASE, TD_SHIM_FIRMWARE_SIZE};
 use td_layout::runtime::{
-    self, TD_PAYLOAD_BASE, TD_PAYLOAD_DMA_SIZE, TD_PAYLOAD_EVENT_LOG_SIZE,
-    TD_PAYLOAD_PAGE_TABLE_BASE, TD_PAYLOAD_SIZE,
+    self, TD_PAYLOAD_BASE, TD_PAYLOAD_EVENT_LOG_SIZE, TD_PAYLOAD_PAGE_TABLE_BASE, TD_PAYLOAD_SIZE,
 };
 use td_layout::{RuntimeMemoryLayout, MIN_MEMORY_SIZE};
 use td_shim::e820::E820Type;
@@ -130,7 +129,6 @@ impl<'a> Memory<'a> {
             self.layout.runtime_memory_bottom,
             self.layout.runtime_memory_top - self.layout.runtime_memory_bottom,
         );
-        self.set_shared_bit(self.layout.runtime_dma_base, TD_PAYLOAD_DMA_SIZE as u64);
 
         td_paging::cr3_write();
     }

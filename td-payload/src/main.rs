@@ -17,6 +17,17 @@
 #![cfg_attr(not(test), no_main)]
 #![allow(unused)]
 
+use core::mem::size_of;
+
+use alloc::vec::Vec;
+use scroll::{Pread, Pwrite};
+use td_layout::RuntimeMemoryLayout;
+use td_shim::e820::{E820Entry, E820Type};
+use td_shim::{TD_ACPI_TABLE_HOB_GUID, TD_E820_TABLE_HOB_GUID};
+use td_uefi_pi::hob;
+use td_uefi_pi::pi;
+use zerocopy::FromBytes;
+
 #[macro_use]
 extern crate alloc;
 
@@ -31,6 +42,9 @@ extern "win64" {
     #[cfg(feature = "cet-ss")]
     fn cet_ss_test(count: usize);
 }
+
+const E820_TABLE_SIZE: usize = 128;
+const PAYLOAD_HEAP_SIZE: usize = 0x400_0000;
 
 #[cfg(not(test))]
 mod payload_impl {
@@ -87,21 +101,13 @@ mod payload_impl {
         let hob_list = &hob_buffer[..hob_size];
         hob::dump_hob(hob_list);
 
-        let heap_start = hob::get_system_memory_size_below_4gb(hob_list).unwrap() as usize
-            - (TD_PAYLOAD_HOB_SIZE
-                + TD_PAYLOAD_STACK_SIZE
-                + TD_PAYLOAD_SHADOW_STACK_SIZE
-                + TD_PAYLOAD_ACPI_SIZE
-                + TD_PAYLOAD_EVENT_LOG_SIZE) as usize
-            - TD_PAYLOAD_HEAP_SIZE as usize;
-        init_heap(heap_start, TD_PAYLOAD_HEAP_SIZE as usize);
-        let memory_layout = td_layout::RuntimeMemoryLayout::new(
-            hob::get_system_memory_size_below_4gb(hob_list).unwrap(),
-        );
-        assert_eq!(
-            (heap_start - TD_PAYLOAD_HEAP_SIZE as usize) as u64,
-            memory_layout.runtime_heap_base
-        );
+        // There is no heap at this moment, put the E820 table on the stack
+        let mut memory_map = [E820Entry::default(); E820_TABLE_SIZE];
+        get_memory_map(hob_list, &mut memory_map);
+
+        let heap_base = find_heap_memory(&memory_map).expect("Cannot find memory for heap");
+        log::info!("Init heap: {:X} - {:X}\n", heap_base, PAYLOAD_HEAP_SIZE);
+        init_heap(heap_base, PAYLOAD_HEAP_SIZE);
 
         #[cfg(feature = "benches")]
         {
@@ -137,6 +143,70 @@ mod payload_impl {
 
         panic!("td-payload: all tests finished and enters dead loop");
     }
+}
+
+fn get_acpi_tables(hob_list: &[u8]) -> Vec<&[u8]> {
+    let mut acpi_tables: Vec<&[u8]> = Vec::new();
+    let mut hob = hob_list;
+    while let Some(guided_hob) =
+        hob::get_next_extension_guid_hob(hob, TD_ACPI_TABLE_HOB_GUID.as_bytes())
+    {
+        if let Some(guided_data) = hob::get_guid_data(guided_hob) {
+            acpi_tables.push(guided_data);
+        }
+        if let Some(next) = hob::seek_to_next_hob(hob) {
+            hob = next;
+        } else {
+            break;
+        }
+    }
+    acpi_tables
+}
+
+fn get_memory_map(hob_list: &[u8], e820: &mut [E820Entry]) {
+    if let Some(hob) = hob::get_next_extension_guid_hob(hob_list, TD_E820_TABLE_HOB_GUID.as_bytes())
+    {
+        let table = hob::get_guid_data(hob).expect("Failed to get data from E820 GUID HOB");
+        let entry_num = table.len() / size_of::<E820Entry>();
+        if entry_num > E820_TABLE_SIZE {
+            panic!("Invalid E820 table size");
+        }
+
+        let mut offset = 0;
+        let mut idx = 0;
+        while idx < entry_num {
+            if let Some(entry) =
+                E820Entry::read_from(&table[offset..offset + size_of::<E820Entry>()])
+            {
+                // Ignore the padding zero in GUIDed HOB
+                if idx == entry_num - 1 && entry == E820Entry::default() {
+                    return;
+                }
+                // save it to table
+                e820[idx] = entry;
+                idx += 1;
+                offset += size_of::<E820Entry>();
+            } else {
+                panic!("Error parsing E820 table\n");
+            }
+        }
+    } else {
+        panic!("There's no E820 table can be found in Payload HOB\n");
+    }
+}
+
+fn find_heap_memory(memory_map: &[E820Entry]) -> Option<usize> {
+    let mut target = None;
+    // Find the highest usable memory for heap
+    for entry in memory_map {
+        if entry.r#type == E820Type::Memory as u32 && entry.size >= PAYLOAD_HEAP_SIZE as u64 {
+            target = Some(entry);
+        }
+    }
+    if let Some(entry) = target {
+        return Some((entry.addr + entry.size) as usize - PAYLOAD_HEAP_SIZE);
+    }
+    None
 }
 
 #[cfg(test)]
