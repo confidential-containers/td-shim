@@ -7,10 +7,9 @@ if [[ ! $PWD =~ td-shim$ ]];then
     pushd ..
 fi
 
-cargo xbuild -p td-shim --target x86_64-unknown-uefi --release --features=main,tdx --no-default-features
-
 final_pe() {
     echo final-pe
+    cargo xbuild -p td-shim --target x86_64-unknown-uefi --release --features=main,tdx --no-default-features
     cargo xbuild -p td-payload --target x86_64-unknown-uefi --release --features=main,tdx --no-default-features
     cargo run -p td-shim-tools --features="linker" --no-default-features --bin td-shim-ld -- \
         target/x86_64-unknown-uefi/release/ResetVector.bin \
@@ -21,6 +20,7 @@ final_pe() {
 
 final_elf() {
     echo final-elf
+    cargo xbuild -p td-shim --target x86_64-unknown-uefi --release --features=main,tdx --no-default-features
     cargo xbuild -p td-payload --target devtools/rustc-targets/x86_64-unknown-none.json --release --features=main,tdx
     cargo run -p td-shim-tools --features="linker" --no-default-features --bin td-shim-ld -- \
     target/x86_64-unknown-uefi/release/ResetVector.bin \
