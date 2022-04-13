@@ -24,7 +24,7 @@ final_elf() {
     cargo xbuild -p td-shim --target x86_64-unknown-uefi --release --features=main,tdx --no-default-features
     cargo xbuild -p td-payload --target devtools/rustc-targets/x86_64-unknown-none.json --release --features=main,tdx
     cargo run -p td-shim-tools --features="linker" --no-default-features --bin td-shim-ld -- \
-    target/x86_64-unknown-uefi/release/ResetVector.bin \
+        target/x86_64-unknown-uefi/release/ResetVector.bin \
         target/x86_64-unknown-uefi/release/td-shim.efi \
         -p target/x86_64-unknown-none/release/td-payload \
         -o target/x86_64-unknown-uefi/release/final-elf.bin 
