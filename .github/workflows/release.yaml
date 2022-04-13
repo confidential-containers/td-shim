@@ -1,0 +1,91 @@
+name: Release TD-shim (staging)
+on: create
+
+env:
+  RUST_TOOLCHAIN: nightly-2022-04-07
+  TOOLCHAIN_PROFILE: minimal
+
+jobs:
+  release:
+    if: github.event_name == 'create' && github.event.ref_type== 'tag'
+    name: Release
+    runs-on: ubuntu-20.04
+    timeout-minutes: 30
+
+    steps:
+      - name: install NASM
+        uses: ilammy/setup-nasm@v1
+
+      - name: Install LLVM and Clang
+        uses: KyleMayes/install-llvm-action@v1
+        with:
+          version: "10.0"
+          directory: ${{ runner.temp }}/llvm
+
+      - name: Checkout sources
+        uses: actions/checkout@v2
+
+      - name: Install toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: ${{ env.TOOLCHAIN_PROFILE }}
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          override: true
+          components: rust-src
+
+      - name: Cache
+        uses: Swatinem/rust-cache@v1
+
+      - name: Run cargo install cargo-xbuild
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: cargo-xbuild
+
+      - name: Generate artifacts
+        run: |
+          bash sh_script/build_final.sh
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: ${{ github.ref }}
+          draft: false
+          prerelease: true
+
+      - name: Upload final-pe.bin
+        id: upload_release_final_pe_bin
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: target/x86_64-unknown-uefi/release/final-pe.bin
+          asset_name: final-pe.bin
+          asset_content_type: application/octet-stream
+
+      - name: Upload final-pe-boot-kernel.bin
+        id: upload_release_final_pe_boot_kernel_bin
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: target/x86_64-unknown-uefi/release/final-pe-boot-kernel.bin
+          asset_name: final-pe-boot-kernel.bin
+          asset_content_type: application/octet-stream
+
+      - name: Upload final-elf.bin
+        id: upload_release_final_elf_bin
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: target/x86_64-unknown-uefi/release/final-elf.bin
+          asset_name: final-elf.bin
+          asset_content_type: application/octet-stream
