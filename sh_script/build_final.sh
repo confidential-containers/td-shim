@@ -2,6 +2,7 @@
 
 export CC=clang
 export AR=llvm-ar
+export AS=nasm
 
 if [[ ! $PWD =~ td-shim$ ]];then
     pushd ..
