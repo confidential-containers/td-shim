@@ -1,5 +1,4 @@
 [workspace]
-resolver = "2"
 default-members = ["td-shim", "td-payload"]
 members = [
     "devtools/td-layout-config",

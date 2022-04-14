@@ -5,7 +5,7 @@ description = "UEFI Platform Initializaiton data structures and accessors"
 repository = "https://github.com/confidential-containers/td-shim"
 homepage = "https://github.com/confidential-containers"
 license = "BSD-2-Clause-Patent"
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 log = "0.4.13"

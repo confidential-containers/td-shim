@@ -5,7 +5,7 @@ description = "Simple logger backend for td-shim"
 repository = "https://github.com/confidential-containers/td-shim"
 homepage = "https://github.com/confidential-containers"
 license = "BSD-2-Clause-Patent"
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 lazy_static = { version = "1.0", features = ["spin_no_std"] }

@@ -5,7 +5,7 @@ description = "A simple page table manager"
 repository = "https://github.com/confidential-containers/td-shim"
 homepage = "https://github.com/confidential-containers"
 license = "BSD-2-Clause-Patent"
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 bitfield = "0.13.2"

@@ -5,7 +5,7 @@ description = "Define build time and runtime layout for trusted domain"
 repository = "https://github.com/confidential-containers/td-shim"
 homepage = "https://github.com/confidential-containers"
 license = "BSD-2-Clause-Patent"
-edition = "2018"
+edition = "2021"
 
 [features]
 boot-kernel = []

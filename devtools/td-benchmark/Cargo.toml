@@ -5,7 +5,7 @@ description = "Library to support benchmark for no_std binaries"
 repository = "https://github.com/confidential-containers/td-shim"
 homepage = "https://github.com/confidential-containers"
 license = "BSD-2-Clause-Patent"
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 linked_list_allocator = "0.9.0"

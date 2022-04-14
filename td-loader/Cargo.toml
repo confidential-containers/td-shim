@@ -1,7 +1,7 @@
 [package]
 name = "td-loader"
 version = "0.1.0"
-edition = "2018"
+edition = "2021"
 description = "Parser and loader for 64 bit Portable Executable (PE+) or 32/64 bit Executable and Linkable Format(ELF) binary objects"
 repository = "https://github.com/confidential-containers/td-shim"
 homepage = "https://github.com/confidential-containers"

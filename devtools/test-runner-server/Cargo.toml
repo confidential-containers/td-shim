@@ -5,7 +5,7 @@ description = "Server to run test cases inside a qemu virtual machine"
 repository = "https://github.com/confidential-containers/td-shim"
 homepage = "https://github.com/confidential-containers"
 license = "Apache 2.0"
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 bootloader-locator = "0.0.4" # for locating the `bootloader` dependency on disk
