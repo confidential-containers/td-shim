@@ -199,6 +199,24 @@ mod test {
         &[0xb7, 0xb9, 0x78, 0x58, 0x0, 0x21],
     ); // {77A2742E-9340-4AC9-8F85-B7B978580021}
 
+    const TEST_GUID2: Guid = Guid::from_fields(
+        0x67a2742e,
+        0x9340,
+        0x4ac9,
+        0x8f,
+        0x85,
+        &[0xb7, 0xb9, 0x78, 0x58, 0x0, 0x21],
+    ); // {67A2742E-9340-4AC9-8F85-B7B978580021}
+
+    #[test]
+    fn test_get_image_from_fv() {
+        let bytes = include_bytes!("../fuzz/seeds/payload_parser/fv_buffer");
+
+        let res = get_image_from_fv(bytes, FV_FILETYPE_DXE_CORE, SECTION_PE32);
+
+        assert_ne!(res, None);
+    }
+
     #[test]
     fn test_get_image_from_fv_with_wrong_signature() {
         let bytes = FirmwareVolumeHeader {
@@ -220,6 +238,35 @@ mod test {
     }
 
     #[test]
+    fn test_get_image_from_fv_with_wrong_fv_file_type() {
+        let bytes = include_bytes!("../fuzz/seeds/payload_parser/fv_buffer");
+
+        // Cannot find fv file type FV_FILETYPE_PEI_CORE
+        let res = get_image_from_fv(bytes, FV_FILETYPE_PEI_CORE, SECTION_PE32);
+
+        assert_eq!(res, None);
+    }
+
+    #[test]
+    fn test_get_image_from_fv_with_wrong_section_type() {
+        let bytes = include_bytes!("../fuzz/seeds/payload_parser/fv_buffer");
+
+        // Cannot find section type SECTION_PIC
+        let res = get_image_from_fv(bytes, FV_FILETYPE_DXE_CORE, SECTION_PIC);
+
+        assert_eq!(res, None);
+    }
+
+    #[test]
+    fn test_get_file_from_fv() {
+        let bytes = include_bytes!("../fuzz/seeds/cfv_parser/cfv");
+
+        let res = get_file_from_fv(bytes, FV_FILETYPE_RAW, TEST_GUID1);
+
+        assert_ne!(res, None);
+    }
+
+    #[test]
     fn test_get_file_from_fv_with_wrong_signature() {
         let bytes = FirmwareVolumeHeader {
             zero_vector: [0; 16],
@@ -235,6 +282,16 @@ mod test {
         };
 
         let res = get_file_from_fv(bytes.as_bytes(), FV_FILETYPE_RAW, TEST_GUID1);
+
+        assert_eq!(res, None);
+    }
+
+    #[test]
+    fn test_get_file_from_fv_with_wrong_guid() {
+        let bytes = include_bytes!("../fuzz/seeds/cfv_parser/cfv");
+
+        // Cannot find this GUID
+        let res = get_file_from_fv(bytes, FV_FILETYPE_RAW, TEST_GUID2);
 
         assert_eq!(res, None);
     }

@@ -1,5 +1,6 @@
+
 [package]
-name = "td-loader-fuzz"
+name = "td-uefi-pi-fuzz"
 version = "0.0.0"
 authors = ["Automatically generated"]
 publish = false
@@ -11,8 +12,9 @@ cargo-fuzz = true
 [dependencies]
 libfuzzer-sys = {version = "0.4", optional = true }
 afl = {version = "*", optional = true }
+r-efi = "3.2.0"
 
-[dependencies.td-loader]
+[dependencies.td-uefi-pi]
 path = ".."
 
 # Prevent this from interfering with workspaces
@@ -24,26 +26,37 @@ default = ["libfuzzer-sys"]
 fuzz = ["afl"]
 
 [[bin]]
-name = "pe"
-path = "fuzz_targets/pe.rs"
+name = "payload_parser"
+path = "fuzz_targets/payload_parser.rs"
 test = false
 doc = false
 
 [[bin]]
-name = "elf"
-path = "fuzz_targets/elf.rs"
+name = "cfv_parser"
+path = "fuzz_targets/cfv_parser.rs"
 test = false
 doc = false
 
 [[bin]]
-name = "afl_pe"
-path = "fuzz_targets/afl_pe.rs"
+name = "hob_parser"
+path = "fuzz_targets/hob_parser.rs"
 test = false
 doc = false
 
 [[bin]]
-name = "afl_elf"
-path = "fuzz_targets/afl_elf.rs"
+name = "afl_hob_parser"
+path = "fuzz_targets/afl_hob_parser.rs"
 test = false
 doc = false
 
+[[bin]]
+name = "afl_payload_parser"
+path = "fuzz_targets/afl_payload_parser.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "afl_cfv_parser"
+path = "fuzz_targets/afl_cfv_parser.rs"
+test = false
+doc = false
