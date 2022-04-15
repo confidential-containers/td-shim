@@ -13,9 +13,9 @@ endif
 
 GENERIC_LIB_CRATES = td-layout td-logger td-uefi-pi
 NIGHTLY_LIB_CRATES = td-exception td-paging tdx-tdcall
-SHIM_CRATES = 
-TEST_CRATES = 
-TOOL_CRATES = 
+SHIM_CRATES = td-shim td-payload
+TEST_CRATES = test-td-exception test-td-paging
+TOOL_CRATES = td-shim-tools
 
 # Targets for normal artifacts
 all: install-devtools build test
@@ -46,7 +46,10 @@ install-devtools: build-subdir-devtools install-subdir-devtools $(TOOL_CRATES:%=
 
 uninstall-devtools: uninstall-subdir-devtools $(TOOL_CRATES:%=uninstall-devtool-%)
 
-install-devtool-%: build-%
+.PHONY: tools-devtools
+tools-devtools: tools-subdir-devtools
+
+install-devtool-%: nightly-build-%
 	mkdir -p ${TOPDIR}/devtools/bin
 	${CARGO} install --bins --target-dir ${TOPDIR}/devtools/bin/ --path $(patsubst install-devtool-%,%,$@)
 
@@ -142,3 +145,6 @@ install-subdir-%:
 
 uninstall-subdir-%:
 	make -C $(patsubst uninstall-subdir-%,%,$@) uninstall
+
+tools-subdir-%:
+	make -C $(patsubst tools-subdir-%,%,$@) all-tools
