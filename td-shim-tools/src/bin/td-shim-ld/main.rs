@@ -32,8 +32,9 @@ fn main() -> io::Result<()> {
                 .allow_invalid_utf8(false),
         )
         .arg(
-            arg!([payload] "Payload binary file")
-                .required(true)
+            arg!(-p --payload "Payload binary file")
+                .required(false)
+                .takes_value(true)
                 .allow_invalid_utf8(false),
         )
         .arg(
@@ -65,7 +66,7 @@ fn main() -> io::Result<()> {
     // Safe to unwrap() because these are mandatory arguments.
     let reset_name = matches.value_of("reset_vector").unwrap();
     let ipl_name = matches.value_of("ipl").unwrap();
-    let payload_name = matches.value_of("payload").unwrap();
+    let payload_name = matches.value_of("payload");
 
     builder.build(reset_name, ipl_name, payload_name)
 }
