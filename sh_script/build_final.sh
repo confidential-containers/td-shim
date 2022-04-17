@@ -15,7 +15,7 @@ final_pe() {
     cargo run -p td-shim-tools --features="linker" --no-default-features --bin td-shim-ld -- \
         target/x86_64-unknown-uefi/release/ResetVector.bin \
         target/x86_64-unknown-uefi/release/td-shim.efi \
-        target/x86_64-unknown-uefi/release/td-payload.efi \
+        -p target/x86_64-unknown-uefi/release/td-payload.efi \
         -o target/x86_64-unknown-uefi/release/final-pe.bin
 }
 
@@ -37,7 +37,7 @@ final_elf() {
     cargo run -p td-shim-tools --features="linker" --no-default-features --bin td-shim-ld -- \
         target/x86_64-unknown-uefi/release/ResetVector.bin \
         target/x86_64-unknown-uefi/release/td-shim.efi \
-        target/x86_64-unknown-none/release/td-payload \
+        -p target/x86_64-unknown-none/release/td-payload \
         -o target/x86_64-unknown-uefi/release/final-elf.bin 
 }
 
