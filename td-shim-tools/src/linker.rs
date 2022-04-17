@@ -332,14 +332,18 @@ impl TdShimLinker {
     }
 
     /// Build the shim binary.
-    pub fn build(&self, reset_name: &str, ipl_name: &str, payload_name: &str) -> io::Result<()> {
+    pub fn build(
+        &self,
+        reset_name: &str,
+        ipl_name: &str,
+        payload_name: Option<&str>,
+    ) -> io::Result<()> {
         let reset_vector_bin = InputData::new(
             reset_name,
             TD_SHIM_RESET_VECTOR_SIZE as usize..=TD_SHIM_RESET_VECTOR_SIZE as usize,
             "reset_vector",
         )?;
         let ipl_bin = InputData::new(ipl_name, 0..=MAX_IPL_CONTENT_SIZE, "IPL")?;
-        let payload_bin = InputData::new(payload_name, 0..=MAX_PAYLOAD_CONTENT_SIZE, "payload")?;
         let output_file_name = self
             .output_file_name
             .as_ref()
@@ -354,27 +358,31 @@ impl TdShimLinker {
             "mailbox content",
         )?;
 
-        let payload_header = PayloadFvHeaderByte::build_tdx_payload_fv_header();
-        output_file.seek_and_write(
-            TD_SHIM_PAYLOAD_OFFSET as u64,
-            &payload_header.data,
-            "payload header",
-        )?;
+        if let Some(payload_name) = payload_name {
+            let payload_bin =
+                InputData::new(payload_name, 0..=MAX_PAYLOAD_CONTENT_SIZE, "payload")?;
+            let payload_header = PayloadFvHeaderByte::build_tdx_payload_fv_header();
+            output_file.seek_and_write(
+                TD_SHIM_PAYLOAD_OFFSET as u64,
+                &payload_header.data,
+                "payload header",
+            )?;
 
-        if self.payload_relocation {
-            let mut payload_reloc_buf = vec![0x0u8; MAX_PAYLOAD_CONTENT_SIZE];
-            let reloc = pe::relocate(
-                &payload_bin.data,
-                &mut payload_reloc_buf,
-                TD_SHIM_PAYLOAD_BASE as usize + payload_header.data.len(),
-            )
-            .ok_or_else(|| {
-                io::Error::new(io::ErrorKind::Other, "Can not relocate payload content")
-            })?;
-            trace!("shim payload relocated to 0x{:x}", reloc);
-            output_file.write(&payload_reloc_buf, "payload content")?;
-        } else {
-            output_file.write(&payload_bin.data, "payload content")?;
+            if self.payload_relocation {
+                let mut payload_reloc_buf = vec![0x0u8; MAX_PAYLOAD_CONTENT_SIZE];
+                let reloc = pe::relocate(
+                    &payload_bin.data,
+                    &mut payload_reloc_buf,
+                    TD_SHIM_PAYLOAD_BASE as usize + payload_header.data.len(),
+                )
+                .ok_or_else(|| {
+                    io::Error::new(io::ErrorKind::Other, "Can not relocate payload content")
+                })?;
+                trace!("shim payload relocated to 0x{:x}", reloc);
+                output_file.write(&payload_reloc_buf, "payload content")?;
+            } else {
+                output_file.write(&payload_bin.data, "payload content")?;
+            }
         }
 
         let metadata = build_tdx_metadata();
