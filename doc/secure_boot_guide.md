@@ -68,7 +68,7 @@ The signed payload file **td-payload-signed** is located in the same folder with
 ## Enroll public key into CFV with [rust-tdshim-key-enroll](../td-shim-tools)
 Build final.bin:
 ```
-cargo run -p td-shim-tools --bin td-shim-ld -- target/x86_64-unknown-uefi/release/ResetVector.bin target/x86_64-unknown-uefi/release/td-shim.efi target/x86_64-unknown-none/release/td-payload-signed -o target/x86_64-unknown-uefi/release/final.bin
+cargo run -p td-shim-tools --bin td-shim-ld -- target/x86_64-unknown-uefi/release/ResetVector.bin target/x86_64-unknown-uefi/release/td-shim.efi -p target/x86_64-unknown-none/release/td-payload-signed -o target/x86_64-unknown-uefi/release/final.bin
 ```
 
 Enroll public key:
