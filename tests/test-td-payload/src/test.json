@@ -62,7 +62,7 @@
     "tcs007": {
         "name": "testve",     
         "result": "None",
-        "run": true
+        "run": false
     },
     "tcs008": {
         "name": "testacpi",
@@ -89,10 +89,10 @@
     "tcs009": {
         "name": "memorymap",
         "expected": {
-            "size": "8G"
+            "size": "2G"
         },
         "result": "None",
-        "run": true
+        "run": false
     },
     "tcs010": {
         "name": "tdtrustedboot001",
