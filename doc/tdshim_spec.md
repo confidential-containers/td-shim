@@ -504,6 +504,15 @@ In order to support AP wake up, TD Shim shall report [multiprocessor wakeup
 structure](#acpi-mpws) in MADT to share mailbox information with the payload or
 OS kernel, and send the OS commands via ACPI mailbox to wakeup APs.
 
+The page table for AP shall be in reserved memory or ACPI Nvs in memory map.
+The AP shall map the 4K OS wakeup page and the required memory for itself,
+such as the mailbox, the page table itself, the exception handler, etc. These
+shall also be in the reserved memory. The mailbox and OS wake page shall be
+marked as read/write and executable.
+
+The expectation for OS is that: OS shall setup its own GDT/IDT/CR3 in the 4KB
+OS wakeup page immediately and jump to anywhere supported by OS page table.
+
 NOTE: In TDX architecture, the VMM is not trusted. The TD does not give AP
 control back to VMM, once the AP is launched into the TD. This behavior is
 different with traditional VM, where the AP is not initialized yet and in
