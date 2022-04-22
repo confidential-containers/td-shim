@@ -16,7 +16,7 @@ use td_layout::memslice;
 use td_shim::e820::{self, E820Entry, E820Type};
 use td_shim::TD_E820_TABLE_HOB_GUID;
 use td_uefi_pi::hob;
-use zerocopy::FromBytes;
+use zerocopy::{AsBytes, FromBytes};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MemoryMapConfig {
@@ -66,7 +66,9 @@ impl TestMemoryMap {
         let hob_list = &hob_buffer[..hob_size];
 
         let mut next_hob = hob_list;
-        if let Some(hob) = hob::get_next_extension_guid_hob(next_hob, &TD_E820_TABLE_HOB_GUID) {
+        if let Some(hob) =
+            hob::get_next_extension_guid_hob(next_hob, TD_E820_TABLE_HOB_GUID.as_bytes())
+        {
             let table = hob::get_guid_data(hob).expect("Failed to get data from ACPI GUID HOB");
 
             let mut offset = 0;
