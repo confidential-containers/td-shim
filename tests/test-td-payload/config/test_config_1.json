@@ -95,15 +95,11 @@
             "tables":[
                 {
                     "name": "APIC",
-                    "signature": [65, 80, 73, 67],
-                    "valid": 1,
-                    "exist": 1
+                    "signature": [65, 80, 73, 67]
                 },
                 {
                     "name": "TDEL",
-                    "signature": [84, 68, 69, 76],
-                    "valid": 1,
-                    "exist": 1
+                    "signature": [84, 68, 69, 76]
                 }
             ]
         },
