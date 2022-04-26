@@ -160,7 +160,7 @@ launch_td_test_payload() {
 
     nohup ${qemu_tdx_path} -accel kvm \
         -name process=rust-td,debug-threads=on \
-        -smp ${cpus},sockets=1 \
+        -smp ${cpus},sockets=${cpus} \
         -object tdx-guest,id=tdx,debug=on \
         -machine q35,kvm-type=tdx,pic=no,kernel_irqchip=split,confidential-guest-support=tdx \
         -no-hpet \
@@ -184,19 +184,66 @@ launch_td_test_payload() {
     fi
 }
 
+test_secure_boot() {
+    echo "-- secure boot test"
+    local time_out=10
+    if [[ ${firmware} == *normal* ]]
+    then
+        local key_str="Starting td-payload hob"
+    elif [[ ${firmware} == *mismatch-pubkey* ]]
+    then
+        local key_str="Verification fails: InvalidPublicKey"
+    elif [[ ${firmware} == *unsigned* ]]
+    then
+        local key_str="Secure Boot: Cannot read verify header from payload binary"
+    else
+        die "The firmware name ${firmware} is not suitable for secure boot test"
+    fi  
+    
+    nohup ${qemu_tdx_path} -accel kvm \
+        -name process=rust-td,debug-threads=on \
+        -smp ${cpus},sockets=${cpus} \
+        -object tdx-guest,id=tdx,debug=on \
+        -machine q35,kvm-type=tdx,pic=no,kernel_irqchip=split,confidential-guest-support=tdx \
+        -no-hpet \
+        -cpu host,pmu=off,-kvm-steal-time \
+        -device loader,file=${firmware},id=fd0 \
+        -m ${memory} -nographic -vga none \
+        -chardev stdio,id=mux,mux=on,signal=off \
+        -device virtio-serial,romfile= \
+        -device virtconsole,chardev=mux -serial chardev:mux -monitor chardev:mux \
+        -d int -no-reboot > ${nohup_logfile} 2>&1 &
+    
+    check_result ${nohup_logfile} "${key_str}" ${time_out}
+
+    if [[ $? -eq 0 ]]
+    then
+        ps aux | grep ${qemu_tdx_path} | grep -v grep | awk -F ' ' '{print $2}' | xargs kill -9
+        echo "-- secure boot test: Pass"
+    else
+        ps aux | grep ${qemu_tdx_path} | grep -v grep | awk -F ' ' '{print $2}' | xargs kill -9
+        cat ${nohup_logfile} && echo "-- secure boot test: Fail" && exit 1
+    fi
+}
+
 run_test() {
     echo "========================================="
     echo "               Run Test                  "
     echo "========================================="
-    if [[ ${firmware} == *final-${type}-boot-kernel.bin ]]
+    if [[ ${firmware} == *final-boot-kernel.bin* ]]
     then
         launch_td_os
     fi
 
-    if [[ ${firmware} == *final-${type}-test.bin* ]]
+    if [[ ${firmware} == *final-${type}-test* ]]
     then
         launch_td_test_payload
-    fi   
+    fi
+
+    if [[ ${firmware} == *final-${type}-sb* ]]
+    then
+        test_secure_boot
+    fi  
 }
 
 main() {

@@ -48,19 +48,52 @@ jobs:
           args: cargo-xbuild
 
       - name: Build PE format payload with boot-kernel support
-        run: bash sh_script/build_final.sh pe_boot_kernel
+        run: bash sh_script/build_final.sh boot_kernel
 
-      - name: Run Tests - Boot Kernel (cpus=1 mem=2G)
-        run: bash sh_script/integration_tdx.sh -f target/x86_64-unknown-uefi/release/final-pe-boot-kernel.bin
-      
-      - name: Run Tests - Boot Kernel (cpus=2 mem=8G)
-        run: bash sh_script/integration_tdx.sh -c 2 -m 8G -f target/x86_64-unknown-uefi/release/final-pe-boot-kernel.bin
-
-      - name: Run Tests - Boot Kernel (cpus=4 mem=16G)
-        run: bash sh_script/integration_tdx.sh -c 4 -m 16G -f target/x86_64-unknown-uefi/release/final-pe-boot-kernel.bin
+      - name: Run Tests - Boot Kernel
+        run: |
+          bash sh_script/integration_tdx.sh -c 1 -m 1G -f target/x86_64-unknown-uefi/release/final-boot-kernel.bin
+          bash sh_script/integration_tdx.sh -c 1 -m 2G -f target/x86_64-unknown-uefi/release/final-boot-kernel.bin
+          bash sh_script/integration_tdx.sh -c 2 -m 4G -f target/x86_64-unknown-uefi/release/final-boot-kernel.bin
+          bash sh_script/integration_tdx.sh -c 4 -m 8G -f target/x86_64-unknown-uefi/release/final-boot-kernel.bin
+          bash sh_script/integration_tdx.sh -c 8 -m 16G -f target/x86_64-unknown-uefi/release/final-boot-kernel.bin
 
       - name: Build PE format payload with test TD payload
         run: bash sh_script/build_final.sh pe_test
       
-      - name: Run Tests - Run test TD payload
-        run: bash sh_script/integration_tdx.sh -f target/x86_64-unknown-uefi/release/final-pe-test.bin
+      - name: Run Tests - Run PE format test TD payload
+        run: | 
+          bash sh_script/integration_tdx.sh -c 1 -m 1G -f target/x86_64-unknown-uefi/release/final-pe-test1.bin
+          bash sh_script/integration_tdx.sh -c 1 -m 2G -f target/x86_64-unknown-uefi/release/final-pe-test2.bin
+          bash sh_script/integration_tdx.sh -c 2 -m 4G -f target/x86_64-unknown-uefi/release/final-pe-test3.bin
+          bash sh_script/integration_tdx.sh -c 4 -m 8G -f target/x86_64-unknown-uefi/release/final-pe-test4.bin
+          bash sh_script/integration_tdx.sh -c 8 -m 16G -f target/x86_64-unknown-uefi/release/final-pe-test5.bin
+      
+      - name: Build ELF format payload with test TD payload
+        run: bash sh_script/build_final.sh elf_test
+      
+      - name: Run Tests - Run ELF format test TD payload
+        run: |
+          bash sh_script/integration_tdx.sh -c 1 -m 1G -t elf -f target/x86_64-unknown-uefi/release/final-elf-test1.bin
+          bash sh_script/integration_tdx.sh -c 1 -m 2G -t elf -f target/x86_64-unknown-uefi/release/final-elf-test2.bin
+          bash sh_script/integration_tdx.sh -c 2 -m 4G -t elf -f target/x86_64-unknown-uefi/release/final-elf-test3.bin
+          bash sh_script/integration_tdx.sh -c 4 -m 8G -t elf -f target/x86_64-unknown-uefi/release/final-elf-test4.bin
+          bash sh_script/integration_tdx.sh -c 8 -m 16G -t elf -f target/x86_64-unknown-uefi/release/final-elf-test5.bin
+      
+      - name: Build PE format payload for secure boot test
+        run: bash sh_script/build_final.sh pe_sb_test
+
+      - name: Run Tests - Run secure boot test with PE format payload
+        run: |
+          bash sh_script/integration_tdx.sh -f target/x86_64-unknown-uefi/release/final-pe-sb-normal.bin
+          bash sh_script/integration_tdx.sh -f target/x86_64-unknown-uefi/release/final-pe-sb-mismatch-pubkey.bin
+          bash sh_script/integration_tdx.sh -f target/x86_64-unknown-uefi/release/final-pe-sb-unsigned.bin
+      
+      - name: Build ELF format payload for secure boot test
+        run: bash sh_script/build_final.sh elf_sb_test
+
+      - name: Run Tests - Run secure boot test with ELF format payload
+        run: |
+          bash sh_script/integration_tdx.sh -t elf -f target/x86_64-unknown-uefi/release/final-elf-sb-normal.bin
+          bash sh_script/integration_tdx.sh -t elf -f target/x86_64-unknown-uefi/release/final-elf-sb-mismatch-pubkey.bin
+          bash sh_script/integration_tdx.sh -t elf -f target/x86_64-unknown-uefi/release/final-elf-sb-unsigned.bin

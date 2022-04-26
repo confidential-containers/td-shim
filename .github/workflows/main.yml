@@ -67,6 +67,10 @@ jobs:
       - name: Build image without payload
         run: |
           cargo run -p td-shim-tools --features=td-shim/default --bin td-shim-ld -- target/x86_64-unknown-uefi/release/ResetVector.bin target/x86_64-unknown-uefi/release/td-shim.efi -o target/x86_64-unknown-uefi/release/final.bin
+      
+      - name: Meta data check
+        run: |
+          cargo run -p td-shim-tools --bin td-shim-checker -- target/x86_64-unknown-uefi/release/final.bin
 
       - name: Build PE format payload
         run: |

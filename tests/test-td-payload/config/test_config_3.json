@@ -9,10 +9,34 @@
             "rsvd": [0,0,0]
         },
         "result": "None",
-        "run": true  
+        "run": false 
     },
     "tcs002": {
         "name": "tdinfo002",
+        "expected": {
+            "gpaw": 52,
+            "attributes": 0,
+            "max_vcpus": 2,
+            "num_vcpus": 2,
+            "rsvd": [0,0,0]
+        },
+        "result": "None",
+        "run": true 
+    }, 
+    "tcs003": {
+        "name": "tdinfo003",
+        "expected": {
+            "gpaw": 52,
+            "attributes": 0,
+            "max_vcpus": 4,
+            "num_vcpus": 4,
+            "rsvd": [0,0,0]
+        },
+        "result": "None",
+        "run": false  
+    }, 
+    "tcs004": {
+        "name": "tdinfo004",
         "expected": {
             "gpaw": 52,
             "attributes": 0,
@@ -23,8 +47,8 @@
         "result": "None",
         "run": false  
     },  
-    "tcs003": {
-        "name": "tdinfo003",
+    "tcs005": {
+        "name": "tdinfo005",
         "expected": {
             "gpaw": 48,
             "attributes": 0,
@@ -35,7 +59,7 @@
         "result": "None",
         "run": false 
     },
-    "tcs004": {
+    "tcs006": {
         "name": "tdreport001",
         "input": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -49,22 +73,22 @@
         "result": "None",
         "run": true 
     },
-    "tcs005": {
+    "tcs007": {
         "name": "testiorw8",     
         "result": "None",
         "run": true 
     },
-    "tcs006": {
+    "tcs008": {
         "name": "testiorw32",     
         "result": "None",
         "run": true 
     },
-    "tcs007": {
+    "tcs009": {
         "name": "testve",     
         "result": "None",
         "run": false
     },
-    "tcs008": {
+    "tcs010": {
         "name": "testacpi",
         "expected": {
             "num": 2,
@@ -86,15 +110,47 @@
         "result": "None",
         "run": true
     },
-    "tcs009": {
-        "name": "memorymap",
+    "tcs011": {
+        "name": "memorymap001",
+        "expected": {
+            "size": "1G"
+        },
+        "result": "None",
+        "run": false
+    },
+    "tcs012": {
+        "name": "memorymap002",
         "expected": {
             "size": "2G"
         },
         "result": "None",
         "run": false
     },
-    "tcs010": {
+    "tcs013": {
+        "name": "memorymap003",
+        "expected": {
+            "size": "4G"
+        },
+        "result": "None",
+        "run": false
+    },
+    "tcs014": {
+        "name": "memorymap004",
+        "expected": {
+            "size": "8G"
+        },
+        "result": "None",
+        "run": false
+    },
+    "tcs015": {
+        "name": "memorymap005",
+        "expected": {
+            "size": "16G"
+        },
+        "result": "None",
+        "run": false
+    },
+    "tcs016": {
         "name": "tdtrustedboot001",
         "input": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,

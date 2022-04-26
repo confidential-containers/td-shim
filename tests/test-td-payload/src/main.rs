@@ -56,13 +56,19 @@ pub struct TestCases {
     pub tcs001: Tdinfo,
     pub tcs002: Tdinfo,
     pub tcs003: Tdinfo,
-    pub tcs004: Tdreport,
-    pub tcs005: Tdiorw8,
-    pub tcs006: Tdiorw32,
-    pub tcs007: TdVE,
-    pub tcs008: TdAcpi,
-    pub tcs009: MemoryMap,
-    pub tcs010: TdTrustedBoot,
+    pub tcs004: Tdinfo,
+    pub tcs005: Tdinfo,
+    pub tcs006: Tdreport,
+    pub tcs007: Tdiorw8,
+    pub tcs008: Tdiorw32,
+    pub tcs009: TdVE,
+    pub tcs010: TdAcpi,
+    pub tcs011: MemoryMap,
+    pub tcs012: MemoryMap,
+    pub tcs013: MemoryMap,
+    pub tcs014: MemoryMap,
+    pub tcs015: MemoryMap,
+    pub tcs016: TdTrustedBoot,
 }
 
 pub const CFV_FFS_HEADER_TEST_CONFIG_GUID: Guid = Guid::from_fields(
@@ -182,26 +188,66 @@ extern "win64" fn _start(hob: *const c_void) -> ! {
         ts.testsuite.push(Box::new(tcs.tcs007));
     }
 
-    if tcs.tcs008.run && tcs.tcs008.expected.num > 0 {
+    if tcs.tcs008.run {
+        ts.testsuite.push(Box::new(tcs.tcs008));
+    }
+
+    if tcs.tcs009.run {
+        ts.testsuite.push(Box::new(tcs.tcs009));
+    }
+
+    if tcs.tcs010.run && tcs.tcs010.expected.num > 0 {
         let test_acpi = TestTdAcpi {
             hob_address: hob as usize,
-            td_acpi: tcs.tcs008,
+            td_acpi: tcs.tcs010,
         };
         ts.testsuite.push(Box::new(test_acpi));
     }
 
-    if tcs.tcs009.run {
+    if tcs.tcs011.run {
         let test_memory_map = TestMemoryMap {
             hob_address: hob as usize,
-            case: tcs.tcs009,
+            case: tcs.tcs011,
         };
         ts.testsuite.push(Box::new(test_memory_map));
     }
 
-    if tcs.tcs010.run {
+    if tcs.tcs012.run {
+        let test_memory_map = TestMemoryMap {
+            hob_address: hob as usize,
+            case: tcs.tcs012,
+        };
+        ts.testsuite.push(Box::new(test_memory_map));
+    }
+
+    if tcs.tcs013.run {
+        let test_memory_map = TestMemoryMap {
+            hob_address: hob as usize,
+            case: tcs.tcs013,
+        };
+        ts.testsuite.push(Box::new(test_memory_map));
+    }
+
+    if tcs.tcs014.run {
+        let test_memory_map = TestMemoryMap {
+            hob_address: hob as usize,
+            case: tcs.tcs014,
+        };
+        ts.testsuite.push(Box::new(test_memory_map));
+    }
+
+    if tcs.tcs015.run {
+        let test_memory_map = TestMemoryMap {
+            hob_address: hob as usize,
+            case: tcs.tcs015,
+        };
+        ts.testsuite.push(Box::new(test_memory_map));
+    }
+
+    if tcs.tcs016.run {
         let test_tboot = TestTdTrustedBoot {
             hob_address: hob as usize,
-            case: tcs.tcs010,
+            case: tcs.tcs016,
         };
         ts.testsuite.push(Box::new(test_tboot));
     }
