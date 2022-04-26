@@ -1,4 +1,4 @@
-name: Release TD-shim (staging)
+name: Release TD-shim
 on: create
 
 env:
