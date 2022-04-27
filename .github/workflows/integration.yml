@@ -26,7 +26,7 @@ jobs:
       matrix:
         host_os:
           - ubuntu-20.04
-#          - windows-2019
+          - windows-2019
     steps:
       # Install first since it's needed to build NASM
       - name: Install LLVM and Clang
