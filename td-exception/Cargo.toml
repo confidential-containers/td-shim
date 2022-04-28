@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Setup Interrupt Descriptor Table for td-shim"
 repository = "https://github.com/confidential-containers/td-shim"
 homepage = "https://github.com/confidential-containers"
-license = "Apache 2.0"
+license = "Apache-2.0"
 edition = "2018"
 
 [dependencies]
