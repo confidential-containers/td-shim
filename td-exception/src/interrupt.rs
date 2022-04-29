@@ -199,7 +199,7 @@ macro_rules! interrupt_no_error {
             InterruptNoErrorStack,
             $func,
             "
-            iret
+            iretq
             "
         );
     };
@@ -215,7 +215,7 @@ macro_rules! interrupt_error {
             $func,
             "
             add rsp, 8
-            iret
+            iretq
             "
         );
     };
