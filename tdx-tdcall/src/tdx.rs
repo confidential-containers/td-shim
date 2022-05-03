@@ -294,13 +294,16 @@ pub fn tdcall_extend_rtmr(digest: &TdxDigest, mr_index: u32) {
     }
 }
 
-pub fn tdcall_get_ve_info(ve_info: &mut TdVeInfoReturnData) {
-    let buffer: u64 = ve_info as *mut TdVeInfoReturnData as *mut core::ffi::c_void as usize as u64;
+pub fn tdcall_get_ve_info() -> TdVeInfoReturnData {
+    let mut ve_info = TdVeInfoReturnData::default();
+    let buffer: u64 =
+        &mut ve_info as *mut TdVeInfoReturnData as *mut core::ffi::c_void as usize as u64;
 
     let ret = unsafe { td_call(TDCALL_TDGETVEINFO, 0, 0, 0, buffer) };
     if ret != TDX_EXIT_REASON_SUCCESS {
         tdvmcall_halt();
     }
+    ve_info
 }
 
 pub fn tdcall_accept_page(address: u64) -> Result<(), TdCallError> {

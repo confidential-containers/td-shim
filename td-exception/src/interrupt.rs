@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
-use core::arch::asm;
+use core::{arch::asm, ptr::slice_from_raw_parts_mut};
 #[cfg(feature = "tdx")]
 use tdx_tdcall::tdx;
 
@@ -354,105 +354,127 @@ interrupt_no_error!(simd, stack, {
 });
 
 #[cfg(feature = "tdx")]
-const OP_CODE_IN_AL_IMM8: u8 = 0xE4;
+const EXIT_REASON_HLT: u32 = 12;
 #[cfg(feature = "tdx")]
-const OP_CODE_IN_EAX_IMM8: u8 = 0xE5;
+const EXIT_REASON_IO_INSTRUCTION: u32 = 30;
 #[cfg(feature = "tdx")]
-const OP_CODE_IN_AL_DX: u8 = 0xEC;
+const EXIT_REASON_VMCALL: u32 = 18;
 #[cfg(feature = "tdx")]
-const OP_CODE_IN_EAX_DX: u8 = 0xED;
+const EXIT_REASON_MWAIT_INSTRUCTION: u32 = 36;
 #[cfg(feature = "tdx")]
-const OP_CODE_OUT_IMM8_AL: u8 = 0xE6;
+const EXIT_REASON_MONITOR_INSTRUCTION: u32 = 39;
 #[cfg(feature = "tdx")]
-const OP_CODE_OUT_IMM8_EAX: u8 = 0xE7;
+const EXIT_REASON_WBINVD: u32 = 54;
 #[cfg(feature = "tdx")]
-const OP_CODE_OUT_DX_AL: u8 = 0xEE;
-#[cfg(feature = "tdx")]
-const OP_CODE_OUT_DX_EAX: u8 = 0xEF;
+const EXIT_REASON_RDPMC: u32 = 15;
 
 #[cfg(feature = "tdx")]
 interrupt_no_error!(virtualization, stack, {
-    let op_code: u8 = *(stack.iret.rip as *const u8);
-    match op_code {
-        // IN
-        OP_CODE_IN_AL_IMM8 => {
-            // log::info!("<IN AL, IMM8> ")
-            let port: u8 = *((stack.iret.rip + 1) as *const u8);
-            let al = tdx::tdvmcall_io_read_8(port as u16);
-            stack.scratch.rax = (stack.scratch.rax & 0xFFFF_FFFF_FFFF_FF00_usize) | al as usize;
-            stack.iret.rip += 2;
-            // log::info!("Fault done\n");
-            return;
+    let ve_info = tdx::tdcall_get_ve_info();
+    match ve_info.exit_reason {
+        EXIT_REASON_HLT => {
+            tdx::tdvmcall_halt();
         }
-        OP_CODE_IN_EAX_IMM8 => {
-            // log::info!("<IN EAX, IMM8> ")
-            let port: u8 = *((stack.iret.rip + 1) as *const u8);
-            let eax = tdx::tdvmcall_io_read_32(port as u16);
-            stack.scratch.rax = (stack.scratch.rax & 0xFFFF_FFFF_0000_0000_usize) | eax as usize;
-            stack.iret.rip += 2;
-            // log::info!("Fault done\n");
-            return;
+        EXIT_REASON_IO_INSTRUCTION => {
+            if !handle_tdx_ioexit(&ve_info, stack) {
+                log::error!("Invalid VE info for IO\n");
+                tdx::tdvmcall_halt();
+            }
         }
-        OP_CODE_IN_AL_DX => {
-            // log::info!("<IN AL, DX> ");
-            let al = tdx::tdvmcall_io_read_8((stack.scratch.rdx & 0xFFFF) as u16);
-            stack.scratch.rax = (stack.scratch.rax & 0xFFFF_FFFF_FFFF_FF00_usize) | al as usize;
-            stack.iret.rip += 1;
-            // log::info!("Fault done\n");
-            return;
-        }
-        OP_CODE_IN_EAX_DX => {
-            // log::info!("<IN EAX, DX> ");
-            let eax = tdx::tdvmcall_io_read_32((stack.scratch.rdx & 0xFFFF) as u16);
-            stack.scratch.rax = (stack.scratch.rax & 0xFFFF_FFFF_0000_0000_usize) | eax as usize;
-            stack.iret.rip += 1;
-            // log::info!("Fault done\n");
-            return;
-        }
-        // OUT
-        OP_CODE_OUT_IMM8_AL => {
-            // log::info!("<OUT IMM8, AL> ")
-            let port: u8 = *((stack.iret.rip + 1) as *const u8);
-            tdx::tdvmcall_io_write_8(port as u16, (stack.scratch.rax & 0xFF) as u8);
-            stack.iret.rip += 2;
-            // log::info!("Fault done\n");
-            return;
-        }
-        OP_CODE_OUT_IMM8_EAX => {
-            // log::info!("<OUT IMM8, EAX> ")
-            let port: u8 = *((stack.iret.rip + 1) as *const u8);
-            tdx::tdvmcall_io_write_32(port as u16, (stack.scratch.rax & 0xFFFF_FFFF) as u32);
-            stack.iret.rip += 2;
-            // log::info!("Fault done\n");
-            return;
-        }
-        OP_CODE_OUT_DX_AL => {
-            // log::info!("<OUT DX, AL> ");
-            tdx::tdvmcall_io_write_8(
-                (stack.scratch.rdx & 0xFFFF) as u16,
-                (stack.scratch.rax & 0xFF) as u8,
-            );
-            stack.iret.rip += 1;
-            // log::info!("Fault done\n");
-            return;
-        }
-        OP_CODE_OUT_DX_EAX => {
-            // log::info!("<OUT DX, EAX> ");
-            tdx::tdvmcall_io_write_32(
-                (stack.scratch.rdx & 0xFFFF) as u16,
-                (stack.scratch.rax & 0xFFFF_FFFF) as u32,
-            );
-            stack.iret.rip += 1;
-            // log::info!("Fault done\n");
-            return;
-        }
+        EXIT_REASON_VMCALL
+        | EXIT_REASON_MWAIT_INSTRUCTION
+        | EXIT_REASON_MONITOR_INSTRUCTION
+        | EXIT_REASON_WBINVD
+        | EXIT_REASON_RDPMC => return,
         // Unknown
-        _ => log::warn!("unknown opcode: {:#x} ", op_code),
+        // And currently CPUID and MMIO handler is not implemented
+        // Only VMCall is supported
+        _ => {
+            log::warn!("Unsupported #VE exit reason {:#x} ", ve_info.exit_reason);
+            log::info!("Virtualization fault\n");
+            stack.dump();
+            deadloop();
+        }
     };
-    log::info!("Virtualization fault\n");
-    stack.dump();
-    deadloop();
+    stack.iret.rip += ve_info.exit_instruction_length as usize;
 });
+
+// Handle IO exit from TDX Module
+//
+// Use TDVMCALL to realize IO read/write operation
+// Return false if VE info is invalid
+#[cfg(feature = "tdx")]
+fn handle_tdx_ioexit(ve_info: &tdx::TdVeInfoReturnData, stack: &mut InterruptNoErrorStack) -> bool {
+    let size = ((ve_info.exit_qualification & 0x7) + 1) as usize; // 0 - 1bytes, 1 - 2bytes, 3 - 4bytes
+    let read = (ve_info.exit_qualification >> 3) & 0x1 == 1;
+    let string = (ve_info.exit_qualification >> 4) & 0x1 == 1;
+    let _operand = (ve_info.exit_qualification >> 6) & 0x1 == 0; // 0 = DX, 1 = immediate
+    let port = (ve_info.exit_qualification >> 16) as u16;
+    let repeat = if (ve_info.exit_qualification >> 5) & 0x1 == 1 {
+        stack.scratch.rcx
+    } else {
+        0
+    };
+
+    // Size of access should be 1/2/4 bytes
+    if size != 1 && size != 2 && size != 4 {
+        return false;
+    }
+
+    // Define closure to perform IO port read with different size operands
+    let io_read = |size, port| match size {
+        1 => tdx::tdvmcall_io_read_8(port) as u32,
+        2 => tdx::tdvmcall_io_read_16(port) as u32,
+        4 => tdx::tdvmcall_io_read_32(port) as u32,
+        _ => 0,
+    };
+
+    // Define closure to perform IO port write with different size operands
+    let io_write = |size, port, data| match size {
+        1 => tdx::tdvmcall_io_write_8(port, data as u8),
+        2 => tdx::tdvmcall_io_write_16(port, data as u16),
+        4 => tdx::tdvmcall_io_write_32(port, data as u32),
+        _ => {}
+    };
+
+    // INS / OUTS
+    if string {
+        for _ in 0..repeat {
+            if read {
+                let val = io_read(size, port);
+                unsafe {
+                    let rsi =
+                        &mut *slice_from_raw_parts_mut(stack.scratch.rdi as *mut u8, size as usize);
+                    // Safety: size is smaller than 4
+                    rsi.copy_from_slice(&u32::to_le_bytes(val)[..size])
+                }
+                stack.scratch.rdi += size as usize;
+            } else {
+                let mut val = 0;
+                unsafe {
+                    let rsi =
+                        &mut *slice_from_raw_parts_mut(stack.scratch.rsi as *mut u8, size as usize);
+                    for (idx, byte) in rsi.iter().enumerate() {
+                        val |= (*byte as u32) << (idx * 8);
+                    }
+                }
+                io_write(size, port, val);
+                stack.scratch.rsi += size as usize;
+            }
+            stack.scratch.rcx -= 1;
+        }
+    } else {
+        if read {
+            // Write the IO read result to the low $size-bytes of rax
+            stack.scratch.rax = (stack.scratch.rax & !(2_usize.pow(size as u32 * 8) - 1))
+                | (io_read(size, port) as usize & (2_usize.pow(size as u32 * 8) - 1));
+        } else {
+            io_write(size, port, stack.scratch.rax as u32);
+        }
+    }
+
+    true
+}
 
 #[cfg(feature = "tdx")]
 fn deadloop() {
