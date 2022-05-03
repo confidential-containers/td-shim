@@ -489,19 +489,6 @@ fn handle_tdx_ioexit(ve_info: &tdx::TdVeInfoReturnData, stack: &mut InterruptNoE
     true
 }
 
-#[cfg(feature = "tdx")]
-fn deadloop() {
-    // TBD: empty `loop {}` wastes CPU cycles
-    #[allow(clippy::empty_loop)]
-    loop {
-        // TDX does not allow HLT instruction.
-        // TDVMCALL<HLT> may be used here. TBD later.
-        // x86_64::instructions::interrupts::enable();
-        // x86_64::instructions::hlt();
-    }
-}
-
-#[cfg(not(feature = "tdx"))]
 fn deadloop() {
     #[allow(clippy::empty_loop)]
     loop {
