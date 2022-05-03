@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
+use core::mem::size_of;
 use core::result::Result;
 use core::sync::atomic::{fence, Ordering};
 use lazy_static::lazy_static;
@@ -105,12 +106,13 @@ pub fn tdvmcall_halt() {
     unsafe { td_vm_call(TDVMCALL_HALT, 0, 0, 0, 0, core::ptr::null_mut()) };
 }
 
+// Perform single byte IO read via TDVMCALL Instruction.IO leaf function
 pub fn tdvmcall_io_read_8(port: u16) -> u8 {
     let mut val: u64 = 0;
     let ret = unsafe {
         td_vm_call(
             TDVMCALL_IO,
-            core::mem::size_of::<u8>() as u64,
+            size_of::<u8>() as u64,
             IO_READ,
             port as u64,
             0,
@@ -123,12 +125,32 @@ pub fn tdvmcall_io_read_8(port: u16) -> u8 {
     val as u8
 }
 
+// Perform 2-bytes IO read via TDVMCALL Instruction.IO leaf function
+pub fn tdvmcall_io_read_16(port: u16) -> u16 {
+    let mut val: u64 = 0;
+    let ret = unsafe {
+        td_vm_call(
+            TDVMCALL_IO,
+            size_of::<u16>() as u64,
+            IO_READ,
+            port as u64,
+            0,
+            &mut val as *mut u64 as *mut core::ffi::c_void,
+        )
+    };
+    if ret != TDVMCALL_STATUS_SUCCESS {
+        tdvmcall_halt();
+    }
+    val as u16
+}
+
+// Perform 4-bytes IO read via TDVMCALL Instruction.IO leaf function
 pub fn tdvmcall_io_read_32(port: u16) -> u32 {
     let mut val: u64 = 0;
     let ret = unsafe {
         td_vm_call(
             TDVMCALL_IO,
-            core::mem::size_of::<u32>() as u64,
+            size_of::<u8>() as u64,
             IO_READ,
             port as u64,
             0,
@@ -141,14 +163,15 @@ pub fn tdvmcall_io_read_32(port: u16) -> u32 {
     val as u32
 }
 
-pub fn tdvmcall_io_write_8(port: u16, byte: u8) {
+// Perform single byte IO write via TDVMCALL Instruction.IO leaf function
+pub fn tdvmcall_io_write_8(port: u16, data: u8) {
     let ret = unsafe {
         td_vm_call(
             TDVMCALL_IO,
-            core::mem::size_of::<u8>() as u64,
+            size_of::<u8>() as u64,
             IO_WRITE,
             port as u64,
-            byte as u64,
+            data as u64,
             core::ptr::null_mut(),
         )
     };
@@ -157,14 +180,15 @@ pub fn tdvmcall_io_write_8(port: u16, byte: u8) {
     }
 }
 
-pub fn tdvmcall_io_write_32(port: u16, byte: u32) {
+// Perform 2-bytes IO write via TDVMCALL Instruction.IO leaf function
+pub fn tdvmcall_io_write_16(port: u16, data: u16) {
     let ret = unsafe {
         td_vm_call(
             TDVMCALL_IO,
-            core::mem::size_of::<u32>() as u64,
+            size_of::<u16>() as u64,
             IO_WRITE,
             port as u64,
-            byte as u64,
+            data as u64,
             core::ptr::null_mut(),
         )
     };
@@ -173,6 +197,22 @@ pub fn tdvmcall_io_write_32(port: u16, byte: u32) {
     }
 }
 
+// Perform 4-bytes IO write via TDVMCALL Instruction.IO leaf function
+pub fn tdvmcall_io_write_32(port: u16, data: u32) {
+    let ret = unsafe {
+        td_vm_call(
+            TDVMCALL_IO,
+            size_of::<u32>() as u64,
+            IO_WRITE,
+            port as u64,
+            data as u64,
+            core::ptr::null_mut(),
+        )
+    };
+    if ret != TDVMCALL_STATUS_SUCCESS {
+        tdvmcall_halt();
+    }
+}
 pub fn tdvmcall_mmio_write<T: Sized>(address: *const T, value: T) {
     let address = address as u64 | *SHARED_MASK;
     fence(Ordering::SeqCst);
