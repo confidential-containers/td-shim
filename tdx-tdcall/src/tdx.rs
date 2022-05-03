@@ -30,8 +30,8 @@ const TDCALL_TDACCEPTPAGE: u64 = 6;
 // const TDVMCALL_CPUID: u64 = 0x0000a;
 const TDVMCALL_HALT: u64 = 0x0000c;
 const TDVMCALL_IO: u64 = 0x0001e;
-// const TDVMCALL_RDMSR: u64 = 0x0001f;
-// const TDVMCALL_WRMSR: u64 = 0x00020;
+const TDVMCALL_RDMSR: u64 = 0x0001f;
+const TDVMCALL_WRMSR: u64 = 0x00020;
 const TDVMCALL_MMIO: u64 = 0x00030;
 const TDVMCALL_MAPGPA: u64 = 0x10001;
 
@@ -272,6 +272,40 @@ pub fn tdvmcall_mapgpa(paddress: u64, length: usize) {
         paddr,
         length
     );
+}
+
+pub fn tdvmcall_rdmsr(index: u32) -> u64 {
+    let mut val = 0u64;
+    let ret = unsafe {
+        td_vm_call(
+            TDVMCALL_RDMSR,
+            index as u64,
+            0,
+            0,
+            0,
+            &mut val as *mut u64 as *mut core::ffi::c_void,
+        )
+    };
+    if ret != TDVMCALL_STATUS_SUCCESS {
+        tdvmcall_halt();
+    }
+    val
+}
+
+pub fn tdvmcall_wrmsr(index: u32, value: u64) {
+    let ret = unsafe {
+        td_vm_call(
+            TDVMCALL_WRMSR,
+            index as u64,
+            value,
+            0,
+            0,
+            core::ptr::null_mut(),
+        )
+    };
+    if ret != TDVMCALL_STATUS_SUCCESS {
+        tdvmcall_halt();
+    }
 }
 
 pub fn tdcall_get_td_info(td_info: &mut TdInfoReturnData) {
