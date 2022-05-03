@@ -358,6 +358,10 @@ const EXIT_REASON_HLT: u32 = 12;
 #[cfg(feature = "tdx")]
 const EXIT_REASON_IO_INSTRUCTION: u32 = 30;
 #[cfg(feature = "tdx")]
+const EXIT_REASON_MSR_READ: u32 = 31;
+#[cfg(feature = "tdx")]
+const EXIT_REASON_MSR_WRITE: u32 = 32;
+#[cfg(feature = "tdx")]
 const EXIT_REASON_VMCALL: u32 = 18;
 #[cfg(feature = "tdx")]
 const EXIT_REASON_MWAIT_INSTRUCTION: u32 = 36;
@@ -380,6 +384,15 @@ interrupt_no_error!(virtualization, stack, {
                 log::error!("Invalid VE info for IO\n");
                 tdx::tdvmcall_halt();
             }
+        }
+        EXIT_REASON_MSR_READ => {
+            let msr = tdx::tdvmcall_rdmsr(stack.scratch.rcx as u32);
+            stack.scratch.rax = (msr as u32 & u32::MAX) as usize; // EAX
+            stack.scratch.rdx = ((msr >> 32) as u32 & u32::MAX) as usize; // EDX
+        }
+        EXIT_REASON_MSR_WRITE => {
+            let data = stack.scratch.rax as u64 | ((stack.scratch.rdx as u64) << 32); // EDX:EAX
+            tdx::tdvmcall_wrmsr(stack.scratch.rcx as u32, data);
         }
         EXIT_REASON_VMCALL
         | EXIT_REASON_MWAIT_INSTRUCTION
