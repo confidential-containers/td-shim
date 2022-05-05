@@ -186,7 +186,7 @@ Rules for the TDVF_SECTION:
  * A TD-Shim may have zero or one TD_HOB section. The RawDataSize of TD_HOB must
    be zero. If TD-Shim reports zero TD_HOB section, then TD-Shim shall report
    all required memory in PermMem section.
- * A TD-Shim may have zero or one TempMem. The RawDataSize of TempMem must be
+ * A TD-Shim may have zero, one or multiple TempMem. The RawDataSize of TempMem must be
    zero.
  * A TD-Shim may have zero, one or multiple PermMem section. The RawDataSize of
    PermMem must be zero. If a TD provides PermMem section, that means the TD
@@ -203,13 +203,13 @@ Rules for the TDVF_SECTION:
 
 The metadata above may support below use cases as example.
 
-1. Normal TDVF: The metadata includes one BFV, one CFV, one TD_HOB and one
+1. Normal TDVF: The metadata includes one BFV, one CFV, one TD_HOB and multiple
    TempMem.
-2. TD-Shim with container OS: The metadata includes one BFV, one TD_HOB, one
+2. TD-Shim with container OS: The metadata includes one BFV, one TD_HOB, multiple
    TempMem and one OS kernel as Payload. The OS kernel is added so that the
    TD-Shim does not need load it from other storage.
 3. TD-Shim with Service TD core: The metadata includes one BFV, zero or one CFV,
-   one TempMem, one PermMem, and one Service TD Core as Payload. The TD_HOB is
+   multiple TempMem, one PermMem, and one Service TD Core as Payload. The TD_HOB is
    removed and the PermMem is added, so that the configuration is static, and
    all measurement registers are predictable at build time.
 
