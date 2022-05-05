@@ -73,6 +73,10 @@ Set env:
 ```
 set CC_x86_64_unknown_uefi=clang
 set AR_x86_64_unknown_uefi=llvm-ar
+
+For Elf format payload build:
+set CC_x86_64_unknown_none=clang
+set AR_x86_64_unknown_none=llvm-ar
 ```
 
 ### Secure boot support
