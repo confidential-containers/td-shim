@@ -4,7 +4,7 @@
 
 use scroll::Pwrite;
 
-use crate::elf64::ProgramHeader;
+use crate::elf64::{ProgramHeader, PT_LOAD, PT_PHDR};
 
 use core::ops::Range;
 
@@ -12,9 +12,6 @@ const SIZE_4KB: u64 = 0x00001000u64;
 
 /// Number of bytes in an identifier.
 pub const SIZEOF_IDENT: usize = 16;
-
-/// Loadable program segment
-pub const PT_LOAD: u32 = 1;
 
 pub const R_X86_64_RELATIVE: u32 = 8;
 
@@ -56,7 +53,7 @@ pub fn relocate_elf_with_per_program_header(
     top.checked_sub(bottom)?;
     // load per program header
     for ph in elf.program_headers() {
-        if ph.p_type == PT_LOAD && ph.p_memsz != 0 {
+        if (ph.p_type == PT_LOAD || ph.p_type == PT_PHDR) && ph.p_memsz != 0 {
             if ph.p_offset.checked_add(ph.p_filesz)? > image.len() as u64
                 || ph.p_vaddr.checked_add(ph.p_filesz)? > loaded_buffer.len() as u64
             {
