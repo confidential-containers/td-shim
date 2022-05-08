@@ -204,6 +204,8 @@ pub const RESOURCE_FIRMWARE_DEVICE: u32 = 0x03;
 pub const RESOURCE_MEMORY_MAPPED_IO_PORT: u32 = 0x04;
 pub const RESOURCE_MEMORY_RESERVED: u32 = 0x05;
 pub const RESOURCE_IO_RESERVED: u32 = 0x06;
+pub const RESOURCE_MEMORY_UNACCEPTED: u32 = 0x00000007;
+pub const RESOURCE_MAX_MEMORY_TYPE: u32 = 0x00000008;
 
 /// Resource Attribute, defined in [UEFI-PI Spec] section 5.5.
 pub type ResourceAttributeType = u32;
@@ -242,6 +244,12 @@ pub const RESOURCE_ATTRIBUTE_EXECUTION_PROTECTABLE: u32 = 0x00400000;
 
 pub const RESOURCE_ATTRIBUTE_PERSISTABLE: u32 = 0x01000000;
 pub const RESOURCE_ATTRIBUTE_READ_ONLY_PROTECTABLE: u32 = 0x00080000;
+
+// Physical memory encrypted attribute.
+pub const EFI_RESOURCE_ATTRIBUTE_ENCRYPTED: u32 = 0x04000000;
+
+// All the attributes above
+pub const RESOURCE_ATTRIBUTE_ALL: u32 = 0x07ffffff;
 
 /// Firmware Volume HOB, defined in [UEFI-PI Spec], section 5.7
 ///
