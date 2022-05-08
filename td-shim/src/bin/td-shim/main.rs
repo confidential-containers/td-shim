@@ -13,11 +13,6 @@ use alloc::vec::Vec;
 use core::ffi::c_void;
 use core::mem::size_of;
 use core::panic::PanicInfo;
-use td_uefi_pi::pi::hob::{
-    GuidExtension, ResourceDescription, HOB_TYPE_END_OF_HOB_LIST, HOB_TYPE_GUID_EXTENSION,
-    HOB_TYPE_HANDOFF, HOB_TYPE_RESOURCE_DESCRIPTOR, RESOURCE_MEMORY_RESERVED,
-    RESOURCE_SYSTEM_MEMORY,
-};
 
 use r_efi::efi;
 use scroll::{Pread, Pwrite};
@@ -36,6 +31,7 @@ use td_shim::{PayloadInfo, TdKernelInfoHobType, TD_ACPI_TABLE_HOB_GUID, TD_KERNE
 use td_uefi_pi::{fv, hob, pi};
 
 use crate::tcg::TdEventLog;
+use crate::td_hob::TdHobInfo;
 
 mod acpi;
 mod asm;
@@ -49,6 +45,7 @@ mod payload_hob;
 mod stack_guard;
 mod tcg;
 mod td;
+mod td_hob;
 
 #[cfg(feature = "cet-ss")]
 mod cet_ss;
@@ -73,61 +70,6 @@ fn panic(_info: &PanicInfo) -> ! {
 fn alloc_error(_info: core::alloc::Layout) -> ! {
     log::info!("alloc_error ... {:?}\n", _info);
     panic!("deadloop");
-}
-
-pub struct TdHobInfo<'a> {
-    pub memory: Vec<ResourceDescription>,
-    pub acpi_tables: Vec<&'a [u8]>,
-    pub payload_info: Option<PayloadInfo>,
-    pub payload_param: Option<&'a [u8]>,
-}
-
-impl<'a> TdHobInfo<'a> {
-    pub fn read_from_hob(raw: &'a [u8]) -> Option<Self> {
-        let mut offset = 0;
-        let mut payload_info = None;
-        let mut payload_param = None;
-        let mut acpi_tables: Vec<&[u8]> = Vec::new();
-        let mut memory: Vec<ResourceDescription> = Vec::new();
-
-        loop {
-            let hob = &raw[offset..];
-            let header: pi::hob::Header = hob.pread(0).ok()?;
-            match header.r#type {
-                HOB_TYPE_RESOURCE_DESCRIPTOR => {
-                    let resource_hob = hob.pread::<ResourceDescription>(0).ok()?;
-                    if resource_hob.resource_type == RESOURCE_SYSTEM_MEMORY
-                        || resource_hob.resource_type == RESOURCE_MEMORY_RESERVED
-                    {
-                        memory.push(resource_hob)
-                    }
-                }
-                HOB_TYPE_GUID_EXTENSION => {
-                    let guided_hob: GuidExtension = hob.pread(0).ok()?;
-                    let hob_data = hob::get_guid_data(hob)?;
-                    if &guided_hob.name == TD_KERNEL_INFO_HOB_GUID.as_bytes() {
-                        payload_info = Some(hob_data.pread::<PayloadInfo>(0).ok()?);
-                    } else if &guided_hob.name == TD_ACPI_TABLE_HOB_GUID.as_bytes() {
-                        acpi_tables.push(hob_data);
-                    }
-                }
-                HOB_TYPE_END_OF_HOB_LIST => {
-                    break;
-                }
-                HOB_TYPE_HANDOFF => {}
-                _ => {
-                    return None;
-                }
-            }
-            offset = hob::align_to_next_hob_offset(raw.len(), offset, header.length)?;
-        }
-        Some(Self {
-            payload_info,
-            payload_param,
-            acpi_tables,
-            memory,
-        })
-    }
 }
 
 /// Main entry point of the td-shim, and the bootstrap code should jump here.
@@ -162,9 +104,9 @@ pub extern "win64" fn _start(
     heap::init();
 
     // Get HOB list
-    let hob_list = memslice::get_mem_slice(memslice::SliceType::TdHob);
-    let hob_size = hob::get_hob_total_size(hob_list).expect("failed to get size of hob list");
-    let hob_list = &hob_list[0..hob_size];
+    let hob_list =
+        TdHobInfo::check_hob_integrity(memslice::get_mem_slice(memslice::SliceType::TdHob))
+            .expect("Integrity check failed: invalid HOB list");
     hob::dump_hob(hob_list);
     let mut td_hob_info =
         TdHobInfo::read_from_hob(hob_list).expect("Error occurs reading from VMM HOB");
