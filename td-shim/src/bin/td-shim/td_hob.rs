@@ -24,6 +24,7 @@ impl<'a> TdHobInfo<'a> {
         if hob_length > hob_list.len() {
             return None;
         }
+        speculation_barrier();
 
         loop {
             let hob = &hob_list[offset..];
@@ -33,6 +34,7 @@ impl<'a> TdHobInfo<'a> {
             if header.length == 0 || header.length as usize > hob.len() || header.reserved != 0 {
                 return None;
             }
+            speculation_barrier();
 
             match header.r#type {
                 HOB_TYPE_HANDOFF => {
@@ -102,6 +104,7 @@ impl<'a> TdHobInfo<'a> {
                 _ => return None,
             }
             offset = hob::align_to_next_hob_offset(hob_length, offset, header.length)?;
+            speculation_barrier();
         }
     }
 

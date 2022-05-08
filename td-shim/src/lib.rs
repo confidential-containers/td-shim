@@ -114,3 +114,9 @@ pub fn write_u24(data: u32, buf: &mut [u8]) {
     buf[1] = ((data >> 8) & 0xFF) as u8;
     buf[2] = ((data >> 16) & 0xFF) as u8;
 }
+
+// To protect against speculative attacks, place the LFENCE instruction after the range
+// check and branch, but before any code that consumes the checked value.
+pub fn speculation_barrier() {
+    unsafe { core::arch::asm!("lfence") }
+}

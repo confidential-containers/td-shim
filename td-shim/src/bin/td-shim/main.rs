@@ -27,7 +27,10 @@ use td_shim::event_log::{
     self, TdHandoffTable, TdHandoffTablePointers, EV_EFI_HANDOFF_TABLES2, EV_PLATFORM_CONFIG_FLAGS,
     TD_LOG_EFI_HANDOFF_TABLE_GUID,
 };
-use td_shim::{PayloadInfo, TdKernelInfoHobType, TD_ACPI_TABLE_HOB_GUID, TD_KERNEL_INFO_HOB_GUID};
+use td_shim::{
+    speculation_barrier, PayloadInfo, TdKernelInfoHobType, TD_ACPI_TABLE_HOB_GUID,
+    TD_KERNEL_INFO_HOB_GUID,
+};
 use td_uefi_pi::{fv, hob, pi};
 
 use crate::tcg::TdEventLog;
@@ -280,8 +283,18 @@ fn prepare_acpi_tables(
     let mut idx = 0;
     while idx < acpi_tables.len() {
         let table = acpi_tables[idx];
+        if table.len() < size_of::<GenericSdtHeader>() {
+            panic!("Invalid ACPI table HOB\n");
+        }
+        speculation_barrier();
+
         let header = GenericSdtHeader::read_from(&table[..size_of::<GenericSdtHeader>()])
             .expect("Faile to read table header from ACPI GUID HOB");
+        if table.len() < header.length as usize {
+            panic!("Invalid ACPI table length\n");
+        }
+        speculation_barrier();
+
         if &header.signature == b"APIC" {
             vmm_madt = Some(table);
             acpi_tables.remove(idx);
