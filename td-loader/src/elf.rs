@@ -89,6 +89,19 @@ pub fn relocate_elf_with_per_program_header(
     ))
 }
 
+pub fn parse_pre_init_array_section(image: &[u8]) -> Option<Range<usize>> {
+    // parser file and get the .preinit_array section, if any
+    let elf = crate::elf64::Elf::parse(image)?;
+
+    for sh in elf.section_headers() {
+        if sh.sh_type == crate::elf64::SHT_PREINIT_ARRAY {
+            sh.sh_addr.checked_add(sh.sh_size)?;
+            return Some(sh.vm_range());
+        }
+    }
+    None
+}
+
 pub fn parse_init_array_section(image: &[u8]) -> Option<Range<usize>> {
     // parser file and get the .init_array section, if any
     let elf = crate::elf64::Elf::parse(image)?;
