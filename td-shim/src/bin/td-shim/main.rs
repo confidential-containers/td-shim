@@ -250,7 +250,15 @@ fn boot_builtin_payload(
         entry as *const usize,
         stack_top as *const usize
     );
-    unsafe { switch_stack_call(entry, stack_top, mem.layout.runtime_hob_base as usize, 0) };
+
+    unsafe {
+        switch_stack_call(
+            entry,
+            stack_top,
+            mem.layout.runtime_hob_base as usize,
+            TD_PAYLOAD_BASE as usize,
+        )
+    };
 }
 
 // Install ACPI tables into ACPI reclaimable memory for the virtual machine
