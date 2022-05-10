@@ -463,7 +463,7 @@ to report system information.
    such as RESET_REG.
  * SRAT is required, only if the hypervisor configures Non-Uniform Memory Access
    (NUMA) platform.
- * Intel TDX defined TDEL table is required to support TDX based trusted boot.
+ * Intel TDX defined CCEL table is required to support TDX based trusted boot.
  * TCG defined TCG2 table is required, if the virtual TPM2 device is supported
    in the future.
  * PCI-SIG defined MCFG table is required, if the virtual PCI express is
@@ -678,16 +678,16 @@ only.
 
 #### TD Event Log
 
-The TD-Shim shall report the TD event log via 'TDEL' ACPI table defined in the
+The TD-Shim shall report the TD event log via 'CCEL' ACPI table defined in the
 [Guest Hypervisor communication interface](#ghci).
 
 
-**Table 3.5-2 TD Event Log Table**
+**Table 3.5-2 Confidential Computing (CC) Event Log Table**
 
 | Field              | Byte Length | Byte Offset | Description                                                               |
 |:-------------------|:------------|:------------|:--------------------------------------------------------------------------|
 | Header             |             |             |                                                                           |
-| --Signature        | 4           | 0           | 'TDEL' Signature.                                                         |
+| --Signature        | 4           | 0           | 'CCEL' Signature.                                                         |
 | --Length           | 4           | 4           | Length, in bytes, of the entire Table.                                    |
 | --Revision         | 1           | 8           | 1                                                                         |
 | --Checksum         | 1           | 9           | Entire table must sum to zero.                                            |
@@ -696,11 +696,13 @@ The TD-Shim shall report the TD event log via 'TDEL' ACPI table defined in the
 | --OEM Revision     | 4           | 24          | Standard ACPI header                                                      |
 | --Creator ID       | 4           | 28          | Standard ACPI header                                                      |
 | --Creator Revision | 4           | 32          | Standard ACPI header                                                      |
-| Reserved           | 4           | 36          | Reserved.  Must be 0.                                                     |
+| CC Type            | 1           | 36          | Confidential computing (CC) type.<br/>2: Intel TDX                        |
+| CC SubType         | 1           | 37          | Confidential computing (CC) type specific sub type.                       |
+| Reserved           | 2           | 38          | Reserved.  Must be 0.                                                     |
 | Log-Area-Minimum Length (LAML) | 8  | 40       | Identifies the minimum length (in bytes) of the system’s pre-boot-TD-event-log area |
 | Log-Area-Start Address (LASA)  | 8  | 48       | Contains the 64-bit-physical address of the start of the system's pre-boot-TD-event-log area in QWORD format.<br/>Note: The log area ranges from address LASA to LASA+(LAML-1). |
 
-Each TD event log entry uses below format:
+Each CC event log entry uses below format:
 
 ```
 #pragma pack(1)
@@ -708,13 +710,6 @@ Each TD event log entry uses below format:
 //
 // Crypto Agile Log Entry Format.
 // It is similar with TCG_PCR_EVENT2 except MrIndex.
-// MrIndex 0: MRTD
-//            Event log for MRTD is optional, because it is extended
-//            by Intel TDX module.
-// MrIndex 1: RTMR[0]
-// MrIndex 2: RTMR[1]
-// MrIndex 3: RTMR[2]
-// MrIndex 4: RTMR[3]
 //
 typedef struct {
   UINT32              MrIndex;
@@ -722,10 +717,20 @@ typedef struct {
   TPML_DIGEST_VALUES  Digests;
   UINT32              EventSize;
   UINT8               Event[1];
-} TD_EVENT;
+} CC_EVENT;
 
 #pragma pack()
 ```
+
+**Table 3.5-3 Measurement Registers Index For TDX**
+
+| MrIndex  | TDX Register | Map to PCR |
+|:---------|:-------------|:-----------|
+| 0        | MRTD         | 0          |
+| 1        | RTMR[0]      | 1, 7       |
+| 2        | RTMR[1]      | 2~6        |
+| 3        | RTMR[2]      | 8~15       |
+| 4        | RTMR[3]      | N/A        |
 
 #### MRTD Calculation
 
@@ -832,7 +837,7 @@ APs Resource = AP Page Table (Reserved) + AP Number * AP Stack (Reserved)
 * <a name="vfw"/>Intel, TDX Virtual Firmware Design Guide Version 1.01 -
   https://www.intel.com/content/dam/develop/external/us/en/documents/tdx-virtual-firmware-design-guide-rev-1.01.pdf
 * <a name="ghci"/>Intel, Guest Hypervisor Communication Interface Version 1.0 -
-  https://www.intel.com/content/dam/develop/external/us/en/documents/intel-tdx-guest-hypervisor-communication-interface-1.0-344426-002.pdf
+  https://cdrdv2.intel.com/v1/dl/getContent/726790
 * <a name="eas"/>Intel, Intel, TDX Module 1.0 EAS -
   https://www.intel.com/content/dam/develop/external/us/en/documents/tdx-module-1.0-public-spec-v0.931.pdf
 * Intel, TDX CPU Architecture Extensions Specification -
@@ -852,6 +857,7 @@ APs Resource = AP Page Table (Reserved) + AP Number * AP Stack (Reserved)
   https://uefi.org/sites/default/files/resources/UEFI_Spec_2_9_2021_03_18.pdf
 * <a name="pinit"/>UEFI org, UEFI Platform Initialization Specification Version 1.7 -
   https://uefi.org/sites/default/files/resources/PI_Spec_1_7_A_final_May1.pdf
+* TCG, Platform Firmware Profile Specification 1.05 - https://trustedcomputinggroup.org/resource/pc-client-specific-platform-firmware-profile-specification/
 * PCI-SIG, PCI Firmware Specification Revision 3.2 -
   https://pcisig.com/specifications
 * Multi-Processor Specification Version 1.4 -
