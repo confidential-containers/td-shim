@@ -424,11 +424,13 @@ The bootstrap processor state is below:
 
 If the payload does not follow Linux Boot Protocol, TD Shim shall follow X64
 calling convention to call the kernel entrypoint and pass a new payload HOB as
-the first parameter.
+the first parameter, and the memory address where the payload is loaded as the
+second parameter.
  * For PE/COFF image, MSVC X64 calling convention must be used. RCX must hold
-   the payload HOB address.
+   the payload HOB address, RDX must hold the address where payload is loaded.
  * For ELF image, System-V ABI AMD64 calling convention must be used. RDI must
-   hold the payload HOB address.
+   hold the payload HOB address, RSI must hold the address where payload is
+   loaded.
  * All rest are same as above.
 
 ### UEFI Interface
