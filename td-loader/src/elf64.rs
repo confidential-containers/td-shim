@@ -698,6 +698,11 @@ impl<'a> Iterator for Relocs<'a> {
         if self.index >= self.relacount {
             return None;
         }
+
+        if self.relaent == 0 {
+            return None;
+        }
+
         let offset = self.index * self.relaent;
         self.entries.len().checked_sub(offset)?;
         let current_bytes = &self.entries[offset..];
