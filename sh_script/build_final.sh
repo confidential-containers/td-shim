@@ -14,6 +14,8 @@ final_boot_kernel() {
     echo "Build final binary with boot-kernel support"
     cargo xbuild -p td-shim --target x86_64-unknown-uefi --release --features=main,tdx,boot-kernel
 
+    cargo run -p td-reproducible-tool -- -n td-shim --target x86_64-unknown-uefi
+
     cargo run -p td-shim-tools --features=td-shim/default,td-shim/tdx,boot-kernel --bin td-shim-ld -- \
         target/x86_64-unknown-uefi/release/ResetVector.bin \
         target/x86_64-unknown-uefi/release/td-shim.efi \
@@ -24,6 +26,10 @@ final_pe() {
     echo final-pe
     cargo xbuild -p td-shim --target x86_64-unknown-uefi --release --features=main,tdx --no-default-features
     cargo xbuild -p td-payload --target x86_64-unknown-uefi --release --features=main,tdx --no-default-features
+
+    cargo run -p td-reproducible-tool -- -n td-shim --target x86_64-unknown-uefi
+    cargo run -p td-reproducible-tool -- -n td-payload --target x86_64-unknown-uefi
+
     cargo run -p td-shim-tools --features="linker" --no-default-features --bin td-shim-ld -- \
         target/x86_64-unknown-uefi/release/ResetVector.bin \
         target/x86_64-unknown-uefi/release/td-shim.efi \
@@ -38,6 +44,10 @@ final_pe_test() {
     popd
 
     cargo xbuild -p td-shim --target x86_64-unknown-uefi --release --features=main,tdx --no-default-features
+
+    cargo run -p td-reproducible-tool -- -n td-shim --target x86_64-unknown-uefi
+    cargo run -p td-reproducible-tool -- -n test-td-payload --target x86_64-unknown-uefi
+
     cargo run -p td-shim-tools --features="linker" --no-default-features --bin td-shim-ld -- \
         target/x86_64-unknown-uefi/release/ResetVector.bin \
         target/x86_64-unknown-uefi/release/td-shim.efi \
@@ -57,6 +67,10 @@ final_elf() {
     echo final-elf
     cargo xbuild -p td-shim --target x86_64-unknown-uefi --release --features=main,tdx --no-default-features
     cargo xbuild -p td-payload --target devtools/rustc-targets/x86_64-unknown-none.json --release --features=main,tdx --no-default-features
+
+    cargo run -p td-reproducible-tool -- -n td-shim --target x86_64-unknown-uefi
+    cargo run -p td-reproducible-tool -- -n td-payload --target x86_64-unknown-none
+
     cargo run -p td-shim-tools --features="linker" --no-default-features --bin td-shim-ld -- \
         target/x86_64-unknown-uefi/release/ResetVector.bin \
         target/x86_64-unknown-uefi/release/td-shim.efi \
@@ -71,6 +85,10 @@ final_elf_test() {
     popd
 
     cargo xbuild -p td-shim --target x86_64-unknown-uefi --release --features=main,tdx --no-default-features
+
+    cargo run -p td-reproducible-tool -- -n td-shim --target x86_64-unknown-uefi
+    cargo run -p td-reproducible-tool -- -n test-td-payload --target x86_64-unknown-none
+
     cargo run -p td-shim-tools --features="linker" --no-default-features --bin td-shim-ld -- \
         target/x86_64-unknown-uefi/release/ResetVector.bin \
         target/x86_64-unknown-uefi/release/td-shim.efi \
@@ -90,7 +108,10 @@ final_pe_sb_test() {
     echo "Build final binaries with PE format td payload for secure boot test"
     cargo xbuild -p td-shim --target x86_64-unknown-uefi --release --features=main,tdx,secure-boot --no-default-features
     cargo xbuild -p td-payload --target x86_64-unknown-uefi --release --features=main,tdx --no-default-features
-    
+
+    cargo run -p td-reproducible-tool -- -n td-shim --target x86_64-unknown-uefi
+    cargo run -p td-reproducible-tool -- -n td-payload --target x86_64-unknown-uefi
+
     cargo run -p td-shim-tools --bin td-shim-sign-payload -- -A ECDSA_NIST_P384_SHA384 data/sample-keys/ecdsa-p384-private.pk8 target/x86_64-unknown-uefi/release/td-payload.efi 1 1
 
     echo "Build final binary with unsigned td payload"
@@ -131,6 +152,9 @@ final_elf_sb_test() {
     echo "Build final binaries with ELF format td payload for secure boot test"
     cargo xbuild -p td-shim --target x86_64-unknown-uefi --release --features=main,tdx,secure-boot --no-default-features
     cargo xbuild -p td-payload --target devtools/rustc-targets/x86_64-unknown-none.json --release --features=main,tdx --no-default-features
+
+    cargo run -p td-reproducible-tool -- -n td-shim --target x86_64-unknown-uefi
+    cargo run -p td-reproducible-tool -- -n td-payload --target x86_64-unknown-none
 
     cargo run -p td-shim-tools --bin td-shim-sign-payload -- -A ECDSA_NIST_P384_SHA384 data/sample-keys/ecdsa-p384-private.pk8 target/x86_64-unknown-none/release/td-payload 1 1 
 

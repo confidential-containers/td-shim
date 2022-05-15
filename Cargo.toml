@@ -14,6 +14,7 @@ members = [
     "td-shim",
     "td-shim-tools",
     "tdx-tdcall",
+    "td-reproducible-tool",
     "tests/test-td-exception",
     "tests/test-td-paging",
     "tests/test-td-payload",
@@ -27,3 +28,4 @@ panic = "abort" # disable stack unwinding on panic
 [profile.release]
 panic = "abort"    # disable stack unwinding on panic
 lto = true         # Link-time optimization
+strip = "symbols"  # remove debug related symbols/sections
