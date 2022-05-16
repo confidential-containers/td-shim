@@ -86,7 +86,7 @@
     "tcs009": {
         "name": "testve",     
         "result": "None",
-        "run": false
+        "run": true
     },
     "tcs010": {
         "name": "testacpi",
