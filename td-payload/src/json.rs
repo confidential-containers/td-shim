@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use alloc::string::String;
-use chrono::{serde::ts_seconds, DateTime, FixedOffset, TimeZone, Utc};
 use r_efi::efi::Guid;
 use serde::{Deserialize, Serialize};
 
@@ -33,10 +32,6 @@ struct SerdeJsonTest {
     test_u16: u16,
     test_string: String,
     test_array: [u32; 5],
-    //Default rfc3339 for chrono serde.
-    test_time: DateTime<FixedOffset>,
-    #[serde(with = "ts_seconds")]
-    test_time_stamp: DateTime<Utc>,
 }
 
 pub fn json_test() {
@@ -58,8 +53,6 @@ pub fn json_test() {
         test_u16: 256,
         test_string: String::from("A test"),
         test_array: [1, 2, 3, 4, 5],
-        test_time: DateTime::parse_from_rfc3339("1996-12-19T16:39:57-08:00").unwrap(),
-        test_time_stamp: Utc.ymd(2015, 5, 15).and_hms(10, 0, 0),
     };
 
     let config = r#"
