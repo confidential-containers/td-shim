@@ -14,6 +14,7 @@ use x86_64::{
 };
 
 use super::frame::{BMFrameAllocator, FRAME_ALLOCATOR};
+use crate::{Error, Result};
 use td_layout::runtime::TD_PAYLOAD_PAGE_TABLE_BASE;
 
 const ALIGN_4K_BITS: u64 = 12;
@@ -39,7 +40,8 @@ fn map_page<'a, S: PageSize>(
     va: VirtAddr,
     flags: Flags,
     allocator: &mut BMFrameAllocator,
-) where
+) -> Result<()>
+where
     OffsetPageTable<'a>: Mapper<S>,
 {
     let page: Page<S> = Page::containing_address(va);
@@ -55,14 +57,12 @@ fn map_page<'a, S: PageSize>(
             Ok(mapper) => mapper.flush(),
             Err(e) => match e {
                 MapToError::PageAlreadyMapped(_) => {}
-                _ => panic!(
-                    "failed to map address: {:x}, size: {:x}",
-                    pa.as_u64(),
-                    S::SIZE
-                ),
+                _ => return Err(Error::MappingError(pa.as_u64(), S::SIZE)),
             },
         }
     }
+
+    Ok(())
 }
 
 /// Create page table entries to map `[va, va + sz)` to `[pa, ps + sz)` with page size `ps` and
@@ -79,7 +79,7 @@ pub fn create_mapping_with_flags(
     ps: u64,
     mut sz: u64,
     flags: Flags,
-) {
+) -> Result<()> {
     let allocator: &mut BMFrameAllocator = &mut FRAME_ALLOCATOR.lock();
 
     if pa.as_u64().checked_add(sz).is_none()
@@ -90,7 +90,7 @@ pub fn create_mapping_with_flags(
         || ps.count_ones() != 1
         || ps < ALIGN_4K as u64
     {
-        panic!("invalid argument to create_mapping_with_flags()");
+        return Err(Error::InvalidArguments);
     }
 
     while sz > 0 {
@@ -99,13 +99,13 @@ pub fn create_mapping_with_flags(
             min(pa.as_u64().trailing_zeros(), va.as_u64().trailing_zeros()),
         ) as u64;
         let mapped_size = if addr_align >= ALIGN_1G_BITS && sz >= ALIGN_1G {
-            map_page::<Size1GiB>(pt, pa, va, flags, allocator);
+            map_page::<Size1GiB>(pt, pa, va, flags, allocator)?;
             Size1GiB::SIZE
         } else if addr_align >= ALIGN_2M_BITS && sz >= ALIGN_2M {
-            map_page::<Size2MiB>(pt, pa, va, flags, allocator);
+            map_page::<Size2MiB>(pt, pa, va, flags, allocator)?;
             Size2MiB::SIZE
         } else {
-            map_page::<Size4KiB>(pt, pa, va, flags, allocator);
+            map_page::<Size4KiB>(pt, pa, va, flags, allocator)?;
             Size4KiB::SIZE
         };
 
@@ -113,13 +113,21 @@ pub fn create_mapping_with_flags(
         pa += mapped_size;
         va += mapped_size;
     }
+
+    Ok(())
 }
 
 /// Create page table entries to map `[va, va + sz)` to `[pa, ps + sz)` with page size `ps` and
 /// mark pages as `PRESENT | WRITABLE`.
 ///
 /// Note: the caller must ensure `pa + sz` and `va + sz` doesn't wrap around.
-pub fn create_mapping(pt: &mut OffsetPageTable, pa: PhysAddr, va: VirtAddr, ps: u64, sz: u64) {
+pub fn create_mapping(
+    pt: &mut OffsetPageTable,
+    pa: PhysAddr,
+    va: VirtAddr,
+    ps: u64,
+    sz: u64,
+) -> Result<()> {
     let flags = Flags::PRESENT | Flags::WRITABLE;
 
     create_mapping_with_flags(pt, pa, va, ps, sz, flags)
@@ -164,6 +172,8 @@ mod tests {
     use crate::{frame, init, PAGE_SIZE_4K, PHYS_VIRT_OFFSET};
     use x86_64::structures::paging::PageTable;
 
+    const PAGE_TABLE_SIZE: usize = 0x800000;
+
     fn create_pt(base: u64, offset: u64) -> OffsetPageTable<'static> {
         let pt = unsafe {
             OffsetPageTable::new(&mut *(base as *mut PageTable), VirtAddr::new(offset as u64))
@@ -176,28 +186,30 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_invalid_pa_sz() {
-        init();
+        init(TD_PAYLOAD_PAGE_TABLE_BASE, PAGE_TABLE_SIZE).unwrap();
         let mut pt = create_pt(TD_PAYLOAD_PAGE_TABLE_BASE, PHYS_VIRT_OFFSET as u64);
-        create_mapping(
+        assert!(create_mapping(
             &mut pt,
             PhysAddr::new(0x1000000),
             VirtAddr::new(0),
             PAGE_SIZE_4K as u64,
             u64::MAX,
-        );
+        )
+        .is_ok())
     }
 
     #[test]
     #[should_panic]
     fn test_invalid_va_sz() {
-        init();
+        init(TD_PAYLOAD_PAGE_TABLE_BASE, PAGE_TABLE_SIZE).unwrap();
         let mut pt = create_pt(TD_PAYLOAD_PAGE_TABLE_BASE, PHYS_VIRT_OFFSET as u64);
-        create_mapping(
+        assert!(create_mapping(
             &mut pt,
             PhysAddr::new(0x0),
             VirtAddr::new(0x1000000),
             PAGE_SIZE_4K as u64,
             u64::MAX,
-        );
+        )
+        .is_ok());
     }
 }

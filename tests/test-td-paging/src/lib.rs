@@ -51,12 +51,10 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 #[cfg(test)]
 mod tests {
     use td_layout::runtime;
-    use td_paging::{
-        create_mapping, reserve_page, PAGE_SIZE_DEFAULT, PAGE_TABLE_SIZE, PHYS_VIRT_OFFSET,
-    };
+    use td_paging::{reserve_page, PHYS_VIRT_OFFSET};
     use x86_64::{
         structures::paging::{OffsetPageTable, PageTable},
-        PhysAddr, VirtAddr,
+        VirtAddr,
     };
 
     /// Build page table to map guest physical addres range [0, system_memory_size), the top page table
@@ -71,8 +69,10 @@ mod tests {
 
         if page_table_memory_base > system_memory_size
             || page_table_memory_base < runtime::TD_PAYLOAD_PAGE_TABLE_BASE
-            || page_table_memory_base > runtime::TD_PAYLOAD_PAGE_TABLE_BASE + PAGE_TABLE_SIZE as u64
-            || runtime::TD_PAYLOAD_PAGE_TABLE_BASE + PAGE_TABLE_SIZE as u64 > system_memory_size
+            || page_table_memory_base
+                > runtime::TD_PAYLOAD_PAGE_TABLE_BASE + runtime::TD_PAYLOAD_PAGE_TABLE_SIZE as u64
+            || runtime::TD_PAYLOAD_PAGE_TABLE_BASE + runtime::TD_PAYLOAD_PAGE_TABLE_SIZE as u64
+                > system_memory_size
         {
             panic!(
                 "invalid parameters (0x{:x}, 0x{:x} to setup_paging()",
@@ -98,10 +98,13 @@ mod tests {
 
     #[test_case]
     fn test_create_paging() {
-        td_paging::init();
+        td_paging::init(
+            runtime::TD_PAYLOAD_PAGE_TABLE_BASE,
+            runtime::TD_PAYLOAD_PAGE_TABLE_SIZE,
+        );
         setup_paging(
             runtime::TD_PAYLOAD_PAGE_TABLE_BASE + 0x1000,
-            runtime::TD_PAYLOAD_PAGE_TABLE_BASE + PAGE_TABLE_SIZE as u64,
+            runtime::TD_PAYLOAD_PAGE_TABLE_BASE + runtime::TD_PAYLOAD_PAGE_TABLE_SIZE as u64,
         );
 
         // TODO: add test cases for create_mapping_with_flags(), set_page_flags()

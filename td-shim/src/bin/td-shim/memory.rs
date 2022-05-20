@@ -5,7 +5,8 @@
 use alloc::vec::Vec;
 use td_layout::build_time::{TD_SHIM_FIRMWARE_BASE, TD_SHIM_FIRMWARE_SIZE};
 use td_layout::runtime::{
-    self, TD_PAYLOAD_BASE, TD_PAYLOAD_EVENT_LOG_SIZE, TD_PAYLOAD_PAGE_TABLE_BASE, TD_PAYLOAD_SIZE,
+    self, TD_PAYLOAD_BASE, TD_PAYLOAD_EVENT_LOG_SIZE, TD_PAYLOAD_PAGE_TABLE_BASE,
+    TD_PAYLOAD_PAGE_TABLE_SIZE, TD_PAYLOAD_SIZE,
 };
 use td_layout::{RuntimeMemoryLayout, MIN_MEMORY_SIZE};
 use td_shim::e820::E820Type;
@@ -87,7 +88,7 @@ impl<'a> Memory<'a> {
 
     pub fn setup_paging(&mut self) {
         // Init frame allocator
-        td_paging::init();
+        td_paging::init(TD_PAYLOAD_PAGE_TABLE_BASE, TD_PAYLOAD_PAGE_TABLE_SIZE);
         // Create mapping for firmware image space
         td_paging::create_mapping(
             &mut self.pt,
@@ -214,4 +215,19 @@ pub fn cpu_get_memory_space_size() -> u8 {
     );
 
     size_of_mem_space
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use td_layout::runtime;
+
+    #[test]
+    fn test_constants() {
+        // Ensure the runtime layout has reserved enough space for page table pages.
+        assert!(
+            PAGE_TABLE_SIZE as u64
+                <= runtime::TD_PAYLOAD_PARAM_BASE - runtime::TD_PAYLOAD_PAGE_TABLE_BASE
+        );
+    }
 }
