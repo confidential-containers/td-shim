@@ -8,8 +8,7 @@
 
 pub mod asm;
 pub mod idt;
-
-pub(crate) mod interrupt;
+pub mod interrupt;
 
 /// Initialize exception/interrupt handlers.
 pub fn setup_exception_handlers() {
