@@ -14,6 +14,7 @@ use core::slice::from_raw_parts_mut;
 
 use bitflags::bitflags;
 use lazy_static::lazy_static;
+use spin::Mutex;
 
 use crate::interrupt;
 
@@ -26,7 +27,7 @@ extern "win64" {
 }
 
 lazy_static! {
-    static ref INIT_IDT: Idt = Idt::new();
+    static ref INIT_IDT: Mutex<Idt> = Mutex::new(Idt::new());
 }
 
 #[repr(C, packed)]
@@ -38,15 +39,17 @@ pub struct DescriptorTablePointer {
 #[no_mangle]
 /// # Safety
 ///
-/// This function is unsafe because of the lidt_call()
+/// This function is unsafe because of the load_idtr()
 pub unsafe fn init() {
-    let mut idtr = DescriptorTablePointer { limit: 1, base: 0 };
-    let current_idt = &INIT_IDT.entries;
+    load_idtr(&INIT_IDT.lock().idtr());
+}
 
-    idtr.limit = (current_idt.len() * mem::size_of::<IdtEntry>() - 1) as u16;
-    idtr.base = current_idt.as_ptr() as u64;
-
-    lidt_call(&idtr as *const DescriptorTablePointer as usize);
+/// # Safety
+///
+/// This function is unsafe because of the load_idtr()
+pub unsafe fn register_handler(index: u8, func: unsafe extern "C" fn()) {
+    INIT_IDT.lock().register_handler(index, func);
+    load_idtr(&INIT_IDT.lock().idtr());
 }
 
 pub type IdtEntries = [IdtEntry; IDT_ENTRY_COUNT];
@@ -111,6 +114,23 @@ impl Idt {
         for i in 32..IDT_ENTRY_COUNT {
             current_idt[i].set_func(interrupt::default_interrupt);
         }
+    }
+
+    // Construct the Interrupt Descriptor Table Pointer (IDTR) based
+    // on the base address and size of entries.
+    pub fn idtr(&self) -> DescriptorTablePointer {
+        let mut desc = DescriptorTablePointer { limit: 1, base: 0 };
+
+        desc.limit = (self.entries.len() * mem::size_of::<IdtEntry>() - 1) as u16;
+        desc.base = self.entries.as_ptr() as u64;
+
+        desc
+    }
+
+    // Register function pointer into the #index slot of IDT
+    pub fn register_handler(&mut self, index: u8, func: unsafe extern "C" fn()) {
+        let current_idt = &mut self.entries;
+        current_idt[index as usize].set_func(func);
     }
 }
 
