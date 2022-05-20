@@ -192,7 +192,7 @@ pub fn build_payload_hob(acpi_tables: &Vec<&[u8]>, memory: &Memory) -> Option<Pa
     e820.convert_range(
         E820Type::Reserved,
         TD_PAYLOAD_PAGE_TABLE_BASE,
-        td_paging::PAGE_TABLE_SIZE as u64,
+        TD_PAYLOAD_PAGE_TABLE_SIZE as u64,
     );
     e820.convert_range(E820Type::Reserved, TD_PAYLOAD_BASE, TD_PAYLOAD_SIZE as u64);
     e820.convert_range(

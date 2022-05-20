@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
+use alloc::vec;
+use alloc::vec::Vec;
 use core::ops::Range;
 use log::{info, trace};
 use spin::Mutex;
@@ -11,22 +13,23 @@ use x86_64::{
     PhysAddr,
 };
 
-use super::consts::{PAGE_SIZE, PAGE_TABLE_SIZE};
-use td_layout::runtime::TD_PAYLOAD_PAGE_TABLE_BASE;
-
-const NUM_PAGE_TABLE_PAGES: usize = PAGE_TABLE_SIZE / PAGE_SIZE;
-const BITMAP_ALLOCATOR_ARRAY_SIZE: usize = (NUM_PAGE_TABLE_PAGES + 127) / 128;
+use super::consts::PAGE_SIZE;
 
 /// Global page table page allocator.
 pub static FRAME_ALLOCATOR: Mutex<BMFrameAllocator> = Mutex::new(BMFrameAllocator::empty());
 
-#[derive(Default)]
 struct FrameAlloc {
     //  A bit of `1` means available.
-    bitmap: [u128; BITMAP_ALLOCATOR_ARRAY_SIZE],
+    bitmap: Vec<u128>,
 }
 
 impl FrameAlloc {
+    fn new(num_frames: usize) -> Self {
+        Self {
+            bitmap: vec![0u128; (num_frames + 127) / 128],
+        }
+    }
+
     fn alloc(&mut self) -> Option<usize> {
         for (idx, map) in self.bitmap.iter_mut().enumerate() {
             let pos = map.trailing_zeros();
@@ -41,7 +44,7 @@ impl FrameAlloc {
 
     fn free(&mut self, range: Range<usize>) {
         for idx in range {
-            if idx >= NUM_PAGE_TABLE_PAGES {
+            if idx >= self.bitmap.len() * 128 {
                 panic!("invalid page frame index {} for FrameAlloc::free()!", idx);
             }
             if self.bitmap[idx / 128] & (1 << (idx % 128)) != 0 {
@@ -55,7 +58,7 @@ impl FrameAlloc {
     }
 
     fn reserve(&mut self, idx: usize) {
-        if idx >= NUM_PAGE_TABLE_PAGES {
+        if idx >= self.bitmap.len() * 128 {
             panic!("invalid page frame index {} for FrameAlloc::free()!", idx);
         }
         if self.bitmap[idx / 128] & (1 << (idx % 128)) == 0 {
@@ -68,7 +71,6 @@ impl FrameAlloc {
     }
 }
 
-#[derive(Default)]
 pub struct BMFrameAllocator {
     base: usize,
     size: usize,
@@ -81,9 +83,7 @@ impl BMFrameAllocator {
         Self {
             base: 0,
             size: 0,
-            inner: FrameAlloc {
-                bitmap: [0; BITMAP_ALLOCATOR_ARRAY_SIZE],
-            },
+            inner: FrameAlloc { bitmap: Vec::new() },
         }
     }
 
@@ -92,8 +92,8 @@ impl BMFrameAllocator {
     // - size is page aligned
     // - base + size doesn't wrap around
     fn new(base: usize, size: usize) -> Self {
-        let mut inner = FrameAlloc::default();
         let page_count = size / PAGE_SIZE;
+        let mut inner = FrameAlloc::new(page_count);
 
         inner.free(0..page_count);
 
@@ -128,16 +128,16 @@ unsafe impl FrameAllocator<Size4KiB> for BMFrameAllocator {
 }
 
 /// Initialize the physical frame allocator.
-pub(super) fn init() {
+pub(super) fn init(base: u64, size: usize) {
     let mut allocator = FRAME_ALLOCATOR.lock();
     if allocator.base == 0 && allocator.size == 0 {
-        *allocator = BMFrameAllocator::new(TD_PAYLOAD_PAGE_TABLE_BASE as usize, PAGE_TABLE_SIZE);
+        *allocator = BMFrameAllocator::new(base as usize, size);
         // The first frame should've already been allocated to level 4 PT
         // Safe since the PAGE_TABLE_SIZE can be ensured
         allocator.alloc().unwrap();
         info!(
             "Frame allocator init done: {:#x?}\n",
-            TD_PAYLOAD_PAGE_TABLE_BASE..TD_PAYLOAD_PAGE_TABLE_BASE + PAGE_TABLE_SIZE as u64
+            base..base + size as u64
         );
     }
 }
@@ -146,15 +146,13 @@ pub(super) fn init() {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_configuration() {
-        // At least 4-levels of page table pages.
-        assert!(NUM_PAGE_TABLE_PAGES > 4);
-    }
+    const PAGE_TABLE_BASE: u64 = 0x800000;
+    const PAGE_TABLE_SIZE: usize = 0x800000;
+    const NUM_PAGE_TABLE_FRAME: usize = PAGE_TABLE_SIZE / PAGE_SIZE;
 
     #[test]
     fn test_frame_alloc() {
-        let mut allocator = FrameAlloc::default();
+        let mut allocator = FrameAlloc::new(NUM_PAGE_TABLE_FRAME);
 
         assert_eq!(allocator.bitmap[0] & 0x1, 0);
         assert_eq!(allocator.bitmap[0] & 0x2, 0);
@@ -189,15 +187,15 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_frame_free_invalid_index() {
-        let mut allocator = FrameAlloc::default();
+        let mut allocator = FrameAlloc::new(NUM_PAGE_TABLE_FRAME);
 
-        allocator.free(0..NUM_PAGE_TABLE_PAGES + 1);
+        allocator.free(0..NUM_PAGE_TABLE_FRAME + 1);
     }
 
     #[test]
     #[should_panic]
     fn test_frame_free_invalid_state() {
-        let mut allocator = FrameAlloc::default();
+        let mut allocator = FrameAlloc::new(NUM_PAGE_TABLE_FRAME);
 
         allocator.free(0..3);
         allocator.free(0..3);
@@ -206,15 +204,15 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_frame_reserve_invalid_index() {
-        let mut allocator = FrameAlloc::default();
+        let mut allocator = FrameAlloc::new(NUM_PAGE_TABLE_FRAME);
 
-        allocator.reserve(NUM_PAGE_TABLE_PAGES);
+        allocator.reserve(NUM_PAGE_TABLE_FRAME);
     }
 
     #[test]
     #[should_panic]
     fn test_frame_reserve_invalid_state() {
-        let mut allocator = FrameAlloc::default();
+        let mut allocator = FrameAlloc::new(NUM_PAGE_TABLE_FRAME);
 
         allocator.free(0..3);
         allocator.reserve(1);
@@ -230,15 +228,15 @@ mod tests {
 
     #[test]
     fn test_bm_allocator() {
-        init();
+        init(PAGE_TABLE_BASE, PAGE_TABLE_SIZE);
         let mut allocator = FRAME_ALLOCATOR.lock();
 
         // First page has been allocated by init(), try second page
-        allocator.reserve(TD_PAYLOAD_PAGE_TABLE_BASE + PAGE_SIZE as u64);
-        allocator.reserve(TD_PAYLOAD_PAGE_TABLE_BASE + PAGE_TABLE_SIZE as u64 - 1);
+        allocator.reserve(PAGE_TABLE_BASE + PAGE_SIZE as u64);
+        allocator.reserve(PAGE_TABLE_BASE + PAGE_TABLE_SIZE as u64 - 1);
         assert_eq!(
             allocator.allocate_frame().unwrap().start_address().as_u64(),
-            TD_PAYLOAD_PAGE_TABLE_BASE + 2 * PAGE_SIZE as u64
+            PAGE_TABLE_BASE + 2 * PAGE_SIZE as u64
         );
     }
 }
