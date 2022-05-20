@@ -102,7 +102,7 @@ macro_rules! RUNTIME_TEMPLATE {
                     +--------------+ <-  0x00100000 (1M)
                     |   ........   |
                     +--------------+ <-  {pt_base:#010X}
-                    |  Page Table  |
+                    |  Page Table  | <-  {pt_size:#010x}
                     +--------------+ <-  {td_hob_base:#010X}
                     |    TD HOB    |
                     +--------------+ <-  {payload_param_base:#010X}
@@ -134,6 +134,7 @@ pub const TD_PAYLOAD_SHADOW_STACK_SIZE: u32 = {shadow_stack_size:#X};
 pub const TD_PAYLOAD_STACK_SIZE: u32 = {stack_size:#X};
 
 pub const TD_PAYLOAD_PAGE_TABLE_BASE: u64 = {pt_base:#X};
+pub const TD_PAYLOAD_PAGE_TABLE_SIZE: usize = {pt_size:#X};
 pub const TD_HOB_BASE: u64 = {td_hob_base:#X};
 pub const TD_HOB_SIZE: u64 = {td_hob_size:#X};
 pub const TD_PAYLOAD_PARAM_BASE: u64 = {payload_param_base:#X};
@@ -252,6 +253,7 @@ impl TdLayout {
             &mut to_generate,
             RUNTIME_TEMPLATE!(),
             pt_base = self.runtime.pt_base,
+            pt_size = self.runtime.pt_size,
             td_hob_base = self.runtime.td_hob_base,
             td_hob_size = self.runtime.td_hob_size,
             payload_base = self.runtime.payload_base,
@@ -388,6 +390,7 @@ impl TdLayoutImageLoaded {
 #[derive(Debug, Default, PartialEq)]
 struct TdLayoutRuntime {
     pt_base: u32,
+    pt_size: u32,
     td_hob_base: u32,
     td_hob_size: u32,
     payload_base: u32,
@@ -423,6 +426,7 @@ impl TdLayoutRuntime {
 
         TdLayoutRuntime {
             pt_base: config.runtime_layout.page_table_base,
+            pt_size: config.runtime_layout.page_table_size,
             td_hob_base,
             td_hob_size: config.runtime_layout.td_hob_size,
             payload_param_base: config.runtime_layout.payload_param_base,
