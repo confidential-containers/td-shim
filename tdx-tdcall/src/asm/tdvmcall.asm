@@ -1,33 +1,34 @@
-# Copyright (c) 2020 Intel Corporation
+# Copyright (c) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: BSD-2-Clause-Patent
 
 .section .text
 
-.equ USE_TDX_EMULATION, 0
-.equ TDVMCALL_EXPOSE_REGS_MASK,       0xffec
-.equ TDVMCALL,                        0x0
-.equ EXIT_REASON_CPUID,               0xa
+# Mask used to control which part of the guest TD GPR and XMM
+# state is exposed to the VMM. A bit value of 1 indicates the
+# corresponding register is passed to VMM. Refer to TDX Module
+# ABI specification section TDG.VP.VMCALL for detail.
+# Here we expose R10 - R15 to VMM in td_vm_call()
+.equ TDVMCALL_EXPOSE_REGS_MASK, 0xffec
 
-.equ number_of_regs_pushed, 8
-.equ number_of_parameters,  4
+# TDG.VP.VMCALL leaf number
+.equ TDVMCALL, 0
 
-.equ first_variable_on_stack_offset,   (number_of_regs_pushed * 8) + (number_of_parameters * 8) + 8
-.equ second_variable_on_stack_offset,  first_variable_on_stack_offset + 8
+# Arguments offsets in TdVmcallArgs struct
+.equ VMCALL_ARG_R10, 0x0
+.equ VMCALL_ARG_R11, 0x8
+.equ VMCALL_ARG_R12, 0x10
+.equ VMCALL_ARG_R13, 0x18
+.equ VMCALL_ARG_R14, 0x20
+.equ VMCALL_ARG_R15, 0x28
 
-#  UINT64
-#  TdVmCall (
-#    UINT64  Leaf,
-#    UINT64  P1,
-#    UINT64  P2,
-#    UINT64  P3,
-#    UINT64  P4,
-#    UINT64  *Val
-#    )
-.global td_vm_call
-td_vm_call:
-        # tdcall_push_regs
+# asm_td_vmcall -> u64 (
+#   args: *mut TdVmcallArgs,
+# )
+.global asm_td_vmcall
+asm_td_vmcall:
+        # Save the registers accroding to MS x64 calling convention
         push rbp
-        mov  rbp, rsp
+        mov rbp, rsp
         push r15
         push r14
         push r13
@@ -36,71 +37,52 @@ td_vm_call:
         push rsi
         push rdi
 
-        mov  r11, rcx
-        mov  r12, rdx
-        mov  r13, r8
-        mov  r14, r9
-        mov  r15, [rsp+first_variable_on_stack_offset]
+        # Use RDI to save RCX value
+        mov rdi, rcx
 
-       #tdcall_regs_preamble TDVMCALL, TDVMCALL_EXPOSE_REGS_MASK
+        # Test if input pointer is valid
+        test rdi, rdi
+        jz vmcall_exit
+
+        # Copy the input operands from memory to registers
+        mov r10, [rdi + VMCALL_ARG_R10]
+        mov r11, [rdi + VMCALL_ARG_R11]
+        mov r12, [rdi + VMCALL_ARG_R12]
+        mov r13, [rdi + VMCALL_ARG_R13]
+        mov r14, [rdi + VMCALL_ARG_R14]
+        mov r15, [rdi + VMCALL_ARG_R15]
+
+        # Set TDCALL leaf number
         mov rax, TDVMCALL
 
+        # Set exposed register mask
         mov ecx, TDVMCALL_EXPOSE_REGS_MASK
 
-        # R10 = 0 (standard TDVMCALL)
-
-        xor r10d, r10d
-
-        # Zero out unused (for standard TDVMCALL) registers to avoid leaking
-        # secrets to the VMM.
-
-        xor ebx, ebx
-        xor esi, esi
-        xor edi, edi
-
-        xor edx, edx
-        xor ebp, ebp
-        xor r8d, r8d
-        xor r9d, r9d
-
-       # tdcall
-       .if USE_TDX_EMULATION != 0
-       vmcall
-       .else
+        # TDCALL
        .byte 0x66,0x0f,0x01,0xcc
-       .endif
 
-       # ignore return dataif TDCALL reports failure.
-       test rax, rax
-       jnz no_return_data
+        # RAX should always be zero for TDVMCALL, panic if it is not.
+        test rax, rax
+        jnz vmcall_panic
 
-       # Propagate TDVMCALL success/failure to return value.
-       mov rax, r10
+        # Copy the output operands from registers to the struct
+        mov [rdi + VMCALL_ARG_R10], r10
+        mov [rdi + VMCALL_ARG_R11], r11
+        mov [rdi + VMCALL_ARG_R12], r12
+        mov [rdi + VMCALL_ARG_R13], r13
+        mov [rdi + VMCALL_ARG_R14], r14
+        mov [rdi + VMCALL_ARG_R15], r15
 
-       # Retrieve the Val pointer.
-       mov r9, [rsp+second_variable_on_stack_offset]
-       test r9, r9
-       jz no_return_data
+        mov rax, r10
 
-       # On success, propagate TDVMCALL output value to output param
-       test rax, rax
-       jnz no_return_data
-       mov [r9], r11
+vmcall_exit:
+        # Clean the registers that are exposed to VMM to
+        # protect against speculative attack, others will
+        # be restored to the values saved in stack
+        xor r10, r10
+        xor r11, r11
 
-no_return_data:
-        #tdcall_regs_postamble
-        xor ebx, ebx
-        xor esi, esi
-        xor edi, edi
-
-        xor ecx, ecx
-        xor edx, edx
-        xor r8d, r8d
-        xor r9d, r9d
-        xor r10d, r10d
-        xor r11d, r11d
-
-        # tdcall_pop_regs
+        # Pop out saved registers from stack
         pop rdi
         pop rsi
         pop rbx
@@ -110,4 +92,7 @@ no_return_data:
         pop r15
         pop rbp
 
-       ret
+        ret
+
+vmcall_panic:
+        ud2

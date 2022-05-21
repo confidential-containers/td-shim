@@ -47,14 +47,7 @@ impl TestCase for Tdinfo {
      * run the test case
      */
     fn run(&mut self) {
-        let mut td_info = tdx::TdInfoReturnData {
-            gpaw: 0,
-            attributes: 0,
-            max_vcpus: 0,
-            num_vcpus: 0,
-            rsvd: [0; 3],
-        };
-        tdx::tdcall_get_td_info(&mut td_info);
+        let mut td_info = tdx::tdcall_get_td_info().expect("Failt to get td info");
 
         if (self.expected.gpaw != td_info.gpaw) {
             log::info!(

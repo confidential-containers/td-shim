@@ -116,8 +116,11 @@ mod payload_impl {
 
         #[cfg(feature = "tdx")]
         {
+            use tdx_tdcall::tdreport::TD_REPORT_ADDITIONAL_DATA_SIZE;
             //Dump TD Report
-            tdx_tdcall::tdreport::tdreport_dump();
+            let tdx_report =
+                tdx_tdcall::tdreport::tdcall_report(&[0u8; TD_REPORT_ADDITIONAL_DATA_SIZE]);
+            log::info!("{:?}", tdx_report);
         }
 
         //Test JSON function using no-std serd_json.

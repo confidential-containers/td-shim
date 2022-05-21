@@ -49,7 +49,8 @@ impl TestCase for Tdreport {
             &self.input[0..tdreport::TD_REPORT_ADDITIONAL_DATA_SIZE]
                 .try_into()
                 .unwrap(),
-        );
+        )
+        .expect("Fail to get td report");
         log::info!("{}", tdx_report);
 
         if (self.expected.r#type != tdx_report.report_mac.report_type.r#type) {

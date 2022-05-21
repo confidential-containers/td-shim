@@ -376,16 +376,20 @@ const EXIT_REASON_WBINVD: u32 = 54;
 #[cfg(feature = "tdx")]
 const EXIT_REASON_RDPMC: u32 = 15;
 
+// Do not use log message in exception handler otherwise it will
+// casue deadlock. Same as 'unwrap' or 'expect'.
+// Use tdvmcall_halt() when error occurs.
 #[cfg(feature = "tdx")]
 interrupt_no_error!(virtualization, stack, {
-    let ve_info = tdx::tdcall_get_ve_info();
+    // Firstly get VE information from TDX module, halt it error occurs
+    let ve_info = tdx::tdcall_get_ve_info().expect("#VE handler: fail to get VE info\n");
+
     match ve_info.exit_reason {
         EXIT_REASON_HLT => {
             tdx::tdvmcall_halt();
         }
         EXIT_REASON_IO_INSTRUCTION => {
             if !handle_tdx_ioexit(&ve_info, stack) {
-                log::error!("Invalid VE info for IO\n");
                 tdx::tdvmcall_halt();
             }
         }
@@ -421,7 +425,7 @@ interrupt_no_error!(virtualization, stack, {
 // Use TDVMCALL to realize IO read/write operation
 // Return false if VE info is invalid
 #[cfg(feature = "tdx")]
-fn handle_tdx_ioexit(ve_info: &tdx::TdVeInfoReturnData, stack: &mut InterruptNoErrorStack) -> bool {
+fn handle_tdx_ioexit(ve_info: &tdx::TdVeInfo, stack: &mut InterruptNoErrorStack) -> bool {
     let size = ((ve_info.exit_qualification & 0x7) + 1) as usize; // 0 - 1bytes, 1 - 2bytes, 3 - 4bytes
     let read = (ve_info.exit_qualification >> 3) & 0x1 == 1;
     let string = (ve_info.exit_qualification >> 4) & 0x1 == 1;

@@ -9,7 +9,7 @@ use core::arch::asm;
 use core::cmp::min;
 use core::ops::RangeInclusive;
 use td_layout::memslice::{get_dynamic_mem_slice_mut, get_mem_slice_mut, SliceType};
-use tdx_tdcall::tdx;
+use tdx_tdcall::{self, tdx};
 
 use crate::asm::{ap_relocated_func, ap_relocated_func_size};
 
@@ -168,20 +168,25 @@ fn td_accept_pages(address: u64, pages: u64, page_size: u64) {
     for i in 0..pages {
         let mut accept_addr = address + i * page_size;
         let accept_level = if page_size == PAGE_SIZE_2M { 1 } else { 0 };
-        let res = tdx::tdcall_accept_page(accept_addr | accept_level).map_err(|e| {
-            if e == tdx::TdCallError::TdxExitReasonPageSizeMismatch {
-                if page_size == PAGE_SIZE_4K {
-                    log::error!(
-                        "Accept Page Error: 0x{:x}, page_size: {}\n",
-                        accept_addr,
-                        page_size
-                    );
-                } else {
-                    td_accept_pages(accept_addr, 512, PAGE_SIZE_4K);
+        match tdx::tdcall_accept_page(accept_addr | accept_level) {
+            Ok(()) => {}
+            Err(e) => {
+                if let tdx_tdcall::TdCallError::LeafSpecific(error_code) = e {
+                    if error_code == tdx_tdcall::TDCALL_STATUS_PAGE_SIZE_MISMATCH {
+                        if page_size == PAGE_SIZE_2M {
+                            td_accept_pages(accept_addr, 512, PAGE_SIZE_4K);
+                            continue;
+                        }
+                    } else if error_code == tdx_tdcall::TDCALL_STATUS_PAGE_ALREADY_ACCEPTED {
+                        continue;
+                    }
                 }
+                panic!(
+                    "Accept Page Error: 0x{:x}, page_size: {}\n",
+                    accept_addr, page_size
+                );
             }
-            // TODO: what happens to other error code?
-        });
+        }
     }
 }
 

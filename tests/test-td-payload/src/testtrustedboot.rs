@@ -44,7 +44,8 @@ impl TestTdTrustedBoot {
             &self.case.input[0..tdreport::TD_REPORT_ADDITIONAL_DATA_SIZE]
                 .try_into()
                 .unwrap(),
-        );
+        )
+        .expect("Fail to get td report");
         tdx_report.td_info.rtmr0
     }
 
