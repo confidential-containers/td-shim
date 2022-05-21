@@ -1,24 +1,25 @@
-# Copyright (c) 2020 Intel Corporation
+# Copyright (c) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: BSD-2-Clause-Patent
 
 .section .text
-.equ USE_TDX_EMULATION, 0
-.equ number_of_regs_pushed, 8
-.equ number_of_parameters,  4
 
-.equ first_variable_on_stack_offset,   (number_of_regs_pushed * 8) + (number_of_parameters * 8) + 8
-.equ second_variable_on_stack_offset,  first_variable_on_stack_offset + 8
+# Arguments offsets in TdVmcallArgs struct
+.equ TDCALL_ARG_RAX, 0x0
+.equ TDCALL_ARG_RCX, 0x8
+.equ TDCALL_ARG_RDX, 0x10
+.equ TDCALL_ARG_R8,  0x18
+.equ TDCALL_ARG_R9,  0x20
+.equ TDCALL_ARG_R10, 0x28
+.equ TDCALL_ARG_R11, 0x30
+.equ TDCALL_ARG_R12, 0x38
+.equ TDCALL_ARG_R13, 0x40
 
-#  TdCall (
-#    UINT64  Leaf,
-#    UINT64  P1,
-#    UINT64  P2,
-#    UINT64  P3,
-#    UINT64  Results,
-#    )
-.global td_call
-td_call:
-        # tdcall_push_regs
+# asm_td_call -> u64 (
+#   args: *mut TdcallArgs,  //rcx
+# )
+.global asm_td_call
+asm_td_call:
+        # Save the registers accroding to MS x64 calling convention
         push rbp
         mov rbp, rsp
         push r15
@@ -29,34 +30,44 @@ td_call:
         push rsi
         push rdi
 
-       mov rax, rcx
-       mov rcx, rdx
-       mov rdx, r8
-       mov r8, r9
+        # Use RDI to save RCX value
+        mov rdi, rcx
 
-       # tdcall
-       .if USE_TDX_EMULATION != 0
-       vmcall
-       .else
-       .byte 0x66,0x0f,0x01,0xcc
-       .endif
+        # Test if input pointer is valid
+        test rdi, rdi
+        jz td_call_exit
 
-       # exit if tdcall reports failure.
-       test rax, rax
-       jnz exit
+        # Copy the input operands from memory to registers 
+        mov rax, [rdi + TDCALL_ARG_RAX]
+        mov rcx, [rdi + TDCALL_ARG_RCX]
+        mov rdx, [rdi + TDCALL_ARG_RDX]
+        mov r8,  [rdi + TDCALL_ARG_R8]
+        mov r9,  [rdi + TDCALL_ARG_R9]
+        mov r10, [rdi + TDCALL_ARG_R10]
+        mov r11, [rdi + TDCALL_ARG_R11]
+        mov r12, [rdi + TDCALL_ARG_R12]
+        mov r13, [rdi + TDCALL_ARG_R13]
 
-       # test if caller wanted results
-       mov  r12, [rsp + first_variable_on_stack_offset]
-       test r12, r12
-       jz exit
-       mov [r12], rcx
-       mov [r12+8], rdx
-       mov [r12+16], r8
-       mov [r12+24], r9
-       mov [r12+32], r10
-       mov [r12+40], r11
-exit:
-        # tdcall_pop_regs
+        # tdcall
+        .byte 0x66,0x0f,0x01,0xcc
+
+        # Exit if tdcall reports failure.
+        test rax, rax
+        jnz td_call_exit
+
+        # Copy the output operands from registers to the struct
+        mov [rdi + TDCALL_ARG_RAX], rax
+        mov [rdi + TDCALL_ARG_RCX], rcx
+        mov [rdi + TDCALL_ARG_RDX], rdx
+        mov [rdi + TDCALL_ARG_R8],  r8
+        mov [rdi + TDCALL_ARG_R9],  r9
+        mov [rdi + TDCALL_ARG_R10], r10
+        mov [rdi + TDCALL_ARG_R11], r11
+        mov [rdi + TDCALL_ARG_R12], r12
+        mov [rdi + TDCALL_ARG_R13], r13
+
+td_call_exit:
+        # Pop out saved registers from stack
         pop rdi
         pop rsi
         pop rbx
@@ -66,4 +77,4 @@ exit:
         pop r15
         pop rbp
 
-       ret
+        ret
