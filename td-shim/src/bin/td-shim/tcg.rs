@@ -5,7 +5,7 @@
 use core::convert::TryInto;
 use scroll::{Pread, Pwrite};
 use td_shim::event_log::{
-    TcgPcrEvent2Header, Tdel, TpmlDigestValues, TpmtHa, TpmuHa, PCR_EVENT_HEADER_SIZE,
+    CcEventHeader, Ccel, TpmlDigestValues, TpmtHa, TpmuHa, CCEL_CC_TYPE_TDX, CC_EVENT_HEADER_SIZE,
     SHA384_DIGEST_SIZE, TPML_ALG_SHA384,
 };
 
@@ -37,19 +37,22 @@ impl TdEventLog {
         }
     }
 
-    pub fn create_tdel(&self) -> Tdel {
-        Tdel::new(self.laml as u64, self.area.as_ptr() as u64)
+    pub fn create_ccel(&self) -> Ccel {
+        Ccel::new(
+            CCEL_CC_TYPE_TDX,
+            0,
+            self.laml as u64,
+            self.area.as_ptr() as u64,
+        )
     }
 
     pub fn create_event_log(
         &mut self,
-        pcr_index: u32,
+        mr_index: u32,
         event_type: u32,
         event_data: &[u8],
         hash_data: &[u8],
     ) {
-        log::info!("calc td_hob digest ...\n");
-
         let event_data_size = event_data.len();
         let hash_value = ring::digest::digest(&ring::digest::SHA384, hash_data);
         let hash_value = hash_value.as_ref();
@@ -57,10 +60,10 @@ impl TdEventLog {
         // Safe to unwrap() because we have checked the size.
         let hash384_value: [u8; SHA384_DIGEST_SIZE] = hash_value.try_into().unwrap();
 
-        crate::td::extend_rtmr(&hash384_value, pcr_index);
+        crate::td::extend_rtmr(&hash384_value, mr_index);
 
-        let event2_header = TcgPcrEvent2Header {
-            pcr_index,
+        let event2_header = CcEventHeader {
+            mr_index,
             event_type,
             digest: TpmlDigestValues {
                 count: 1,
@@ -73,19 +76,19 @@ impl TdEventLog {
             },
             event_size: event_data_size as u32,
         };
-        let new_log_size = PCR_EVENT_HEADER_SIZE + event2_header.event_size as usize;
+        let new_log_size = CC_EVENT_HEADER_SIZE + event2_header.event_size as usize;
         if self.size + new_log_size > self.laml {
             return;
         }
 
         self.write_header(&event2_header, self.size);
-        self.write_data(event_data, self.size + PCR_EVENT_HEADER_SIZE);
+        self.write_data(event_data, self.size + CC_EVENT_HEADER_SIZE);
 
         self.last = self.lasa + self.size as u64;
         self.size += new_log_size;
     }
 
-    fn write_header(&mut self, header: &TcgPcrEvent2Header, offset: usize) {
+    fn write_header(&mut self, header: &CcEventHeader, offset: usize) {
         let _ = self.area.pwrite(header, offset);
     }
 
@@ -104,9 +107,9 @@ mod tests {
         let slice =
             unsafe { &mut *core::ptr::slice_from_raw_parts_mut(buf.as_mut_ptr(), buf.len()) };
         let mut logger = TdEventLog::new(slice);
-        let tdel = logger.create_tdel();
-        assert_eq!(tdel.laml as u64, 128);
-        assert_eq!(tdel.lasa as u64, 0);
+        let ccel = logger.create_ccel();
+        assert_eq!(ccel.laml as u64, 128);
+        assert_eq!(ccel.lasa as u64, 0);
 
         logger.create_event_log(1, 2, &[0u8], &[08u8]);
     }

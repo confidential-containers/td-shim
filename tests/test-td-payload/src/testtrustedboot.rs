@@ -12,7 +12,9 @@ use ring::digest;
 use scroll::Pread;
 use td_layout::memslice;
 use td_shim::acpi::GenericSdtHeader;
-use td_shim::event_log::{TcgPcrEvent2Header, TdEventDumper, Tdel, PCR_EVENT_HEADER_SIZE};
+use td_shim::event_log::{
+    CcEventDumper, CcEventHeader, Ccel, CCEL_CC_TYPE_TDX, CC_EVENT_HEADER_SIZE,
+};
 use td_shim::TD_ACPI_TABLE_HOB_GUID;
 use td_uefi_pi::hob;
 use tdx_tdcall::tdreport;
@@ -46,8 +48,8 @@ impl TestTdTrustedBoot {
         tdx_report.td_info.rtmr0
     }
 
-    fn parse_hob(&self, hob_address: usize) -> Option<Vec<Tdel>> {
-        let mut tdel: Vec<Tdel> = Vec::new();
+    fn parse_hob(&self, hob_address: usize) -> Option<Ccel> {
+        let mut ccel = None;
 
         // Parse Hob to populate td_acpi_list
         let hob_buffer = unsafe {
@@ -66,23 +68,20 @@ impl TestTdTrustedBoot {
                 .expect("Failed to read table header from ACPI GUID HOB");
 
             // save it to headers
-            if &header.signature == b"TDEL" {
-                let tdel_table = Tdel::read_from(&table[..size_of::<Tdel>()])
-                    .expect("Failed to read TDEL table header from ACPI GUID HOB");
-                tdel.push(tdel_table);
+            if &header.signature == b"CCEL" {
+                ccel = Ccel::read_from(&table[..size_of::<Ccel>()]);
             }
 
             // Then we go to next hob
             next_hob = hob::seek_to_next_hob(hob).unwrap();
         }
 
-        return Some(tdel);
+        return ccel;
     }
 
-    fn get_rtmr0_from_tdeltable(&self, tables: Vec<Tdel>) -> [u8; 48] {
-        let tdel_table = &tables[0];
-        let eventlog_base = tdel_table.lasa;
-        let eventlog_len = tdel_table.laml as usize;
+    fn get_rtmr0_from_cceltable(&self, ccel_table: Ccel) -> [u8; 48] {
+        let eventlog_base = ccel_table.lasa;
+        let eventlog_len = ccel_table.laml as usize;
         let eventlog =
             unsafe { core::slice::from_raw_parts(eventlog_base as *const u8, eventlog_len) };
 
@@ -90,30 +89,28 @@ impl TestTdTrustedBoot {
 
         let mut offset = 0;
         while offset < eventlog_len {
-            if let Some(td_event_header) = self.read_header(eventlog, offset) {
-                offset += PCR_EVENT_HEADER_SIZE;
-                let td_event_size = td_event_header.event_size as usize;
-                if td_event_size + offset <= eventlog_len {
-                    let td_event_data = &eventlog[offset..offset + td_event_size];
-                    let mr_index = match td_event_header.pcr_index {
+            if let Some(cc_event_header) = self.read_header(eventlog, offset) {
+                offset += CC_EVENT_HEADER_SIZE;
+                let cc_event_size = cc_event_header.event_size as usize;
+                if cc_event_size + offset <= eventlog_len {
+                    let cc_event_data = &eventlog[offset..offset + cc_event_size];
+                    let rtmr_index = match cc_event_header.mr_index {
                         0 => 0xFF,
-                        1 | 7 => 0,
-                        2..=6 => 1,
-                        8..=15 => 2,
+                        1 | 2 | 3 | 4 => cc_event_header.mr_index - 1,
                         _ => {
-                            log::info!("invalid pcr_index 0x{:x}\n", td_event_header.pcr_index);
+                            log::info!("invalid pcr_index 0x{:x}\n", cc_event_header.mr_index);
                             0xFF
                         }
                     };
-                    if mr_index == 0 {
+                    if rtmr_index == 0 {
                         rtmr0[48..]
-                            .copy_from_slice(&td_event_header.digest.digests[0].digest.sha384);
+                            .copy_from_slice(&cc_event_header.digest.digests[0].digest.sha384);
                         let hash_value = digest::digest(&digest::SHA384, &rtmr0);
                         rtmr0[0..48].copy_from_slice(hash_value.as_ref());
                     }
                 }
-                offset = offset.saturating_add(td_event_size);
-                if td_event_size == 0 {
+                offset = offset.saturating_add(cc_event_size);
+                if cc_event_size == 0 {
                     break;
                 }
             }
@@ -121,8 +118,8 @@ impl TestTdTrustedBoot {
         rtmr0[0..48].try_into().unwrap()
     }
 
-    fn read_header(&self, area: &[u8], offset: usize) -> Option<TcgPcrEvent2Header> {
-        if let Ok(v) = area.pread::<TcgPcrEvent2Header>(offset) {
+    fn read_header(&self, area: &[u8], offset: usize) -> Option<CcEventHeader> {
+        if let Ok(v) = area.pread::<CcEventHeader>(offset) {
             Some(v)
         } else {
             None
@@ -152,17 +149,18 @@ impl TestCase for TestTdTrustedBoot {
         // Get rtmr0 value from acpi table
         let mut rtmr0_eventlog: [u8; 48] = [0; 48];
 
-        if let Some(tdel_table) = self.parse_hob(self.hob_address) {
-            if tdel_table.len() == 0 {
-                log::info!("No TDEL table found\n");
+        if let Some(ccel_table) = self.parse_hob(self.hob_address) {
+            if ccel_table.cc_type != CCEL_CC_TYPE_TDX {
+                log::info!(
+                    "CC type should be 2(TDX), but found {:x}\n",
+                    ccel_table.cc_type
+                );
                 return;
-            } else {
-                rtmr0_eventlog
-                    .copy_from_slice(self.get_rtmr0_from_tdeltable(tdel_table).as_bytes());
-                log::info!("acpitable rtmr0: {:?}\n", rtmr0_eventlog);
             }
+            rtmr0_eventlog.copy_from_slice(self.get_rtmr0_from_cceltable(ccel_table).as_bytes());
+            log::info!("acpitable rtmr0: {:?}\n", rtmr0_eventlog);
         } else {
-            log::info!("Parse Hob fail\n");
+            log::info!("Fail to parse CCEL from Hob\n");
             return;
         };
 

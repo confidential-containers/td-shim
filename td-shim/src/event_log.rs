@@ -13,7 +13,8 @@ pub const SHA384_DIGEST_SIZE: usize = 48;
 pub const TPML_ALG_SHA384: u16 = 0xc;
 pub const TPML_DIGEST_VALUES_PACKED_SIZE: usize = 54;
 pub const PCR_DIGEST_NUM: usize = 1;
-pub const PCR_EVENT_HEADER_SIZE: usize = 66;
+pub const CC_EVENT_HEADER_SIZE: usize = 66;
+pub const CCEL_CC_TYPE_TDX: u8 = 2;
 
 pub const EV_EFI_EVENT_BASE: u32 = 0x80000000;
 pub const EV_PLATFORM_CONFIG_FLAGS: u32 = EV_EFI_EVENT_BASE + 0x0000000A;
@@ -136,8 +137,8 @@ impl ctx::TryIntoCtx<Endian> for &TpmlDigestValues {
 
 #[repr(C)]
 #[derive(Default, Debug, Pread, Pwrite)]
-pub struct TcgPcrEvent2Header {
-    pub pcr_index: u32,
+pub struct CcEventHeader {
+    pub mr_index: u32,
     pub event_type: u32,
     pub digest: TpmlDigestValues,
     pub event_size: u32,
@@ -145,23 +146,27 @@ pub struct TcgPcrEvent2Header {
 
 #[repr(C, packed)]
 #[derive(Default, AsBytes, FromBytes)]
-pub struct Tdel {
+pub struct Ccel {
     pub header: GenericSdtHeader,
-    pub reserved: u32,
+    pub cc_type: u8,
+    pub cc_subtype: u8,
+    pub reserved: u16,
     pub laml: u64,
     pub lasa: u64,
 }
 
-impl Tdel {
-    pub fn new(laml: u64, lasa: u64) -> Tdel {
-        let mut tdel = Tdel {
-            header: GenericSdtHeader::new(b"TDEL", size_of::<Tdel>() as u32, 1),
+impl Ccel {
+    pub fn new(cc_type: u8, cc_subtype: u8, laml: u64, lasa: u64) -> Ccel {
+        let mut ccel = Ccel {
+            header: GenericSdtHeader::new(b"CCEL", size_of::<Ccel>() as u32, 1),
+            cc_type,
+            cc_subtype,
+            reserved: 0,
             laml,
             lasa,
-            ..Default::default()
         };
-        tdel.checksum();
-        tdel
+        ccel.checksum();
+        ccel
     }
 
     pub fn checksum(&mut self) {
@@ -171,15 +176,15 @@ impl Tdel {
     }
 }
 
-pub struct TdEventDumper<'a> {
+pub struct CcEventDumper<'a> {
     area: &'a mut [u8],
     size: usize,
 }
 
-impl<'a> TdEventDumper<'a> {
-    pub fn new(td_event_mem: &'static mut [u8], size: usize) -> Self {
-        TdEventDumper {
-            area: td_event_mem,
+impl<'a> CcEventDumper<'a> {
+    pub fn new(cc_event_mem: &'static mut [u8], size: usize) -> Self {
+        CcEventDumper {
+            area: cc_event_mem,
             size,
         }
     }
@@ -188,36 +193,36 @@ impl<'a> TdEventDumper<'a> {
         let mut offset = 0;
 
         while offset < self.size as usize {
-            if let Some(td_event_header) = self.read_header(offset) {
-                offset += PCR_EVENT_HEADER_SIZE;
-                let td_event_size = td_event_header.event_size as usize;
-                if td_event_size + offset <= self.area.len() {
-                    let td_event_data = &self.area[offset..offset + td_event_size];
-                    Self::dump_event(&td_event_header, td_event_data);
+            if let Some(cc_event_header) = self.read_header(offset) {
+                offset += CC_EVENT_HEADER_SIZE;
+                let cc_event_size = cc_event_header.event_size as usize;
+                if cc_event_size + offset <= self.area.len() {
+                    let cc_event_data = &self.area[offset..offset + cc_event_size];
+                    Self::dump_event(&cc_event_header, cc_event_data);
                 }
-                offset = offset.saturating_add(td_event_size);
+                offset = offset.saturating_add(cc_event_size);
             } else {
                 break;
             }
         }
     }
 
-    fn dump_event(td_event_header: &TcgPcrEvent2Header, _td_event_data: &[u8]) {
-        let pcr_index = td_event_header.pcr_index;
-        let event_type = td_event_header.event_type;
-        let event_size = td_event_header.event_size;
+    fn dump_event(cc_event_header: &CcEventHeader, _td_event_data: &[u8]) {
+        let mr_index = cc_event_header.mr_index;
+        let event_type = cc_event_header.event_type;
+        let event_size = cc_event_header.event_size;
 
-        log::info!("TD Event:\n");
-        log::info!("    PcrIndex  - {}\n", pcr_index);
+        log::info!("CC Event:\n");
+        log::info!("    MrIndex  - {}\n", mr_index);
         log::info!("    EventType - 0x{:x}\n", event_type);
 
-        for i in 0..td_event_header.digest.count {
-            let hash_alg = td_event_header.digest.digests[i as usize].hash_alg;
+        for i in 0..cc_event_header.digest.count {
+            let hash_alg = cc_event_header.digest.digests[i as usize].hash_alg;
             log::info!("      HashAlgo : 0x{:x}\n", hash_alg);
             log::info!(
                 "      Digest({}): {:x?}\n",
                 i,
-                td_event_header.digest.digests[i as usize].digest
+                cc_event_header.digest.digests[i as usize].digest
             );
         }
 
@@ -225,8 +230,8 @@ impl<'a> TdEventDumper<'a> {
         log::info!("\n");
     }
 
-    fn read_header(&self, offset: usize) -> Option<TcgPcrEvent2Header> {
-        if let Ok(v) = self.area.pread::<TcgPcrEvent2Header>(offset) {
+    fn read_header(&self, offset: usize) -> Option<CcEventHeader> {
+        if let Ok(v) = self.area.pread::<CcEventHeader>(offset) {
             Some(v)
         } else {
             None

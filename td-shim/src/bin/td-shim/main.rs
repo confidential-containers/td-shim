@@ -286,7 +286,7 @@ fn prepare_acpi_tables(
     layout: &RuntimeMemoryLayout,
     td_event_log: &mut TdEventLog,
     vcpus: u32,
-) -> (mp::Madt, event_log::Tdel) {
+) -> (mp::Madt, event_log::Ccel) {
     let mut vmm_madt = None;
     let mut idx = 0;
     while idx < acpi_tables.len() {
@@ -318,7 +318,7 @@ fn prepare_acpi_tables(
             .expect("Failed to create ACPI MADT table")
     };
 
-    let tdel = td_event_log.create_tdel();
+    let tdel = td_event_log.create_ccel();
 
     (madt, tdel)
 }
@@ -330,15 +330,15 @@ fn secure_boot_verify_payload<'a>(payload: &'a [u8], td_event_log: &mut TdEventL
         .expect("Secure Boot: Cannot read verify header from payload binary");
 
     td_event_log.create_event_log(
-        4,
+        2,
         EV_PLATFORM_CONFIG_FLAGS,
         b"td payload",
         verifier::PayloadVerifier::get_trust_anchor(cfv).unwrap(),
     );
     verifier.verify().expect("Verification fails");
-    td_event_log.create_event_log(4, EV_PLATFORM_CONFIG_FLAGS, b"td payload", payload);
+    td_event_log.create_event_log(2, EV_PLATFORM_CONFIG_FLAGS, b"td payload", payload);
     td_event_log.create_event_log(
-        4,
+        2,
         EV_PLATFORM_CONFIG_FLAGS,
         b"td payload svn",
         &u64::to_le_bytes(verifier.get_payload_svn()),
