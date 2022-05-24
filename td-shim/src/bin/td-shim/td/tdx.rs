@@ -42,26 +42,25 @@ pub fn get_num_vcpus() -> u32 {
     td_info.num_vcpus
 }
 
-pub fn extend_rtmr(data: &[u8; SHA384_DIGEST_SIZE], pcr_index: u32) {
+pub fn extend_rtmr(data: &[u8; SHA384_DIGEST_SIZE], mr_index: u32) {
     let digest = tdx::TdxDigest { data: *data };
 
     log::info!("extend_rtmr ...\n");
-    let mr_index = match pcr_index {
+    let rtmr_index = match mr_index {
         0 => {
-            log::info!("PCR[0] should be extended vith RDMR\n");
+            log::info!("MrIndex 0 should be extended vith RDMR\n");
             0xFF
         }
-        1 | 7 => 0,
-        2..=6 => 1,
-        8..=15 => 2,
+        1 | 2 | 3 | 4 => mr_index - 1,
         _ => {
-            log::info!("invalid pcr_index 0x{:x}\n", pcr_index);
+            log::info!("invalid mr_index 0x{:x}\n", mr_index);
             0xFF
         }
     };
-    if mr_index >= 3 {
+
+    if rtmr_index > 3 {
         return;
     }
 
-    tdx::tdcall_extend_rtmr(&digest, mr_index);
+    tdx::tdcall_extend_rtmr(&digest, rtmr_index);
 }

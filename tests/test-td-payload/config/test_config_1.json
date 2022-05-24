@@ -98,8 +98,8 @@
                     "signature": [65, 80, 73, 67]
                 },
                 {
-                    "name": "TDEL",
-                    "signature": [84, 68, 69, 76]
+                    "name": "CCEL",
+                    "signature": [67, 67, 69, 76]
                 }
             ]
         },
