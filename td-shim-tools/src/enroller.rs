@@ -261,13 +261,15 @@ pub fn create_key_file(key_file: &str, hash_alg: &str) -> io::Result<FirmwareRaw
 
 #[cfg(test)]
 mod test {
+    use std::str::FromStr;
+
     use super::*;
     use td_uefi_pi::pi::guid;
 
     #[test]
     fn test_firmware_file() {
         // {214D240F-77A3-441B-9DA8-C588E43192C1}
-        let name = guid::Guid::parse_str("214D240F-77A3-441B-9DA8-C588E43192C1").unwrap();
+        let name = guid::Guid::from_str("214D240F-77A3-441B-9DA8-C588E43192C1").unwrap();
         let size: usize = size_of::<FvFfsFileHeader>();
 
         let mut ff = FirmwareRawFile::new(name.as_bytes());

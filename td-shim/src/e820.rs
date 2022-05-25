@@ -56,6 +56,7 @@ impl E820Entry {
 mod tests {
     use super::*;
     use core::mem::size_of;
+    const MAX_E820_ENTRY: usize = 128;
 
     #[test]
     fn test_e820_entry_size() {

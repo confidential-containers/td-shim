@@ -57,6 +57,9 @@ jobs:
         with:
           command: install
           args: cargo-xbuild
+      
+      - name: Test Shim Crates
+        run: make test 
 
       - name: Build TdShim
         uses: actions-rs/cargo@v1
@@ -110,6 +113,7 @@ jobs:
       - name: Install QEMU (Linux)
         run: sudo apt update && sudo apt install qemu-system-x86
         if: runner.os == 'Linux'
+
       - name: Install QEMU (Windows)
         run: |
           choco install qemu --version 2021.5.5

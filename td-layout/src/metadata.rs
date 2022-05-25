@@ -421,7 +421,7 @@ mod tests {
         #[cfg(not(feature = "boot-kernel"))]
         assert_eq!(size_of::<TdxMetadata>(), 224);
         #[cfg(feature = "boot-kernel")]
-        assert_eq!(size_of::<TdxMetadata>(), 256);
+        assert_eq!(size_of::<TdxMetadata>(), 288);
     }
 
     #[test]
