@@ -115,7 +115,7 @@ clean-%:
 	${CARGO} +${STABLE_TOOLCHAIN} clean -p $(patsubst clean-%,%,$@) ${BUILD_TYPE_FLAG}
 
 test-%:
-	${CARGO} +${STABLE_TOOLCHAIN} test -p $(patsubst test-%,%,$@) ${BUILD_TYPE_FLAG}
+	${CARGO} +${NIGHTLY_TOOLCHAIN} test -p $(patsubst test-%,%,$@) ${BUILD_TYPE_FLAG}
 
 # Targets for normal library/binary crates
 nightly-build-%:
