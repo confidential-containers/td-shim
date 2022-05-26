@@ -52,6 +52,16 @@ pub struct TdVeInfo {
     pub rsvd1: u64,
 }
 
+/// Emulated CPUID values returned from TDG.VP.VMCALL<Instruction.CPUID>
+#[repr(C)]
+#[derive(Debug, Default)]
+pub struct CpuIdInfo {
+    pub eax: u32,
+    pub ebx: u32,
+    pub ecx: u32,
+    pub edx: u32,
+}
+
 lazy_static! {
     static ref SHARED_MASK: u64 = td_shared_mask().expect("Fail to get the shared mask of TD");
 }
@@ -307,6 +317,31 @@ pub fn tdvmcall_wrmsr(index: u32, value: u64) {
 
     if ret != TDVMCALL_STATUS_SUCCESS {
         tdvmcall_halt();
+    }
+}
+
+/// Used to enable the TD-guest to request the VMM to emulate the CPUID operation
+///
+/// Details can be found in TDX GHCI spec section 'TDG.VP.VMCALL<Instruction.WRMSR>'
+pub fn tdvmcall_cpuid(eax: u32, ecx: u32) -> CpuIdInfo {
+    let mut args = TdVmcallArgs {
+        r11: TDVMCALL_CPUID,
+        r12: eax as u64,
+        r13: ecx as u64,
+        ..Default::default()
+    };
+
+    let ret = td_vmcall(&mut args);
+
+    if ret != TDVMCALL_STATUS_SUCCESS {
+        tdvmcall_halt();
+    }
+
+    CpuIdInfo {
+        eax: args.r12 as u32,
+        ebx: args.r13 as u32,
+        ecx: args.r14 as u32,
+        edx: args.r15 as u32,
     }
 }
 

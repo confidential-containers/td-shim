@@ -35,7 +35,7 @@ const TDCALL_TDREPORT: u64 = 4;
 const TDCALL_TDACCEPTPAGE: u64 = 6;
 
 // GTDG.VP.VMCALL leaf sub-function numbers
-// const TDVMCALL_CPUID: u64 = 0x0000a;
+const TDVMCALL_CPUID: u64 = 0x0000a;
 const TDVMCALL_HALT: u64 = 0x0000c;
 const TDVMCALL_IO: u64 = 0x0001e;
 const TDVMCALL_RDMSR: u64 = 0x0001f;
