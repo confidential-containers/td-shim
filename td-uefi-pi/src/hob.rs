@@ -62,6 +62,98 @@ pub fn get_hob_total_size(hob: &[u8]) -> Option<usize> {
     }
 }
 
+// Check the integrity of HOB list that is got from untrusted input
+// and return the HOB slice with real HOB length
+pub fn check_hob_integrity(hob_list: &[u8]) -> Option<&[u8]> {
+    let mut offset = 0;
+    let hob_length = get_hob_total_size(hob_list)?;
+    if hob_length > hob_list.len() {
+        return None;
+    }
+    speculation_barrier();
+
+    loop {
+        let hob = &hob_list[offset..];
+        let header: Header = hob.pread(0).ok()?;
+
+        // A valid HOB should has non-zero length and zero reserved field,
+        if header.length == 0 || header.length as usize > hob.len() || header.reserved != 0 {
+            return None;
+        }
+        speculation_barrier();
+
+        match header.r#type {
+            HOB_TYPE_HANDOFF => {
+                if header.length as usize != size_of::<HandoffInfoTable>() {
+                    return None;
+                }
+                let phit_hob: HandoffInfoTable = hob.pread(0).ok()?;
+
+                // This address must be 4-KB aligned to meet page restrictions
+                if phit_hob.efi_memory_top % 0x1000 != 0 {
+                    log::info!(
+                        "PHIT HOB does not hold a 4-KB aligned EFI memory top address: {:x}\n",
+                        phit_hob.efi_memory_top
+                    );
+                    return None;
+                }
+            }
+            HOB_TYPE_END_OF_HOB_LIST => return Some(&hob_list[..hob_length]),
+            HOB_TYPE_RESOURCE_DESCRIPTOR => {
+                if header.length as usize != size_of::<ResourceDescription>() {
+                    return None;
+                }
+                let resource_hob: ResourceDescription = hob.pread(0).ok()?;
+                if resource_hob.resource_type >= RESOURCE_MAX_MEMORY_TYPE
+                    || resource_hob.resource_attribute & (!RESOURCE_ATTRIBUTE_ALL) != 0
+                {
+                    log::info!("Invalid resource type or attributes:\n");
+                    resource_hob.dump();
+                    return None;
+                }
+            }
+            HOB_TYPE_MEMORY_ALLOCATION => {
+                if header.length as usize != size_of::<MemoryAllocation>() {
+                    return None;
+                }
+            }
+            HOB_TYPE_FV => {
+                if header.length as usize != size_of::<FirmwareVolume>() {
+                    return None;
+                }
+            }
+            HOB_TYPE_FV2 => {
+                if header.length as usize != size_of::<FirmwareVolume2>() {
+                    return None;
+                }
+            }
+            HOB_TYPE_FV3 => {
+                if header.length as usize != size_of::<FirmwareVolume3>() {
+                    return None;
+                }
+            }
+            HOB_TYPE_CPU => {
+                if header.length as usize != size_of::<Cpu>() {
+                    return None;
+                }
+
+                let cpu_hob: Cpu = hob.pread(0).ok()?;
+                // Reserved field is expected to be zero
+                if cpu_hob.reserved != [0u8; 6] {
+                    return None;
+                }
+            }
+            HOB_TYPE_GUID_EXTENSION => {
+                // GUID Extension HOB has variable length
+            }
+            // Unsupported types
+            _ => return None,
+        }
+        offset = align_to_next_hob_offset(hob_length, offset, header.length)?;
+        speculation_barrier();
+    }
+}
+
 /// Dump the HOB list.
 pub fn dump_hob(hob_list: &[u8]) -> Option<()> {
     let mut offset = 0;
@@ -450,4 +542,10 @@ mod tests {
         let data = get_guid_data(guid).unwrap();
         assert_eq!(data, &[0xaa; 16]);
     }
+}
+
+// To protect against speculative attacks, place the LFENCE instruction after the range
+// check and branch, but before any code that consumes the checked value.
+fn speculation_barrier() {
+    unsafe { core::arch::asm!("lfence") }
 }
