@@ -107,9 +107,8 @@ pub extern "win64" fn _start(
     heap::init();
 
     // Get HOB list
-    let hob_list =
-        TdHobInfo::check_hob_integrity(memslice::get_mem_slice(memslice::SliceType::TdHob))
-            .expect("Integrity check failed: invalid HOB list");
+    let hob_list = hob::check_hob_integrity(memslice::get_mem_slice(memslice::SliceType::TdHob))
+        .expect("Integrity check failed: invalid HOB list");
     hob::dump_hob(hob_list);
     let mut td_hob_info =
         TdHobInfo::read_from_hob(hob_list).expect("Error occurs reading from VMM HOB");
