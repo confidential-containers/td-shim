@@ -358,7 +358,13 @@ interrupt_no_error!(simd, stack, {
 });
 
 #[cfg(feature = "tdx")]
+const EXIT_REASON_CPUID: u32 = 10;
+#[cfg(feature = "tdx")]
 const EXIT_REASON_HLT: u32 = 12;
+#[cfg(feature = "tdx")]
+const EXIT_REASON_RDPMC: u32 = 15;
+#[cfg(feature = "tdx")]
+const EXIT_REASON_VMCALL: u32 = 18;
 #[cfg(feature = "tdx")]
 const EXIT_REASON_IO_INSTRUCTION: u32 = 30;
 #[cfg(feature = "tdx")]
@@ -366,19 +372,12 @@ const EXIT_REASON_MSR_READ: u32 = 31;
 #[cfg(feature = "tdx")]
 const EXIT_REASON_MSR_WRITE: u32 = 32;
 #[cfg(feature = "tdx")]
-const EXIT_REASON_VMCALL: u32 = 18;
-#[cfg(feature = "tdx")]
 const EXIT_REASON_MWAIT_INSTRUCTION: u32 = 36;
 #[cfg(feature = "tdx")]
 const EXIT_REASON_MONITOR_INSTRUCTION: u32 = 39;
 #[cfg(feature = "tdx")]
 const EXIT_REASON_WBINVD: u32 = 54;
-#[cfg(feature = "tdx")]
-const EXIT_REASON_RDPMC: u32 = 15;
 
-// Do not use log message in exception handler otherwise it will
-// casue deadlock. Same as 'unwrap' or 'expect'.
-// Use tdvmcall_halt() when error occurs.
 #[cfg(feature = "tdx")]
 interrupt_no_error!(virtualization, stack, {
     // Firstly get VE information from TDX module, halt it error occurs
@@ -401,6 +400,14 @@ interrupt_no_error!(virtualization, stack, {
         EXIT_REASON_MSR_WRITE => {
             let data = stack.scratch.rax as u64 | ((stack.scratch.rdx as u64) << 32); // EDX:EAX
             tdx::tdvmcall_wrmsr(stack.scratch.rcx as u32, data);
+        }
+        EXIT_REASON_CPUID => {
+            let cpuid = tdx::tdvmcall_cpuid(stack.scratch.rax as u32, stack.scratch.rcx as u32);
+            let mask = 0xFFFF_FFFF_0000_0000_usize;
+            stack.scratch.rax = (stack.scratch.rax & mask) | cpuid.eax as usize;
+            stack.preserved.rbx = (stack.preserved.rbx & mask) | cpuid.ebx as usize;
+            stack.scratch.rcx = (stack.scratch.rcx & mask) | cpuid.ecx as usize;
+            stack.scratch.rdx = (stack.scratch.rdx & mask) | cpuid.edx as usize;
         }
         EXIT_REASON_VMCALL
         | EXIT_REASON_MWAIT_INSTRUCTION
