@@ -68,15 +68,7 @@ Stack guard is setup at `stack_guard_enable()` in [stack_guard.rs](../td-shim/sr
 
 [td-loader](../td-loader) is an PE/ELF image loader.
 
-[fw-pci](../fw-pci) provides the access to PCI space.
-
-[fw-virtio](../fw-virtio) provides virtio interface.
-
-[fw-vsock](../fw-vsock) provides vsock interface.
-
-[r-uefi-pi](../r-uefi-pi) defines uefi-pi data structure.
-
-[uefi-pi](../uefi-pi) provide uefi-pi structure access function.
+[td-uefi-pi](../td-uefi-pi) defines uefi-pi data structure and provide uefi-pi structure access function.
 
 [td-paging](../td-paging) provides function to manage the page table.
 
@@ -88,7 +80,13 @@ Stack guard is setup at `stack_guard_enable()` in [stack_guard.rs](../td-shim/sr
 
 ### tools
 
-[rust-td-tool](../td-shim-ld) is the tool to assembly all components into a TD.bin.
+[td-shim-ld](../td-shim-tools/src/bin/td-shim-ld) is the tool to assembly all components into a TD.bin.
+
+[td-shim-checker](../td-shim-tools/src/bin/td-shim-checker) is the tool to check metatdata of TD.bin.
+
+[td-shim-enroll](../td-shim-tools/src/bin/td-shim-enroll) is the tool to enroll data in CFV of TD.bin.
+
+[td-shim-sign-payload](../td-shim-tools/src/bin/td-shim-sign-payload) is the tool to sign a pyaload binary.
 
 ### layout
 
@@ -96,7 +94,7 @@ Stack guard is setup at `stack_guard_enable()` in [stack_guard.rs](../td-shim/sr
 
 ## sample td-payload
 
-[rust-td-payload](../td-payload) is a sample payload. It supports benchmark collection, json parsing.
+[td-payload](../td-payload) is a sample payload. It supports benchmark collection, json parsing.
 
 ## test tools
 
