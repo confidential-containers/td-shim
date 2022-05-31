@@ -4,12 +4,16 @@
 
 //! Guest-Side (TDCALL) Interface Helper Functions
 //!
-//! This crate realizes the helper functions for the TDCALL interface functions defined in  
-//! [Intel TDX Module 1.0 Spec](https://www.intel.com/content/dam/develop/external/us/en/documents/tdx-module-1.0-public-spec-v0.931.pdf)
-//! and TDVMCALL sub-functions defined in
+//! This crate realizes the helper functions for the TDCALL interface functions defined in
+//! Intel TDX Module specifiction and the TDVMCALL sub-functions defined in Intel TDX
+//! Guest-Hypervisor Communication Interface specification. It also provides the constants
+//! and data structures that are defined in the specifications.
+//!
+//! Please refer to following links for detail:
+//! [Intel TDX Module v1.0 Spec](https://www.intel.com/content/dam/develop/external/us/en/documents/tdx-module-1.0-public-spec-v0.931.pdf)
+//! [Intel TDX Module v1.5 Spec](https://www.intel.com/content/dam/develop/external/us/en/documents/intel-tdx-module-1.5-abi-spec-348551001.pdf)
 //! [Intel TDX Guest-Hypervisor Communication Interface Spec](https://cdrdv2.intel.com/v1/dl/getContent/726790)
-//! that are needed by the `td-shim` project. It also provides the constants and data structures
-//! that are defined in the specifications.
+//! [Intel TDX Guest-Hypervisor Communication Interface Spec v1.5](https://cdrdv2.intel.com/v1/dl/getContent/726792)
 //!
 //! A subset of TDCALL interface functions is defined in crate::tdx, and the TDG.MR.REPORT
 //! leaf function and TDREPORT_STRUCT related definitions are defined in crate::tdreport
@@ -33,6 +37,8 @@ const TDCALL_TDEXTENDRTMR: u64 = 2;
 const TDCALL_TDGETVEINFO: u64 = 3;
 const TDCALL_TDREPORT: u64 = 4;
 const TDCALL_TDACCEPTPAGE: u64 = 6;
+const TDCALL_SERVTD_RD: u64 = 18;
+const TDCALL_SERVTD_WR: u64 = 20;
 
 // GTDG.VP.VMCALL leaf sub-function numbers
 const TDVMCALL_CPUID: u64 = 0x0000a;
@@ -44,6 +50,7 @@ const TDVMCALL_MMIO: u64 = 0x00030;
 const TDVMCALL_MAPGPA: u64 = 0x10001;
 const TDVMCALL_GETQUOTE: u64 = 0x10002;
 const TDVMCALL_SETUPEVENTNOTIFY: u64 = 0x10004;
+const TDVMCALL_SERVICE: u64 = 0x10005;
 
 // TDCALL completion status code
 const TDCALL_STATUS_SUCCESS: u64 = 0;

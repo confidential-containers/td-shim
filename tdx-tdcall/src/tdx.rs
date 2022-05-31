@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
-//! Implemention of a subset of TDCALL functions defined in Intel TDX Module 1.0 Spec and
-//! TDVMCALL sub-functions defined in TDX GHCI Spec.
+//! Implemention of a subset of TDCALL functions defined in Intel TDX Module v1.0 and v1.5
+//! Spec and TDVMCALL sub-functions defined in TDX GHCI Spec.
 //!
 //! The TDCALL instruction causes a VM exit to the Intel TDX Module. It is used to call
 //! guest-side Intel TDX functions, either local or a TD exit to the host VMM.
@@ -60,6 +60,13 @@ pub struct CpuIdInfo {
     pub ebx: u32,
     pub ecx: u32,
     pub edx: u32,
+}
+
+#[derive(Debug, Default)]
+#[repr(C)]
+pub struct ServtdRWResult {
+    pub content: u64,
+    pub uuid: [u64; 4],
 }
 
 lazy_static! {
@@ -389,6 +396,51 @@ pub fn tdvmcall_get_quote(buffer: &mut [u8]) -> Result<(), TdVmcallError> {
     Ok(())
 }
 
+/// TDG.VP.VMCALL<Service> defines an interface for the command/response that
+/// may have long latency.
+/// Details can be found in TDX GHCI v1.5 spec section 'TDG.VP.VMCALL<Service>'
+///
+/// * command: a piece of 4KB-aligned shared memory as input
+/// * response: a piece of 4KB-aligned shared memory as ouput
+/// * interrupt: event notification interrupt vector, valid values [32-255]
+/// * wait_time: Maximum wait time for the command and response
+pub fn tdvmcall_service(
+    command: &[u8],
+    response: &mut [u8],
+    interrupt: u64,
+    wait_time: u64,
+) -> Result<(), TdVmcallError> {
+    let command = command.as_ptr() as u64;
+    let response = response.as_mut_ptr() as u64;
+
+    // Ensure the address is aligned to 4K bytes
+    if (command & 0xfff) != 0 || (response & 0xfff) != 0 {
+        return Err(TdVmcallError::VmcallAlignError);
+    }
+
+    // Ensure that the interrupt vector is in a valid range
+    if (1..32).contains(&interrupt) {
+        return Err(TdVmcallError::VmcallOperandInvalid);
+    }
+
+    let mut args = TdVmcallArgs {
+        r11: TDVMCALL_SERVICE,
+        r12: command,
+        r13: response,
+        r14: interrupt,
+        r15: wait_time,
+        ..Default::default()
+    };
+
+    let ret = td_vmcall(&mut args);
+
+    if ret != TDVMCALL_STATUS_SUCCESS {
+        return Err(ret.into());
+    }
+
+    Ok(())
+}
+
 /// Get guest TD execution environment information
 ///
 /// Details can be found in TDX Module ABI spec section 'TDG.VP.INFO Leaf'
@@ -492,6 +544,76 @@ pub fn td_shared_mask() -> Option<u64> {
     let gpaw = (td_info.gpaw & 0x3f) as u8;
 
     Some(1u64 << (gpaw - 1))
+}
+
+/// Used by a service TD to read a metadata field (control structure field) of
+/// a target TD.
+///
+/// Details can be found in TDX Module v1.5 ABI spec section 'TDG.SERVTD.RD Leaf'.
+pub fn tdcall_servtd_rd(
+    binding_handle: u64,
+    field_identifier: u64,
+    target_td_uuid: &[u64],
+) -> Result<ServtdRWResult, TdCallError> {
+    let mut args = TdcallArgs {
+        rax: TDCALL_SERVTD_RD,
+        rcx: binding_handle,
+        rdx: field_identifier,
+        r10: target_td_uuid[0],
+        r11: target_td_uuid[1],
+        r12: target_td_uuid[2],
+        r13: target_td_uuid[3],
+        ..Default::default()
+    };
+
+    let ret = td_call(&mut args);
+
+    if ret != TDCALL_STATUS_SUCCESS {
+        return Err(ret.into());
+    }
+
+    let sertd_rw_result = ServtdRWResult {
+        content: args.r8,
+        uuid: [args.r10, args.r11, args.r12, args.r13],
+    };
+
+    Ok(sertd_rw_result)
+}
+
+/// Used by a service TD to write a metadata field (control structure field) of
+/// a target TD.
+///
+/// Details can be found in TDX Module v1.5 ABI spec section 'TDG.SERVTD.RD Leaf'.
+pub fn tdcall_servtd_wr(
+    binding_handle: u64,
+    field_identifier: u64,
+    data: u64,
+    target_td_uuid: &[u64],
+) -> Result<ServtdRWResult, TdCallError> {
+    let mut args = TdcallArgs {
+        rax: TDCALL_SERVTD_WR,
+        rcx: binding_handle,
+        rdx: field_identifier,
+        r8: data,
+        r9: u64::MAX,
+        r10: target_td_uuid[0],
+        r11: target_td_uuid[1],
+        r12: target_td_uuid[2],
+        r13: target_td_uuid[3],
+    };
+
+    let ret = td_call(&mut args);
+
+    if ret != TDCALL_STATUS_SUCCESS {
+        return Err(ret.into());
+    }
+
+    let result = ServtdRWResult {
+        content: args.r8,
+        uuid: [args.r10, args.r11, args.r12, args.r13],
+    };
+
+    Ok(result)
 }
 
 #[cfg(test)]
