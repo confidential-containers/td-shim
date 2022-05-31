@@ -345,6 +345,50 @@ pub fn tdvmcall_cpuid(eax: u32, ecx: u32) -> CpuIdInfo {
     }
 }
 
+/// Used to request the host VMM specify which interrupt vector to use as an event-notify
+/// vector.
+///
+/// Details can be found in TDX GHCI spec section 'TDG.VP.VMCALL<SetupEventNotifyInterrupt>'
+pub fn tdvmcall_setup_event_notify(vector: u64) -> Result<(), TdVmcallError> {
+    let mut args = TdVmcallArgs {
+        r11: TDVMCALL_SETUPEVENTNOTIFY,
+        r12: vector as u64,
+        ..Default::default()
+    };
+
+    let ret = td_vmcall(&mut args);
+
+    if ret != TDVMCALL_STATUS_SUCCESS {
+        return Err(ret.into());
+    }
+
+    Ok(())
+}
+
+/// Used to invoke a request to generate a TD-Quote signing by a TD-Quoting Enclave
+/// operating in the host environment.
+/// Details can be found in TDX GHCI spec section 'TDG.VP.VMCALL<GetQuote>'
+///
+/// * buffer: a piece of 4KB-aligned shared memory
+pub fn tdvmcall_get_quote(buffer: &mut [u8]) -> Result<(), TdVmcallError> {
+    let addr = buffer.as_mut_ptr() as u64;
+
+    let mut args = TdVmcallArgs {
+        r11: TDVMCALL_GETQUOTE,
+        r12: addr,
+        r13: buffer.len() as u64,
+        ..Default::default()
+    };
+
+    let ret = td_vmcall(&mut args);
+
+    if ret != TDVMCALL_STATUS_SUCCESS {
+        return Err(ret.into());
+    }
+
+    Ok(())
+}
+
 /// Get guest TD execution environment information
 ///
 /// Details can be found in TDX Module ABI spec section 'TDG.VP.INFO Leaf'
