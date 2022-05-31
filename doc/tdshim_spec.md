@@ -762,6 +762,74 @@ The expected flow is:
    TDH.MR.EXTEND as described above, from the lowest GPA to the highest GPA,
    with 256 bytes granularity.
 
+#### Guideline
+
+TD Shim should follow [TCG Platform Firmware Profile specification](#tcg-pfp)
+in general.
+
+1. About separator
+
+   TD Shim shall measure 0x00000000 or 0xFFFFFFFF to RTMR[0~1] and the matching
+   EV_SEPARATOR event shall be recorded in the event log, prior to the
+   invocation of TD payload. As such, the verifier can know the rest events are
+   for the TD payload.
+
+   In case of an error occurs, TD shim shall measure 0x00000001 to RTMR[0~1] and
+   the matching EV_SEPARATOR event shall be recorded in the event log.
+
+2. About TD configuration
+
+   TD Shim shall extend the TD Hob to RTMR[0] and the event should be
+   EV_PLATFORM_CONFIG_FLAGS with event data being TD_SHIM_PLATFORM_CONFIG_INFO
+   and Descriptor being "td_hob\0", Info being the whole TD Hob.
+
+3. About payload info
+
+   TD Shim shall extend the payload binary to RTMR[1] and the event should be
+   EV_EFI_PLATFORM_FIRMWARE_BLOB2 with event data being
+   UEFI_PLATFORM_FIRMWARE_BLOB2 and BlobDescription being "td_payload\0".
+
+   TD Shim shall extend the payload parameter to RTMR[1] and the event should be
+   EV_PLATFORM_CONFIG_FLAGS with event data being TD_SHIM_PLATFORM_CONFIG_INFO
+   and Descriptor being "td_payload_info\0", Info being the payload parameter.
+
+4. About secure boot
+
+   TD Shim shall extend the security policy database (provisioned trust anchors)
+   in RTMR[0] and the event should be EV_PLATFORM_CONFIG_FLAGS with
+   event data being TD_SHIM_PLATFORM_CONFIG_INFO and Descriptor being
+   "secure_policy_db", Info being the whole security policy database.
+
+   TD Shim shall extend the security authority entry in the security policy
+   database (matched trust anchor) in RTMR[0] and the event should be
+   EV_PLATFORM_CONFIG_FLAGS with event data being
+   TD_SHIM_PLATFORM_CONFIG_INFO and Descriptor being "secure_authority", Info
+   being the matched trust anchor in the security policy database.
+
+   If the payload includes secure version number (SVN) information, then TD Shim
+   should extend the SVN of the payload to RTMR[1] and the event should be
+   EV_PLATFORM_CONFIG_FLAGS with event data being
+   TD_SHIM_PLATFORM_CONFIG_INFO and Descriptor being "td_payload_svn\0", Info
+   being a UINT64 SVN.
+
+   Please refer the data structure definition in [secure_boot](secure_boot.md).
+
+5. About no action event
+
+   TD Shim shall include the TCG_EfiSpecIDEvent as the first event and the
+   vendorInfo should be "td_shim".
+
+   TD Shim may include TCG_Sp800_155_PlatformId_Event2 to provide reference
+   manifest information.
+
+**Table 3.5-4 TD_SHIM_PLATFORM_CONFIG_INFO**
+
+| Field              | Byte Length | Byte Offset | Description                                 |
+|:-------------------|:------------|:------------|:--------------------------------------------|
+| Descriptor         | 16          | 0           | 16 bytes information specific descriptor.   |
+| InfoLength         | 4           | 16          | Length, in bytes, of the information field. |
+| Info               | InfoLength  | 20          | Information field.                          |
+
 ### Secure Boot Support
 
 If TD Shim reports Payload in TD Shim metadata with MR.EXTEND attribute, then TD
@@ -859,7 +927,7 @@ APs Resource = AP Page Table (Reserved) + AP Number * AP Stack (Reserved)
   https://uefi.org/sites/default/files/resources/UEFI_Spec_2_9_2021_03_18.pdf
 * <a name="pinit"/>UEFI org, UEFI Platform Initialization Specification Version 1.7 -
   https://uefi.org/sites/default/files/resources/PI_Spec_1_7_A_final_May1.pdf
-* TCG, Platform Firmware Profile Specification 1.05 - https://trustedcomputinggroup.org/resource/pc-client-specific-platform-firmware-profile-specification/
+* <a name="tcg-pfp"/>TCG, Platform Firmware Profile Specification 1.05 - https://trustedcomputinggroup.org/resource/pc-client-specific-platform-firmware-profile-specification/
 * PCI-SIG, PCI Firmware Specification Revision 3.2 -
   https://pcisig.com/specifications
 * Multi-Processor Specification Version 1.4 -
