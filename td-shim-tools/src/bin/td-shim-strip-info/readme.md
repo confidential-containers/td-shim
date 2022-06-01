@@ -1,4 +1,4 @@
-# td-reproducible-tool
+# td-shim-strip-info
 
 ## Background
 
@@ -28,9 +28,9 @@ NOTE: 1 and 2 are not applied because this strip feature has potential stability
 ## tool usage
 
 ```
-td-reproducible-tool [OPTIONS]
+td-shim-strip-info [OPTIONS]
 
-TD REPRODUCIBLE TOOL
+TD SHIM STRIP INFO TOOL
 
 Optional arguments:
   -h,--help             Show this help message and exit
@@ -50,15 +50,15 @@ Optional arguments:
 example:<br>
 Command used under x86_64-unknown-uefi target:
 ```
-cargo run -p td-reproducible-tool -- -n rust-td-payload --target x86_64-unknown-uefi -p release -v
+cargo run -p td-shim-tools --bin td-shim-strip-info -- -n rust-td-payload --target x86_64-unknown-uefi -p release -v
 ```
 is equal to 
 ```
-cargo run -p td-reproducible-tool -- -w "." -n rust-td-payload.efi -t x86_64-unknown-uefi -p release -v
+cargo run -p td-shim-tools --bin td-shim-strip-info -- -w "." -n rust-td-payload.efi -t x86_64-unknown-uefi -p release -v
 ```
 <br>
 Command used under x86_64-unknown-none target:
 
 ```
-cargo run -p td-reproducible-tool -- -n rust-td-payload --target x86_64-unknown-none -p release -v
+cargo run -p td-shim-tools --bin td-shim-strip-info -- -n rust-td-payload --target x86_64-unknown-none -p release -v
 ```

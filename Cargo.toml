@@ -14,7 +14,6 @@ members = [
     "td-shim",
     "td-shim-tools",
     "tdx-tdcall",
-    "td-reproducible-tool",
     "tests/test-td-exception",
     "tests/test-td-paging",
     "tests/test-td-payload",
