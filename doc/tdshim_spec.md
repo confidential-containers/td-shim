@@ -824,11 +824,11 @@ in general.
 
 **Table 3.5-4 TD_SHIM_PLATFORM_CONFIG_INFO**
 
-| Field              | Byte Length | Byte Offset | Description                                 |
-|:-------------------|:------------|:------------|:--------------------------------------------|
-| Descriptor         | 16          | 0           | 16 bytes information specific descriptor.   |
-| InfoLength         | 4           | 16          | Length, in bytes, of the information field. |
-| Info               | InfoLength  | 20          | Information field.                          |
+| Type             | Name       | Description                                 |
+|:-----------------|:-----------|:--------------------------------------------|
+| BYTE[16]         | Descriptor | 16 bytes information specific descriptor.   |
+| UINT32           | InfoLength | Length, in bytes, of the information field. |
+| BYTE[InfoLength] | Info       | Information field.                          |
 
 ### Secure Boot Support
 
