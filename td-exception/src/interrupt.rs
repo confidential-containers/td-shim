@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
-use core::{arch::asm, ptr::slice_from_raw_parts_mut};
+use core::arch::asm;
 #[cfg(feature = "tdx")]
 use tdx_tdcall::tdx;
 
@@ -471,8 +471,10 @@ fn handle_tdx_ioexit(ve_info: &tdx::TdVeInfo, stack: &mut InterruptNoErrorStack)
             if read {
                 let val = io_read(size, port);
                 unsafe {
-                    let rsi =
-                        &mut *slice_from_raw_parts_mut(stack.scratch.rdi as *mut u8, size as usize);
+                    let rsi = core::slice::from_raw_parts_mut(
+                        stack.scratch.rdi as *mut u8,
+                        size as usize,
+                    );
                     // Safety: size is smaller than 4
                     rsi.copy_from_slice(&u32::to_le_bytes(val)[..size])
                 }
@@ -481,7 +483,7 @@ fn handle_tdx_ioexit(ve_info: &tdx::TdVeInfo, stack: &mut InterruptNoErrorStack)
                 let mut val = 0;
                 unsafe {
                     let rsi =
-                        &mut *slice_from_raw_parts_mut(stack.scratch.rsi as *mut u8, size as usize);
+                        core::slice::from_raw_parts(stack.scratch.rsi as *mut u8, size as usize);
                     for (idx, byte) in rsi.iter().enumerate() {
                         val |= (*byte as u32) << (idx * 8);
                     }
