@@ -23,8 +23,14 @@ required-features = ["signer"]
 name = "td-shim-checker"
 required-features = ["loader"]
 
+[[bin]]
+name = "td-shim-strip-info"
+
 [dependencies]
 r-efi = "3.2.0"
+argparse = "0.2.2"
+zeroize = "1.5.4"
+regex = "1"
 scroll = { version = "0.10", default-features = false, features = ["derive"]}
 td-layout = { path = "../td-layout" }
 td-shim = { path = "../td-shim", default-features = false }

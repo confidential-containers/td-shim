@@ -13,3 +13,5 @@ artifacts
 coverage
 # Intellj working directory
 .idea
+# vscode working directory
+.vscode
