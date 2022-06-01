@@ -247,8 +247,7 @@ mod tests {
     fn test_struct_size() {
         assert_eq!(size_of::<TpmuHa>(), SHA384_DIGEST_SIZE);
         assert_eq!(size_of::<TpmtHa>(), SHA384_DIGEST_SIZE + 2);
-        //assert_eq!(size_of::<TcgPcrEvent2Header>(), PCR_EVENT_HEADER_SIZE);
-        assert_eq!(size_of::<Tdel>(), 56);
+        assert_eq!(size_of::<Ccel>(), 56);
     }
 
     #[test]
@@ -263,9 +262,9 @@ mod tests {
     }
 
     #[test]
-    fn test_tcg_pcr_event2_header() {
-        let hdr = TcgPcrEvent2Header {
-            pcr_index: 0,
+    fn test_cc_event_header() {
+        let hdr = CcEventHeader {
+            mr_index: 0,
             event_type: 0,
             digest: TpmlDigestValues {
                 count: 0,
@@ -273,7 +272,7 @@ mod tests {
             },
             event_size: 0,
         };
-        let mut buf = [0u8; PCR_EVENT_HEADER_SIZE];
+        let mut buf = [0u8; CC_EVENT_HEADER_SIZE];
         buf.pwrite(&hdr, 0).unwrap();
     }
 }
