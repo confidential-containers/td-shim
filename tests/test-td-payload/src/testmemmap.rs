@@ -58,12 +58,10 @@ impl TestMemoryMap {
     fn parse_hob(&self, hob_address: usize) -> Option<Vec<E820Entry>> {
         let mut e820: Vec<e820::E820Entry> = Vec::new();
 
-        let hob_buffer = unsafe {
+        let hob_list = hob::check_hob_integrity(unsafe {
             memslice::get_dynamic_mem_slice_mut(memslice::SliceType::PayloadHob, hob_address)
-        };
-
-        let hob_size = hob::get_hob_total_size(hob_buffer).unwrap();
-        let hob_list = &hob_buffer[..hob_size];
+        })
+        .expect("Integrity check failed: invalid HOB list");
 
         let mut next_hob = hob_list;
         if let Some(hob) =
