@@ -28,4 +28,3 @@ panic = "abort" # disable stack unwinding on panic
 [profile.release]
 panic = "abort"    # disable stack unwinding on panic
 lto = true         # Link-time optimization
-strip = "symbols"  # remove debug related symbols/sections
