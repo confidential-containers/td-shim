@@ -134,12 +134,10 @@ extern "win64" fn _start(hob: *const c_void) -> ! {
     log::info!("Starting rust-tdcall-payload hob - {:p}\n", hob);
 
     // init heap so that we can allocate memory
-    let hob_buffer = unsafe {
+    let hob_list = hob::check_hob_integrity(unsafe {
         memslice::get_dynamic_mem_slice_mut(memslice::SliceType::PayloadHob, hob as usize)
-    };
-
-    let hob_size = hob::get_hob_total_size(hob_buffer).unwrap();
-    let hob_list = &hob_buffer[..hob_size];
+    })
+    .expect("Integrity check failed: invalid HOB list");
 
     // There is no heap at this moment, put the E820 table on the stack
     let mut memory_map = [E820Entry::default(); E820_TABLE_SIZE];

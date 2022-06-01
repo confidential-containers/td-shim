@@ -63,12 +63,10 @@ impl TestTdAcpi {
         let mut tables: Vec<GenericSdtHeader> = Vec::new();
 
         // Parse Hob to populate td_acpi_list
-        let hob_buffer = unsafe {
+        let hob_list = hob::check_hob_integrity(unsafe {
             memslice::get_dynamic_mem_slice_mut(memslice::SliceType::PayloadHob, hob_address)
-        };
-
-        let hob_size = hob::get_hob_total_size(hob_buffer).unwrap();
-        let hob_list = &hob_buffer[..hob_size];
+        })
+        .expect("Integrity check failed: invalid HOB list");
 
         let mut next_hob = hob_list;
         while let Some(hob) =

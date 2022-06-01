@@ -43,17 +43,14 @@ pub fn seek_to_next_hob(hob_list: &'_ [u8]) -> Option<&'_ [u8]> {
     Some(&hob_list[offset..])
 }
 
-/// Get size of the HOB list.
-///
-/// The caller needs to verify that the returned size is valid.
-pub fn get_hob_total_size(hob: &[u8]) -> Option<usize> {
+// Check hob length equal efi_end_of_hob_list of HandoffInfoTable
+pub fn check_hob_length(hob: &[u8], hob_length: usize) -> Option<&[u8]> {
     let phit: HandoffInfoTable = hob.pread(0).ok()?;
     if phit.header.r#type == HOB_TYPE_HANDOFF
         && phit.header.length as usize >= size_of::<HandoffInfoTable>()
     {
-        let end = phit.efi_end_of_hob_list.checked_sub(hob.as_ptr() as u64)?;
-        if end < usize::MAX as u64 {
-            Some(end as usize)
+        if hob_length as u64 == phit.efi_end_of_hob_list - hob.as_ptr() as u64 {
+            Some(&hob[0..hob_length])
         } else {
             None
         }
@@ -66,14 +63,21 @@ pub fn get_hob_total_size(hob: &[u8]) -> Option<usize> {
 // and return the HOB slice with real HOB length
 pub fn check_hob_integrity(hob_list: &[u8]) -> Option<&[u8]> {
     let mut offset = 0;
-    let hob_length = get_hob_total_size(hob_list)?;
-    if hob_length > hob_list.len() {
+    let hob_list_len = hob_list.len();
+
+    // A valid HOB should have an HandoffInfoTable at least
+    if hob_list_len < size_of::<HandoffInfoTable>() {
         return None;
     }
     speculation_barrier();
 
     loop {
         let hob = &hob_list[offset..];
+        if offset + size_of::<Header>() > hob_list_len {
+            return None;
+        }
+        speculation_barrier();
+
         let header: Header = hob.pread(0).ok()?;
 
         // A valid HOB should has non-zero length and zero reserved field,
@@ -84,7 +88,9 @@ pub fn check_hob_integrity(hob_list: &[u8]) -> Option<&[u8]> {
 
         match header.r#type {
             HOB_TYPE_HANDOFF => {
-                if header.length as usize != size_of::<HandoffInfoTable>() {
+                if header.length as usize != size_of::<HandoffInfoTable>()
+                    || offset + size_of::<HandoffInfoTable>() > hob_list_len
+                {
                     return None;
                 }
                 let phit_hob: HandoffInfoTable = hob.pread(0).ok()?;
@@ -98,7 +104,11 @@ pub fn check_hob_integrity(hob_list: &[u8]) -> Option<&[u8]> {
                     return None;
                 }
             }
-            HOB_TYPE_END_OF_HOB_LIST => return Some(&hob_list[..hob_length]),
+            HOB_TYPE_END_OF_HOB_LIST => {
+                let hob_length = offset + size_of::<Header>();
+
+                return check_hob_length(hob_list, hob_length);
+            }
             HOB_TYPE_RESOURCE_DESCRIPTOR => {
                 if header.length as usize != size_of::<ResourceDescription>() {
                     return None;
@@ -133,7 +143,9 @@ pub fn check_hob_integrity(hob_list: &[u8]) -> Option<&[u8]> {
                 }
             }
             HOB_TYPE_CPU => {
-                if header.length as usize != size_of::<Cpu>() {
+                if header.length as usize != size_of::<Cpu>()
+                    || offset + size_of::<Cpu>() > hob_list_len
+                {
                     return None;
                 }
 
@@ -149,7 +161,7 @@ pub fn check_hob_integrity(hob_list: &[u8]) -> Option<&[u8]> {
             // Unsupported types
             _ => return None,
         }
-        offset = align_to_next_hob_offset(hob_length, offset, header.length)?;
+        offset = align_to_next_hob_offset(hob_list_len, offset, header.length)?;
         speculation_barrier();
     }
 }
@@ -338,37 +350,6 @@ mod tests {
         );
         assert!(align_to_next_hob_offset(usize::MAX, 0, u16::MAX - 6).is_none());
         assert!(align_to_next_hob_offset(usize::MAX, 8, u16::MAX).is_none());
-    }
-
-    #[test]
-    fn test_get_hob_total_size() {
-        assert!(get_hob_total_size(&[]).is_none());
-
-        let mut tbl = HandoffInfoTable {
-            header: Header {
-                r#type: HOB_TYPE_HANDOFF,
-                length: size_of::<HandoffInfoTable>() as u16,
-                reserved: 0,
-            },
-            version: 1,
-            boot_mode: 0,
-            efi_memory_top: 0x2_0000_0000,
-            efi_memory_bottom: 0xc000_0000,
-            efi_free_memory_top: 0,
-            efi_free_memory_bottom: 0,
-            efi_end_of_hob_list: 0,
-        };
-        let buf = unsafe {
-            &*slice_from_raw_parts(
-                &tbl as *const HandoffInfoTable as *const u8,
-                size_of::<HandoffInfoTable>(),
-            )
-        };
-        assert!(get_hob_total_size(buf).is_none());
-
-        let end = &tbl as *const HandoffInfoTable as *const u8 as usize as u64 + 0x10000;
-        tbl.efi_end_of_hob_list = end;
-        assert_eq!(get_hob_total_size(buf), Some(0x10000));
     }
 
     #[test]
