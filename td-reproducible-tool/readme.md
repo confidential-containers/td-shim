@@ -23,6 +23,8 @@ Solution: <br>
 ```
 NOTE: 3 and 4 may be resolved directly after rust-lang RFC 3127. This tool provide a temp solution to solve 3 and 4 before RFC is implemented.
 
+NOTE: 1 and 2 are not applied because this strip feature has potential stability issue. For example, [bug](https://github.com/confidential-containers/td-shim/issues/272). It can be enabled after the strip becomes more robust.
+
 ## tool usage
 
 ```
