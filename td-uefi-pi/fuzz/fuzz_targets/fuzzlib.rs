@@ -3,9 +3,12 @@
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
 #![allow(unused)]
-
-use td_uefi_pi::{fv, hob, pi};
+use core::mem::size_of;
 use r_efi::efi::Guid;
+use std::vec::Vec;
+use td_uefi_pi::{fv, hob, pi};
+
+const EFI_END_OF_HOB_LIST_OFFSET: usize = 48;
 
 const HOB_ACPI_TABLE_GUID: [u8; 16] = [
     0x70, 0x58, 0x0c, 0x6a, 0xed, 0xd4, 0xf4, 0x44, 0xa1, 0x35, 0xdd, 0x23, 0x8b, 0x6f, 0xc, 0x8d,
@@ -26,15 +29,29 @@ const CFV_FFS_HEADER_TRUST_ANCHOR_GUID: Guid = Guid::from_fields(
 ); // {77A2742E-9340-4AC9-8F85-B7B978580021}
 
 pub fn fuzz_hob_parser(buffer: &[u8]) {
-    if hob::get_hob_total_size(buffer).is_some() {
-        hob::dump_hob(buffer);
-        hob::get_system_memory_size_below_4gb(buffer);
-        hob::get_total_memory_top(buffer);
-        hob::get_fv(buffer);
-        hob::get_next_extension_guid_hob(buffer, &HOB_ACPI_TABLE_GUID);
-        hob::get_next_extension_guid_hob(buffer, &HOB_KERNEL_INFO_GUID);
-        hob::get_guid_data(buffer);
-        hob::seek_to_next_hob(buffer);
+    let mut test_buffer = buffer.to_vec();
+
+    // Update ptr in buffer
+    let ptr = test_buffer.as_ptr() as u64;
+    if test_buffer.len() >= size_of::<pi::hob::HandoffInfoTable>() {
+        test_buffer[EFI_END_OF_HOB_LIST_OFFSET..size_of::<pi::hob::HandoffInfoTable>()]
+            .copy_from_slice(&u64::to_le_bytes(ptr + buffer.len() as u64)[..]);
+    }
+
+    let hob_integrity = hob::check_hob_integrity(&test_buffer);
+
+    match hob_integrity {
+        Some(hob_list) => {
+            hob::dump_hob(hob_list);
+            hob::get_system_memory_size_below_4gb(hob_list);
+            hob::get_total_memory_top(hob_list);
+            hob::get_fv(hob_list);
+            hob::get_next_extension_guid_hob(hob_list, &HOB_ACPI_TABLE_GUID);
+            hob::get_next_extension_guid_hob(hob_list, &HOB_KERNEL_INFO_GUID);
+            hob::get_guid_data(hob_list);
+            hob::seek_to_next_hob(hob_list);
+        }
+        None => println!("Bad hob"),
     }
 }
 
@@ -43,5 +60,9 @@ pub fn fuzz_payload_parser(data: &[u8]) {
 }
 
 pub fn fuzz_cfv_parser(data: &[u8]) {
-    let res = fv::get_file_from_fv(data, pi::fv::FV_FILETYPE_RAW, CFV_FFS_HEADER_TRUST_ANCHOR_GUID);
+    let res = fv::get_file_from_fv(
+        data,
+        pi::fv::FV_FILETYPE_RAW,
+        CFV_FFS_HEADER_TRUST_ANCHOR_GUID,
+    );
 }
