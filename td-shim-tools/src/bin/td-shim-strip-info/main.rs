@@ -140,6 +140,7 @@ fn main() -> std::io::Result<()> {
         println!(
             "INFO: -s or --strip_path is not specified, Skipping strip related rust file path."
         );
+        fs::write(binary_path, buf).expect("Failed to open the compiled binary!\n");
         return Ok(());
     }
 
