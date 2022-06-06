@@ -280,6 +280,15 @@ pub struct CcEventHeader {
     pub event_size: u32,
 }
 
+#[repr(C)]
+#[derive(Default, Debug, Pread, Pwrite)]
+pub struct TcgPcrEventHeader {
+    pub mr_index: u32,
+    pub event_type: u32,
+    pub digest: [u8; 20],
+    pub event_size: u32,
+}
+
 #[repr(C, packed)]
 #[derive(Default, AsBytes, FromBytes)]
 pub struct Ccel {
@@ -328,8 +337,17 @@ impl<'a> CcEventDumper<'a> {
     pub fn dump_event_log(&self) {
         let mut offset = 0;
 
+        if let Some(pcr_header) = self.read_pcr_event_header(offset) {
+            Self::dump_pcr_event(&pcr_header);
+            offset = offset
+                .saturating_add(size_of::<TcgPcrEventHeader>() + pcr_header.event_size as usize);
+        } else {
+            log::info!("PCR event header not found\n");
+            return;
+        };
+
         while offset < self.size as usize {
-            if let Some(cc_event_header) = self.read_header(offset) {
+            if let Some(cc_event_header) = self.read_cc_event_header(offset) {
                 offset += CC_EVENT_HEADER_SIZE;
                 let cc_event_size = cc_event_header.event_size as usize;
                 if cc_event_size + offset <= self.area.len() {
@@ -341,6 +359,14 @@ impl<'a> CcEventDumper<'a> {
                 break;
             }
         }
+    }
+
+    fn dump_pcr_event(pcr_event_header: &TcgPcrEventHeader) {
+        log::info!("PCR Event:\n");
+        log::info!("    MrIndex  - {}\n", pcr_event_header.mr_index);
+        log::info!("    EventType - 0x{:x}\n", pcr_event_header.event_type);
+        log::info!("    Digest - {:x?}\n", pcr_event_header.digest);
+        log::info!("    EventSize - 0x{:x}\n", pcr_event_header.event_size);
     }
 
     fn dump_event(cc_event_header: &CcEventHeader, _td_event_data: &[u8]) {
@@ -366,7 +392,15 @@ impl<'a> CcEventDumper<'a> {
         log::info!("\n");
     }
 
-    fn read_header(&self, offset: usize) -> Option<CcEventHeader> {
+    fn read_pcr_event_header(&self, offset: usize) -> Option<TcgPcrEventHeader> {
+        if let Ok(v) = self.area.pread::<TcgPcrEventHeader>(offset) {
+            Some(v)
+        } else {
+            None
+        }
+    }
+
+    fn read_cc_event_header(&self, offset: usize) -> Option<CcEventHeader> {
         if let Ok(v) = self.area.pread::<CcEventHeader>(offset) {
             Some(v)
         } else {

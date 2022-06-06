@@ -13,7 +13,7 @@ use scroll::Pread;
 use td_layout::memslice;
 use td_shim::acpi::GenericSdtHeader;
 use td_shim::event_log::{
-    CcEventDumper, CcEventHeader, Ccel, CCEL_CC_TYPE_TDX, CC_EVENT_HEADER_SIZE,
+    CcEventDumper, CcEventHeader, Ccel, TcgPcrEventHeader, CCEL_CC_TYPE_TDX, CC_EVENT_HEADER_SIZE,
 };
 use td_shim::TD_ACPI_TABLE_HOB_GUID;
 use td_uefi_pi::hob;
@@ -87,8 +87,16 @@ impl TestTdTrustedBoot {
         let mut rtmr0: [u8; 96] = [0; 96];
 
         let mut offset = 0;
+
+        // The first event of td-shim is TCG_EfiSpecIDEvent with TcgPcrEventHeader
+        if let Some(pcr_header) = Self::read_pcr_event_header(eventlog, offset) {
+            offset += pcr_header.event_size as usize + size_of::<TcgPcrEventHeader>();
+        } else {
+            return rtmr0[0..48].try_into().unwrap();
+        }
+
         while offset < eventlog_len {
-            if let Some(cc_event_header) = self.read_header(eventlog, offset) {
+            if let Some(cc_event_header) = Self::read_cc_event_header(eventlog, offset) {
                 offset += CC_EVENT_HEADER_SIZE;
                 let cc_event_size = cc_event_header.event_size as usize;
                 if cc_event_size + offset <= eventlog_len {
@@ -117,7 +125,15 @@ impl TestTdTrustedBoot {
         rtmr0[0..48].try_into().unwrap()
     }
 
-    fn read_header(&self, area: &[u8], offset: usize) -> Option<CcEventHeader> {
+    fn read_pcr_event_header(area: &[u8], offset: usize) -> Option<TcgPcrEventHeader> {
+        if let Ok(v) = area.pread::<TcgPcrEventHeader>(offset) {
+            Some(v)
+        } else {
+            None
+        }
+    }
+
+    fn read_cc_event_header(area: &[u8], offset: usize) -> Option<CcEventHeader> {
         if let Ok(v) = area.pread::<CcEventHeader>(offset) {
             Some(v)
         } else {
