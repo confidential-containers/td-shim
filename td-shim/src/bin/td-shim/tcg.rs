@@ -6,9 +6,9 @@ use core::convert::TryInto;
 use core::mem::size_of;
 use scroll::{Pread, Pwrite};
 use td_shim::event_log::{
-    CcEventHeader, Ccel, TcgEfiSpecIdevent, TdShimPlatformConfigInfoHeader, TpmlDigestValues,
-    TpmtHa, TpmuHa, CCEL_CC_TYPE_TDX, CC_EVENT_HEADER_SIZE, EV_NO_ACTION, EV_PLATFORM_CONFIG_FLAGS,
-    EV_SEPARATOR, SHA384_DIGEST_SIZE, TPML_ALG_SHA384,
+    CcEventHeader, Ccel, TcgEfiSpecIdevent, TcgPcrEventHeader, TdShimPlatformConfigInfoHeader,
+    TpmlDigestValues, TpmtHa, TpmuHa, CCEL_CC_TYPE_TDX, CC_EVENT_HEADER_SIZE, EV_NO_ACTION,
+    EV_PLATFORM_CONFIG_FLAGS, EV_SEPARATOR, SHA384_DIGEST_SIZE, TPML_ALG_SHA384,
 };
 
 #[derive(Debug)]
@@ -30,10 +30,10 @@ pub struct TdEventLog {
 }
 
 impl TdEventLog {
-    pub fn new(td_event_mem: &'static mut [u8]) -> TdEventLog {
+    pub fn new(td_event_mem: &'static mut [u8]) -> Option<TdEventLog> {
         let laml = td_event_mem.len();
 
-        TdEventLog {
+        let mut td_event_log = TdEventLog {
             area: td_event_mem,
             format: 0x02,
             lasa: 0,
@@ -42,7 +42,13 @@ impl TdEventLog {
             last: 0,
             started: false,
             truncated: false,
-        }
+        };
+
+        // Create the TCG_EfiSpecIDEvent as the first event
+        let first = TcgEfiSpecIdevent::default();
+        td_event_log.log_pcr_event(0, EV_NO_ACTION, first.as_bytes())?;
+
+        Some(td_event_log)
     }
 
     pub fn create_ccel(&self) -> Ccel {
@@ -64,7 +70,7 @@ impl TdEventLog {
         let sha384 = Self::calculate_digest_and_extend(hash_data, mr_index);
         let event_size = event_data.len();
 
-        self.log_event(mr_index, event_type, event_data, &sha384)
+        self.log_cc_event(mr_index, event_type, event_data, &sha384)
     }
 
     pub fn create_event_log_platform_config(
@@ -78,7 +84,7 @@ impl TdEventLog {
 
         // Write the event header into event log memory and update the 'size' and 'last'
         let event_offset = self
-            .log_header(
+            .log_cc_event_header(
                 mr_index,
                 EV_PLATFORM_CONFIG_FLAGS,
                 &sha384,
@@ -109,8 +115,8 @@ impl TdEventLog {
         let _ = Self::calculate_digest_and_extend(&separator, 1);
         let sha384 = Self::calculate_digest_and_extend(&separator, 2);
 
-        self.log_event(1, EV_SEPARATOR, &separator, &sha384)?;
-        self.log_event(2, EV_SEPARATOR, &separator, &sha384)
+        self.log_cc_event(1, EV_SEPARATOR, &separator, &sha384)?;
+        self.log_cc_event(2, EV_SEPARATOR, &separator, &sha384)
     }
 
     fn calculate_digest_and_extend(hash_data: &[u8], mr_index: u32) -> [u8; SHA384_DIGEST_SIZE] {
@@ -126,7 +132,30 @@ impl TdEventLog {
         hash384_value
     }
 
-    fn log_event(
+    fn log_pcr_event(
+        &mut self,
+        mr_index: u32,
+        event_type: u32,
+        event_data: &[u8],
+    ) -> Option<usize> {
+        if self.size + event_data.len() + size_of::<TcgPcrEventHeader>() > self.laml {
+            return None;
+        }
+
+        let pcr_header = TcgPcrEventHeader {
+            mr_index,
+            event_type,
+            digest: [0u8; 20],
+            event_size: event_data.len() as u32,
+        };
+        let _ = self.area.pwrite(pcr_header, self.size);
+        self.write_data(event_data, self.size + size_of::<TcgPcrEventHeader>());
+        self.update_offset(size_of::<TcgPcrEventHeader>() + event_data.len());
+
+        Some(self.size)
+    }
+
+    fn log_cc_event(
         &mut self,
         mr_index: u32,
         event_type: u32,
@@ -135,7 +164,7 @@ impl TdEventLog {
     ) -> Result<(), TdEventLogError> {
         // Write the event header into event log memory and update the 'size' and 'last'
         let event_offset = self
-            .log_header(mr_index, event_type, &sha384, event_data.len() as u32)
+            .log_cc_event_header(mr_index, event_type, &sha384, event_data.len() as u32)
             .ok_or(TdEventLogError::OutOfResource)?;
 
         // Fill the event data into event log
@@ -146,7 +175,7 @@ impl TdEventLog {
         Ok(())
     }
 
-    fn log_header(
+    fn log_cc_event_header(
         &mut self,
         mr_index: u32,
         event_type: u32,
@@ -185,7 +214,6 @@ impl TdEventLog {
     }
 }
 
-#[cfg(test)]
 mod tests {
     use super::*;
 
@@ -194,11 +222,12 @@ mod tests {
         let mut buf = [0u8; 128];
         let slice =
             unsafe { &mut *core::ptr::slice_from_raw_parts_mut(buf.as_mut_ptr(), buf.len()) };
-        let mut logger = TdEventLog::new(slice);
+        let mut logger = TdEventLog::new(slice).expect("Unable to create event log");
         let ccel = logger.create_ccel();
         assert_eq!(ccel.laml as u64, 128);
-        assert_eq!(ccel.lasa as u64, 0);
+        assert_eq!(ccel.lasa as u64, buf.as_ptr() as u64);
 
-        logger.create_event_log(1, 2, &[0u8], &[08u8]);
+        let res = logger.create_event_log(1, 2, &[0u8], &[08u8]);
+        assert!(res.is_ok())
     }
 }
