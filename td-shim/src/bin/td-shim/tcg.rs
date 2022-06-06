@@ -3,11 +3,19 @@
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
 use core::convert::TryInto;
+use core::mem::size_of;
 use scroll::{Pread, Pwrite};
 use td_shim::event_log::{
-    CcEventHeader, Ccel, TpmlDigestValues, TpmtHa, TpmuHa, CCEL_CC_TYPE_TDX, CC_EVENT_HEADER_SIZE,
-    SHA384_DIGEST_SIZE, TPML_ALG_SHA384,
+    CcEventHeader, Ccel, TcgEfiSpecIdevent, TdShimPlatformConfigInfoHeader, TpmlDigestValues,
+    TpmtHa, TpmuHa, CCEL_CC_TYPE_TDX, CC_EVENT_HEADER_SIZE, EV_NO_ACTION, EV_PLATFORM_CONFIG_FLAGS,
+    EV_SEPARATOR, SHA384_DIGEST_SIZE, TPML_ALG_SHA384,
 };
+
+#[derive(Debug)]
+pub enum TdEventLogError {
+    OutOfResource,
+    InvalidParameter,
+}
 
 #[allow(unused)]
 pub struct TdEventLog {
@@ -52,15 +60,102 @@ impl TdEventLog {
         event_type: u32,
         event_data: &[u8],
         hash_data: &[u8],
-    ) {
-        let event_data_size = event_data.len();
+    ) -> Result<(), TdEventLogError> {
+        let sha384 = Self::calculate_digest_and_extend(hash_data, mr_index);
+        let event_size = event_data.len();
+
+        self.log_event(mr_index, event_type, event_data, &sha384)
+    }
+
+    pub fn create_event_log_platform_config(
+        &mut self,
+        mr_index: u32,
+        descriptor: &[u8],
+        info: &[u8],
+    ) -> Result<(), TdEventLogError> {
+        let sha384 = Self::calculate_digest_and_extend(info, mr_index);
+        let event_size = info.len() + size_of::<TdShimPlatformConfigInfoHeader>();
+
+        // Write the event header into event log memory and update the 'size' and 'last'
+        let event_offset = self
+            .log_header(
+                mr_index,
+                EV_PLATFORM_CONFIG_FLAGS,
+                &sha384,
+                event_size as u32,
+            )
+            .ok_or(TdEventLogError::OutOfResource)?;
+
+        // Write the platform config info header into event log
+        let config = TdShimPlatformConfigInfoHeader::new(descriptor, info.len() as u32)
+            .ok_or(TdEventLogError::InvalidParameter)?;
+        self.write_data(config.as_bytes(), event_offset + CC_EVENT_HEADER_SIZE);
+
+        // Fill the config info data into event log
+        self.write_data(
+            info,
+            event_offset + CC_EVENT_HEADER_SIZE + size_of::<TdShimPlatformConfigInfoHeader>(),
+        );
+
+        self.update_offset(event_size + CC_EVENT_HEADER_SIZE);
+
+        Ok(())
+    }
+
+    pub fn create_seperator(&mut self) -> Result<(), TdEventLogError> {
+        let separator = u32::to_le_bytes(0);
+
+        // Measure 0x0000_0000 into RTMR[0] and RTMR[1]
+        let _ = Self::calculate_digest_and_extend(&separator, 1);
+        let sha384 = Self::calculate_digest_and_extend(&separator, 2);
+
+        self.log_event(1, EV_SEPARATOR, &separator, &sha384)?;
+        self.log_event(2, EV_SEPARATOR, &separator, &sha384)
+    }
+
+    fn calculate_digest_and_extend(hash_data: &[u8], mr_index: u32) -> [u8; SHA384_DIGEST_SIZE] {
         let hash_value = ring::digest::digest(&ring::digest::SHA384, hash_data);
         let hash_value = hash_value.as_ref();
         assert_eq!(hash_value.len(), SHA384_DIGEST_SIZE);
         // Safe to unwrap() because we have checked the size.
         let hash384_value: [u8; SHA384_DIGEST_SIZE] = hash_value.try_into().unwrap();
 
+        // Extend the digest to the RTMR
         crate::td::extend_rtmr(&hash384_value, mr_index);
+
+        hash384_value
+    }
+
+    fn log_event(
+        &mut self,
+        mr_index: u32,
+        event_type: u32,
+        event_data: &[u8],
+        sha384: &[u8; 48],
+    ) -> Result<(), TdEventLogError> {
+        // Write the event header into event log memory and update the 'size' and 'last'
+        let event_offset = self
+            .log_header(mr_index, event_type, &sha384, event_data.len() as u32)
+            .ok_or(TdEventLogError::OutOfResource)?;
+
+        // Fill the event data into event log
+        self.write_data(event_data, event_offset + CC_EVENT_HEADER_SIZE);
+
+        self.update_offset(CC_EVENT_HEADER_SIZE + event_data.len());
+
+        Ok(())
+    }
+
+    fn log_header(
+        &mut self,
+        mr_index: u32,
+        event_type: u32,
+        digest: &[u8; SHA384_DIGEST_SIZE],
+        event_size: u32,
+    ) -> Option<usize> {
+        if self.size + event_size as usize + CC_EVENT_HEADER_SIZE > self.laml {
+            return None;
+        }
 
         let event2_header = CcEventHeader {
             mr_index,
@@ -69,31 +164,24 @@ impl TdEventLog {
                 count: 1,
                 digests: [TpmtHa {
                     hash_alg: TPML_ALG_SHA384,
-                    digest: TpmuHa {
-                        sha384: hash384_value,
-                    },
+                    digest: TpmuHa { sha384: *digest },
                 }],
             },
-            event_size: event_data_size as u32,
+            event_size,
         };
-        let new_log_size = CC_EVENT_HEADER_SIZE + event2_header.event_size as usize;
-        if self.size + new_log_size > self.laml {
-            return;
-        }
 
-        self.write_header(&event2_header, self.size);
-        self.write_data(event_data, self.size + CC_EVENT_HEADER_SIZE);
+        let _ = self.area.pwrite(event2_header, self.size);
 
-        self.last = self.lasa + self.size as u64;
-        self.size += new_log_size;
-    }
-
-    fn write_header(&mut self, header: &CcEventHeader, offset: usize) {
-        let _ = self.area.pwrite(header, offset);
+        Some(self.size)
     }
 
     fn write_data(&mut self, data: &[u8], offset: usize) {
         self.area[offset..offset + data.len()].copy_from_slice(data);
+    }
+
+    fn update_offset(&mut self, new_log_size: usize) {
+        self.last = self.lasa + self.size as u64;
+        self.size += new_log_size;
     }
 }
 

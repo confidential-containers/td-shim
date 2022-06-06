@@ -2,8 +2,11 @@
 // Copyright (c) 2022 Alibaba Cloud
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
-use core::mem::size_of;
 
+extern crate alloc;
+
+use alloc::{vec, vec::Vec};
+use core::{mem::size_of, ptr::slice_from_raw_parts};
 use scroll::{ctx, Endian, Pread, Pwrite};
 use zerocopy::{AsBytes, FromBytes};
 
@@ -16,9 +19,142 @@ pub const PCR_DIGEST_NUM: usize = 1;
 pub const CC_EVENT_HEADER_SIZE: usize = 66;
 pub const CCEL_CC_TYPE_TDX: u8 = 2;
 
+pub const EV_NO_ACTION: u32 = 0x00000003;
+pub const EV_SEPARATOR: u32 = 0x00000004;
+pub const EV_PLATFORM_CONFIG_FLAGS: u32 = 0x0000000A;
 pub const EV_EFI_EVENT_BASE: u32 = 0x80000000;
-pub const EV_PLATFORM_CONFIG_FLAGS: u32 = EV_EFI_EVENT_BASE + 0x0000000A;
+pub const EV_EFI_PLATFORM_FIRMWARE_BLOB2: u32 = EV_EFI_EVENT_BASE + 0xA;
 pub const EV_EFI_HANDOFF_TABLES2: u32 = EV_EFI_EVENT_BASE + 0xB;
+
+pub const PLATFORM_CONFIG_HOB: &[u8] = b"td_hob\0";
+pub const PLATFORM_CONFIG_PAYLOAD_PARAMETER: &[u8] = b"td_payload_info\0";
+pub const PLATFORM_CONFIG_SECURE_POLICY_DB: &[u8] = b"secure_policy_db";
+pub const PLATFORM_CONFIG_SECURE_AUTHORITY: &[u8] = b"secure_authority";
+pub const PLATFORM_CONFIG_SVN: &[u8] = b"td_payload_svn\0";
+pub const PLATFORM_FIRMWARE_BLOB2_PAYLOAD: &[u8] = b"td_payload\0";
+
+const VENDOR_INFO_SIZE: usize = 7;
+const VENDOR_INFO: &[u8; VENDOR_INFO_SIZE] = b"td_shim";
+
+/// TCG_EfiSpecIdEvent is the first event in the event log
+/// It is used to determine the version and format of the events in the log, identify
+/// the number and size of the recorded digests
+///
+/// Defined in TCG PC Client Platform Firmware Profile Specification:
+/// 'Table 20 TCG_EfiSpecIdEvent'
+#[repr(C)]
+pub struct TcgEfiSpecIdevent {
+    pub signature: [u8; 16],
+    pub platform_class: u32,
+    pub spec_version_minor: u8,
+    pub spec_version_major: u8,
+    pub spec_errata: u8,
+    pub uintn_size: u8,
+    pub number_of_algorithms: u32,
+    pub digest_sizes: [TcgEfiSpecIdEventAlgorithmSize; 1],
+    pub vendor_info_size: u8,
+    // Fix the vendor info size to VENDOR_INFO_SIZE
+    pub vendor_info: [u8; VENDOR_INFO_SIZE],
+}
+
+#[repr(C)]
+pub struct TcgEfiSpecIdEventAlgorithmSize {
+    algorithm_id: u16,
+    digest_size: u16,
+}
+
+impl TcgEfiSpecIdevent {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        unsafe { &*slice_from_raw_parts(self as *const Self as *const u8, size_of::<Self>()) }
+    }
+}
+
+impl Default for TcgEfiSpecIdevent {
+    fn default() -> Self {
+        Self {
+            signature: *b"Spec ID Event03\0",
+            platform_class: 0,
+            spec_version_minor: 0,
+            spec_version_major: 0x2,
+            spec_errata: 105,
+            uintn_size: 0x2,
+            number_of_algorithms: 1,
+            digest_sizes: [TcgEfiSpecIdEventAlgorithmSize {
+                algorithm_id: TPML_ALG_SHA384,
+                digest_size: SHA384_DIGEST_SIZE as u16,
+            }],
+            vendor_info_size: VENDOR_INFO_SIZE as u8,
+            vendor_info: *VENDOR_INFO,
+        }
+    }
+}
+
+/// Used to record configuration information into event log
+///
+/// Defined in td-shim spec 'Table 3.5-4 TD_SHIM_PLATFORM_CONFIG_INFO'
+#[repr(C)]
+#[derive(Debug, Default)]
+pub struct TdShimPlatformConfigInfoHeader {
+    pub descriptor: [u8; 16],
+    pub info_length: u32,
+}
+
+impl TdShimPlatformConfigInfoHeader {
+    pub fn new(descriptor: &[u8], info_length: u32) -> Option<Self> {
+        if descriptor.len() > 16 {
+            return None;
+        }
+
+        let mut header = Self {
+            info_length,
+            ..Default::default()
+        };
+
+        header.descriptor[..descriptor.len()].copy_from_slice(descriptor);
+        Some(header)
+    }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        unsafe { &*slice_from_raw_parts(self as *const Self as *const u8, size_of::<Self>()) }
+    }
+}
+
+/// Used to record the payload binary information into event log.
+///
+/// Defined in TCG PC Client Platform Firmware Profile Specification section
+/// 'UEFI_PLATFORM_FIRMWARE_BLOB Structure Definition'
+pub struct UefiPlatformFirmwareBlob2 {
+    data: Vec<u8>,
+}
+
+impl UefiPlatformFirmwareBlob2 {
+    pub fn new(desciptor: &[u8], base: u64, length: u64) -> Option<Self> {
+        if desciptor.len() > u8::MAX as usize {
+            return None;
+        }
+
+        // UINT8 BlobDescriptionSize
+        let mut data = vec![desciptor.len() as u8];
+
+        // UINT8 BlobDescriptionSize
+        data.extend_from_slice(desciptor);
+
+        // UEFI_PHYSICAL_ADDRESS BlobBase
+        data.extend_from_slice(&u64::to_le_bytes(base));
+        // U64 BlobLength
+        data.extend_from_slice(&u64::to_le_bytes(length));
+
+        Some(Self { data })
+    }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        self.data.as_slice()
+    }
+}
 
 #[repr(C)]
 #[derive(Default, Debug, Pread, Pwrite, AsBytes, FromBytes)]
@@ -248,6 +384,20 @@ mod tests {
         assert_eq!(size_of::<TpmuHa>(), SHA384_DIGEST_SIZE);
         assert_eq!(size_of::<TpmtHa>(), SHA384_DIGEST_SIZE + 2);
         assert_eq!(size_of::<Ccel>(), 56);
+        assert_eq!(size_of::<TdShimPlatformConfigInfoHeader>(), 20);
+        assert_eq!(size_of::<TcgEfiSpecIdevent>(), 40);
+    }
+
+    #[test]
+    fn test_uefi_platform_firmware_blob2() {
+        // Descriptor size should be less than 255
+        let desc = [0u8; 256];
+        let blob2 = UefiPlatformFirmwareBlob2::new(&desc, 0x0, 0x1000);
+        assert!(blob2.is_none());
+
+        let blob2 =
+            UefiPlatformFirmwareBlob2::new(PLATFORM_FIRMWARE_BLOB2_PAYLOAD, 0x0, 0x1000).unwrap();
+        assert_eq!(blob2.as_bytes().len(), 28);
     }
 
     #[test]
