@@ -25,6 +25,9 @@ pub mod signer;
 #[cfg(feature = "loader")]
 pub mod loader;
 
+#[cfg(feature = "tee")]
+pub mod tee_info_hash;
+
 /// Write three bytes from an integer value into the buffer.
 pub fn write_u24(data: u32, buf: &mut [u8]) {
     assert!(data < 0xffffff);
