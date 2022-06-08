@@ -4,11 +4,30 @@
 
 extern crate alloc;
 
+use crate::build_time::{
+    TD_SHIM_CONFIG_BASE, TD_SHIM_CONFIG_OFFSET, TD_SHIM_CONFIG_SIZE, TD_SHIM_IPL_SIZE,
+    TD_SHIM_MAILBOX_BASE, TD_SHIM_MAILBOX_SIZE, TD_SHIM_METADATA_OFFSET, TD_SHIM_METADATA_SIZE,
+    TD_SHIM_PAYLOAD_BASE, TD_SHIM_PAYLOAD_OFFSET, TD_SHIM_PAYLOAD_SIZE, TD_SHIM_RESET_VECTOR_SIZE,
+    TD_SHIM_TEMP_HEAP_BASE, TD_SHIM_TEMP_HEAP_SIZE, TD_SHIM_TEMP_STACK_BASE,
+    TD_SHIM_TEMP_STACK_SIZE,
+};
+use crate::runtime::{TD_HOB_BASE, TD_HOB_SIZE};
+#[cfg(feature = "boot-kernel")]
+use crate::runtime::{
+    TD_PAYLOAD_BASE, TD_PAYLOAD_PARAM_BASE, TD_PAYLOAD_PARAM_SIZE, TD_PAYLOAD_SIZE,
+};
 use alloc::string::String;
+use core::mem::size_of;
 use core::{ptr::slice_from_raw_parts, str::FromStr};
 use scroll::{Pread, Pwrite};
 use td_uefi_pi::pi::guid::Guid;
 
+const TDX_METADATA_GUID: Guid = Guid::from_fields(
+    0xF3F9EAE9,
+    0x8E16,
+    0xD544,
+    [0xE8, 0xA8, 0x7F, 0x4D, 0x87, 0x38, 0xF6, 0xAE],
+);
 const TDX_METADATA_GUID_STR: &str = "F3F9EAE9-8E16-D544-A8EB-7F4D8738F6AE";
 
 const TDX_METADATA_SIGNATURE: u32 = 0x46564454;
@@ -406,6 +425,123 @@ impl TdxMetadataPtr {
         }
     }
 }
+
+pub const TDX_METADATA: TdxMetadata = TdxMetadata {
+    guid: TdxMetadataGuid {
+        guid: TDX_METADATA_GUID,
+    },
+    descriptor: TdxMetadataDescriptor {
+        signature: TDX_METADATA_SIGNATURE,
+        length: (size_of::<TdxMetadataDescriptor>()
+            + TDX_METADATA_SECTION_NUM * size_of::<TdxMetadataSection>()) as u32,
+        version: 1,
+        number_of_section_entry: TDX_METADATA_SECTION_NUM as u32,
+    },
+    sections: [
+        TDX_METADATA_SECTION_BFV,
+        TDX_METADATA_SECTION_CFV,
+        TDX_METADATA_SECTION_STACK,
+        TDX_METADATA_SECTION_HEAP,
+        TDX_METADATA_SECTION_TD_HOB,
+        TDX_METADATA_SECTION_MAILBOX,
+    ],
+    #[cfg(feature = "boot-kernel")]
+    payload_sections: [TDX_METADATA_SECTION_PAYLOAD, TDX_METADATA_PAYLOAD_PARAM],
+};
+
+pub const TDX_METADATA_PTR: TdxMetadataPtr = TdxMetadataPtr {
+    //     +---------------------+ <- TdxMetadataGuid TD_SHIM_METADATA_OFFSET
+    //     |   TdxMetadataGuid   |
+    //     +---------------------+ <- TdxMetadataDescriptor
+    //     |TdxMetadataDescriptor|
+    //     |         ...         |
+    //     +---------------------+
+    // See: https://github.com/confidential-containers/td-shim/blob/23e33997b104234b16940baf0c27f57350dafd66/doc/tdshim_spec.md
+    // Table 1.1-1 TDVF_DESCRIPTOR definition
+    ptr: TD_SHIM_METADATA_OFFSET + size_of::<TdxMetadataGuid>() as u32,
+};
+
+#[cfg(not(feature = "boot-kernel"))]
+const TDX_METADATA_SECTION_NUM: usize = 6;
+#[cfg(feature = "boot-kernel")]
+const TDX_METADATA_SECTION_NUM: usize = 8;
+
+const BFV_SECTION_DATA_SIZE: u32 =
+    TD_SHIM_PAYLOAD_SIZE + TD_SHIM_IPL_SIZE + TD_SHIM_RESET_VECTOR_SIZE + TD_SHIM_METADATA_SIZE;
+
+const TDX_METADATA_SECTION_BFV: TdxMetadataSection = TdxMetadataSection {
+    data_offset: TD_SHIM_PAYLOAD_OFFSET,
+    raw_data_size: BFV_SECTION_DATA_SIZE,
+    memory_address: TD_SHIM_PAYLOAD_BASE as u64,
+    memory_data_size: BFV_SECTION_DATA_SIZE as u64,
+    r#type: TDX_METADATA_SECTION_TYPE_BFV,
+    attributes: TDX_METADATA_ATTRIBUTES_EXTENDMR,
+};
+
+const TDX_METADATA_SECTION_CFV: TdxMetadataSection = TdxMetadataSection {
+    data_offset: TD_SHIM_CONFIG_OFFSET,
+    raw_data_size: TD_SHIM_CONFIG_SIZE as u32,
+    memory_address: TD_SHIM_CONFIG_BASE as u64,
+    memory_data_size: TD_SHIM_CONFIG_SIZE as u64,
+    r#type: TDX_METADATA_SECTION_TYPE_CFV,
+    attributes: 0,
+};
+
+const TDX_METADATA_SECTION_STACK: TdxMetadataSection = TdxMetadataSection {
+    data_offset: 0,
+    raw_data_size: 0,
+    memory_address: TD_SHIM_TEMP_STACK_BASE as u64,
+    memory_data_size: TD_SHIM_TEMP_STACK_SIZE as u64,
+    r#type: TDX_METADATA_SECTION_TYPE_TEMP_MEM,
+    attributes: 0,
+};
+
+const TDX_METADATA_SECTION_HEAP: TdxMetadataSection = TdxMetadataSection {
+    data_offset: 0,
+    raw_data_size: 0,
+    memory_address: TD_SHIM_TEMP_HEAP_BASE as u64,
+    memory_data_size: TD_SHIM_TEMP_HEAP_SIZE as u64,
+    r#type: TDX_METADATA_SECTION_TYPE_TEMP_MEM,
+    attributes: 0,
+};
+
+const TDX_METADATA_SECTION_TD_HOB: TdxMetadataSection = TdxMetadataSection {
+    data_offset: 0,
+    raw_data_size: 0,
+    memory_address: TD_HOB_BASE as u64,
+    memory_data_size: TD_HOB_SIZE as u64,
+    r#type: TDX_METADATA_SECTION_TYPE_TD_HOB,
+    attributes: 0,
+};
+
+const TDX_METADATA_SECTION_MAILBOX: TdxMetadataSection = TdxMetadataSection {
+    data_offset: 0,
+    raw_data_size: 0,
+    memory_address: TD_SHIM_MAILBOX_BASE as u64,
+    memory_data_size: TD_SHIM_MAILBOX_SIZE as u64,
+    r#type: TDX_METADATA_SECTION_TYPE_TEMP_MEM,
+    attributes: 0,
+};
+
+#[cfg(feature = "boot-kernel")]
+const TDX_METADATA_SECTION_PAYLOAD: TdxMetadataSection = TdxMetadataSection {
+    data_offset: 0,
+    raw_data_size: 0,
+    memory_address: TD_PAYLOAD_BASE as u64,
+    memory_data_size: TD_PAYLOAD_SIZE as u64,
+    r#type: TDX_METADATA_SECTION_TYPE_PAYLOAD,
+    attributes: 0,
+};
+
+#[cfg(feature = "boot-kernel")]
+const TDX_METADATA_PAYLOAD_PARAM: TdxMetadataSection = TdxMetadataSection {
+    data_offset: 0,
+    raw_data_size: 0,
+    memory_address: TD_PAYLOAD_PARAM_BASE as u64,
+    memory_data_size: TD_PAYLOAD_PARAM_SIZE as u64,
+    r#type: TDX_METADATA_SECTION_TYPE_PAYLOAD_PARAM,
+    attributes: 0,
+};
 
 #[cfg(test)]
 mod tests {

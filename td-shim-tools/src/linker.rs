@@ -10,28 +10,12 @@ use log::trace;
 use r_efi::base::Guid;
 use scroll::Pwrite;
 use td_layout::build_time::{
-    TD_SHIM_CONFIG_BASE, TD_SHIM_CONFIG_OFFSET, TD_SHIM_CONFIG_SIZE, TD_SHIM_FIRMWARE_BASE,
-    TD_SHIM_FIRMWARE_SIZE, TD_SHIM_IPL_OFFSET, TD_SHIM_IPL_SIZE, TD_SHIM_MAILBOX_BASE,
-    TD_SHIM_MAILBOX_OFFSET, TD_SHIM_MAILBOX_SIZE, TD_SHIM_METADATA_OFFSET, TD_SHIM_METADATA_SIZE,
-    TD_SHIM_PAYLOAD_BASE, TD_SHIM_PAYLOAD_OFFSET, TD_SHIM_PAYLOAD_SIZE, TD_SHIM_RESET_VECTOR_SIZE,
-    TD_SHIM_TEMP_HEAP_BASE, TD_SHIM_TEMP_HEAP_SIZE, TD_SHIM_TEMP_STACK_BASE,
-    TD_SHIM_TEMP_STACK_SIZE,
+    TD_SHIM_FIRMWARE_BASE, TD_SHIM_FIRMWARE_SIZE, TD_SHIM_IPL_OFFSET, TD_SHIM_IPL_SIZE,
+    TD_SHIM_MAILBOX_OFFSET, TD_SHIM_METADATA_OFFSET, TD_SHIM_PAYLOAD_BASE, TD_SHIM_PAYLOAD_OFFSET,
+    TD_SHIM_PAYLOAD_SIZE, TD_SHIM_RESET_VECTOR_SIZE,
 };
 use td_layout::mailbox::TdxMpWakeupMailbox;
-use td_layout::metadata::{
-    TdxMetadata, TdxMetadataGuid, TdxMetadataPtr, TDX_METADATA_ATTRIBUTES_EXTENDMR,
-    TDX_METADATA_SECTION_TYPE_BFV, TDX_METADATA_SECTION_TYPE_CFV, TDX_METADATA_SECTION_TYPE_TD_HOB,
-    TDX_METADATA_SECTION_TYPE_TEMP_MEM,
-};
-#[cfg(feature = "boot-kernel")]
-use td_layout::metadata::{
-    TDX_METADATA_SECTION_TYPE_PAYLOAD, TDX_METADATA_SECTION_TYPE_PAYLOAD_PARAM,
-};
-use td_layout::runtime::{TD_HOB_BASE, TD_HOB_SIZE};
-#[cfg(feature = "boot-kernel")]
-use td_layout::runtime::{
-    TD_PAYLOAD_BASE, TD_PAYLOAD_PARAM_BASE, TD_PAYLOAD_PARAM_SIZE, TD_PAYLOAD_SIZE,
-};
+use td_layout::metadata::{TDX_METADATA, TDX_METADATA_PTR};
 use td_loader::pe;
 use td_shim::fv::{
     FvFfsFileHeader, FvFfsSectionHeader, FvHeader, IplFvFfsHeader, IplFvFfsSectionHeader,
@@ -220,97 +204,6 @@ impl FvHeaderByte {
 pub type PayloadFvHeaderByte = FvHeaderByte;
 pub type IplFvHeaderByte = FvHeaderByte;
 
-pub fn build_tdx_metadata() -> TdxMetadata {
-    let mut tdx_metadata = TdxMetadata::default();
-
-    // BFV
-    tdx_metadata.sections[0].data_offset = TD_SHIM_PAYLOAD_OFFSET;
-    let data_size = (TD_SHIM_PAYLOAD_SIZE
-        + TD_SHIM_IPL_SIZE
-        + TD_SHIM_RESET_VECTOR_SIZE
-        + TD_SHIM_METADATA_SIZE) as u64;
-    tdx_metadata.sections[0].raw_data_size = data_size as u32;
-    tdx_metadata.sections[0].memory_address = TD_SHIM_PAYLOAD_BASE as u64;
-    tdx_metadata.sections[0].memory_data_size = data_size;
-    tdx_metadata.sections[0].r#type = TDX_METADATA_SECTION_TYPE_BFV;
-    tdx_metadata.sections[0].attributes = TDX_METADATA_ATTRIBUTES_EXTENDMR;
-
-    // CFV
-    tdx_metadata.sections[1].data_offset = TD_SHIM_CONFIG_OFFSET;
-    tdx_metadata.sections[1].raw_data_size = TD_SHIM_CONFIG_SIZE;
-    tdx_metadata.sections[1].memory_address = TD_SHIM_CONFIG_BASE as u64;
-    tdx_metadata.sections[1].memory_data_size = TD_SHIM_CONFIG_SIZE as u64;
-    tdx_metadata.sections[1].r#type = TDX_METADATA_SECTION_TYPE_CFV;
-    tdx_metadata.sections[1].attributes = 0;
-
-    // stack
-    tdx_metadata.sections[2].data_offset = 0;
-    tdx_metadata.sections[2].raw_data_size = 0;
-    tdx_metadata.sections[2].memory_address = TD_SHIM_TEMP_STACK_BASE as u64;
-    tdx_metadata.sections[2].memory_data_size = TD_SHIM_TEMP_STACK_SIZE as u64;
-    tdx_metadata.sections[2].r#type = TDX_METADATA_SECTION_TYPE_TEMP_MEM;
-    tdx_metadata.sections[2].attributes = 0;
-
-    // heap
-    tdx_metadata.sections[3].data_offset = 0;
-    tdx_metadata.sections[3].raw_data_size = 0;
-    tdx_metadata.sections[3].memory_address = TD_SHIM_TEMP_HEAP_BASE as u64;
-    tdx_metadata.sections[3].memory_data_size = TD_SHIM_TEMP_HEAP_SIZE as u64;
-    tdx_metadata.sections[3].r#type = TDX_METADATA_SECTION_TYPE_TEMP_MEM;
-    tdx_metadata.sections[3].attributes = 0;
-
-    // TD_HOB
-    tdx_metadata.sections[4].data_offset = 0;
-    tdx_metadata.sections[4].raw_data_size = 0;
-    tdx_metadata.sections[4].memory_address = TD_HOB_BASE as u64;
-    tdx_metadata.sections[4].memory_data_size = TD_HOB_SIZE as u64;
-    tdx_metadata.sections[4].r#type = TDX_METADATA_SECTION_TYPE_TD_HOB;
-    tdx_metadata.sections[4].attributes = 0;
-
-    // MAILBOX
-    tdx_metadata.sections[5].data_offset = 0;
-    tdx_metadata.sections[5].raw_data_size = 0;
-    tdx_metadata.sections[5].memory_address = TD_SHIM_MAILBOX_BASE as u64;
-    tdx_metadata.sections[5].memory_data_size = TD_SHIM_MAILBOX_SIZE as u64;
-    tdx_metadata.sections[5].r#type = TDX_METADATA_SECTION_TYPE_TEMP_MEM;
-    tdx_metadata.sections[5].attributes = 0;
-
-    #[cfg(feature = "boot-kernel")]
-    {
-        // kernel image
-        tdx_metadata.payload_sections[0].data_offset = 0;
-        tdx_metadata.payload_sections[0].raw_data_size = 0;
-        tdx_metadata.payload_sections[0].memory_address = TD_PAYLOAD_BASE as u64;
-        tdx_metadata.payload_sections[0].memory_data_size = TD_PAYLOAD_SIZE as u64;
-        tdx_metadata.payload_sections[0].r#type = TDX_METADATA_SECTION_TYPE_PAYLOAD;
-        tdx_metadata.payload_sections[0].attributes = 0;
-
-        // parameters
-        tdx_metadata.payload_sections[1].data_offset = 0;
-        tdx_metadata.payload_sections[1].raw_data_size = 0;
-        tdx_metadata.payload_sections[1].memory_address = TD_PAYLOAD_PARAM_BASE as u64;
-        tdx_metadata.payload_sections[1].memory_data_size = TD_PAYLOAD_PARAM_SIZE as u64;
-        tdx_metadata.payload_sections[1].r#type = TDX_METADATA_SECTION_TYPE_PAYLOAD_PARAM;
-        tdx_metadata.payload_sections[1].attributes = 0;
-    }
-
-    tdx_metadata
-}
-
-pub fn build_tdx_metadata_ptr() -> TdxMetadataPtr {
-    TdxMetadataPtr {
-        //     +---------------------+ <- TdxMetadataGuid TD_SHIM_METADATA_OFFSET
-        //     |   TdxMetadataGuid   |
-        //     +---------------------+ <- TdxMetadataDescriptor
-        //     |TdxMetadataDescriptor|
-        //     |         ...         |
-        //     +---------------------+
-        // See: https://github.com/confidential-containers/td-shim/blob/23e33997b104234b16940baf0c27f57350dafd66/doc/tdshim_spec.md
-        // Table 1.1-1 TDVF_DESCRIPTOR definition
-        ptr: TD_SHIM_METADATA_OFFSET + size_of::<TdxMetadataGuid>() as u32,
-    }
-}
-
 /// TD shim linker to compose multiple components into the final shim binary.
 #[derive(Default)]
 pub struct TdShimLinker {
@@ -385,9 +278,8 @@ impl TdShimLinker {
             }
         }
 
-        let metadata = build_tdx_metadata();
         let pos = TD_SHIM_METADATA_OFFSET as u64;
-        output_file.seek_and_write(pos, metadata.as_bytes(), "metadata")?;
+        output_file.seek_and_write(pos, TDX_METADATA.as_bytes(), "metadata")?;
 
         let ipl_header = IplFvHeaderByte::build_tdx_ipl_fv_header();
         output_file.seek_and_write(TD_SHIM_IPL_OFFSET as u64, &ipl_header.data, "IPL header")?;
@@ -421,8 +313,7 @@ impl TdShimLinker {
         // Overwrite the ResetVectorParams and TdxMetadataPtr.
         let pos = TD_SHIM_FIRMWARE_SIZE as u64 - 0x20 - size_of::<ResetVectorParams>() as u64;
         output_file.seek_and_write(pos, reset_vector_info.as_bytes(), "reset vector info")?;
-        let metadata_ptr = build_tdx_metadata_ptr();
-        output_file.write(metadata_ptr.as_bytes(), "metadata_ptr")?;
+        output_file.write(TDX_METADATA_PTR.as_bytes(), "metadata_ptr")?;
 
         output_file.flush()?;
 
