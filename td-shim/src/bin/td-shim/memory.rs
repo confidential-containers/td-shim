@@ -3,15 +3,21 @@
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
 use alloc::vec::Vec;
+use core::mem::size_of;
 use td_layout::build_time::{TD_SHIM_FIRMWARE_BASE, TD_SHIM_FIRMWARE_SIZE};
+use td_layout::metadata::{TdxMetadata, TDX_METADATA, TDX_METADATA_PTR};
 use td_layout::runtime::{
     self, TD_PAYLOAD_BASE, TD_PAYLOAD_EVENT_LOG_SIZE, TD_PAYLOAD_PAGE_TABLE_BASE,
     TD_PAYLOAD_PAGE_TABLE_SIZE, TD_PAYLOAD_SIZE,
 };
 use td_layout::{RuntimeMemoryLayout, MIN_MEMORY_SIZE};
-use td_shim::e820::E820Type;
+use td_shim::e820::{E820Entry, E820Type};
 use td_uefi_pi::hob;
-use td_uefi_pi::pi::hob::ResourceDescription;
+use td_uefi_pi::pi::hob::{
+    Header, ResourceDescription, EFI_RESOURCE_ATTRIBUTE_ENCRYPTED, HOB_TYPE_RESOURCE_DESCRIPTOR,
+    RESOURCE_ATTRIBUTE_INITIALIZED, RESOURCE_ATTRIBUTE_PRESENT, RESOURCE_ATTRIBUTE_TESTED,
+    RESOURCE_SYSTEM_MEMORY,
+};
 use x86_64::{
     structures::paging::PageTableFlags as Flags,
     structures::paging::{OffsetPageTable, PageTable},
@@ -26,42 +32,34 @@ const VIRT_PHYS_MEM_SIZES: u32 = 0x80000008;
 const MEMORY_4G: u64 = 0x1_0000_0000;
 const LOW_MEM_TOP: u64 = TD_PAYLOAD_BASE + TD_PAYLOAD_SIZE as u64;
 
+pub type MemoryMap = E820Table;
+
 pub struct Memory<'a> {
     pub layout: RuntimeMemoryLayout,
     pt: OffsetPageTable<'a>,
-    pub regions: Vec<ResourceDescription>,
+    memory_map: MemoryMap,
 }
 
 impl<'a> Memory<'a> {
     pub fn new(resources: &[ResourceDescription]) -> Option<Self> {
-        let mut regions: Vec<ResourceDescription> = Vec::new();
+        // Init system memory resources
+        Self::init_memory(resources);
+
+        // Init memory map for all of the system memory information
+        let memory_map = Self::create_memory_map(resources);
 
         // Look for the top region with appropriate size above the
         // low memory and below 4G.
         let mut runtime_top = 0;
-        for entry in resources {
-            let entry_top = entry.physical_start + entry.resource_length;
+
+        for entry in memory_map.as_slice() {
+            let entry_top = entry.addr + entry.size;
             if entry_top - MIN_MEMORY_SIZE >= LOW_MEM_TOP
                 && entry_top < MEMORY_4G
-                && entry.resource_length >= MIN_MEMORY_SIZE
+                && entry.size >= MIN_MEMORY_SIZE
                 && entry_top > runtime_top
             {
                 runtime_top = entry_top;
-            }
-
-            // Filter out the resources covers image space
-            // TBD: it should be ensured by VMM that this kind of resources should be MMIO
-            if entry.physical_start >= TD_SHIM_FIRMWARE_BASE as u64
-                && entry.physical_start < MEMORY_4G
-            {
-                if entry_top > MEMORY_4G {
-                    let mut new = *entry;
-                    new.physical_start = MEMORY_4G;
-                    new.resource_length = entry_top - MEMORY_4G;
-                    regions.push(new);
-                }
-            } else {
-                regions.push(*entry);
             }
         }
 
@@ -82,7 +80,7 @@ impl<'a> Memory<'a> {
         Some(Memory {
             pt,
             layout,
-            regions,
+            memory_map,
         })
     }
 
@@ -102,23 +100,23 @@ impl<'a> Memory<'a> {
         // - Frame size below 4G is 4K bytes since we will configure page-table
         //   level protection for some spaces under 4G.
         // - Frame size upper 4G is 1G bytes.
-        for m in &self.regions {
-            let r_end = m.physical_start + m.resource_length;
-            if r_end < MEMORY_4G as u64 {
+        for entry in self.memory_map.as_slice() {
+            let entry_top = entry.addr + entry.size;
+            if entry.r#type == E820Type::Memory as u32 && entry_top < MEMORY_4G as u64 {
                 td_paging::create_mapping(
                     &mut self.pt,
-                    PhysAddr::new(m.physical_start),
-                    VirtAddr::new(m.physical_start),
+                    PhysAddr::new(entry.addr),
+                    VirtAddr::new(entry.addr),
                     td_paging::PAGE_SIZE_4K as u64,
-                    m.resource_length,
+                    entry.size,
                 );
             } else {
                 td_paging::create_mapping(
                     &mut self.pt,
-                    PhysAddr::new(m.physical_start),
-                    VirtAddr::new(m.physical_start),
+                    PhysAddr::new(entry.addr),
+                    VirtAddr::new(entry.addr),
                     td_paging::PAGE_SIZE_DEFAULT as u64,
-                    m.resource_length,
+                    entry.size,
                 );
             }
         }
@@ -135,10 +133,7 @@ impl<'a> Memory<'a> {
     }
 
     pub fn create_e820(&self) -> E820Table {
-        let mut table = E820Table::new();
-        for r in &self.regions {
-            table.add_range(E820Type::Memory, r.physical_start, r.resource_length);
-        }
+        let mut table = self.memory_map.clone();
 
         table.convert_range(
             E820Type::Acpi,
@@ -159,13 +154,51 @@ impl<'a> Memory<'a> {
         table
     }
 
+    fn init_memory(resources: &[ResourceDescription]) {
+        #[cfg(feature = "tdx")]
+        Self::accept_memory_resources(resources);
+    }
+
+    fn create_memory_map(resources: &[ResourceDescription]) -> MemoryMap {
+        let mut memory_map = E820Table::new();
+
+        // Save the unaccepted memory into memory map according to the resource
+        // descriptors inside HOB.
+        for entry in resources {
+            let entry_top = entry.physical_start + entry.resource_length;
+            if entry.resource_type == RESOURCE_SYSTEM_MEMORY {
+                // Filter out the resources cover image space
+                // TBD: it should be ensured by VMM that this kind of resources are not reported as system memory
+                if entry.physical_start >= TD_SHIM_FIRMWARE_BASE as u64
+                    && entry.physical_start < MEMORY_4G
+                {
+                    if entry_top > MEMORY_4G {
+                        memory_map.add_range(E820Type::Memory, MEMORY_4G, entry_top - MEMORY_4G);
+                    }
+                } else {
+                    memory_map.add_range(
+                        E820Type::Memory,
+                        entry.physical_start,
+                        entry.resource_length,
+                    );
+                }
+            }
+        }
+
+        #[cfg(feature = "tdx")]
+        // Add private memory region specified by metadata into memory map
+        get_memory_info_from_metadata(&mut memory_map);
+
+        memory_map
+    }
+
     #[cfg(feature = "tdx")]
-    pub fn accept_memory_resources(&self, num_vcpus: u32) {
+    fn accept_memory_resources(resources: &[ResourceDescription]) {
         use td_uefi_pi::pi;
 
-        for r in &self.regions {
+        for r in resources {
             if r.resource_type == pi::hob::RESOURCE_SYSTEM_MEMORY {
-                td::accept_memory_resource_range(num_vcpus, r.physical_start, r.resource_length);
+                td::accept_memory_resource_range(r.physical_start, r.resource_length);
             }
         }
     }
@@ -196,6 +229,35 @@ impl<'a> Memory<'a> {
         td_paging::set_page_flags(&mut self.pt, VirtAddr::new(address), size as i64, flags);
     }
 }
+
+#[cfg(feature = "tdx")]
+fn get_memory_info_from_metadata(memory_map: &mut E820Table) {
+    for section in TDX_METADATA.sections {
+        // Skip the private memory declared in image space
+        if section.memory_address >= TD_SHIM_FIRMWARE_BASE as u64
+            && section.memory_address <= MEMORY_4G
+        {
+            continue;
+        };
+
+        memory_map.add_range(
+            E820Type::Memory,
+            section.memory_address,
+            section.memory_data_size,
+        );
+    }
+
+    #[cfg(feature = "boot-kernel")]
+    for section in TDX_METADATA.payload_sections {
+        memory_map.add_range(
+            E820Type::Memory,
+            section.memory_address,
+            section.memory_data_size,
+        );
+    }
+}
+
+// Save the private memory into memory map according to the metadata
 
 /// Get the maximum physical memory addressability of the processor.
 pub fn cpu_get_memory_space_size() -> u8 {

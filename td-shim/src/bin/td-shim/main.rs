@@ -116,9 +116,6 @@ pub extern "win64" fn _start(
     // Initialize memory subsystem.
     let mut mem = memory::Memory::new(&td_hob_info.memory)
         .expect("Unable to find a piece of suitable memory for runtime");
-    let num_vcpus = td::get_num_vcpus();
-    #[cfg(feature = "tdx")]
-    mem.accept_memory_resources(num_vcpus);
     mem.setup_paging();
 
     // Relocate Mailbox along side with the AP function
@@ -135,6 +132,7 @@ pub extern "win64" fn _start(
     let mut td_event_log = tcg::TdEventLog::new(event_log_buf);
     log_hob_list(hob_list, &mut td_event_log);
 
+    let num_vcpus = td::get_num_vcpus();
     //Create MADT and TDEL
     let (madt, tdel) = prepare_acpi_tables(
         &mut td_hob_info.acpi_tables,
@@ -200,7 +198,6 @@ fn boot_linux_kernel(
 
     let rsdp = install_acpi_tables(acpi_tables, &mem.layout);
     let e820_table = mem.create_e820();
-    log::info!("e820 table: {:x?}\n", e820_table.as_slice());
     // Safe because we are handle off this buffer to linux kernel.
     let payload = unsafe { memslice::get_mem_slice_mut(memslice::SliceType::Payload) };
 

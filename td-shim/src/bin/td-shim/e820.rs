@@ -10,7 +10,7 @@ use td_shim::e820::{E820Entry, E820Type};
 // Linux BootParam supports 128 e820 entries, so...
 const MAX_E820_ENTRY: usize = 128;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct E820Table {
     entries: Vec<E820Entry>,
 }
