@@ -124,7 +124,7 @@
             "size": "2G"
         },
         "result": "None",
-        "run": false
+        "run": true
     },
     "tcs013": {
         "name": "memorymap003",

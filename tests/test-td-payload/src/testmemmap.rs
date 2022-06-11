@@ -70,7 +70,7 @@ impl TestMemoryMap {
             let table = hob::get_guid_data(hob).expect("Failed to get data from ACPI GUID HOB");
 
             let mut offset = 0;
-            while offset < table.len() {
+            while offset < table.len() && offset + size_of::<E820Entry>() <= table.len() {
                 let entry = E820Entry::read_from(&table[offset..offset + size_of::<E820Entry>()])?;
                 // save it to tables
                 e820.push(entry);
