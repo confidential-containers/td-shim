@@ -117,6 +117,8 @@ macro_rules! RUNTIME_TEMPLATE {
                     |      SS      |    ({shadow_stack_size:#010X})
                     +--------------+ <-  {payload_hob_base:#010X}
                     |  PAYLOAD_HOB |    ({payload_hob_size:#010X})
+                    +--------------+ <-  {unaccepted_memory_bitmap_base:#010X}
+                    |  UNACCEPTED  |    ({unaccepted_memory_bitmap_size:#010X})
                     +--------------+ <-  {acpi_base:#010X}
                     |     ACPI     |    ({acpi_size:#010X})
                     +--------------+ <-  {mailbox_base:#010X}
@@ -129,6 +131,8 @@ macro_rules! RUNTIME_TEMPLATE {
 pub const TD_PAYLOAD_EVENT_LOG_SIZE: u32 = {event_log_size:#X};
 pub const TD_PAYLOAD_ACPI_SIZE: u32 = {acpi_size:#X};
 pub const TD_PAYLOAD_MAILBOX_SIZE: u32 = {mailbox_size:#X};
+pub const TD_PAYLOAD_UNACCEPTED_MEMORY_BITMAP_SIZE: u32 = {unaccepted_memory_bitmap_size:#X};
+pub const TD_PAYLOAD_PARTIAL_ACCEPT_MEMORY_SIZE: u32 = {partial_accept_memory_size:#X};
 pub const TD_PAYLOAD_HOB_SIZE: u32 = {payload_hob_size:#X};
 pub const TD_PAYLOAD_SHADOW_STACK_SIZE: u32 = {shadow_stack_size:#X};
 pub const TD_PAYLOAD_STACK_SIZE: u32 = {stack_size:#X};
@@ -170,6 +174,8 @@ struct TdRuntimeLayoutConfig {
     event_log_size: u32,
     acpi_size: u32,
     mailbox_size: u32,
+    unaccepted_memory_bitmap_size: u32,
+    partial_accept_memory_size: u32,
     payload_hob_size: u32,
     shadow_stack_size: u32,
     stack_size: u32,
@@ -264,6 +270,9 @@ impl TdLayout {
             shadow_stack_size = self.runtime.shadow_stack_size,
             payload_hob_base = self.runtime.payload_hob_base,
             payload_hob_size = self.runtime.payload_hob_size,
+            unaccepted_memory_bitmap_base = self.runtime.unaccepted_memory_bitmap_base,
+            unaccepted_memory_bitmap_size = self.runtime.unaccepted_memory_bitmap_size,
+            partial_accept_memory_size = self.runtime.partial_accept_memory_size,
             mailbox_base = self.runtime.mailbox_base,
             mailbox_size = self.runtime.mailbox_size,
             event_log_base = self.runtime.event_log_base,
@@ -403,6 +412,9 @@ struct TdLayoutRuntime {
     shadow_stack_size: u32,
     payload_hob_base: u32,
     payload_hob_size: u32,
+    unaccepted_memory_bitmap_base: u32,
+    unaccepted_memory_bitmap_size: u32,
+    partial_accept_memory_size: u32,
     event_log_base: u32,
     event_log_size: u32,
     acpi_base: u32,
@@ -416,6 +428,8 @@ impl TdLayoutRuntime {
         let event_log_base = 0x80000000 - config.runtime_layout.event_log_size; // TODO: 0x80000000 is hardcoded LOW_MEM_TOP, to remove
         let mailbox_base = event_log_base - config.runtime_layout.mailbox_size;
         let acpi_base = mailbox_base - config.runtime_layout.acpi_size;
+        let unaccepted_memory_bitmap_base =
+            acpi_base - config.runtime_layout.unaccepted_memory_bitmap_size;
         let payload_hob_base = acpi_base - config.runtime_layout.payload_hob_size;
         let shadow_stack_base = payload_hob_base - config.runtime_layout.shadow_stack_size;
         let stack_base = shadow_stack_base - config.runtime_layout.stack_size;
@@ -439,6 +453,9 @@ impl TdLayoutRuntime {
             shadow_stack_size: config.runtime_layout.shadow_stack_size,
             payload_hob_base,
             payload_hob_size: config.runtime_layout.payload_hob_size,
+            unaccepted_memory_bitmap_base,
+            unaccepted_memory_bitmap_size: config.runtime_layout.unaccepted_memory_bitmap_size,
+            partial_accept_memory_size: config.runtime_layout.partial_accept_memory_size,
             event_log_base,
             event_log_size: config.runtime_layout.event_log_size,
             acpi_base,
