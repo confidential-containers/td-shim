@@ -24,7 +24,6 @@ pub fn is_elf(image: &[u8]) -> bool {
 pub fn relocate_elf_with_per_program_header(
     image: &[u8],
     loaded_buffer: &mut [u8],
-    mut program_header_closures: impl FnMut(ProgramHeader),
 ) -> Option<(u64, u64, u64)> {
     let new_image_base = loaded_buffer as *const [u8] as *const u8 as usize;
     // parser file and get entry point
@@ -76,10 +75,6 @@ pub fn relocate_elf_with_per_program_header(
                 )
                 .ok()?;
         }
-    }
-
-    for ph in elf.program_headers() {
-        program_header_closures(ph);
     }
 
     Some((
@@ -153,6 +148,6 @@ mod test_elf_loader {
 
         let mut loaded_buffer = vec![0u8; 0x800000];
 
-        super::relocate_elf_with_per_program_header(pe_image, loaded_buffer.as_mut_slice(), |_| ());
+        super::relocate_elf_with_per_program_header(pe_image, loaded_buffer.as_mut_slice());
     }
 }
