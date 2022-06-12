@@ -4,7 +4,7 @@
 
 use scroll::Pwrite;
 
-use crate::elf64::{ProgramHeader, PT_LOAD, PT_PHDR};
+use crate::elf64::{PT_LOAD, PT_PHDR};
 
 use core::ops::Range;
 
