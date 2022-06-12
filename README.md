@@ -91,6 +91,11 @@ cargo xbuild -p td-shim --target x86_64-unknown-uefi --release --features=main,t
 cargo run -p td-shim-tools --bin td-shim-ld -- target/x86_64-unknown-uefi/release/ResetVector.bin target/x86_64-unknown-uefi/release/td-shim.efi -o target/x86_64-unknown-uefi/release/final.bin
 ```
 
+### Build TdShim to launch a executable payload
+```
+cargo xbuild -p td-shim --target x86_64-unknown-uefi --release --features=main,tdx --no-default-features
+```
+
 ### Build PE format payload
 ```
 cargo xbuild -p td-payload --target x86_64-unknown-uefi --release --features=main,tdx
