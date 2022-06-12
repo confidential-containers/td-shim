@@ -114,18 +114,17 @@ pub fn is_x86_64_pe(pe_image: &[u8]) -> bool {
 
 /// Relocate a `Portable Executable` object to the new base.
 pub fn relocate(pe_image: &[u8], new_pe_image: &mut [u8], new_image_base: usize) -> Option<usize> {
-    relocate_with_per_section(pe_image, new_pe_image, new_image_base, |_| ())
+    relocate_with_per_section(pe_image, new_pe_image, new_image_base)
 }
 
 /// Relocate a `Portable Executable` object, using address of `new_pe_image' as new base.
 pub fn relocate_pe_mem_with_per_sections(
     pe_image: &[u8],
     new_pe_image: &mut [u8],
-    section_callback: impl FnMut(Section),
 ) -> Option<(u64, u64, u64)> {
     let image_size = pe_image.len();
     let new_image_base = new_pe_image as *const [u8] as *const u8 as usize;
-    let res = relocate_with_per_section(pe_image, new_pe_image, new_image_base, section_callback)?;
+    let res = relocate_with_per_section(pe_image, new_pe_image, new_image_base)?;
 
     Some((res as u64, new_image_base as u64, image_size as u64))
 }
@@ -136,7 +135,6 @@ pub fn relocate_with_per_section(
     pe_image: &[u8],
     new_pe_image: &mut [u8],
     new_image_base: usize,
-    mut section_closures: impl FnMut(Section),
 ) -> Option<usize> {
     log::info!("start relocate...");
     let image_buffer = pe_image;
@@ -223,11 +221,6 @@ pub fn relocate_with_per_section(
                 new_image_base as usize,
             )?;
         }
-    }
-
-    let sections = Sections::parse(sections_buffer, num_sections as usize)?;
-    for section in sections {
-        section_closures(section);
     }
 
     Some(new_image_base + entry_point as usize)
@@ -572,7 +565,7 @@ mod test {
 
         let mut entries = 0;
         if let Some((image_entry, image_base, image_size)) =
-            relocate_pe_mem_with_per_sections(pe_image, loaded_buffer.as_mut_slice(), |_| ())
+            relocate_pe_mem_with_per_sections(pe_image, loaded_buffer.as_mut_slice())
         {
             println!(
                 " 0x:{:x}\n 0x:{:x}\n 0x:{:x}\n",

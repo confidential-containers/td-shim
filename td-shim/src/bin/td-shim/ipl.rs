@@ -31,30 +31,9 @@ pub fn find_and_report_entry_point(
     let loaded_buffer_slice = loaded_buffer.as_ptr() as u64;
 
     let res = if elf::is_elf(image_buffer) {
-        elf::relocate_elf_with_per_program_header(image_buffer, loaded_buffer, |ph| {
-            if !ph.is_executable() {
-                mem.set_nx_bit(ph.p_vaddr + loaded_buffer_slice, ph.p_filesz);
-            }
-            if !ph.is_write() {
-                log::info!("WP in elf: {:x}\n", ph.p_vaddr + loaded_buffer_slice);
-                mem.set_write_protect(ph.p_vaddr + loaded_buffer_slice, ph.p_filesz);
-            }
-        })?
+        elf::relocate_elf_with_per_program_header(image_buffer, loaded_buffer)?
     } else if pe::is_x86_64_pe(image_buffer) {
-        pe::relocate_pe_mem_with_per_sections(image_buffer, loaded_buffer, |sc| {
-            if !sc.is_executable() {
-                mem.set_nx_bit(
-                    sc.section_virtual_address() as u64 + loaded_buffer_slice,
-                    sc.section_size() as u64,
-                );
-            }
-            if !sc.is_write() {
-                mem.set_write_protect(
-                    sc.section_virtual_address() as u64 + loaded_buffer_slice,
-                    sc.section_size() as u64,
-                );
-            }
-        })?
+        pe::relocate_pe_mem_with_per_sections(image_buffer, loaded_buffer)?
     } else {
         return None;
     };
