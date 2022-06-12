@@ -4,7 +4,7 @@
 
 //! Guest-Side (TDCALL) Interface Helper Functions
 //!
-//! This crate realizes the helper functions for the TDCALL interface functions defined in
+//! This crate implements the helper functions for the TDCALL interface functions defined in
 //! Intel TDX Module specifiction and the TDVMCALL sub-functions defined in Intel TDX
 //! Guest-Hypervisor Communication Interface specification. It also provides the constants
 //! and data structures that are defined in the specifications.
@@ -61,7 +61,7 @@ pub const TDCALL_STATUS_PAGE_SIZE_MISMATCH: u64 = 0xC0000B0B00000001;
 // TDVMCALL completion status code
 const TDVMCALL_STATUS_SUCCESS: u64 = 0;
 
-// A public wrapper for use of asm_td_call, this function takes a mutable reference of a
+// A public wrapper for use of asm_td_vmcall, this function takes a mutable reference of a
 // TdcallArgs structure to ensure the input is valid
 //
 // ## TDVMCALL ABI
@@ -80,11 +80,11 @@ const TDVMCALL_STATUS_SUCCESS: u64 = 0;
 // * R11 - Correspond to each TDG.VP.VMCALL.
 // * R8-R9, R12-R15, RBX, RBP, RDI, RSI - Correspond to each TDG.VP.VMCALL sub-function.
 //
-pub(crate) fn td_call(args: &mut TdcallArgs) -> u64 {
-    unsafe { asm::asm_td_call(args as *mut TdcallArgs as *mut c_void) }
+pub(crate) fn td_vmcall(args: &mut TdVmcallArgs) -> u64 {
+    unsafe { asm::asm_td_vmcall(args as *mut TdVmcallArgs as *mut c_void) }
 }
 
-// Wrapper for use of asm_td_vmcall, this function takes a mutable reference of a
+// Wrapper for use of asm_td_call, this function takes a mutable reference of a
 // TdVmcallArgs structure to ensure the input is valid
 //
 // ## TDCALL ABI
@@ -98,8 +98,8 @@ pub(crate) fn td_call(args: &mut TdcallArgs) -> u64 {
 //  * RAX - Instruction return code.
 //  * Other - Used by leaf functions as output values.
 //
-pub(crate) fn td_vmcall(args: &mut TdVmcallArgs) -> u64 {
-    unsafe { asm::asm_td_vmcall(args as *mut TdVmcallArgs as *mut c_void) }
+pub(crate) fn td_call(args: &mut TdcallArgs) -> u64 {
+    unsafe { asm::asm_td_call(args as *mut TdcallArgs as *mut c_void) }
 }
 
 // Used to pass the values of input/output register when performing TDVMCALL
