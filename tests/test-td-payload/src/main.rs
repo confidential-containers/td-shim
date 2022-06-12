@@ -126,7 +126,7 @@ fn build_testcases() -> TestCases {
 #[cfg(not(test))]
 #[no_mangle]
 #[cfg_attr(target_os = "uefi", export_name = "efi_main")]
-extern "win64" fn _start(hob: *const c_void) -> ! {
+extern "C" fn _start(hob: *const c_void) -> ! {
     use td_layout::runtime::*;
     use testmemmap::TestMemoryMap;
 
