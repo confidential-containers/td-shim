@@ -27,6 +27,8 @@
                     |      SS      |    (0x00200000)
                     +--------------+ <-  0x7F9FE000
                     |  PAYLOAD_HOB |    (0x00400000)
+                    +--------------+ <-  0x7FDBE000
+                    |  UNACCEPTED  |    (0x00040000)
                     +--------------+ <-  0x7FDFE000
                     |     ACPI     |    (0x00100000)
                     +--------------+ <-  0x7FEFE000
@@ -39,6 +41,8 @@
 pub const TD_PAYLOAD_EVENT_LOG_SIZE: u32 = 0x100000;
 pub const TD_PAYLOAD_ACPI_SIZE: u32 = 0x100000;
 pub const TD_PAYLOAD_MAILBOX_SIZE: u32 = 0x2000;
+pub const TD_PAYLOAD_UNACCEPTED_MEMORY_BITMAP_SIZE: u32 = 0x40000;
+pub const TD_PAYLOAD_PARTIAL_ACCEPT_MEMORY_SIZE: u32 = 0x10000000;
 pub const TD_PAYLOAD_HOB_SIZE: u32 = 0x400000;
 pub const TD_PAYLOAD_SHADOW_STACK_SIZE: u32 = 0x200000;
 pub const TD_PAYLOAD_STACK_SIZE: u32 = 0x800000;

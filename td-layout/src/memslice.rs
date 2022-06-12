@@ -9,6 +9,7 @@ use crate::build_time::{
 use crate::runtime::{
     TD_HOB_BASE, TD_HOB_SIZE, TD_PAYLOAD_ACPI_SIZE, TD_PAYLOAD_BASE, TD_PAYLOAD_EVENT_LOG_SIZE,
     TD_PAYLOAD_HOB_SIZE, TD_PAYLOAD_MAILBOX_SIZE, TD_PAYLOAD_SIZE,
+    TD_PAYLOAD_UNACCEPTED_MEMORY_BITMAP_SIZE,
 };
 
 /// Type of build time and runtime memory regions.
@@ -31,6 +32,8 @@ pub enum SliceType {
     EventLog,
     /// The `ACPI` region in runtime memory layout
     Acpi,
+    /// The 'UNACCEPTED_BITMAP' region in runtime memory layout
+    UnacceptedMemoryBitmap,
 }
 
 /// Get an immutable reference to a region.
@@ -103,6 +106,10 @@ pub unsafe fn get_dynamic_mem_slice_mut<'a>(t: SliceType, base_address: usize) -
         SliceType::Acpi => core::slice::from_raw_parts_mut(
             base_address as *const u8 as *mut u8,
             TD_PAYLOAD_ACPI_SIZE as usize,
+        ),
+        SliceType::UnacceptedMemoryBitmap => core::slice::from_raw_parts_mut(
+            base_address as *const u8 as *mut u8,
+            TD_PAYLOAD_UNACCEPTED_MEMORY_BITMAP_SIZE as usize,
         ),
 
         _ => panic!("get_dynamic_mem_slice_mut: not support"),
