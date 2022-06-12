@@ -8,7 +8,7 @@
 # corresponding register is passed to VMM. Refer to TDX Module
 # ABI specification section TDG.VP.VMCALL for detail.
 # Here we expose R10 - R15 to VMM in td_vm_call()
-.equ TDVMCALL_EXPOSE_REGS_MASK, 0xffec
+.equ TDVMCALL_EXPOSE_REGS_MASK, 0xfc00
 
 # TDG.VP.VMCALL leaf number
 .equ TDVMCALL, 0
