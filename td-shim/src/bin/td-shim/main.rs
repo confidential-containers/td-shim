@@ -34,6 +34,7 @@ use td_shim::{
 };
 use td_uefi_pi::{fv, hob, pi};
 
+use crate::ipl::ExecutablePayloadType;
 use crate::tcg::TdEventLog;
 use crate::td_hob::TdHobInfo;
 
@@ -57,7 +58,8 @@ mod cet_ss;
 mod verifier;
 
 extern "win64" {
-    fn switch_stack_call(entry_point: usize, stack_top: usize, P1: usize, P2: usize);
+    fn switch_stack_call_win64(entry_point: usize, stack_top: usize, P1: usize, P2: usize);
+    fn switch_stack_call_sysv(entry_point: usize, stack_top: usize, P1: usize, P2: usize);
 }
 
 #[cfg(not(test))]
@@ -215,9 +217,8 @@ fn boot_builtin_payload(
     // Create an EV_SEPARATOR event to mark the end of the td-shim events
     td_event_log.create_seperator();
 
-    let (entry, basefw, basefwsize) =
+    let relocation_info =
         ipl::find_and_report_entry_point(mem, payload).expect("Entry point not found!");
-    let entry = entry as usize;
 
     // Initialize the stack to run the image
     stack_guard::stack_guard_enable(mem);
@@ -234,13 +235,18 @@ fn boot_builtin_payload(
     // Finally let's switch stack and jump to the image entry point...
     log::info!(
         " start launching payload {:p} and switch stack {:p}...\n",
-        entry as *const usize,
+        relocation_info.entry_point as *const usize,
         stack_top as *const usize
     );
 
+    let switch_stack_call = match relocation_info.image_type {
+        ExecutablePayloadType::Elf => switch_stack_call_sysv,
+        ExecutablePayloadType::PeCoff => switch_stack_call_win64,
+    };
+
     unsafe {
         switch_stack_call(
-            entry,
+            relocation_info.entry_point as usize,
             stack_top,
             mem.layout.runtime_hob_base as usize,
             TD_PAYLOAD_BASE as usize,

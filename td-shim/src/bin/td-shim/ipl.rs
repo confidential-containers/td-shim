@@ -12,6 +12,18 @@ use crate::memory::Memory;
 
 const SIZE_4KB: u64 = 0x00001000u64;
 
+pub enum ExecutablePayloadType {
+    Elf,
+    PeCoff,
+}
+
+pub struct PayloadRelocationInfo {
+    pub image_type: ExecutablePayloadType,
+    pub base: u64,
+    pub size: u64,
+    pub entry_point: u64,
+}
+
 pub fn efi_size_to_page(size: u64) -> u64 {
     // It should saturate, but in case...
     size.saturating_add(SIZE_4KB - 1) / SIZE_4KB
@@ -25,38 +37,46 @@ pub fn efi_page_to_size(page: u64) -> u64 {
 pub fn find_and_report_entry_point(
     mem: &mut Memory,
     image_buffer: &[u8],
-) -> Option<(u64, u64, u64)> {
+) -> Option<PayloadRelocationInfo> {
     // Safe because we are the only user in single-thread context.
     let loaded_buffer = unsafe { memslice::get_mem_slice_mut(memslice::SliceType::Payload) };
     let loaded_buffer_slice = loaded_buffer.as_ptr() as u64;
+    let image_type;
 
     let res = if elf::is_elf(image_buffer) {
+        image_type = ExecutablePayloadType::Elf;
         elf::relocate_elf_with_per_program_header(image_buffer, loaded_buffer)?
     } else if pe::is_x86_64_pe(image_buffer) {
+        image_type = ExecutablePayloadType::PeCoff;
         pe::relocate_pe_mem_with_per_sections(image_buffer, loaded_buffer)?
     } else {
         return None;
     };
 
-    let entry = res.0;
+    let entry_point = res.0;
     let base = res.1;
     let size = res.2;
     if base < TD_PAYLOAD_BASE as u64
         || base >= TD_PAYLOAD_BASE + TD_PAYLOAD_SIZE as u64
         || size > TD_PAYLOAD_SIZE as u64 - (base - TD_PAYLOAD_BASE)
-        || entry < base
-        || entry > base + size
+        || entry_point < base
+        || entry_point > base + size
     {
         log::error!("invalid payload binary");
         None
     } else {
         log::info!(
             "image_entry: {:x}, image_base: {:x}, image_size: {:x}\n",
-            entry,
+            entry_point,
             base,
             size
         );
-        Some(res)
+        Some(PayloadRelocationInfo {
+            image_type,
+            base,
+            size,
+            entry_point,
+        })
     }
 }
 
