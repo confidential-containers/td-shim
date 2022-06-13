@@ -48,7 +48,7 @@ tdx-tdcall = { path = "../tdx-tdcall", optional = true }
 default = ["boot-kernel", "cet-ss", "secure-boot"]
 boot-kernel = ["td-layout/boot-kernel"]
 cet-ss = []
-secure-boot = ["der"]
+secure-boot = ["der", "ring"]
 tdx = ["tdx-tdcall", "td-exception/tdx", "td-logger/tdx", "x86"]
 main = [
     "td-loader",

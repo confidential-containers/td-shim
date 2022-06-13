@@ -54,8 +54,6 @@ mod td_hob;
 
 #[cfg(feature = "cet-ss")]
 mod cet_ss;
-#[cfg(feature = "secure-boot")]
-mod verifier;
 
 extern "win64" {
     fn switch_stack_call_win64(entry_point: usize, stack_top: usize, P1: usize, P2: usize);
@@ -323,12 +321,13 @@ fn secure_boot_verify_payload<'a>(payload: &'a [u8], td_event_log: &mut TdEventL
         PLATFORM_CONFIG_SECURE_AUTHORITY, PLATFORM_CONFIG_SECURE_POLICY_DB, PLATFORM_CONFIG_SVN,
         PLATFORM_FIRMWARE_BLOB2_PAYLOAD,
     };
+    use td_shim::secure_boot::PayloadVerifier;
 
     let cfv = memslice::get_mem_slice(memslice::SliceType::Config);
-    let verifier = verifier::PayloadVerifier::new(payload, cfv)
+    let verifier = PayloadVerifier::new(payload, cfv)
         .expect("Secure Boot: Cannot read verify header from payload binary");
-    let trust_anchor = verifier::PayloadVerifier::get_trust_anchor(cfv)
-        .expect("Fail to get trust anchor from CFV");
+    let trust_anchor =
+        PayloadVerifier::get_trust_anchor(cfv).expect("Fail to get trust anchor from CFV");
 
     // Record the provisioned trust anchor into event log.
     td_event_log
@@ -353,7 +352,7 @@ fn secure_boot_verify_payload<'a>(payload: &'a [u8], td_event_log: &mut TdEventL
         .expect("Fail to measure and log the payload SVN");
 
     // Parse out the image from signed payload
-    return verifier::PayloadVerifier::get_payload_image(payload)
+    return PayloadVerifier::get_payload_image(payload)
         .expect("Unable to get payload image from signed binary");
 }
 
