@@ -13,6 +13,8 @@ pub mod e820;
 pub mod event_log;
 pub mod fv;
 pub mod reset_vector;
+
+#[cfg(feature = "secure-boot")]
 pub mod secure_boot;
 
 // This GUID is used for ACPI GUID Extension HOB
