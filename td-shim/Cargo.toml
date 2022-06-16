@@ -50,6 +50,7 @@ boot-kernel = ["td-layout/boot-kernel"]
 cet-ss = []
 secure-boot = ["der"]
 tdx = ["tdx-tdcall", "td-exception/tdx", "td-logger/tdx", "x86"]
+lazy-accept = ["tdx"]
 main = [
     "td-loader",
     "linked_list_allocator",

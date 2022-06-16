@@ -18,7 +18,8 @@ pub fn get_shared_page_mask() -> u64 {
     tdx::td_shared_mask().expect("Unable to get GPAW")
 }
 
-pub fn accept_memory_resource_range(mut cpu_num: u32, address: u64, size: u64) {
+pub fn accept_memory_resource_range(address: u64, size: u64) {
+    let cpu_num = get_num_vcpus();
     super::tdx_mailbox::accept_memory_resource_range(cpu_num, address, size)
 }
 

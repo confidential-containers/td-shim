@@ -8,10 +8,13 @@ use td_layout::runtime::{
     self, TD_PAYLOAD_BASE, TD_PAYLOAD_EVENT_LOG_SIZE, TD_PAYLOAD_PAGE_TABLE_BASE,
     TD_PAYLOAD_PAGE_TABLE_SIZE, TD_PAYLOAD_SIZE,
 };
-use td_layout::{RuntimeMemoryLayout, MIN_MEMORY_SIZE};
-use td_shim::e820::E820Type;
+use td_layout::{memslice, RuntimeMemoryLayout, MIN_MEMORY_SIZE};
+use td_shim::e820::{E820Entry, E820Type};
 use td_uefi_pi::hob;
-use td_uefi_pi::pi::hob::ResourceDescription;
+use td_uefi_pi::pi::hob::{
+    ResourceDescription, RESOURCE_MEMORY_RESERVED, RESOURCE_MEMORY_UNACCEPTED,
+    RESOURCE_SYSTEM_MEMORY,
+};
 use x86_64::{
     structures::paging::PageTableFlags as Flags,
     structures::paging::{OffsetPageTable, PageTable},
@@ -25,6 +28,7 @@ const EXTENDED_FUNCTION_INFO: u32 = 0x80000000;
 const VIRT_PHYS_MEM_SIZES: u32 = 0x80000008;
 const MEMORY_4G: u64 = 0x1_0000_0000;
 const LOW_MEM_TOP: u64 = TD_PAYLOAD_BASE + TD_PAYLOAD_SIZE as u64;
+const SIZE_2M: u64 = 0x200000;
 
 pub struct Memory<'a> {
     pub layout: RuntimeMemoryLayout,
@@ -34,37 +38,23 @@ pub struct Memory<'a> {
 
 impl<'a> Memory<'a> {
     pub fn new(resources: &[ResourceDescription]) -> Option<Self> {
-        let mut regions: Vec<ResourceDescription> = Vec::new();
+        // Init memory resources
+        let regions = Self::init_memory_resources(resources);
 
         // Look for the top region with appropriate size above the
         // low memory and below 4G.
         let mut runtime_top = 0;
-        for entry in resources {
+        for entry in &regions {
             let entry_top = entry.physical_start + entry.resource_length;
-            if entry_top - MIN_MEMORY_SIZE >= LOW_MEM_TOP
+            if entry.resource_type == RESOURCE_SYSTEM_MEMORY
+                && entry_top - MIN_MEMORY_SIZE >= LOW_MEM_TOP
                 && entry_top < MEMORY_4G
                 && entry.resource_length >= MIN_MEMORY_SIZE
                 && entry_top > runtime_top
             {
                 runtime_top = entry_top;
             }
-
-            // Filter out the resources covers image space
-            // TBD: it should be ensured by VMM that this kind of resources should be MMIO
-            if entry.physical_start >= TD_SHIM_FIRMWARE_BASE as u64
-                && entry.physical_start < MEMORY_4G
-            {
-                if entry_top > MEMORY_4G {
-                    let mut new = *entry;
-                    new.physical_start = MEMORY_4G;
-                    new.resource_length = entry_top - MEMORY_4G;
-                    regions.push(new);
-                }
-            } else {
-                regions.push(*entry);
-            }
         }
-
         // Create the runtime layout if a suitable memory region can be found
         if runtime_top == 0 {
             return None;
@@ -159,13 +149,118 @@ impl<'a> Memory<'a> {
         table
     }
 
+    fn init_memory_resources(resources: &[ResourceDescription]) -> Vec<ResourceDescription> {
+        let mut regions: Vec<ResourceDescription> = Vec::new();
+
+        for entry in resources {
+            let entry_top = entry.physical_start + entry.resource_length;
+            let mut new = *entry;
+
+            // Filter out the resources covers image space
+            // TBD: it should be ensured by VMM that this kind of resources should be MMIO
+            if new.physical_start >= TD_SHIM_FIRMWARE_BASE as u64 && new.physical_start < MEMORY_4G
+            {
+                if entry_top > MEMORY_4G {
+                    if new.resource_type == RESOURCE_SYSTEM_MEMORY {
+                        new.physical_start = MEMORY_4G;
+                        new.resource_length = entry_top - MEMORY_4G;
+                    }
+                } else {
+                    continue;
+                }
+            }
+
+            if new.resource_type == RESOURCE_SYSTEM_MEMORY {
+                new.resource_type = RESOURCE_MEMORY_UNACCEPTED;
+            } else if new.resource_type == RESOURCE_MEMORY_RESERVED {
+                new.resource_type = RESOURCE_SYSTEM_MEMORY;
+            }
+            regions.push(new);
+        }
+
+        #[cfg(feature = "tdx")]
+        Self::accept_memory_resources(&mut regions);
+
+        regions
+    }
+
     #[cfg(feature = "tdx")]
-    pub fn accept_memory_resources(&self, num_vcpus: u32) {
+    /// Build a 2M granularity bitmap for kernel to track the unaccepted memory
+    pub fn build_unaccepted_memory_bitmap(&self) -> u64 {
+        #[cfg(not(feature = "lazy-accept"))]
+        return 0;
+
+        let bitmap = unsafe {
+            memslice::get_dynamic_mem_slice_mut(
+                memslice::SliceType::UnacceptedMemoryBitmap,
+                self.layout.runtime_unaccepted_bitmap_base as usize,
+            )
+        };
+
+        for region in self.regions.as_slice() {
+            if region.resource_type == RESOURCE_MEMORY_UNACCEPTED {
+                let mut start = region.physical_start;
+                let mut end = region.physical_start + region.resource_length;
+
+                if region.resource_length < SIZE_2M {
+                    td::accept_memory_resource_range(start, region.resource_length);
+                    continue;
+                }
+
+                // Accept memory to align the 'start' up to 2M
+                if start & (SIZE_2M - 1) != 0 {
+                    td::accept_memory_resource_range(start, SIZE_2M - (start % SIZE_2M));
+                    start += SIZE_2M;
+                }
+                start /= SIZE_2M;
+
+                // Accept memory to align the 'end' down to 2M
+                if end & (SIZE_2M - 1) != 0 {
+                    td::accept_memory_resource_range(end - (end % SIZE_2M), end % SIZE_2M);
+                }
+                end /= SIZE_2M;
+
+                // Set the bit for the unaccepted memory range [start, end)
+                for index in start..end {
+                    bitmap[(index / 8) as usize] |= 1 << (index % 8);
+                }
+            }
+        }
+
+        self.layout.runtime_unaccepted_bitmap_base
+    }
+
+    #[cfg(feature = "tdx")]
+    fn accept_memory_resources(resources: &mut Vec<ResourceDescription>) {
+        use td_layout::runtime::TD_PAYLOAD_PARTIAL_ACCEPT_MEMORY_SIZE;
         use td_uefi_pi::pi;
 
-        for r in &self.regions {
-            if r.resource_type == pi::hob::RESOURCE_SYSTEM_MEMORY {
-                td::accept_memory_resource_range(num_vcpus, r.physical_start, r.resource_length);
+        let mut to_be_accepted = u64::MAX;
+        #[cfg(feature = "lazy-accept")]
+        let mut to_be_accepted = TD_PAYLOAD_PARTIAL_ACCEPT_MEMORY_SIZE as u64;
+
+        for idx in 0..resources.len() {
+            if resources[idx].resource_type == pi::hob::RESOURCE_MEMORY_UNACCEPTED {
+                let size = if resources[idx].resource_length > to_be_accepted {
+                    // Update start address and the length of the current region
+                    // and insert a new resource descriptor for the unaccepted part.
+                    let mut new = resources[idx];
+                    new.physical_start += to_be_accepted;
+                    new.resource_length -= to_be_accepted;
+                    resources.insert(idx + 1, new);
+
+                    resources[idx].resource_length = to_be_accepted;
+                    resources[idx].resource_type = RESOURCE_SYSTEM_MEMORY;
+
+                    to_be_accepted
+                } else {
+                    resources[idx].resource_type = RESOURCE_SYSTEM_MEMORY;
+                    resources[idx].resource_length
+                };
+                if to_be_accepted > 0 {
+                    td::accept_memory_resource_range(resources[idx].physical_start, size);
+                    to_be_accepted -= size;
+                }
             }
         }
     }
@@ -195,6 +290,23 @@ impl<'a> Memory<'a> {
 
         td_paging::set_page_flags(&mut self.pt, VirtAddr::new(address), size as i64, flags);
     }
+}
+
+// Find the top memory address of the system memory resources
+fn memory_top(resources: &[ResourceDescription]) -> u64 {
+    let mut memory_top = 0;
+    for region in resources {
+        if region.resource_type == RESOURCE_MEMORY_UNACCEPTED
+            || region.resource_type == RESOURCE_SYSTEM_MEMORY
+        {
+            let entry_top = region.physical_start + region.resource_length;
+            if entry_top > memory_top {
+                memory_top = entry_top;
+            }
+        }
+    }
+
+    memory_top
 }
 
 /// Get the maximum physical memory addressability of the processor.

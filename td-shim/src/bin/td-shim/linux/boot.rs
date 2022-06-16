@@ -59,11 +59,16 @@ pub fn boot_kernel(
     rsdp_addr: u64,
     e820: &[E820Entry],
     info: &PayloadInfo,
+    #[cfg(feature = "tdx")] unaccepted_bitmap: u64,
 ) -> Result<(), Error> {
     let mut params: BootParams = BootParams::default();
     params.acpi_rsdp_addr = rsdp_addr;
     params.e820_entries = e820.len() as u8;
     params.e820_table[..e820.len()].copy_from_slice(e820);
+    #[cfg(feature = "tdx")]
+    {
+        params.unaccepted_memory = unaccepted_bitmap;
+    }
 
     let image_type = TdKernelInfoHobType::from(info.image_type);
     match image_type {
