@@ -625,8 +625,17 @@ If a TD-memory region is shared memory, the TD Shim shall convert it to private
 memory before transfer to a payload.
 
 If a TD-memory region is unaccepted memory and requires TDCALL
-[TDG.MEM.PAGE.ACCEPT] in the TD guest OS, then the TD Shim shall have the final
-memory map report this region with AddressRangeUnaccepted.
+[TDG.MEM.PAGE.ACCEPT] in the guest TD payload, then the TD Shim shall mark this
+region as unaccepted momory to payload. For the payload supporting Linux Boot
+Protocol, the TD Shim shall have the final memory map report this region
+with AddressRangeMemory and build a bitmap for all the system memory to mark
+whether each 2MB size page has been accepted or not. A bit set to 1 in
+bitmap indicates that the corresponding page has not been accepted yet. The
+TD Shim shall write the 64-bit bitmap address to boot parameter
+([offset 0x78](https://github.com/intel/tdx/blob/guest-unaccepted-memory/Documentation/x86/zero-page.rst)).
+and report the bitmap memory as AddressRangeMemory in E820 table. For the
+payload not supporting Linux Boot Protocol, the TD Shim shall have the final
+memory map report unaccepted memory region with AddressRangeUnaccepted.
 
 If a memory region is MMIO, it is designed to only be accessed via
 TDVMCALL<#VE.RequestMMIO> and not via direct memory read or write.  Accordingly,
@@ -638,19 +647,29 @@ Table 3.4-1 shows the E820 memory map.
 
 **Table 3.4-1 E820 memory map for OS**
 
-| E820 Memory Type       | Value | Usage                                                                 | TD-Memory Type | OS Action                          |
-|:-----------------------|:------|:----------------------------------------------------------------------|:---------------|:-----------------------------------|
-| AddressRangeMemory     | 1     | Usable by OS.                                                         | Private        | Use directly                       |
-| AddressRangeReserved   | 2     | Firmware-Reserved region, such as flash.                              | Private        | Reserved                           |
-| AddressRangeACPI       | 3     | ACPI table.                                                           | Private        | Use after copy ACPI table.         |
-| AddressRangeNVS        | 4     | Firmware Reserved for ACPI, such as the memory used in ACPI OpRegion. | Private        | Reserved                           |
-| AddressRangeUnaccepted | 8     | Allocated by VMM, but not accepted by TD guest yet.                   | Unaccepted     | Use after convert to private page. |
+| E820 Memory Type       | Value | Usage                                                                 | TD-Memory Type                   | OS Action                          |
+|:-----------------------|:------|:----------------------------------------------------------------------|:---------------------------------|:-----------------------------------|
+| AddressRangeMemory     | 1     | Usable by OS.                                                         | Private (Accepted or Unaccepted) | Use directly                       |
+| AddressRangeReserved   | 2     | Firmware-Reserved region, such as flash.                              | Private                          | Reserved                           |
+| AddressRangeACPI       | 3     | ACPI table.                                                           | Private                          | Use after copy ACPI table.         |
+| AddressRangeNVS        | 4     | Firmware Reserved for ACPI, such as the memory used in ACPI OpRegion. | Private                          | Reserved                           |
+| AddressRangeUnaccepted | 8     | Allocated by VMM, but not accepted by TD guest yet.                   | Unaccepted                       | Use after convert to private page. |
 
 For the payload supporting Linux Boot Protocol, the TD Shim shall report E820
 table as part of [boot parameter](#zeropage) - e820_table (offset 0x2d0).
 
 For the payload not supporting Linux Boot Protocol, the TD Shim shall report
 E820 table via E820 Extension HOB.
+
+#### Optimization Consideration
+Usually, TD Shim needs to add all physical pages to private memory before
+transfering control to the payload. It may increase the boot time, because
+TDCALL[TDG.MEM.PAGE.ACCEPT] is time-consuming.
+
+The TD Shim may choose to to add part of memory to be private and let payload
+convert the rest pages. This is called lazy-accept. For example, TD Shim may
+accept the first 256MiB, and mark the reset pages to be unaccepted in E820
+table or boot parameter.
 
 ### TD Trusted Boot Support
 
