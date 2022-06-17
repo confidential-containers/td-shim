@@ -18,6 +18,9 @@ use td_shim::TD_E820_TABLE_HOB_GUID;
 use td_uefi_pi::hob;
 use zerocopy::{AsBytes, FromBytes};
 
+const RESERVED_MEMORY_SPACE_SIZE: u64 = 0x400_0000;
+const ADDRESS_4G: u64 = 0x1_0000_0000;
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MemoryMapConfig {
     pub size: String,
@@ -70,7 +73,7 @@ impl TestMemoryMap {
             let table = hob::get_guid_data(hob).expect("Failed to get data from ACPI GUID HOB");
 
             let mut offset = 0;
-            while offset < table.len() {
+            while offset < table.len() && offset + size_of::<E820Entry>() <= table.len() {
                 let entry = E820Entry::read_from(&table[offset..offset + size_of::<E820Entry>()])?;
                 // save it to tables
                 e820.push(entry);
@@ -102,6 +105,18 @@ impl TestMemoryMap {
                 log::error!("Invalid E820 entry: {:x?}\n", entry);
                 return TestResult::Fail;
             }
+
+            // Do not count the memory in reserved range into total memory size
+            // VMM may reserve memory in this region for some special reason.
+            // For example, QEMU may reserve 4 pages at 0xfeffc000 for an EPT
+            // identity map and a TSS in order to use vm86 mode to emulate
+            // 16-bit code directly.
+            if entry.addr >= ADDRESS_4G - RESERVED_MEMORY_SPACE_SIZE
+                && entry.addr + entry.size < ADDRESS_4G
+            {
+                continue;
+            }
+
             total += entry.size;
             top = entry_end;
         }
