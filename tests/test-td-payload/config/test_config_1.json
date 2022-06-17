@@ -112,7 +112,7 @@
             "size": "1G"
         },
         "result": "None",
-        "run": false
+        "run": true
     },
     "tcs012": {
         "name": "memorymap002",
