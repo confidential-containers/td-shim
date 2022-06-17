@@ -132,7 +132,7 @@
             "size": "4G"
         },
         "result": "None",
-        "run": false
+        "run": true
     },
     "tcs014": {
         "name": "memorymap004",

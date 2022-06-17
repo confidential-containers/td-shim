@@ -148,7 +148,7 @@
             "size": "16G"
         },
         "result": "None",
-        "run": false
+        "run": true
     },
     "tcs016": {
         "name": "tdtrustedboot001",

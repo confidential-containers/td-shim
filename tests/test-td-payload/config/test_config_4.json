@@ -140,7 +140,7 @@
             "size": "8G"
         },
         "result": "None",
-        "run": false
+        "run": true
     },
     "tcs015": {
         "name": "memorymap005",
