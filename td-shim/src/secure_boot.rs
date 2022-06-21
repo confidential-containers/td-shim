@@ -271,6 +271,7 @@ impl<'a> PayloadVerifier<'a> {
         let header = file.gread::<CfvPubKeyFileHeader>(&mut readlen).unwrap();
         if &header.type_guid != CFV_FILE_HEADER_PUBKEY_GUID.as_bytes()
             || header.length as usize > file.len()
+            || readlen > header.length as usize
         {
             return Err(VerifyErr::InvalidPublicKey);
         }
