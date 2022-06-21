@@ -752,15 +752,21 @@ MRTD is extended by two operations:
 the chunk’s content.
 
 The expected flow is:
-1. Search TD Metadata from metadata location and get TDVF_DESCRIPTOR.
-2. In TDVF_DESCRIPTOR, get TDVF_SECTION from index 0 to (NumberOfSectionEntry -
-   1).
-3. In TDVF_SECTION, if PAGE.AUG attribute is clear (PAGE.ADD is used), extend
-   MRTD with the THD.MEM.PAGE.ADD as described above, from the lowest GPA to the
-   highest GPA, with 4K granularity.
-4. In TDVF_SECTION, if MR.EXTEND attribute is set, extend MRTD with the
-   TDH.MR.EXTEND as described above, from the lowest GPA to the highest GPA,
-   with 256 bytes granularity.
+1. Initialize a SHA384 hash context. Load TDVF image and parse.
+2. Search TD Metadata from metadata location and get TDVF_DESCRIPTOR.
+3. For every TDVF_SECTION in TDVF_DESCRIPTOR, from index 0 to
+(NumberOfSectionEntry - 1)
+   1. For every page (4K granularity) in TDVF_SECTION, from lowest GPA to
+   highest GPA
+      1. If PAGE.AUG attribute is clear (PAGE.ADD is used), extend MRTD with
+      the THD.MEM.PAGE.ADD as described above, with MemoryAddress of the
+      corresponding TDVF_SECTION + current page index * 4096 as GPA.
+      2. If MR.EXTEND attribute is set, for every chunk (256 bytes granularity)
+      in current page
+         1. Extend MRTD with the TDH.MR.EXTEND as described above, with
+         MemoryAddress of the corresponding TDVF_SECTION + current page index *
+         4096 + current chunk index * 256 as GPA.
+4. Finalize SHA384 hash context to get the final MRTD.
 
 #### Guideline
 
