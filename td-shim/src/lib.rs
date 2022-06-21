@@ -17,6 +17,9 @@ pub mod reset_vector;
 #[cfg(feature = "secure-boot")]
 pub mod secure_boot;
 
+#[cfg(feature = "fuzz")]
+pub mod secure_boot;
+
 // This GUID is used for ACPI GUID Extension HOB
 // Please refer to:
 // https://github.com/confidential-containers/td-shim/blob/main/doc/tdshim_spec.md#acpi-guid-extension-hob

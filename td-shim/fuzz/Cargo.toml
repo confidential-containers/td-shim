@@ -1,0 +1,52 @@
+
+[package]
+name = "td-shim-fuzz"
+version = "0.0.0"
+authors = ["Automatically generated"]
+publish = false
+edition = "2018"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = {version = "0.4", optional = true }
+afl = {version = "*", optional = true }
+r-efi = "3.2.0"
+
+[dependencies.td-shim]
+path = ".."
+
+# Prevent this from interfering with workspaces
+[workspace]
+members = ["."]
+
+[features]
+default = ["libfuzzer-sys"]
+fuzz = ["afl"]
+
+[[bin]]
+name = "afl_secure_boot_payload"
+path = "fuzz_targets/afl_secure_boot_payload.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "afl_secure_boot_cfv"
+path = "fuzz_targets/afl_secure_boot_cfv.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "secure_boot_payload"
+path = "fuzz_targets/secure_boot_payload.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "secure_boot_cfv"
+path = "fuzz_targets/secure_boot_cfv.rs"
+test = false
+doc = false
+
+
