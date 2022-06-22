@@ -12,8 +12,8 @@
                     +--------------+ <-  0x00100000 (1M)
                     |   ........   |
                     +--------------+ <-  0x00800000
-                    |  Page Table  | <-  0x00800000
-                    +--------------+ <-  0x01000000
+                    |  Page Table  | <-  0x00020000
+                    +--------------+ <-  0x00820000
                     |    TD HOB    |
                     +--------------+ <-  0x01100000
                     | PAYLOAD PARAM|    (0x00100000)
@@ -48,8 +48,8 @@ pub const TD_PAYLOAD_SHADOW_STACK_SIZE: u32 = 0x200000;
 pub const TD_PAYLOAD_STACK_SIZE: u32 = 0x800000;
 
 pub const TD_PAYLOAD_PAGE_TABLE_BASE: u64 = 0x800000;
-pub const TD_PAYLOAD_PAGE_TABLE_SIZE: usize = 0x800000;
-pub const TD_HOB_BASE: u64 = 0x1000000;
+pub const TD_PAYLOAD_PAGE_TABLE_SIZE: usize = 0x20000;
+pub const TD_HOB_BASE: u64 = 0x820000;
 pub const TD_HOB_SIZE: u64 = 0x20000;
 pub const TD_PAYLOAD_PARAM_BASE: u64 = 0x1100000;
 pub const TD_PAYLOAD_PARAM_SIZE: u64 = 0x100000;
