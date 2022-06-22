@@ -77,7 +77,7 @@
         "payload_param_size": 0x100000,
         "payload_param_base": 0x01100000,
         "td_hob_size": 0x20000,
-        "page_table_size": 0x800000,
+        "page_table_size": 0x20000,
         "page_table_base": 0x800000,
     }
 }

@@ -86,32 +86,48 @@ impl<'a> Memory<'a> {
         })
     }
 
+    // - Frame size for runtime memory region is 4K bytes since page-table
+    //   level protections are used such as no-execute protection.
+    // - Frame size for other memory region is 1G bytes.
     pub fn setup_paging(&mut self) {
         // Init frame allocator
         td_paging::init(TD_PAYLOAD_PAGE_TABLE_BASE, TD_PAYLOAD_PAGE_TABLE_SIZE);
-        // Create mapping for firmware image space
+
+        // Create mapping for 0 - base address of runtime layout region
         td_paging::create_mapping(
             &mut self.pt,
-            PhysAddr::new(TD_SHIM_FIRMWARE_BASE as u64),
-            VirtAddr::new(TD_SHIM_FIRMWARE_BASE as u64),
-            td_paging::PAGE_SIZE_4K as u64,
-            TD_SHIM_FIRMWARE_SIZE as u64,
-        );
+            PhysAddr::new(0),
+            VirtAddr::new(0),
+            td_paging::PAGE_SIZE_DEFAULT as u64,
+            self.layout.runtime_memory_bottom,
+        )
+        .expect("Fail to map 0 to runtime memory bottom");
 
-        // Setup page table only for system memory resources
-        // - Frame size below 4G is 4K bytes since we will configure page-table
-        //   level protection for some spaces under 4G.
-        // - Frame size upper 4G is 1G bytes.
+        // Create mapping for runtime layout region
+        td_paging::create_mapping(
+            &mut self.pt,
+            PhysAddr::new(self.layout.runtime_memory_bottom),
+            VirtAddr::new(self.layout.runtime_memory_bottom),
+            td_paging::PAGE_SIZE_4K as u64,
+            self.layout.runtime_memory_top - self.layout.runtime_memory_bottom,
+        )
+        .expect("Fail to map runtime memory region");
+
+        // Create mapping from top of runtime layout region to 4G
+        td_paging::create_mapping(
+            &mut self.pt,
+            PhysAddr::new(self.layout.runtime_memory_top),
+            VirtAddr::new(self.layout.runtime_memory_top),
+            td_paging::PAGE_SIZE_DEFAULT as u64,
+            MEMORY_4G - self.layout.runtime_memory_top,
+        )
+        .expect("Fail to map runtime memory top to 4G");
+
+        // Setup page table only for system memory resources higher than 4G
         for m in &self.regions {
             let r_end = m.physical_start + m.resource_length;
             if r_end < MEMORY_4G as u64 {
-                td_paging::create_mapping(
-                    &mut self.pt,
-                    PhysAddr::new(m.physical_start),
-                    VirtAddr::new(m.physical_start),
-                    td_paging::PAGE_SIZE_4K as u64,
-                    m.resource_length,
-                );
+                continue;
             } else {
                 td_paging::create_mapping(
                     &mut self.pt,
@@ -119,13 +135,13 @@ impl<'a> Memory<'a> {
                     VirtAddr::new(m.physical_start),
                     td_paging::PAGE_SIZE_DEFAULT as u64,
                     m.resource_length,
-                );
+                )
+                .expect("Fail to map memory region upper 4G");
             }
         }
 
         // Setup page-table level protection
         // - Enable Non-Excutable for non-code spaces
-        // - Set Shared bit for DMA memory in TDX
         self.set_nx_bit(
             self.layout.runtime_memory_bottom,
             self.layout.runtime_memory_top - self.layout.runtime_memory_bottom,
