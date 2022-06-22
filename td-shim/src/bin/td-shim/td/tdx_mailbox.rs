@@ -44,6 +44,7 @@ mod spec {
     pub const MP_WAKEUP_COMMAND_SLEEP: u32 = 2;
     pub const MP_WAKEUP_COMMAND_ACCEPT_PAGES: u32 = 3;
     pub const MP_WAKEUP_COMMAND_AVAILABLE: u32 = 4;
+    pub const MP_WAKEUP_COMMAND_SET_PAGING: u32 = 5;
 
     pub const MAILBOX_APICID_INVALID: u32 = 0xffffffff;
     pub const MAILBOX_APICID_BROADCAST: u32 = 0xfffffffe;
@@ -319,4 +320,25 @@ pub fn relocate_mailbox(address: u32) -> Result<(), MailboxError> {
     mail_box.set_apic_id(spec::MAILBOX_APICID_BROADCAST);
 
     Ok(())
+}
+
+fn ap_set_cr3(cpu_index: u32, cr3: u64) {
+    // Safety:
+    // During this state, all the BSPs/APs are accessing the mailbox in shared immutable mode.
+    let mut mail_box = unsafe { MailBox::new(get_mem_slice_mut(SliceType::MailBox)) };
+
+    // Put new page table base address to the first FW arg
+    mail_box.set_fw_arg(0, cr3 as u64);
+
+    // Set the set-paging command and wakeup the target AP.
+    mail_box.set_command(spec::MP_WAKEUP_COMMAND_SET_PAGING);
+    mail_box.set_apic_id(cpu_index);
+
+    wait_for_ap_response(&mut mail_box);
+}
+
+pub fn relocate_page_table(cpu_num: u32, page_table_base: u64) {
+    for cpu_index in make_apic_range(cpu_num - 1) {
+        ap_set_cr3(cpu_index, page_table_base);
+    }
 }
