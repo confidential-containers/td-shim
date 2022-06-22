@@ -270,11 +270,27 @@ ParkAp:
     cmp     eax, MpProtectedModeWakeupCommandAssignWork
     je      .set_ap_stack
 
+    ;
+    ; Set page table for AP
+    cmp     eax, MpProtectedModeWakeupCommandSetCr3
+    je      .set_page_table
+
     jmp    .check_apicid
 
 .check_avalible
     ;
     ; Set the ApicId to be invalid to show the AP is available
+    mov     dword[rsp + ApicidOffset], MailboxApicIdInvalid
+    jmp     .check_apicid
+
+.set_page_table
+    ;
+    ; Read out the page table address from mailbox and write it to CR3
+    mov     rax, [rsp + PageTableBaseOffset]
+    mov     cr3, rax
+
+    ;
+    ; Set the ApicId to be invalid to show the CR3 has been set
     mov     dword[rsp + ApicidOffset], MailboxApicIdInvalid
     jmp     .check_apicid
 

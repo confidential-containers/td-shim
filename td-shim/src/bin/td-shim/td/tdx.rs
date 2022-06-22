@@ -26,6 +26,10 @@ pub fn relocate_mailbox(address: u32) {
     super::tdx_mailbox::relocate_mailbox(address).expect("Unable to relocate mailbox");
 }
 
+pub fn relocate_ap_page_table(page_table_base: u64) {
+    super::tdx_mailbox::relocate_page_table(get_num_vcpus(), page_table_base);
+}
+
 pub fn get_num_vcpus() -> u32 {
     let td_info = tdx::tdcall_get_td_info().expect("Fail to get TDINFO");
 
