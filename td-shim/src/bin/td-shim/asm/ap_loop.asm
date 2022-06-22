@@ -81,6 +81,10 @@ ap_relocated_func:
     # BSP sets these variables before unblocking APs
     mov     rax, 0
     mov     eax, dword ptr[rbx + WakeupVectorOffset]
+
+    #
+    # Clear the command as the acknowledgement that the wake up command is received
+    mov     qword ptr[rbx + CommandOffset], MpProtectedModeWakeupCommandNoop
     nop
     jmp     rax
 
