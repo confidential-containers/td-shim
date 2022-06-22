@@ -116,7 +116,7 @@ impl<'a> Memory<'a> {
         // Setup page table only for system memory resources higher than 4G
         for m in &self.regions {
             let r_end = m.physical_start + m.resource_length;
-            if r_end < MEMORY_4G as u64 {
+            if r_end <= MEMORY_4G as u64 {
                 continue;
             } else {
                 td_paging::create_mapping(
@@ -130,13 +130,6 @@ impl<'a> Memory<'a> {
             }
         }
 
-        // Setup page-table level protection
-        // - Enable Non-Excutable for non-code spaces
-        self.set_nx_bit(
-            self.layout.runtime_memory_bottom,
-            self.layout.runtime_memory_top - self.layout.runtime_memory_bottom,
-        );
-
         td_paging::cr3_write();
     }
 
@@ -146,6 +139,11 @@ impl<'a> Memory<'a> {
             table.add_range(E820Type::Memory, r.physical_start, r.resource_length);
         }
 
+        table.convert_range(
+            E820Type::Reserved,
+            TD_PAYLOAD_PAGE_TABLE_BASE,
+            TD_PAYLOAD_PAGE_TABLE_SIZE as u64,
+        );
         table.convert_range(
             E820Type::Acpi,
             self.layout.runtime_acpi_base,

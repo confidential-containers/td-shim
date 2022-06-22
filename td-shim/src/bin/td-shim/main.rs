@@ -119,6 +119,8 @@ pub extern "win64" fn _start(
         .expect("Unable to find a piece of suitable memory for runtime");
     mem.setup_paging();
 
+    // Relocate the page table that map all the physical memory
+    td::relocate_ap_page_table(TD_PAYLOAD_PAGE_TABLE_BASE);
     // Relocate Mailbox along side with the AP function
     td::relocate_mailbox(mem.layout.runtime_mailbox_base as u32);
 
@@ -222,6 +224,14 @@ fn boot_builtin_payload(
 
     let relocation_info =
         ipl::find_and_report_entry_point(mem, payload).expect("Entry point not found!");
+
+    // Set up NX (no-execute) protection for payload stack and hob
+    mem.set_nx_bit(mem.layout.runtime_stack_base, TD_PAYLOAD_STACK_SIZE as u64);
+    mem.set_nx_bit(
+        mem.layout.runtime_shadow_stack_base,
+        TD_PAYLOAD_SHADOW_STACK_SIZE as u64,
+    );
+    mem.set_nx_bit(mem.layout.runtime_hob_base, TD_PAYLOAD_HOB_SIZE as u64);
 
     // Initialize the stack to run the image
     stack_guard::stack_guard_enable(mem);
