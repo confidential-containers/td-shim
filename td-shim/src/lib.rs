@@ -109,6 +109,7 @@ pub struct TdxHandoffTablePointers {
 #[derive(Default, Clone, Copy, Pread, Pwrite)]
 pub struct PayloadInfo {
     pub image_type: u32,
+    pub reserved: u32,
     pub entry_point: u64,
 }
 
