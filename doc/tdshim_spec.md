@@ -345,6 +345,9 @@ typedef struct {
   // TD_PAYLOAD_IMAGE_TYPE
   UINT32                 ImageType;
 
+  // Reserved field
+  UINT32                 Reserved;
+
   // Guest physical address of the payload entrypoint.
   UINT64                 Entrypoint;
 } HOB_PAYLOAD_INFO_TABLE;
