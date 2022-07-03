@@ -122,3 +122,24 @@ jobs:
         shell: pwsh
       - name: "Print QEMU Version"
         run: qemu-system-x86_64 --version
+      
+      - name: install NASM
+        uses: ilammy/setup-nasm@v1
+      
+      - name: Install AFL (Linux)
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: afl
+        if: runner.os == 'Linux'
+      
+      - name: Install Cargo-Fuzz (Linux)
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: cargo-fuzz
+        if: runner.os == 'Linux'
+      
+      - name: Build all fuzzing test case (Linux)
+        run: bash sh_script/fuzzing.sh build
+        if: runner.os == 'Linux'
