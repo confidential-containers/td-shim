@@ -9,7 +9,28 @@ pkill screen
 cmds=(
     "td-loader"
     "td-uefi-pi"
+    "td-shim"
 )
+
+check_build() {
+    for path in ${cmds[@]};do
+        pushd $path
+        fuzz_list=$(cargo fuzz list)
+        for fuzz in ${fuzz_list[@]};do
+            test_case=$fuzz
+            echo "## Build test case $test_case in $path"
+            echo $test_case | grep "^afl"
+            if [ "$?" == "0" ];then
+                cargo_build=`cargo afl build --manifest-path fuzz/Cargo.toml --bin $test_case --features fuzz --no-default-features`
+                if [ "$?" != "0" ];then
+                    echo "Error: Build execution failed"
+                    exit 1
+                fi
+            fi
+        done
+        popd
+    done 
+}
 
 fuzz_time=3600
 
@@ -88,6 +109,7 @@ libfuzzer() {
 }
 
 case "${1:-}" in
+build) check_build ;;
 afl) afl ;;
 *) libfuzzer ;;
 esac

@@ -122,3 +122,14 @@ jobs:
         shell: pwsh
       - name: "Print QEMU Version"
         run: qemu-system-x86_64 --version
+      
+      - name: Install AFL (Linux)
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: afl
+        if: runner.os == 'Linux'
+      
+      - name: Build all fuzzing test case (Linux)
+        run: bash sh_script/fuzzing.sh build
+        if: runner.os == 'Linux'
