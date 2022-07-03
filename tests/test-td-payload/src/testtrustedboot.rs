@@ -38,15 +38,29 @@ pub struct TestTdTrustedBoot {
     pub case: TdTrustedBoot,
 }
 
+#[derive(Debug)]
+pub struct Rtmr {
+    pub rtmr0: [u8; 48],
+    pub rtmr1: [u8; 48],
+    pub rtmr2: [u8; 48],
+    pub rtmr3: [u8; 48],
+}
+
 impl TestTdTrustedBoot {
-    fn get_rtmr0_from_tdreport(&mut self) -> [u8; 48] {
+    fn get_rtmr_from_tdreport(&mut self) -> Rtmr {
         let tdx_report = tdreport::tdcall_report(
             &self.case.input[0..tdreport::TD_REPORT_ADDITIONAL_DATA_SIZE]
                 .try_into()
                 .unwrap(),
         )
         .expect("Fail to get td report");
-        tdx_report.td_info.rtmr0
+        let mr = Rtmr {
+            rtmr0: tdx_report.td_info.rtmr0,
+            rtmr1: tdx_report.td_info.rtmr1,
+            rtmr2: tdx_report.td_info.rtmr2,
+            rtmr3: tdx_report.td_info.rtmr3,
+        };
+        mr
     }
 
     fn parse_hob(&self, hob_address: usize) -> Option<Ccel> {
@@ -78,13 +92,16 @@ impl TestTdTrustedBoot {
         return ccel;
     }
 
-    fn get_rtmr0_from_cceltable(&self, ccel_table: Ccel) -> [u8; 48] {
+    fn get_rtmr_from_cceltable(&self, ccel_table: Ccel) -> Option<Rtmr> {
         let eventlog_base = ccel_table.lasa;
         let eventlog_len = ccel_table.laml as usize;
         let eventlog =
             unsafe { core::slice::from_raw_parts(eventlog_base as *const u8, eventlog_len) };
 
         let mut rtmr0: [u8; 96] = [0; 96];
+        let mut rtmr1: [u8; 96] = [0; 96];
+        let mut rtmr2: [u8; 96] = [0; 96];
+        let mut rtmr3: [u8; 96] = [0; 96];
 
         let mut offset = 0;
 
@@ -92,7 +109,7 @@ impl TestTdTrustedBoot {
         if let Some(pcr_header) = Self::read_pcr_event_header(eventlog, offset) {
             offset += pcr_header.event_size as usize + size_of::<TcgPcrEventHeader>();
         } else {
-            return rtmr0[0..48].try_into().unwrap();
+            return None;
         }
 
         while offset < eventlog_len {
@@ -114,6 +131,21 @@ impl TestTdTrustedBoot {
                             .copy_from_slice(&cc_event_header.digest.digests[0].digest.sha384);
                         let hash_value = digest::digest(&digest::SHA384, &rtmr0);
                         rtmr0[0..48].copy_from_slice(hash_value.as_ref());
+                    } else if rtmr_index == 1 {
+                        rtmr1[48..]
+                            .copy_from_slice(&cc_event_header.digest.digests[0].digest.sha384);
+                        let hash_value = digest::digest(&digest::SHA384, &rtmr1);
+                        rtmr1[0..48].copy_from_slice(hash_value.as_ref());
+                    } else if rtmr_index == 2 {
+                        rtmr2[48..]
+                            .copy_from_slice(&cc_event_header.digest.digests[0].digest.sha384);
+                        let hash_value = digest::digest(&digest::SHA384, &rtmr2);
+                        rtmr2[0..48].copy_from_slice(hash_value.as_ref());
+                    } else if rtmr_index == 3 {
+                        rtmr3[48..]
+                            .copy_from_slice(&cc_event_header.digest.digests[0].digest.sha384);
+                        let hash_value = digest::digest(&digest::SHA384, &rtmr3);
+                        rtmr3[0..48].copy_from_slice(hash_value.as_ref());
                     }
                 }
                 offset = offset.saturating_add(cc_event_size);
@@ -122,7 +154,13 @@ impl TestTdTrustedBoot {
                 }
             }
         }
-        rtmr0[0..48].try_into().unwrap()
+        let mr = Rtmr {
+            rtmr0: rtmr0[0..48].try_into().unwrap(),
+            rtmr1: rtmr1[0..48].try_into().unwrap(),
+            rtmr2: rtmr2[0..48].try_into().unwrap(),
+            rtmr3: rtmr3[0..48].try_into().unwrap(),
+        };
+        Some(mr)
     }
 
     fn read_pcr_event_header(area: &[u8], offset: usize) -> Option<TcgPcrEventHeader> {
@@ -157,13 +195,11 @@ impl TestCase for TestTdTrustedBoot {
      * run the test case
      */
     fn run(&mut self) {
-        // Get rtmr0 value from tdreport
-        let rtmr0_tdreport = self.get_rtmr0_from_tdreport();
-        log::info!("tdreport rtmr0: {:?}\n", rtmr0_tdreport);
+        // Get rtmr values from tdreport
+        let rtmr_tdreport = self.get_rtmr_from_tdreport();
+        log::info!("tdreport rtmr: {:#?}\n", rtmr_tdreport);
 
-        // Get rtmr0 value from acpi table
-        let mut rtmr0_eventlog: [u8; 48] = [0; 48];
-
+        // Get rtmr values from acpi table
         if let Some(ccel_table) = self.parse_hob(self.hob_address) {
             if ccel_table.cc_type != CCEL_CC_TYPE_TDX {
                 log::info!(
@@ -172,18 +208,24 @@ impl TestCase for TestTdTrustedBoot {
                 );
                 return;
             }
-            rtmr0_eventlog.copy_from_slice(self.get_rtmr0_from_cceltable(ccel_table).as_bytes());
-            log::info!("acpitable rtmr0: {:?}\n", rtmr0_eventlog);
+            let rtmr_eventlog = self.get_rtmr_from_cceltable(ccel_table).unwrap();
+            log::info!("acpitable rtmr: {:#?}\n", rtmr_eventlog);
+
+            // Compare rtmr values from tdreport and acpi table
+            if rtmr_tdreport.rtmr0 != rtmr_eventlog.rtmr0
+                || rtmr_tdreport.rtmr1 != rtmr_eventlog.rtmr1
+                || rtmr_tdreport.rtmr2 != rtmr_eventlog.rtmr2
+                || rtmr_tdreport.rtmr3 != rtmr_eventlog.rtmr3
+            {
+                log::info!(
+                    "rtmr values from tdreport is not equal with the values from acpi table\n"
+                );
+                return;
+            }
         } else {
             log::info!("Fail to parse CCEL from Hob\n");
             return;
         };
-
-        // Compare rtmr0 values from tdreport and acpi table
-        if rtmr0_tdreport != rtmr0_eventlog {
-            log::info!("rtmr0 value from tdreport is not equal with the value from acpi table\n");
-            return;
-        }
 
         self.case.result = TestResult::Pass;
     }
