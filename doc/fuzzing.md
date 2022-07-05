@@ -43,7 +43,7 @@ As soon as you run this command, you should see AFL’s interface start up:
 
 ![image-20210628084437384](fuzz.png)
 
-### view coverage
+### View coverage
 
 If you need to view coverage, follow the steps below
 ```
@@ -67,12 +67,13 @@ $ cargo afl fuzz -i fuzz/seeds/pe -o fuzz/artifacts/afl_pe fuzz/target/debug/afl
 $ grcov . -s . --binary-path fuzz/target/debug/afl_pe -t html --branch --ignore-not-existing -o coverage
 ```
 
+### Automation test script
 ```
-# Install requrired tools
-$ sudo apt install screen expect
-# Run each fuzz for one hour
-$ bash sh_script/fuzzing.sh afl
 
+# Run single fuzzing test case
+$ bash sh_script/fuzzing.sh -c [afl_pe/pe] -t 3600
+# Run all fuzzing test cases
+$ bash sh_script/fuzzing.sh -c [afl_all/libfuzzer_all] -t 3600
 
 # If there is an error in fuzzing, please follow, and switch to the root
 user to execute the command if the error is reported.
@@ -170,7 +171,7 @@ $ cargo fuzz list
 
 # Copy the torrent to the default torrent folder, so you don't have to process the generated torrent file.
 $ mkdir fuzz/corpus/pe
-$ cp fuzz/seeds/pe_send/td-shim.efi fuzz/corpus/pe
+$ cp fuzz/seeds/pe/td-shim.efi fuzz/corpus/pe
 
 
 # Run pe fuzz.

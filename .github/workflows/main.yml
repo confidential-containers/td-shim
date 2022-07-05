@@ -141,5 +141,5 @@ jobs:
         if: runner.os == 'Linux'
       
       - name: Build all fuzzing test case (Linux)
-        run: bash sh_script/fuzzing.sh build
+        run: bash sh_script/fuzzing.sh -b
         if: runner.os == 'Linux'
