@@ -5,7 +5,7 @@
 use core::mem::size_of;
 use scroll::{Pread, Pwrite};
 use td_layout as layout;
-use td_layout::runtime::TD_PAYLOAD_PARAM_BASE;
+use td_layout::runtime::{TD_PAYLOAD_PARAM_BASE, TD_PAYLOAD_PARAM_SIZE};
 use td_shim::{e820::E820Entry, PayloadInfo, TdKernelInfoHobType};
 use x86_64::{
     instructions::{segmentation::Segment, tables::lgdt},
@@ -71,18 +71,22 @@ pub fn boot_kernel(
     }
 
     let image_type = TdKernelInfoHobType::from(info.image_type);
-    match image_type {
-        TdKernelInfoHobType::BzImage => params.hdr = setup_header(kernel)?,
+    let entry64 = match image_type {
+        TdKernelInfoHobType::BzImage => {
+            params.hdr = setup_header(kernel)?;
+            params.hdr.code32_start as u64 + 0x200
+        }
         TdKernelInfoHobType::RawVmLinux => {
             params.hdr.type_of_loader = 0xff;
             params.hdr.boot_flag = 0xaa55;
             params.hdr.header = 0x5372_6448;
             params.hdr.kernel_alignment = 0x0100_0000;
-            //params.hdr.cmd_line_ptr = xxx as u32;
-            //params.hdr.cmdline_size = xxx as u32;
+            params.hdr.cmd_line_ptr = TD_PAYLOAD_PARAM_BASE as u32;
+            params.hdr.cmdline_size = TD_PAYLOAD_PARAM_SIZE as u32;
+            info.entry_point
         }
         _ => return Err(Error::UnknownImageType),
-    }
+    };
 
     // Set the GDT, CS/DS/ES/SS, and disable interrupt
     let gdtr = DescriptorTablePointer {
@@ -101,7 +105,6 @@ pub fn boot_kernel(
 
     // Jump to kernel 64-bit entrypoint
     log::info!("Jump to kernel...\n");
-    let entry64 = params.hdr.code32_start as u64 + 0x200;
 
     // Calling kernel 64bit entry follows sysv64 calling convention
     let entry64: extern "sysv64" fn(usize, usize) = unsafe { core::mem::transmute(entry64) };
