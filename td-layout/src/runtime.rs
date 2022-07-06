@@ -18,7 +18,7 @@
                     +--------------+ <-  0x01100000
                     | PAYLOAD PARAM|    (0x00100000)
                     +--------------+ <-  0x01200000
-                    |    PAYLOAD   |    (0x02000000)
+                    |    PAYLOAD   |    (0x08000000)
                     +--------------+
                     |   ........   |
                     +--------------+ <-  0x7EFFE000
@@ -54,4 +54,4 @@ pub const TD_HOB_SIZE: u64 = 0x20000;
 pub const TD_PAYLOAD_PARAM_BASE: u64 = 0x1100000;
 pub const TD_PAYLOAD_PARAM_SIZE: u64 = 0x100000;
 pub const TD_PAYLOAD_BASE: u64 = 0x1200000;
-pub const TD_PAYLOAD_SIZE: usize = 0x2000000;
+pub const TD_PAYLOAD_SIZE: usize = 0x8000000;
