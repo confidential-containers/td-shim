@@ -6,7 +6,7 @@
 use td_shim::secure_boot::{PayloadVerifier, VerifyErr};
 
 pub fn fuzz_secure_boot_payload(buffer: &[u8]) {
-    let cfv = include_bytes!("../seeds/cfv/cfv");
+    let cfv = include_bytes!("../seeds/secure_boot_cfv/cfv");
     let verifier = PayloadVerifier::new(buffer, cfv);
     let trust_anchor = PayloadVerifier::get_trust_anchor(cfv);
     if verifier.is_ok() && trust_anchor.is_ok() {
@@ -21,7 +21,7 @@ pub fn fuzz_secure_boot_payload(buffer: &[u8]) {
 }
 
 pub fn fuzz_secure_boot_cfv(buffer: &[u8]) {
-    let payload = include_bytes!("../seeds/payload/td-payload-signed");
+    let payload = include_bytes!("../seeds/secure_boot_payload/td-payload-signed");
     let verifier = PayloadVerifier::new(payload, buffer);
     let trust_anchor = PayloadVerifier::get_trust_anchor(buffer);
     if verifier.is_ok() && trust_anchor.is_ok() {
