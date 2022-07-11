@@ -12,6 +12,7 @@ pub fn fuzz_elf_loader(data: &[u8]) {
     let mut loaded_buffer = vec![0u8; 0x800000];
 
     elf::relocate_elf_with_per_program_header(&data[..], loaded_buffer.as_mut_slice());
+    let _ = elf::parse_pre_init_array_section(data);
     let _ = elf::parse_init_array_section(data);
     let _ = elf::parse_finit_array_section(data);
 
