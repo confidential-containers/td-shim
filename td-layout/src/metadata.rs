@@ -444,8 +444,303 @@ mod tests {
 
     #[test]
     fn test_tdx_metadata_guid() {
+        let tdx_metadata_guid: [u8; 16] = [
+            0xE9, 0xEA, 0xF9, 0xF3, 0x16, 0x8e, 0x44, 0xD5, 0xA8, 0xEB, 0x7F, 0x4D, 0x87, 0x38,
+            0xF6, 0xAE,
+        ];
+        let invalid_tdx_metadata_guid: [u8; 16] = [
+            0xE0, 0xEA, 0xF9, 0xF3, 0x16, 0x8e, 0x44, 0xD5, 0xA8, 0xEB, 0x7F, 0x4D, 0x87, 0x38,
+            0xF6, 0xAE,
+        ];
         let guid = TdxMetadataGuid::default();
 
+        assert_eq!(&tdx_metadata_guid, guid.as_bytes());
         assert_eq!(guid.is_valid(), true);
+
+        let guid_pread: TdxMetadataGuid = tdx_metadata_guid.pread(0).unwrap();
+        assert_eq!(guid_pread.as_bytes(), guid.as_bytes());
+
+        let guid = TdxMetadataGuid::from_bytes(&tdx_metadata_guid).unwrap();
+        assert_eq!(guid.as_bytes(), &tdx_metadata_guid);
+
+        assert!(TdxMetadataGuid::from_bytes(&invalid_tdx_metadata_guid).is_none());
+    }
+
+    #[test]
+    fn test_tdx_metadata_section() {
+        assert_eq!(TdxMetadataSection::get_type_name(0).unwrap(), "BFV");
+        assert_eq!(TdxMetadataSection::get_type_name(1).unwrap(), "CFV");
+        assert_eq!(TdxMetadataSection::get_type_name(2).unwrap(), "TD_HOB");
+        assert_eq!(TdxMetadataSection::get_type_name(3).unwrap(), "TempMem");
+        assert_eq!(TdxMetadataSection::get_type_name(4).unwrap(), "PermMem");
+        assert_eq!(TdxMetadataSection::get_type_name(5).unwrap(), "Payload");
+        assert_eq!(
+            TdxMetadataSection::get_type_name(6).unwrap(),
+            "PayloadParam"
+        );
+
+        assert!(TdxMetadataSection::get_type_name(7).is_none())
+    }
+
+    #[test]
+    fn test_tdx_metadata() {
+        let metadata = TdxMetadata::default();
+
+        let _ = metadata.as_bytes();
+
+        assert_eq!(
+            metadata.guid.as_bytes(),
+            Guid::from_str(TDX_METADATA_GUID_STR).unwrap().as_bytes()
+        );
+        assert!(metadata.descriptor.is_valid());
+    }
+
+    #[test]
+    fn test_is_valid_sections() {
+        // empty sections at leaset one bfv section
+        let sections = [];
+        assert!(!TdxMetadata::is_valid_sections(&sections));
+
+        // init sections include all types
+        let mut sections: [TdxMetadataSection; 6] = [TdxMetadataSection::default(); 6];
+        // BFV
+        sections[0] = TdxMetadataSection {
+            data_offset: 0,
+            raw_data_size: 0xf7e000,
+            memory_address: 0xff082000,
+            memory_data_size: 0xf7e000,
+            attributes: 1,
+            r#type: TDX_METADATA_SECTION_TYPE_BFV,
+        };
+        // CFV
+        sections[1] = TdxMetadataSection {
+            data_offset: 0,
+            raw_data_size: 0x40000,
+            memory_address: 0xff000000,
+            memory_data_size: 0x40000,
+            attributes: 0,
+            r#type: TDX_METADATA_SECTION_TYPE_CFV,
+        };
+        // TD HOB
+        sections[2] = TdxMetadataSection {
+            data_offset: 0,
+            raw_data_size: 0,
+            memory_address: 0x820000,
+            memory_data_size: 0x20000,
+            attributes: 0,
+            r#type: TDX_METADATA_SECTION_TYPE_TD_HOB,
+        };
+        // Temp memory
+        sections[3] = TdxMetadataSection {
+            data_offset: 0,
+            raw_data_size: 0,
+            memory_address: 0xFF040000,
+            memory_data_size: 0x1000,
+            attributes: 0,
+            r#type: TDX_METADATA_SECTION_TYPE_TEMP_MEM,
+        };
+        // Payload
+        sections[4] = TdxMetadataSection {
+            data_offset: 0,
+            raw_data_size: 0,
+            memory_address: 0x1200000,
+            memory_data_size: 0x8000000,
+            attributes: 0,
+            r#type: TDX_METADATA_SECTION_TYPE_PAYLOAD,
+        };
+        // PayloadParam
+        sections[5] = TdxMetadataSection {
+            data_offset: 0,
+            raw_data_size: 0,
+            memory_address: 0x1100000,
+            memory_data_size: 0x100000,
+            attributes: 0,
+            r#type: TDX_METADATA_SECTION_TYPE_PAYLOAD_PARAM,
+        };
+
+        assert!(TdxMetadata::is_valid_sections(&sections));
+
+        // test BFV
+        // section.raw_data_size == 0
+        sections[0].raw_data_size = 0;
+        assert!(!TdxMetadata::is_valid_sections(&sections));
+        sections[0].raw_data_size = 0xf7e000;
+        // section.attributes != TDX_METADATA_ATTRIBUTES_EXTENDMR
+        sections[0].attributes = 0;
+        assert!(!TdxMetadata::is_valid_sections(&sections));
+        sections[0].attributes = TDX_METADATA_ATTRIBUTES_EXTENDMR;
+        // memory_data_size < raw_data_size
+        sections[0].memory_data_size = sections[0].raw_data_size as u64 - 1;
+        assert!(!TdxMetadata::is_valid_sections(&sections));
+        sections[0].memory_data_size += 1;
+        // memory_address is not 4K align
+        sections[0].memory_address += 1;
+        assert!(!TdxMetadata::is_valid_sections(&sections));
+        sections[0].memory_address -= 1;
+        // multiple CFV
+        sections[3].r#type = TDX_METADATA_SECTION_TYPE_BFV;
+        sections[3].attributes = TDX_METADATA_ATTRIBUTES_EXTENDMR;
+        sections[3].raw_data_size = sections[3].memory_data_size as u32;
+        assert!(TdxMetadata::is_valid_sections(&sections));
+        sections[3].r#type = TDX_METADATA_SECTION_TYPE_TEMP_MEM;
+        sections[3].attributes = 0;
+        sections[3].raw_data_size = 0;
+
+        // test CFV
+        // no CFV
+        sections[1].r#type = TDX_METADATA_SECTION_TYPE_TEMP_MEM;
+        sections[1].raw_data_size = 0;
+        assert!(TdxMetadata::is_valid_sections(&sections));
+        sections[1].r#type = TDX_METADATA_SECTION_TYPE_CFV;
+        // section.raw_data_size == 0
+        assert!(!TdxMetadata::is_valid_sections(&sections));
+        sections[1].raw_data_size = 0x40000;
+        // section.attributes != 0
+        sections[1].attributes = 1;
+        assert!(!TdxMetadata::is_valid_sections(&sections));
+        sections[1].attributes = 0;
+        // memory_data_size < raw_data_size
+        sections[1].memory_data_size = sections[1].raw_data_size as u64 - 1;
+        assert!(!TdxMetadata::is_valid_sections(&sections));
+        sections[1].memory_data_size += 1;
+        // memory_address is not 4K align
+        sections[1].memory_address += 1;
+        assert!(!TdxMetadata::is_valid_sections(&sections));
+        sections[1].memory_address -= 1;
+        // multiple CFV
+        sections[3].r#type = TDX_METADATA_SECTION_TYPE_CFV;
+        sections[3].raw_data_size = sections[3].memory_data_size as u32;
+        assert!(TdxMetadata::is_valid_sections(&sections));
+        sections[3].r#type = TDX_METADATA_SECTION_TYPE_TEMP_MEM;
+        sections[3].raw_data_size = 0;
+
+        // test TD HOB
+        // no TD HOB and no PermMem
+        sections[2].r#type = TDX_METADATA_SECTION_TYPE_TEMP_MEM;
+        assert!(!TdxMetadata::is_valid_sections(&sections));
+        sections[2].r#type = TDX_METADATA_SECTION_TYPE_TD_HOB;
+        // raw_data_size != 0
+        sections[2].raw_data_size = 1;
+        assert!(!TdxMetadata::is_valid_sections(&sections));
+        sections[2].raw_data_size = 0;
+        // data_offset != 0
+        sections[2].data_offset = 1;
+        assert!(!TdxMetadata::is_valid_sections(&sections));
+        sections[2].data_offset = 0;
+        // section.attributes != 0
+        sections[2].attributes = 1;
+        assert!(!TdxMetadata::is_valid_sections(&sections));
+        sections[2].attributes = 0;
+        // memory_address is not 4K align
+        sections[2].memory_address += 1;
+        assert!(!TdxMetadata::is_valid_sections(&sections));
+        sections[2].memory_address -= 1;
+        // multiple TD HOB
+        sections[3].r#type = TDX_METADATA_SECTION_TYPE_TD_HOB;
+        assert!(!TdxMetadata::is_valid_sections(&sections));
+        sections[3].r#type = TDX_METADATA_SECTION_TYPE_TEMP_MEM;
+
+        // test TEMP MEM
+        // no TEMP MEM already covered by upon test case
+
+        // raw_data_size != 0
+        sections[3].raw_data_size = 1;
+        assert!(!TdxMetadata::is_valid_sections(&sections));
+        sections[3].raw_data_size = 0;
+        // data_offset != 0
+        sections[3].data_offset = 1;
+        assert!(!TdxMetadata::is_valid_sections(&sections));
+        sections[3].data_offset = 0;
+        // section.attributes != 0
+        sections[3].attributes = 1;
+        assert!(!TdxMetadata::is_valid_sections(&sections));
+        sections[3].attributes = 0;
+        // memory_address is not 4K align
+        sections[3].memory_address += 1;
+        assert!(!TdxMetadata::is_valid_sections(&sections));
+        sections[3].memory_address -= 1;
+        // multiple TEMP MEM already covered by CFV test
+
+        // test PERM MEM
+        // no TD HOB  one PERM MEM
+        sections[2].r#type = TDX_METADATA_SECTION_TYPE_PERM_MEM;
+        assert!(TdxMetadata::is_valid_sections(&sections));
+        // raw_data_size != 0
+        sections[2].raw_data_size = 1;
+        assert!(!TdxMetadata::is_valid_sections(&sections));
+        sections[2].raw_data_size = 0;
+        // data_offset != 0
+        sections[2].data_offset = 1;
+        assert!(!TdxMetadata::is_valid_sections(&sections));
+        sections[2].data_offset = 0;
+        // section.attributes != 0
+        sections[2].attributes = 1;
+        assert!(!TdxMetadata::is_valid_sections(&sections));
+        sections[2].attributes = 0;
+        // memory_address is not 4K align
+        sections[2].memory_address += 1;
+        assert!(!TdxMetadata::is_valid_sections(&sections));
+        sections[2].memory_address -= 1;
+        // both have TD HOB and PERM MEM
+        sections[3].r#type = TDX_METADATA_SECTION_TYPE_TD_HOB;
+        assert!(TdxMetadata::is_valid_sections(&sections));
+        sections[3].r#type = TDX_METADATA_SECTION_TYPE_TEMP_MEM;
+        // multiple PERM MEM
+        sections[3].r#type = TDX_METADATA_SECTION_TYPE_PERM_MEM;
+        assert!(TdxMetadata::is_valid_sections(&sections));
+        sections[3].r#type = TDX_METADATA_SECTION_TYPE_TEMP_MEM;
+
+        // test PAYLAOD
+        // no PAYLOAD but has PAYLOAD_PARAM
+        sections[4].r#type = TDX_METADATA_SECTION_TYPE_TEMP_MEM;
+        assert!(!TdxMetadata::is_valid_sections(&sections));
+        // no PAYLOAD and PAYLOAD_PARAM
+        sections[5].r#type = TDX_METADATA_SECTION_TYPE_TEMP_MEM;
+        assert!(TdxMetadata::is_valid_sections(&sections));
+        sections[4].r#type = TDX_METADATA_SECTION_TYPE_PAYLOAD;
+        sections[5].r#type = TDX_METADATA_SECTION_TYPE_PAYLOAD_PARAM;
+        // section.attributes != 0
+        sections[4].attributes = 1;
+        assert!(!TdxMetadata::is_valid_sections(&sections));
+        sections[4].attributes = 0;
+        // raw_data_size == 0 but data_offset != 0
+        sections[4].data_offset = 1;
+        assert!(!TdxMetadata::is_valid_sections(&sections));
+        sections[4].data_offset = 0;
+        // memory_address is not 4K align
+        sections[4].memory_address += 1;
+        assert!(!TdxMetadata::is_valid_sections(&sections));
+        sections[4].memory_address -= 1;
+        // multiple PAYLOAD
+        sections[5].r#type = TDX_METADATA_SECTION_TYPE_PAYLOAD;
+        assert!(!TdxMetadata::is_valid_sections(&sections));
+        sections[5].r#type = TDX_METADATA_SECTION_TYPE_PAYLOAD_PARAM;
+
+        // test PAYLOAD_PARAM
+        sections[5].r#type = TDX_METADATA_SECTION_TYPE_TEMP_MEM;
+        assert!(TdxMetadata::is_valid_sections(&sections));
+        sections[5].r#type = TDX_METADATA_SECTION_TYPE_PAYLOAD_PARAM;
+        // section.attributes != 0
+        sections[5].attributes = 1;
+        assert!(!TdxMetadata::is_valid_sections(&sections));
+        sections[5].attributes = 0;
+        // memory_address is not 4K align
+        sections[5].memory_address += 1;
+        assert!(!TdxMetadata::is_valid_sections(&sections));
+        sections[5].memory_address -= 1;
+        // multiple PAYLOAD_PARAM
+        sections[3].r#type = TDX_METADATA_SECTION_TYPE_PAYLOAD_PARAM;
+        assert!(!TdxMetadata::is_valid_sections(&sections));
+
+        // Invalid seciton type
+        sections[5].r#type = TDX_METADATA_SECTION_TYPE_MAX;
+        assert!(!TdxMetadata::is_valid_sections(&sections));
+    }
+
+    #[test]
+    fn test_tdxmetadataptr() {
+        let ptr = TdxMetadataPtr { ptr: 0x1000 };
+
+        assert_eq!(ptr.as_bytes(), 0x1000_i32.to_le_bytes())
     }
 }

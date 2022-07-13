@@ -49,4 +49,18 @@ mod tests {
         assert_eq!(offset_of!(TdxMpWakeupMailbox, apic_id), 4);
         assert_eq!(offset_of!(TdxMpWakeupMailbox, wakeup_vector), 8);
     }
+
+    #[test]
+    fn test_tdx_mp_wakeup_mailbox() {
+        let default_data: [u8; 16] = [
+            0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00,
+        ];
+        let mail_box = TdxMpWakeupMailbox::default();
+        let mail_box_data = mail_box.as_bytes();
+        assert_eq!(mail_box_data, &default_data);
+
+        let mail_box: TdxMpWakeupMailbox = default_data.pread(0).unwrap();
+        assert_eq!(mail_box.as_bytes(), &default_data);
+    }
 }

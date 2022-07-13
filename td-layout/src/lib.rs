@@ -131,4 +131,9 @@ mod tests {
 
         assert_eq!(layout.runtime_event_log_base, MIN_MEMORY_SIZE - 0x100000);
     }
+
+    #[test]
+    fn test_runtime_memory_layout_default() {
+        let _ = RuntimeMemoryLayout::default();
+    }
 }
