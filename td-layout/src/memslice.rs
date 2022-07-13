@@ -243,9 +243,27 @@ mod test {
     }
 
     #[test]
+    fn test_get_dynamic_mem_slice_mut_with_type_relocatemailbox() {
+        let relocatemailbox =
+            unsafe { get_dynamic_mem_slice_mut(SliceType::RelocatedMailbox, TEST_BASE_ADDRESS) };
+        assert_eq!(relocatemailbox.len(), TD_PAYLOAD_MAILBOX_SIZE as usize);
+    }
+
+    #[test]
     fn test_get_dynamic_mem_slice_mut_with_type_acpi() {
         let acpi = unsafe { get_dynamic_mem_slice_mut(SliceType::Acpi, TEST_BASE_ADDRESS) };
         assert_eq!(acpi.len(), TD_PAYLOAD_ACPI_SIZE as usize);
+    }
+
+    #[test]
+    fn test_get_dynamic_mem_slice_mut_with_type_unacceptedmemorybitmap() {
+        let unacceptedmemorybitmap = unsafe {
+            get_dynamic_mem_slice_mut(SliceType::UnacceptedMemoryBitmap, TEST_BASE_ADDRESS)
+        };
+        assert_eq!(
+            unacceptedmemorybitmap.len(),
+            TD_PAYLOAD_UNACCEPTED_MEMORY_BITMAP_SIZE as usize
+        );
     }
 
     #[test]
