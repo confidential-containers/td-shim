@@ -46,10 +46,11 @@ pub fn seek_to_next_hob(hob_list: &'_ [u8]) -> Option<&'_ [u8]> {
 // Check hob length equal efi_end_of_hob_list of HandoffInfoTable
 pub fn check_hob_length(hob: &[u8], hob_length: usize) -> Option<&[u8]> {
     let phit: HandoffInfoTable = hob.pread(0).ok()?;
+    let end: u64 = phit.efi_end_of_hob_list;
     if phit.header.r#type == HOB_TYPE_HANDOFF
         && phit.header.length as usize >= size_of::<HandoffInfoTable>()
     {
-        if hob_length as u64 == phit.efi_end_of_hob_list - hob.as_ptr() as u64 {
+        if hob_length as u64 == end.checked_sub(hob.as_ptr() as u64)? {
             Some(&hob[0..hob_length])
         } else {
             None
