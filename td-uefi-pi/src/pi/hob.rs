@@ -362,3 +362,23 @@ impl GuidExtension {
         unsafe { &*slice_from_raw_parts(self as *const Self as *const u8, size_of::<Self>()) }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use core::mem::size_of;
+
+    use super::*;
+
+    #[test]
+    fn test_size_of_struct() {
+        assert_eq!(size_of::<Header>(), 8);
+        assert_eq!(size_of::<HandoffInfoTable>(), 56);
+        assert_eq!(size_of::<MemoryAllocation>(), 48);
+        assert_eq!(size_of::<ResourceDescription>(), 48);
+        assert_eq!(size_of::<FirmwareVolume>(), 24);
+        assert_eq!(size_of::<FirmwareVolume2>(), 56);
+        assert_eq!(size_of::<FirmwareVolume3>(), 64);
+        assert_eq!(size_of::<Cpu>(), 16);
+        assert_eq!(size_of::<GuidExtension>(), 24);
+    }
+}
