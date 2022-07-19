@@ -328,6 +328,7 @@ pub fn get_guid_data(hob_list: &[u8]) -> Option<&[u8]> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::pi::guid::Guid;
     use core::ptr::slice_from_raw_parts;
 
     #[test]
@@ -356,6 +357,149 @@ mod tests {
     fn test_dump_hob() {
         assert!(dump_hob(&[]).is_none());
         assert!(dump_hob(&[0u8]).is_none());
+
+        let memory_allocation_hob_header = Header {
+            r#type: HOB_TYPE_MEMORY_ALLOCATION,
+            length: size_of::<MemoryAllocation>() as u16,
+            reserved: 0x0,
+        };
+        let memory_allocation_header = MemoryAllocationHeader {
+            name: [0; 16],
+            memory_base_address: 0x0,
+            memory_length: 0x0,
+            memory_type: 0x0,
+            reserved: [0; 4],
+        };
+        let _ = memory_allocation_header.as_bytes();
+        let hob = MemoryAllocation {
+            header: memory_allocation_hob_header,
+            alloc_descriptor: memory_allocation_header,
+        };
+        assert!(dump_hob(hob.as_bytes()).is_none());
+
+        let fv_hob_header = Header {
+            r#type: HOB_TYPE_FV,
+            length: size_of::<FirmwareVolume>() as u16,
+            reserved: 0x0,
+        };
+        let hob = FirmwareVolume {
+            header: fv_hob_header,
+            base_address: 0x0,
+            length: 0x0,
+        };
+        assert!(dump_hob(hob.as_bytes()).is_none());
+
+        let cpu_hob_header = Header {
+            r#type: HOB_TYPE_CPU,
+            length: size_of::<Cpu>() as u16,
+            reserved: 0x0,
+        };
+        let hob = Cpu {
+            header: cpu_hob_header,
+            size_of_memory_space: 0x0,
+            size_of_io_space: 0x0,
+            reserved: [0; 6],
+        };
+        assert!(dump_hob(hob.as_bytes()).is_none());
+    }
+
+    #[test]
+    fn test_check_hob_length() {
+        let hob_header = Header {
+            r#type: HOB_TYPE_HANDOFF,
+            length: size_of::<HandoffInfoTable>() as u16,
+            reserved: 0x0,
+        };
+
+        let mut hob = HandoffInfoTable {
+            header: hob_header,
+            version: 0,
+            boot_mode: 0,
+            efi_memory_top: 0,
+            efi_memory_bottom: 0,
+            efi_free_memory_top: 0,
+            efi_free_memory_bottom: 0,
+            efi_end_of_hob_list: 0,
+        };
+        hob.efi_end_of_hob_list =
+            size_of::<HandoffInfoTable>() as u64 + hob.as_bytes().as_ptr() as u64;
+        assert!(check_hob_length(hob.as_bytes(), size_of::<HandoffInfoTable>() as usize).is_some());
+        // hob.efi_end_of_hob_list less than hob ptr
+        hob.efi_end_of_hob_list = hob.as_bytes().as_ptr() as u64 - 1;
+        assert!(check_hob_length(hob.as_bytes(), size_of::<HandoffInfoTable>() as usize).is_none());
+        // hob_length + hob prt greater than u64::MAX
+        hob.efi_end_of_hob_list =
+            size_of::<HandoffInfoTable>() as u64 + hob.as_bytes().as_ptr() as u64;
+        assert!(check_hob_length(hob.as_bytes(), u64::MAX as usize).is_none());
+
+        // first header type is not HOB_TYPE_HANDOFF
+        let hob_header = Header {
+            r#type: HOB_TYPE_MEMORY_ALLOCATION,
+            length: size_of::<HandoffInfoTable>() as u16,
+            reserved: 0x0,
+        };
+        let mut hob = HandoffInfoTable {
+            header: hob_header,
+            version: 0,
+            boot_mode: 0,
+            efi_memory_top: 0,
+            efi_memory_bottom: 0,
+            efi_free_memory_top: 0,
+            efi_free_memory_bottom: 0,
+            efi_end_of_hob_list: 0,
+        };
+        hob.efi_end_of_hob_list =
+            size_of::<HandoffInfoTable>() as u64 + hob.as_bytes().as_ptr() as u64;
+        assert!(check_hob_length(hob.as_bytes(), size_of::<HandoffInfoTable>() as usize).is_none());
+
+        // length less than HandoffInfoTable size
+        let hob_header = Header {
+            r#type: HOB_TYPE_HANDOFF,
+            length: size_of::<HandoffInfoTable>() as u16 - 1,
+            reserved: 0x0,
+        };
+        let mut hob = HandoffInfoTable {
+            header: hob_header,
+            version: 0,
+            boot_mode: 0,
+            efi_memory_top: 0,
+            efi_memory_bottom: 0,
+            efi_free_memory_top: 0,
+            efi_free_memory_bottom: 0,
+            efi_end_of_hob_list: 0,
+        };
+        hob.efi_end_of_hob_list =
+            size_of::<HandoffInfoTable>() as u64 + hob.as_bytes().as_ptr() as u64;
+        assert!(check_hob_length(hob.as_bytes(), size_of::<HandoffInfoTable>() as usize).is_none());
+    }
+
+    #[test]
+    fn test_check_hob_integrity() {
+        const EFI_END_OF_HOB_LIST_OFFSET: usize = 48;
+        let hob = &include_bytes!("../fuzz/seeds/hob_parser/hob_buffer")[..];
+        let mut test_hob = hob.to_vec();
+        let ptr = test_hob.as_ptr() as u64;
+        if test_hob.len() >= size_of::<HandoffInfoTable>() {
+            test_hob[EFI_END_OF_HOB_LIST_OFFSET..size_of::<HandoffInfoTable>()]
+                .copy_from_slice(&u64::to_le_bytes(ptr + hob.len() as u64)[..]);
+        }
+
+        assert!(check_hob_integrity(&test_hob).is_some());
+        assert!(dump_hob(&test_hob).is_some());
+    }
+
+    #[test]
+    fn test_get_total_memory_top() {
+        let hob = &include_bytes!("../fuzz/seeds/hob_parser/hob_buffer")[..];
+
+        assert!(get_total_memory_top(hob).is_some());
+    }
+
+    #[test]
+    fn test_seek_to_next_hob() {
+        let hob = &include_bytes!("../fuzz/seeds/hob_parser/hob_buffer")[..];
+
+        assert!(seek_to_next_hob(hob).is_some());
     }
 
     #[test]
@@ -491,7 +635,8 @@ mod tests {
 
     #[test]
     fn test_get_guid() {
-        assert!(get_next_extension_guid_hob(&[], &[0u8; 16]).is_none());
+        let guid = Guid::from_bytes(&[0u8; 16]);
+        assert!(get_next_extension_guid_hob(&[], guid.as_bytes()).is_none());
 
         let mut buf = [0xaau8; 128];
         let res = GuidExtension {
@@ -508,6 +653,7 @@ mod tests {
                 size_of::<GuidExtension>(),
             )
         };
+        assert_eq!(buf1, res.as_bytes());
         buf[..size_of::<GuidExtension>()].copy_from_slice(buf1);
         let end = Header {
             r#type: HOB_TYPE_END_OF_HOB_LIST,
