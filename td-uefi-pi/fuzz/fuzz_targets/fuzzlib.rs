@@ -38,20 +38,17 @@ pub fn fuzz_hob_parser(buffer: &[u8]) {
             .copy_from_slice(&u64::to_le_bytes(ptr + buffer.len() as u64)[..]);
     }
 
-    let hob_integrity = hob::check_hob_integrity(&test_buffer);
+    let hob_list = hob::check_hob_integrity(&test_buffer);
 
-    match hob_integrity {
-        Some(hob_list) => {
-            hob::dump_hob(hob_list);
-            hob::get_system_memory_size_below_4gb(hob_list);
-            hob::get_total_memory_top(hob_list);
-            hob::get_fv(hob_list);
-            hob::get_next_extension_guid_hob(hob_list, &HOB_ACPI_TABLE_GUID);
-            hob::get_next_extension_guid_hob(hob_list, &HOB_KERNEL_INFO_GUID);
-            hob::get_guid_data(hob_list);
-            hob::seek_to_next_hob(hob_list);
-        }
-        None => println!("Bad hob"),
+    if hob_list.is_some() {
+        hob::dump_hob(hob_list.unwrap());
+        hob::get_system_memory_size_below_4gb(hob_list.unwrap());
+        hob::get_total_memory_top(hob_list.unwrap());
+        hob::get_fv(hob_list.unwrap());
+        hob::get_next_extension_guid_hob(hob_list.unwrap(), &HOB_ACPI_TABLE_GUID);
+        hob::get_next_extension_guid_hob(hob_list.unwrap(), &HOB_KERNEL_INFO_GUID);
+        hob::get_guid_data(hob_list.unwrap());
+        hob::seek_to_next_hob(hob_list.unwrap());
     }
 }
 
