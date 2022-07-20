@@ -818,9 +818,22 @@ mod test_elf_loader {
             }
         }
 
+        for header in elf.section_headers() {
+            println!("header: {:?}\n", header);
+
+            assert_eq!(
+                header.vm_range(),
+                header.sh_addr as usize..(header.sh_addr + header.sh_size) as usize
+            )
+        }
+
         for relocs in elf.relocations() {
             for rel in relocs {
                 println!("rel:{:?}", rel);
+                println!(
+                    "rel_info:{:?}",
+                    Rela::r_info(rel.r_sym() as u64, rel.r_type() as u64)
+                );
             }
         }
     }
@@ -843,6 +856,14 @@ mod test_elf_loader {
             DT_VERNEED,
             DT_VERNEEDNUM,
             DT_RELCOUNT,
+            DT_FINI,
+            DT_RELENT,
+            DT_PLTREL,
+            DT_FINI_ARRAY,
+            DT_INIT_ARRAYSZ,
+            DT_FINI_ARRAYSZ,
+            DT_FINI_ARRAYSZ,
+            DT_FLAGS,
         ];
         let str_slice_32 = [
             PT_NULL,
