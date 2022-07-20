@@ -144,10 +144,10 @@ mod test_elf_loader {
     }
     #[test]
     fn test_relocate() {
-        let pe_image = &include_bytes!("../../data/blobs/td-payload.elf")[..];
+        let image_bytes = &include_bytes!("../../data/blobs/td-payload.elf")[..];
 
         let mut loaded_buffer = vec![0u8; 0x800000];
 
-        super::relocate_elf_with_per_program_header(pe_image, loaded_buffer.as_mut_slice());
+        super::relocate_elf_with_per_program_header(image_bytes, loaded_buffer.as_mut_slice());
     }
 }

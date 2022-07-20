@@ -578,4 +578,17 @@ mod test {
         }
         assert_eq!(entries, 1);
     }
+
+    #[test]
+    fn test_relocate() {
+        let pe_image = &include_bytes!("../../data/blobs/td-payload.efi")[..];
+        let mut loaded_buffer = vec![0u8; 0x200000];
+
+        let mut entries = 0;
+        if let Some(image_entry) = relocate(pe_image, &mut loaded_buffer, 0x0) {
+            assert_eq!(image_entry, 0x1040);
+            entries += 1;
+        }
+        assert_eq!(entries, 1);
+    }
 }
