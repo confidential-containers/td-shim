@@ -163,7 +163,7 @@ impl From<u64> for TdCallError {
 ///
 /// Refer to Guest-Host-Communication-Interface(GHCI) for Intel TDX
 /// table 'TDCALL[TDG.VP.VMCALL]- Sub-function Completion-Status Codes'
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 pub enum TdVmcallError {
     // TDCALL[TDG.VP.VMCALL] sub-function invocation must be retried
     VmcallRetry,
