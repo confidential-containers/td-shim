@@ -10,7 +10,7 @@ const GUID_SPLITTER: u8 = b'-';
 // A GUID is a 128-bit integer (16 bytes) that can be
 // used as a unique identifier.
 #[repr(C)]
-#[derive(Debug, Default, PartialEq, Eq, Pwrite, Pread)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Pwrite, Pread)]
 pub struct Guid {
     f0: u32,
     f1: u16,
