@@ -86,6 +86,10 @@ mod tests {
         LOGGER.lock().set_mask(LOG_MASK_COMMON);
         assert_eq!(LOGGER.lock().get_mask(), LOG_MASK_COMMON);
 
+        LOGGER.lock().write_byte(0x1);
+        LOGGER.lock().write_string("Hello");
+
+        LOGGER.lock().set_level(LOG_LEVEL_INFO);
         log::error!("just a test");
     }
 }
