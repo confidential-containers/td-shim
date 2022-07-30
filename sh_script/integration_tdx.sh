@@ -9,8 +9,8 @@ script_path=$(dirname "$0")
 temp_dir=$(mktemp -d)
 nohup_logfile="${temp_dir}/nohup.log"
 
-guest_image="/home/env/guest_img/td-guest-centos8.4.qcow2"
-kernel="/home/env/kernel_img/bzImage"
+guest_image="/home/env/guest_img/td-guest.raw"
+kernel="/home/env/kernel_img/vmlinuz"
 cloud_hypervisor_tdx_path="/home/env/cloud-hypervisor/target/release/cloud-hypervisor"
 qemu_tdx_path="/usr/libexec/qemu-kvm"
 
@@ -130,7 +130,7 @@ install_qemu_tdx() {
 launch_td_os() {
     echo "-- launch td os"
     local time_out=60
-    local key_str1="td-guest login:"
+    local key_str1="login:"
     local key_str2="Guest initialized"
 
     nohup ${cloud_hypervisor_tdx_path} -v \
@@ -139,7 +139,7 @@ launch_td_os() {
                                        --cpus boot=${cpus} \
                                        --kernel ${kernel} \
                                        --disk path=${guest_image} \
-                                       --cmdline "console=hvc0 root=/dev/vda3 rw tdx_disable_filter" > ${nohup_logfile} 2>&1 &
+                                       --cmdline "root=/dev/vda1 console=hvc0 rw" > ${nohup_logfile} 2>&1 &
 
     check_result ${nohup_logfile} "${key_str1}" ${time_out}
 
