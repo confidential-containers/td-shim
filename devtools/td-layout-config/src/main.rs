@@ -16,9 +16,9 @@ use serde::Deserialize;
 const TD_LAYOUT_BUILD_TIME_RS_OUT: &str = "build_time.rs";
 const TD_LAYOUT_RUNTIME_RS_OUT: &str = "runtime.rs";
 
-// Equals to firmware size(16MiB) - metadata pointer offset(0x20)-
-// SEC Core information size(0xC)
-const TD_SHIM_SEC_INFO_OFFSET: u32 = 0xFF_FFD4;
+// Equals to firmware size(16MiB) - metadata pointer offset(0x20) -
+// OVMF GUID table size(0x28) - SEC Core information size(0xC).
+const TD_SHIM_SEC_INFO_OFFSET: u32 = 0xFF_FFAC;
 
 macro_rules! BUILD_TIME_TEMPLATE {
     () => {

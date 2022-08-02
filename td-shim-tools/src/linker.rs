@@ -14,8 +14,8 @@ use td_layout::build_time::{
     TD_SHIM_FIRMWARE_SIZE, TD_SHIM_IPL_OFFSET, TD_SHIM_IPL_SIZE, TD_SHIM_MAILBOX_BASE,
     TD_SHIM_MAILBOX_OFFSET, TD_SHIM_MAILBOX_SIZE, TD_SHIM_METADATA_OFFSET, TD_SHIM_METADATA_SIZE,
     TD_SHIM_PAYLOAD_BASE, TD_SHIM_PAYLOAD_OFFSET, TD_SHIM_PAYLOAD_SIZE, TD_SHIM_RESET_VECTOR_SIZE,
-    TD_SHIM_TEMP_HEAP_BASE, TD_SHIM_TEMP_HEAP_SIZE, TD_SHIM_TEMP_STACK_BASE,
-    TD_SHIM_TEMP_STACK_SIZE,
+    TD_SHIM_SEC_CORE_INFO_OFFSET, TD_SHIM_TEMP_HEAP_BASE, TD_SHIM_TEMP_HEAP_SIZE,
+    TD_SHIM_TEMP_STACK_BASE, TD_SHIM_TEMP_STACK_SIZE,
 };
 use td_layout::mailbox::TdxMpWakeupMailbox;
 use td_layout::metadata::{
@@ -49,6 +49,24 @@ pub const MAX_IPL_CONTENT_SIZE: usize =
     TD_SHIM_IPL_SIZE as usize - size_of::<IplFvHeaderByte>() - size_of::<ResetVectorHeader>();
 pub const MAX_PAYLOAD_CONTENT_SIZE: usize =
     TD_SHIM_PAYLOAD_SIZE as usize - size_of::<FvHeaderByte>();
+
+pub const OVMF_TABLE_FOOTER_GUID: Guid = Guid::from_fields(
+    0x96b582de,
+    0x1fb2,
+    0x45f7,
+    0xba,
+    0xea,
+    &[0xa3, 0x66, 0xc5, 0x5a, 0x08, 0x2d],
+);
+
+pub const OVMF_TABLE_TDX_METADATA_GUID: Guid = Guid::from_fields(
+    0xe47a6535,
+    0x984a,
+    0x4798,
+    0x86,
+    0x5e,
+    &[0x46, 0x85, 0xa7, 0xbf, 0x8e, 0xc2],
+);
 
 #[repr(C, align(4))]
 pub struct FvHeaderByte {
@@ -297,6 +315,31 @@ pub fn build_tdx_metadata() -> TdxMetadata {
     tdx_metadata
 }
 
+pub fn build_ovmf_guid_table() -> Vec<u8> {
+    let mut table = Vec::new();
+
+    let metadata_offset =
+        TD_SHIM_FIRMWARE_SIZE - (TD_SHIM_METADATA_OFFSET + size_of::<TdxMetadataGuid>() as u32);
+    let metadata_block_size = size_of::<u32>() + size_of::<u16>() + size_of::<Guid>();
+
+    // The data layout of the entry is:
+    //   - arbitrary length data
+    //   - 2 byte length of the block (guid + data length + 2)
+    //   - 16 byte guid
+    table.extend_from_slice(&u32::to_le_bytes(metadata_offset));
+    table.extend_from_slice(&u16::to_le_bytes(metadata_block_size as u16));
+    table.extend_from_slice(OVMF_TABLE_TDX_METADATA_GUID.as_bytes());
+
+    let guided_table_size = metadata_block_size + size_of::<u16>() + size_of::<Guid>();
+    // The data layout of the entry is:
+    //   - 2 byte length of of the whole table
+    //   - 16 byte guid
+    table.extend_from_slice(&u16::to_le_bytes(guided_table_size as u16));
+    table.extend_from_slice(OVMF_TABLE_FOOTER_GUID.as_bytes());
+
+    table
+}
+
 pub fn build_tdx_metadata_ptr() -> TdxMetadataPtr {
     TdxMetadataPtr {
         //     +---------------------+ <- TdxMetadataGuid TD_SHIM_METADATA_OFFSET
@@ -419,8 +462,19 @@ impl TdShimLinker {
         assert_eq!(current_pos, TD_SHIM_FIRMWARE_SIZE as u64);
 
         // Overwrite the ResetVectorParams and TdxMetadataPtr.
-        let pos = TD_SHIM_FIRMWARE_SIZE as u64 - 0x20 - size_of::<ResetVectorParams>() as u64;
-        output_file.seek_and_write(pos, reset_vector_info.as_bytes(), "reset vector info")?;
+        let pos = TD_SHIM_SEC_CORE_INFO_OFFSET as u64;
+        output_file.seek_and_write(pos, reset_vector_info.as_bytes(), "SEC Core info")?;
+
+        // Overwrite the OVMF GUID table to be compatible with QEMU
+        let ovmf_guid_table = build_ovmf_guid_table();
+        assert_eq!(
+            ovmf_guid_table.len(),
+            (TD_SHIM_FIRMWARE_SIZE - TD_SHIM_SEC_CORE_INFO_OFFSET) as usize
+                - size_of::<ResetVectorParams>()
+                - 0x20
+        );
+        output_file.write(ovmf_guid_table.as_slice(), "OVMF GUID table")?;
+
         let metadata_ptr = build_tdx_metadata_ptr();
         output_file.write(metadata_ptr.as_bytes(), "metadata_ptr")?;
 
