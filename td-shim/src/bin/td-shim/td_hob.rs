@@ -32,6 +32,7 @@ impl<'a> TdHobInfo<'a> {
                     let resource_hob = hob.pread::<ResourceDescription>(0).ok()?;
                     if resource_hob.resource_type == RESOURCE_SYSTEM_MEMORY
                         || resource_hob.resource_type == RESOURCE_MEMORY_RESERVED
+                        || resource_hob.resource_type == RESOURCE_MEMORY_UNACCEPTED
                     {
                         memory.push(resource_hob)
                     }

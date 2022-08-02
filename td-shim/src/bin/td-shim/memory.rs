@@ -165,17 +165,29 @@ impl<'a> Memory<'a> {
 
     fn init_memory_resources(resources: &[ResourceDescription]) -> Vec<ResourceDescription> {
         let mut regions: Vec<ResourceDescription> = Vec::new();
+        let support_unaccepted = Self::support_unaccepted_type(resources);
 
         for entry in resources {
             let entry_top = entry.physical_start + entry.resource_length;
             let mut new = *entry;
+
+            // To be compatible with the legacy resource types
+            if !support_unaccepted {
+                if new.resource_type == RESOURCE_SYSTEM_MEMORY {
+                    new.resource_type = RESOURCE_MEMORY_UNACCEPTED;
+                } else if new.resource_type == RESOURCE_MEMORY_RESERVED {
+                    new.resource_type = RESOURCE_SYSTEM_MEMORY;
+                }
+            }
 
             // Filter out the resources covers image space
             // TBD: it should be ensured by VMM that this kind of resources should be MMIO
             if new.physical_start >= TD_SHIM_FIRMWARE_BASE as u64 && new.physical_start < MEMORY_4G
             {
                 if entry_top > MEMORY_4G {
-                    if new.resource_type == RESOURCE_SYSTEM_MEMORY {
+                    if new.resource_type == RESOURCE_SYSTEM_MEMORY
+                        || new.resource_type == RESOURCE_MEMORY_UNACCEPTED
+                    {
                         new.physical_start = MEMORY_4G;
                         new.resource_length = entry_top - MEMORY_4G;
                     }
@@ -184,11 +196,6 @@ impl<'a> Memory<'a> {
                 }
             }
 
-            if new.resource_type == RESOURCE_SYSTEM_MEMORY {
-                new.resource_type = RESOURCE_MEMORY_UNACCEPTED;
-            } else if new.resource_type == RESOURCE_MEMORY_RESERVED {
-                new.resource_type = RESOURCE_SYSTEM_MEMORY;
-            }
             regions.push(new);
         }
 
@@ -196,6 +203,21 @@ impl<'a> Memory<'a> {
         Self::accept_memory_resources(&mut regions);
 
         regions
+    }
+
+    // This function is used to check if the HOB contains the RESOURCE_MEMORY_UNACCEPTED
+    // type resource.
+    // For old version VMM, it reports the unaccepted memory as RESOURCE_SYSTEM_MEMORY
+    // and private memory as RESOURCE_MEMORY_RESERVED.
+    // Newer version VMM will report the unaccepted memory as RESOURCE_MEMORY_UNACCEPTED,
+    // and private memory as RESOURCE_SYSTEM_MEMORY.
+    fn support_unaccepted_type(resources: &[ResourceDescription]) -> bool {
+        for entry in resources {
+            if entry.resource_type == RESOURCE_MEMORY_UNACCEPTED {
+                return true;
+            }
+        }
+        false
     }
 
     #[cfg(feature = "tdx")]
