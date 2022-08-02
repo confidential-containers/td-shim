@@ -5,6 +5,7 @@
 use anyhow::Result;
 use std::{
     env, format,
+    mem::size_of,
     path::{Path, PathBuf},
     process::{exit, Command},
 };
@@ -190,15 +191,15 @@ fn real_main() -> Result<()> {
 
     let loaded_sec_entrypoint_base = format!(
         "-DTD_SHIM_RESET_SEC_CORE_ENTRY_POINT_ADDR=0x{:X}",
-        build_time::TD_SHIM_RESET_SEC_CORE_ENTRY_POINT_ADDR
+        build_time::TD_SHIM_SEC_CORE_INFO_BASE,
     );
     let loaded_sec_core_base = format!(
         "-DTD_SHIM_RESET_SEC_CORE_BASE_ADDR=0x{:X}",
-        build_time::TD_SHIM_RESET_SEC_CORE_BASE_ADDR
+        build_time::TD_SHIM_SEC_CORE_INFO_BASE + size_of::<u32>() as u32,
     );
     let loaded_sec_core_size = format!(
         "-DTD_SHIM_RESET_SEC_CORE_SIZE_ADDR=0x{:X}",
-        build_time::TD_SHIM_RESET_SEC_CORE_SIZE_ADDR
+        build_time::TD_SHIM_SEC_CORE_INFO_BASE + 2 * size_of::<u32>() as u32
     );
 
     let _ = env::set_current_dir(reset_vector_src_dir.as_path());
