@@ -231,7 +231,7 @@ fn boot_builtin_payload(
         mem.layout.runtime_shadow_stack_base,
         TD_PAYLOAD_SHADOW_STACK_SIZE as u64,
     );
-    mem.set_nx_bit(mem.layout.runtime_hob_base, TD_PAYLOAD_HOB_SIZE as u64);
+    mem.set_nx_bit(mem.layout.runtime_acpi_base, TD_PAYLOAD_ACPI_SIZE as u64);
 
     // Initialize the stack to run the image
     stack_guard::stack_guard_enable(mem);
@@ -261,7 +261,7 @@ fn boot_builtin_payload(
         switch_stack_call(
             relocation_info.entry_point as usize,
             stack_top,
-            mem.layout.runtime_hob_base as usize,
+            mem.layout.runtime_acpi_base as usize,
             TD_PAYLOAD_BASE as usize,
         )
     };
