@@ -19,10 +19,8 @@
                     |    PAYLOAD   |    (0x08000000)
                     +--------------+
                     |   ........   |
-                    +--------------+ <-  0x7F3DE000
+                    +--------------+ <-  0x7F5DE000
                     |     STACK    |    (0x00800000)
-                    +--------------+ <-  0x7FBDE000
-                    |      SS      |    (0x00200000)
                     +--------------+ <-  0x7FD9E000
                     |  UNACCEPTED  |    (0x00040000)
                     +--------------+ <-  0x7FDDE000
@@ -42,7 +40,6 @@ pub const TD_PAYLOAD_PAGE_TABLE_SIZE: usize = 0x20000;
 pub const TD_PAYLOAD_ACPI_SIZE: u32 = 0x100000;
 pub const TD_PAYLOAD_UNACCEPTED_MEMORY_BITMAP_SIZE: u32 = 0x40000;
 pub const TD_PAYLOAD_PARTIAL_ACCEPT_MEMORY_SIZE: u32 = 0x10000000;
-pub const TD_PAYLOAD_SHADOW_STACK_SIZE: u32 = 0x200000;
 pub const TD_PAYLOAD_STACK_SIZE: u32 = 0x800000;
 
 pub const TD_HOB_BASE: u64 = 0x800000;

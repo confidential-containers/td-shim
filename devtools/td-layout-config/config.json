@@ -73,7 +73,6 @@
         "acpi_size": 0x100000,
         "unaccepted_memory_bitmap_size": 0x40000,
         "partial_accept_memory_size": 0x10000000,
-        "shadow_stack_size": 0x200000,
         "stack_size": 0x800000,
         "payload_size": 0x8000000,
         "payload_param_size": 0x100000,

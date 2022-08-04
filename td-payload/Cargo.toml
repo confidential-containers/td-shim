@@ -25,7 +25,6 @@ zerocopy = "0.6.0"
 
 [features]
 default = []
-cet-ss = []
 benches = ["td-benchmark"]
 tdx = ["tdx-tdcall", "td-logger/tdx"]
 main = []

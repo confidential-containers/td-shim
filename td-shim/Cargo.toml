@@ -45,9 +45,8 @@ der = {version = "0.4.5", features = ["derive", "alloc"], optional = true}
 tdx-tdcall = { path = "../tdx-tdcall", optional = true }
 
 [features]
-default = ["boot-kernel", "cet-ss", "secure-boot"]
+default = ["boot-kernel", "secure-boot"]
 boot-kernel = ["td-layout/boot-kernel"]
-cet-ss = []
 secure-boot = ["der", "ring"]
 tdx = ["tdx-tdcall", "td-exception/tdx", "td-logger/tdx", "x86"]
 lazy-accept = ["tdx"]
