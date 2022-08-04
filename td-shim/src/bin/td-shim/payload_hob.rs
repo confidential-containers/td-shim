@@ -165,11 +165,12 @@ impl PayloadHob {
 }
 
 pub fn build_payload_hob(acpi_tables: &Vec<&[u8]>, memory: &Memory) -> Option<PayloadHob> {
+    // Reuse the ACPI memory to build the payload HOB.
     let mut payload_hob = PayloadHob::new(unsafe {
         // Safe because we are the only consumer.
         memslice::get_dynamic_mem_slice_mut(
-            memslice::SliceType::PayloadHob,
-            memory.layout.runtime_hob_base as usize,
+            memslice::SliceType::Acpi,
+            memory.layout.runtime_acpi_base as usize,
         )
     })?;
 
@@ -188,7 +189,7 @@ pub fn build_payload_hob(acpi_tables: &Vec<&[u8]>, memory: &Memory) -> Option<Pa
 
     let mut e820 = memory.create_e820();
 
-    // Convert page table, payload binary and payload stack to be reserved.
+    // Convert page table, payload binary, payload stack and payload HOB(reuse ACPI) to be reserved.
     e820.convert_range(
         E820Type::Reserved,
         memory.layout.runtime_page_table_base,
@@ -200,6 +201,12 @@ pub fn build_payload_hob(acpi_tables: &Vec<&[u8]>, memory: &Memory) -> Option<Pa
         memory.layout.runtime_stack_base,
         TD_PAYLOAD_STACK_SIZE as u64,
     );
+    e820.convert_range(
+        E820Type::Reserved,
+        memory.layout.runtime_acpi_base,
+        TD_PAYLOAD_ACPI_SIZE as u64,
+    );
+
     payload_hob
         .add_guided_data(&TD_E820_TABLE_HOB_GUID, e820.as_bytes())
         .ok()?;

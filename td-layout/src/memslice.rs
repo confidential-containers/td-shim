@@ -8,8 +8,7 @@ use crate::build_time::{
 };
 use crate::runtime::{
     TD_HOB_BASE, TD_HOB_SIZE, TD_PAYLOAD_ACPI_SIZE, TD_PAYLOAD_BASE, TD_PAYLOAD_EVENT_LOG_SIZE,
-    TD_PAYLOAD_HOB_SIZE, TD_PAYLOAD_MAILBOX_SIZE, TD_PAYLOAD_SIZE,
-    TD_PAYLOAD_UNACCEPTED_MEMORY_BITMAP_SIZE,
+    TD_PAYLOAD_MAILBOX_SIZE, TD_PAYLOAD_SIZE, TD_PAYLOAD_UNACCEPTED_MEMORY_BITMAP_SIZE,
 };
 
 /// Type of build time and runtime memory regions.
@@ -91,10 +90,6 @@ pub unsafe fn get_mem_slice_mut<'a>(t: SliceType) -> &'a mut [u8] {
 /// to ensure ownership and concurrent access to the underlying data.
 pub unsafe fn get_dynamic_mem_slice_mut<'a>(t: SliceType, base_address: usize) -> &'a mut [u8] {
     match t {
-        SliceType::PayloadHob => core::slice::from_raw_parts_mut(
-            base_address as *const u8 as *mut u8,
-            TD_PAYLOAD_HOB_SIZE as usize,
-        ),
         SliceType::EventLog => core::slice::from_raw_parts_mut(
             base_address as *const u8 as *mut u8,
             TD_PAYLOAD_EVENT_LOG_SIZE as usize,
@@ -103,7 +98,7 @@ pub unsafe fn get_dynamic_mem_slice_mut<'a>(t: SliceType, base_address: usize) -
             base_address as *const u8 as *mut u8,
             TD_PAYLOAD_MAILBOX_SIZE as usize,
         ),
-        SliceType::Acpi => core::slice::from_raw_parts_mut(
+        SliceType::Acpi | SliceType::PayloadHob => core::slice::from_raw_parts_mut(
             base_address as *const u8 as *mut u8,
             TD_PAYLOAD_ACPI_SIZE as usize,
         ),
@@ -227,13 +222,6 @@ mod test {
         unsafe {
             get_mem_slice_mut(SliceType::Acpi);
         }
-    }
-
-    #[test]
-    fn test_get_dynamic_mem_slice_mut_with_type_payloadhob() {
-        let hob_buffer =
-            unsafe { get_dynamic_mem_slice_mut(SliceType::PayloadHob, TEST_BASE_ADDRESS) };
-        assert_eq!(hob_buffer.len(), TD_PAYLOAD_HOB_SIZE as usize);
     }
 
     #[test]

@@ -36,7 +36,6 @@ pub struct RuntimeMemoryLayout {
     pub runtime_acpi_base: u64,
     pub runtime_mailbox_base: u64,
     pub runtime_unaccepted_bitmap_base: u64,
-    pub runtime_hob_base: u64,
     pub runtime_shadow_stack_base: u64,
     pub runtime_stack_base: u64,
     pub runtime_stack_top: u64,
@@ -69,9 +68,6 @@ impl RuntimeMemoryLayout {
         let current_base = current_base - TD_PAYLOAD_UNACCEPTED_MEMORY_BITMAP_SIZE as u64;
         let runtime_unaccepted_bitmap_base = current_base;
 
-        let current_base = current_base - TD_PAYLOAD_HOB_SIZE as u64;
-        let runtime_hob_base = current_base;
-
         let runtime_shadow_stack_top = current_base;
         let current_base = current_base - TD_PAYLOAD_SHADOW_STACK_SIZE as u64;
         let runtime_shadow_stack_base = current_base;
@@ -84,7 +80,6 @@ impl RuntimeMemoryLayout {
             runtime_event_log_base,
             runtime_mailbox_base,
             runtime_page_table_base,
-            runtime_hob_base,
             runtime_acpi_base,
             runtime_unaccepted_bitmap_base,
             runtime_shadow_stack_base,
@@ -103,10 +98,6 @@ impl fmt::Debug for RuntimeMemoryLayout {
             .field(
                 "runtime_event_log_base",
                 &format_args!("0x{:x}", self.runtime_event_log_base),
-            )
-            .field(
-                "runtime_hob_base",
-                &format_args!("0x{:x}", self.runtime_hob_base),
             )
             .field(
                 "runtime_stack_base",
