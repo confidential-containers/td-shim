@@ -112,12 +112,12 @@ macro_rules! RUNTIME_TEMPLATE {
                     |    PAYLOAD   |    ({payload_size:#010X})
                     +--------------+
                     |   ........   |
-                    +--------------+ <-  {stack_base:#010X}
-                    |     STACK    |    ({stack_size:#010X})
                     +--------------+ <-  {unaccepted_memory_bitmap_base:#010X}
                     |  UNACCEPTED  |    ({unaccepted_memory_bitmap_size:#010X})
                     +--------------+ <-  {acpi_base:#010X}
                     |     ACPI     |    ({acpi_size:#010X})
+                    +--------------+ <-  {stack_base:#010X}
+                    |     STACK    |    ({stack_size:#010X})
                     +--------------+ <-  {pt_base:#010X}
                     |  Page Table  | <-  {pt_size:#010x}
                     +--------------+ <-  {mailbox_base:#010X}
@@ -410,10 +410,10 @@ impl TdLayoutRuntime {
         let event_log_base = 0x80000000 - config.runtime_layout.event_log_size; // TODO: 0x80000000 is hardcoded LOW_MEM_TOP, to remove
         let mailbox_base = event_log_base - config.runtime_layout.mailbox_size;
         let pt_base = mailbox_base - config.runtime_layout.page_table_size;
-        let acpi_base = pt_base - config.runtime_layout.acpi_size;
+        let stack_base = pt_base - config.runtime_layout.stack_size;
+        let acpi_base = stack_base - config.runtime_layout.acpi_size;
         let unaccepted_memory_bitmap_base =
             acpi_base - config.runtime_layout.unaccepted_memory_bitmap_size;
-        let stack_base = acpi_base - config.runtime_layout.stack_size;
         let payload_base =
             config.runtime_layout.payload_param_base + config.runtime_layout.payload_param_size;
 
