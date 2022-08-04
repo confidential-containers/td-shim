@@ -15,7 +15,6 @@ use x86_64::{
 
 use super::frame::{BMFrameAllocator, FRAME_ALLOCATOR};
 use crate::{Error, Result};
-use td_layout::runtime::TD_PAYLOAD_PAGE_TABLE_BASE;
 
 const ALIGN_4K_BITS: u64 = 12;
 const ALIGN_4K: u64 = 1 << ALIGN_4K_BITS;
@@ -25,9 +24,9 @@ const ALIGN_1G_BITS: u64 = 30;
 const ALIGN_1G: u64 = 1 << ALIGN_1G_BITS;
 
 /// Write physical address of level 4 page table page to `CR3`.
-pub fn cr3_write() {
+pub fn cr3_write(addr: u64) {
     unsafe {
-        x86::controlregs::cr3_write(TD_PAYLOAD_PAGE_TABLE_BASE);
+        x86::controlregs::cr3_write(addr);
     }
     info!("Cr3 - {:x}\n", unsafe { x86::controlregs::cr3() });
 }
@@ -172,6 +171,7 @@ mod tests {
     use crate::{frame, init, PAGE_SIZE_4K, PHYS_VIRT_OFFSET};
     use x86_64::structures::paging::PageTable;
 
+    const TD_PAYLOAD_PAGE_TABLE_BASE: u64 = 0x800000;
     const PAGE_TABLE_SIZE: usize = 0x800000;
 
     fn create_pt(base: u64, offset: u64) -> OffsetPageTable<'static> {

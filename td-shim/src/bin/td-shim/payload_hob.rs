@@ -191,7 +191,7 @@ pub fn build_payload_hob(acpi_tables: &Vec<&[u8]>, memory: &Memory) -> Option<Pa
     // Convert page table, payload binary and payload stack to be reserved.
     e820.convert_range(
         E820Type::Reserved,
-        TD_PAYLOAD_PAGE_TABLE_BASE,
+        memory.layout.runtime_page_table_base,
         TD_PAYLOAD_PAGE_TABLE_SIZE as u64,
     );
     e820.convert_range(E820Type::Reserved, TD_PAYLOAD_BASE, TD_PAYLOAD_SIZE as u64);

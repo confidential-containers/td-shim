@@ -32,6 +32,7 @@ pub const MIN_MEMORY_SIZE: u64 = 0x3000000;
 #[derive(Default)]
 pub struct RuntimeMemoryLayout {
     pub runtime_event_log_base: u64,
+    pub runtime_page_table_base: u64,
     pub runtime_acpi_base: u64,
     pub runtime_mailbox_base: u64,
     pub runtime_unaccepted_bitmap_base: u64,
@@ -59,6 +60,9 @@ impl RuntimeMemoryLayout {
         let current_base = current_base - TD_PAYLOAD_MAILBOX_SIZE as u64;
         let runtime_mailbox_base = current_base;
 
+        let current_base = current_base - TD_PAYLOAD_PAGE_TABLE_SIZE as u64;
+        let runtime_page_table_base = current_base;
+
         let current_base = current_base - TD_PAYLOAD_ACPI_SIZE as u64;
         let runtime_acpi_base = current_base;
 
@@ -79,6 +83,7 @@ impl RuntimeMemoryLayout {
         RuntimeMemoryLayout {
             runtime_event_log_base,
             runtime_mailbox_base,
+            runtime_page_table_base,
             runtime_hob_base,
             runtime_acpi_base,
             runtime_unaccepted_bitmap_base,

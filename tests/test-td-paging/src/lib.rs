@@ -57,6 +57,7 @@ mod tests {
         VirtAddr,
     };
 
+    const TD_PAYLOAD_PAGE_TABLE_BASE: u64 = 0x800000;
     /// Build page table to map guest physical addres range [0, system_memory_size), the top page table
     /// page will be hosted at guest physical address `page_table_memory_base`.
     pub fn setup_paging(page_table_memory_base: u64, system_memory_size: u64) {
@@ -68,10 +69,10 @@ mod tests {
         };
 
         if page_table_memory_base > system_memory_size
-            || page_table_memory_base < runtime::TD_PAYLOAD_PAGE_TABLE_BASE
+            || page_table_memory_base < TD_PAYLOAD_PAGE_TABLE_BASE
             || page_table_memory_base
-                > runtime::TD_PAYLOAD_PAGE_TABLE_BASE + runtime::TD_PAYLOAD_PAGE_TABLE_SIZE as u64
-            || runtime::TD_PAYLOAD_PAGE_TABLE_BASE + runtime::TD_PAYLOAD_PAGE_TABLE_SIZE as u64
+                > TD_PAYLOAD_PAGE_TABLE_BASE + runtime::TD_PAYLOAD_PAGE_TABLE_SIZE as u64
+            || TD_PAYLOAD_PAGE_TABLE_BASE + runtime::TD_PAYLOAD_PAGE_TABLE_SIZE as u64
                 > system_memory_size
         {
             panic!(
@@ -99,12 +100,12 @@ mod tests {
     #[test_case]
     fn test_create_paging() {
         td_paging::init(
-            runtime::TD_PAYLOAD_PAGE_TABLE_BASE,
-            runtime::TD_PAYLOAD_PAGE_TABLE_SIZE,
+            TD_PAYLOAD_PAGE_TABLE_BASE,
+            runtime::TD_PAYLOAD_PAGE_TABLE_SIZE as usize,
         );
         setup_paging(
-            runtime::TD_PAYLOAD_PAGE_TABLE_BASE + 0x1000,
-            runtime::TD_PAYLOAD_PAGE_TABLE_BASE + runtime::TD_PAYLOAD_PAGE_TABLE_SIZE as u64,
+            TD_PAYLOAD_PAGE_TABLE_BASE + 0x1000,
+            TD_PAYLOAD_PAGE_TABLE_BASE + runtime::TD_PAYLOAD_PAGE_TABLE_SIZE as u64,
         );
 
         // TODO: add test cases for create_mapping_with_flags(), set_page_flags()
