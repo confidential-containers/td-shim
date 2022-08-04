@@ -36,10 +36,8 @@ pub struct RuntimeMemoryLayout {
     pub runtime_acpi_base: u64,
     pub runtime_mailbox_base: u64,
     pub runtime_unaccepted_bitmap_base: u64,
-    pub runtime_shadow_stack_base: u64,
     pub runtime_stack_base: u64,
     pub runtime_stack_top: u64,
-    pub runtime_shadow_stack_top: u64,
     pub runtime_memory_bottom: u64,
     pub runtime_memory_top: u64,
 }
@@ -68,10 +66,6 @@ impl RuntimeMemoryLayout {
         let current_base = current_base - TD_PAYLOAD_UNACCEPTED_MEMORY_BITMAP_SIZE as u64;
         let runtime_unaccepted_bitmap_base = current_base;
 
-        let runtime_shadow_stack_top = current_base;
-        let current_base = current_base - TD_PAYLOAD_SHADOW_STACK_SIZE as u64;
-        let runtime_shadow_stack_base = current_base;
-
         let runtime_stack_top = current_base;
         let current_base = current_base - TD_PAYLOAD_STACK_SIZE as u64;
         let runtime_stack_base = current_base;
@@ -82,8 +76,6 @@ impl RuntimeMemoryLayout {
             runtime_page_table_base,
             runtime_acpi_base,
             runtime_unaccepted_bitmap_base,
-            runtime_shadow_stack_base,
-            runtime_shadow_stack_top,
             runtime_stack_base,
             runtime_stack_top,
             runtime_memory_bottom: current_base,

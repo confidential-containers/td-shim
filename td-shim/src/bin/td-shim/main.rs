@@ -52,9 +52,6 @@ mod tcg;
 mod td;
 mod td_hob;
 
-#[cfg(feature = "cet-ss")]
-mod cet_ss;
-
 extern "win64" {
     fn switch_stack_call_win64(entry_point: usize, stack_top: usize, P1: usize, P2: usize);
     fn switch_stack_call_sysv(entry_point: usize, stack_top: usize, P1: usize, P2: usize);
@@ -227,19 +224,10 @@ fn boot_builtin_payload(
 
     // Set up NX (no-execute) protection for payload stack and hob
     mem.set_nx_bit(mem.layout.runtime_stack_base, TD_PAYLOAD_STACK_SIZE as u64);
-    mem.set_nx_bit(
-        mem.layout.runtime_shadow_stack_base,
-        TD_PAYLOAD_SHADOW_STACK_SIZE as u64,
-    );
     mem.set_nx_bit(mem.layout.runtime_acpi_base, TD_PAYLOAD_ACPI_SIZE as u64);
 
     // Initialize the stack to run the image
     stack_guard::stack_guard_enable(mem);
-    #[cfg(feature = "cet-ss")]
-    cet_ss::enable_cet_ss(
-        mem.layout.runtime_shadow_stack_base,
-        mem.layout.runtime_shadow_stack_top,
-    );
     let stack_top = (mem.layout.runtime_stack_base + TD_PAYLOAD_STACK_SIZE as u64) as usize;
 
     // Prepare the HOB list to run the image

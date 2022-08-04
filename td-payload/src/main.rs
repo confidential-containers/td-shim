@@ -38,9 +38,6 @@ mod stack;
 mod asm;
 extern "win64" {
     fn stack_guard_test();
-
-    #[cfg(feature = "cet-ss")]
-    fn cet_ss_test(count: usize);
 }
 
 const E820_TABLE_SIZE: usize = 128;
@@ -130,12 +127,6 @@ mod payload_impl {
 
         //Memory Protection (WP & NX) test.
         mp::mp_test();
-
-        // Cet is not enabled by vcpu for now
-        #[cfg(feature = "cet-ss")]
-        unsafe {
-            cet_ss_test(1000)
-        };
 
         unsafe {
             let pointer: *const u32 = 0x10000000000usize as *const core::ffi::c_void as *const u32;

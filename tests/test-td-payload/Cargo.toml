@@ -33,6 +33,5 @@ features = ["spin_no_std"]
 map-physical-memory = true
 
 [features]
-cet-ss = []
 tdx = ["tdx-tdcall", "td-logger/tdx"]
 main = []
