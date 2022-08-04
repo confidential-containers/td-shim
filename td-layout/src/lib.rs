@@ -60,15 +60,17 @@ impl RuntimeMemoryLayout {
         let current_base = current_base - TD_PAYLOAD_PAGE_TABLE_SIZE as u64;
         let runtime_page_table_base = current_base;
 
+        let runtime_stack_top = current_base;
+        // Stack is not needed for booting Linux Kernel
+        #[cfg(not(feature = "boot-kernel"))]
+        let current_base = current_base - TD_PAYLOAD_STACK_SIZE as u64;
+        let runtime_stack_base = current_base;
+
         let current_base = current_base - TD_PAYLOAD_ACPI_SIZE as u64;
         let runtime_acpi_base = current_base;
 
         let current_base = current_base - TD_PAYLOAD_UNACCEPTED_MEMORY_BITMAP_SIZE as u64;
         let runtime_unaccepted_bitmap_base = current_base;
-
-        let runtime_stack_top = current_base;
-        let current_base = current_base - TD_PAYLOAD_STACK_SIZE as u64;
-        let runtime_stack_base = current_base;
 
         RuntimeMemoryLayout {
             runtime_event_log_base,
