@@ -120,7 +120,7 @@ pub extern "win64" fn _start(
     mem.setup_paging();
 
     // Relocate the page table that map all the physical memory
-    td::relocate_ap_page_table(TD_PAYLOAD_PAGE_TABLE_BASE);
+    td::relocate_ap_page_table(mem.layout.runtime_page_table_base);
     // Relocate Mailbox along side with the AP function
     td::relocate_mailbox(mem.layout.runtime_mailbox_base as u32);
 

@@ -5,8 +5,7 @@
 use alloc::vec::Vec;
 use td_layout::build_time::{TD_SHIM_FIRMWARE_BASE, TD_SHIM_FIRMWARE_SIZE};
 use td_layout::runtime::{
-    self, TD_PAYLOAD_BASE, TD_PAYLOAD_EVENT_LOG_SIZE, TD_PAYLOAD_PAGE_TABLE_BASE,
-    TD_PAYLOAD_PAGE_TABLE_SIZE, TD_PAYLOAD_SIZE,
+    self, TD_PAYLOAD_BASE, TD_PAYLOAD_EVENT_LOG_SIZE, TD_PAYLOAD_PAGE_TABLE_SIZE, TD_PAYLOAD_SIZE,
 };
 use td_layout::{memslice, RuntimeMemoryLayout, MIN_MEMORY_SIZE};
 use td_shim::e820::{E820Entry, E820Type};
@@ -64,7 +63,7 @@ impl<'a> Memory<'a> {
         // Create an offset page table instance to manage the paging
         let pt = unsafe {
             OffsetPageTable::new(
-                &mut *(TD_PAYLOAD_PAGE_TABLE_BASE as *mut PageTable),
+                &mut *(layout.runtime_page_table_base as *mut PageTable),
                 VirtAddr::new(td_paging::PHYS_VIRT_OFFSET as u64),
             )
         };
@@ -81,7 +80,10 @@ impl<'a> Memory<'a> {
     // - Frame size for other memory region is 1G bytes.
     pub fn setup_paging(&mut self) {
         // Init frame allocator
-        td_paging::init(TD_PAYLOAD_PAGE_TABLE_BASE, TD_PAYLOAD_PAGE_TABLE_SIZE);
+        td_paging::init(
+            self.layout.runtime_page_table_base,
+            TD_PAYLOAD_PAGE_TABLE_SIZE,
+        );
 
         // Create mapping for 0 - base address of runtime layout region
         td_paging::create_mapping(
@@ -130,7 +132,7 @@ impl<'a> Memory<'a> {
             }
         }
 
-        td_paging::cr3_write();
+        td_paging::cr3_write(self.layout.runtime_page_table_base);
     }
 
     pub fn create_e820(&self) -> E820Table {
@@ -141,7 +143,7 @@ impl<'a> Memory<'a> {
 
         table.convert_range(
             E820Type::Reserved,
-            TD_PAYLOAD_PAGE_TABLE_BASE,
+            self.layout.runtime_page_table_base,
             TD_PAYLOAD_PAGE_TABLE_SIZE as u64,
         );
         table.convert_range(

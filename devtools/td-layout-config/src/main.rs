@@ -104,8 +104,6 @@ macro_rules! RUNTIME_TEMPLATE {
                     |     Legacy   |
                     +--------------+ <-  0x00100000 (1M)
                     |   ........   |
-                    +--------------+ <-  {pt_base:#010X}
-                    |  Page Table  | <-  {pt_size:#010x}
                     +--------------+ <-  {td_hob_base:#010X}
                     |    TD HOB    |
                     +--------------+ <-  {payload_param_base:#010X}
@@ -124,6 +122,8 @@ macro_rules! RUNTIME_TEMPLATE {
                     |  UNACCEPTED  |    ({unaccepted_memory_bitmap_size:#010X})
                     +--------------+ <-  {acpi_base:#010X}
                     |     ACPI     |    ({acpi_size:#010X})
+                    +--------------+ <-  {pt_base:#010X}
+                    |  Page Table  | <-  {pt_size:#010x}
                     +--------------+ <-  {mailbox_base:#010X}
                     |    MAILBOX   |    ({mailbox_size:#010X})
                     +--------------+ <-  {event_log_base:#010X}
@@ -132,16 +132,15 @@ macro_rules! RUNTIME_TEMPLATE {
 */
 
 pub const TD_PAYLOAD_EVENT_LOG_SIZE: u32 = {event_log_size:#X};
-pub const TD_PAYLOAD_ACPI_SIZE: u32 = {acpi_size:#X};
 pub const TD_PAYLOAD_MAILBOX_SIZE: u32 = {mailbox_size:#X};
+pub const TD_PAYLOAD_PAGE_TABLE_SIZE: usize = {pt_size:#X};
+pub const TD_PAYLOAD_ACPI_SIZE: u32 = {acpi_size:#X};
 pub const TD_PAYLOAD_UNACCEPTED_MEMORY_BITMAP_SIZE: u32 = {unaccepted_memory_bitmap_size:#X};
 pub const TD_PAYLOAD_PARTIAL_ACCEPT_MEMORY_SIZE: u32 = {partial_accept_memory_size:#X};
 pub const TD_PAYLOAD_HOB_SIZE: u32 = {payload_hob_size:#X};
 pub const TD_PAYLOAD_SHADOW_STACK_SIZE: u32 = {shadow_stack_size:#X};
 pub const TD_PAYLOAD_STACK_SIZE: u32 = {stack_size:#X};
 
-pub const TD_PAYLOAD_PAGE_TABLE_BASE: u64 = {pt_base:#X};
-pub const TD_PAYLOAD_PAGE_TABLE_SIZE: usize = {pt_size:#X};
 pub const TD_HOB_BASE: u64 = {td_hob_base:#X};
 pub const TD_HOB_SIZE: u64 = {td_hob_size:#X};
 pub const TD_PAYLOAD_PARAM_BASE: u64 = {payload_param_base:#X};
@@ -177,6 +176,7 @@ struct TdRuntimeLayoutConfig {
     event_log_size: u32,
     acpi_size: u32,
     mailbox_size: u32,
+    page_table_size: u32,
     unaccepted_memory_bitmap_size: u32,
     partial_accept_memory_size: u32,
     payload_hob_size: u32,
@@ -185,9 +185,8 @@ struct TdRuntimeLayoutConfig {
     payload_size: u32,
     payload_param_size: u32,
     payload_param_base: u32,
+    td_hob_base: u32,
     td_hob_size: u32,
-    page_table_size: u32,
-    page_table_base: u32,
 }
 
 #[derive(Debug, Default, PartialEq)]
@@ -426,21 +425,18 @@ impl TdLayoutRuntime {
     fn new_from_config(config: &TdLayoutConfig) -> Self {
         let event_log_base = 0x80000000 - config.runtime_layout.event_log_size; // TODO: 0x80000000 is hardcoded LOW_MEM_TOP, to remove
         let mailbox_base = event_log_base - config.runtime_layout.mailbox_size;
-        let acpi_base = mailbox_base - config.runtime_layout.acpi_size;
+        let pt_base = mailbox_base - config.runtime_layout.page_table_size;
+        let acpi_base = pt_base - config.runtime_layout.acpi_size;
         let unaccepted_memory_bitmap_base =
             acpi_base - config.runtime_layout.unaccepted_memory_bitmap_size;
         let payload_hob_base = acpi_base - config.runtime_layout.payload_hob_size;
         let shadow_stack_base = payload_hob_base - config.runtime_layout.shadow_stack_size;
         let stack_base = shadow_stack_base - config.runtime_layout.stack_size;
-        let td_hob_base =
-            config.runtime_layout.page_table_base + config.runtime_layout.page_table_size;
         let payload_base =
             config.runtime_layout.payload_param_base + config.runtime_layout.payload_param_size;
 
         TdLayoutRuntime {
-            pt_base: config.runtime_layout.page_table_base,
-            pt_size: config.runtime_layout.page_table_size,
-            td_hob_base,
+            td_hob_base: config.runtime_layout.td_hob_base,
             td_hob_size: config.runtime_layout.td_hob_size,
             payload_param_base: config.runtime_layout.payload_param_base,
             payload_param_size: config.runtime_layout.payload_param_size,
@@ -459,6 +455,8 @@ impl TdLayoutRuntime {
             event_log_size: config.runtime_layout.event_log_size,
             acpi_base,
             acpi_size: config.runtime_layout.acpi_size,
+            pt_base,
+            pt_size: config.runtime_layout.page_table_size,
             mailbox_base,
             mailbox_size: config.runtime_layout.mailbox_size,
         }
