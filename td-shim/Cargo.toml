@@ -26,6 +26,7 @@ scroll = { version = "0.10", default-features = false, features = ["derive"] }
 td-layout = { path = "../td-layout" }
 td-uefi-pi =  { path = "../td-uefi-pi" }
 zerocopy = "0.6.0"
+libc = "=0.2.126"
 
 td-loader = { path = "../td-loader", optional = true }
 linked_list_allocator = { version = "0.9.0", optional = true }
