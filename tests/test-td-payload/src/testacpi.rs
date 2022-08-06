@@ -140,11 +140,11 @@ impl TestTdAcpi {
                 );
                 log::info!(
                     "Expected oem_table_id: 'SHIM' Actual oem_table_id: {:?}\n",
-                    String::from_utf8_lossy(acpi_tables[idx].oem_table_id.as_bytes())
+                    String::from_utf8_lossy(&u64::to_le_bytes(acpi_tables[idx].oem_table_id))
                 );
                 log::info!(
                     "Expected creator_id: 'SHIM'   Actual creator_id: {:?}\n",
-                    String::from_utf8_lossy(&acpi_tables[idx].creator_id.as_bytes())
+                    String::from_utf8_lossy(&u32::to_le_bytes(acpi_tables[idx].creator_id))
                 );
 
                 log::info!(
