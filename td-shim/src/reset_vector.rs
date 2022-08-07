@@ -80,3 +80,42 @@ impl ResetVectorParams {
         unsafe { &*slice_from_raw_parts(self as *const Self as *const u8, size_of::<Self>()) }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_resetvector_header() {
+        let rest_vector = ResetVectorHeader::build_tdx_reset_vector_header();
+
+        assert_eq!(
+            &rest_vector.ffs_header.name,
+            Guid::from_fields(
+                0x1ba0062e,
+                0xc779,
+                0x4582,
+                0x85,
+                0x66,
+                &[0x33, 0x6a, 0xe8, 0xf7, 0x8f, 0x09],
+            )
+            .as_bytes()
+        );
+        assert_eq!(rest_vector.ffs_header.r#type, FV_FILETYPE_RAW);
+        assert_eq!(rest_vector.section_header_pad.r#type, SECTION_RAW);
+        assert_eq!(rest_vector.section_header_reset_vector.r#type, SECTION_RAW);
+
+        assert_eq!(
+            &rest_vector.as_bytes()[0..16],
+            Guid::from_fields(
+                0x1ba0062e,
+                0xc779,
+                0x4582,
+                0x85,
+                0x66,
+                &[0x33, 0x6a, 0xe8, 0xf7, 0x8f, 0x09],
+            )
+            .as_bytes()
+        );
+    }
+}

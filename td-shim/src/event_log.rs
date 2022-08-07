@@ -459,4 +459,62 @@ mod tests {
         let mut buf = [0u8; CC_EVENT_HEADER_SIZE];
         buf.pwrite(&hdr, 0).unwrap();
     }
+
+    #[test]
+    fn test_dump_event_log() {
+        const DIGEST_COUNT_OFFSET: usize = size_of::<TcgPcrEventHeader>() + size_of::<u32>() * 2;
+        let mut buf =
+            Vec::with_capacity(size_of::<TcgPcrEventHeader>() + size_of::<CcEventHeader>());
+        buf.fill(0);
+        let eventlog = unsafe {
+            core::slice::from_raw_parts_mut(
+                buf.as_ptr() as *const u8 as *mut u8,
+                size_of::<TcgPcrEventHeader>() + size_of::<CcEventHeader>(),
+            )
+        };
+        // Correct count to 1
+        eventlog[DIGEST_COUNT_OFFSET] = 0x1;
+        let dumper = CcEventDumper::new(
+            eventlog,
+            size_of::<TcgPcrEventHeader>() + size_of::<CcEventHeader>(),
+        );
+        dumper.dump_event_log();
+    }
+
+    #[test]
+    fn test_tdshim_platform_configinfo_header() {
+        // descriptor length < 16
+        let descriptor: [u8; 15] = [0; 15];
+        assert!(TdShimPlatformConfigInfoHeader::new(&descriptor, 0).is_some());
+
+        // descriptor length = 16
+        let descriptor: [u8; 16] = [0; 16];
+        assert!(TdShimPlatformConfigInfoHeader::new(&descriptor, 0).is_some());
+        assert_eq!(
+            TdShimPlatformConfigInfoHeader::new(&descriptor, 0)
+                .unwrap()
+                .as_bytes(),
+            [0; 20]
+        );
+
+        // descriptor length > 16
+        let descriptor: [u8; 17] = [0; 17];
+        assert!(TdShimPlatformConfigInfoHeader::new(&descriptor, 0).is_none());
+    }
+
+    #[test]
+    fn test_tcgefispec_id_event() {
+        let event = TcgEfiSpecIdevent::new();
+
+        let bytes = event.as_bytes();
+        assert_eq!(bytes.len(), size_of::<TcgEfiSpecIdevent>());
+    }
+
+    #[test]
+    fn test_ccel() {
+        let ccel = Ccel::new(CCEL_CC_TYPE_TDX, 0, 0x100, 0);
+
+        assert_eq!(&ccel.header.signature, b"CCEL");
+        assert_eq!(ccel.header.checksum, 45);
+    }
 }

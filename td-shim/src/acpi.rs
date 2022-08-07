@@ -163,6 +163,7 @@ mod tests {
 
     #[test]
     fn test_xsdt() {
+        const CHECK_SUM: u8 = 186;
         let mut xsdt = Xsdt::new();
         assert_eq!(xsdt.header.length as usize, size_of::<GenericSdtHeader>());
         for idx in 0..ACPI_TABLES_MAX_NUM {
@@ -183,5 +184,8 @@ mod tests {
             xsdt.header.length as usize,
             size_of::<GenericSdtHeader>() + ACPI_TABLES_MAX_NUM * 8
         );
+
+        xsdt.checksum();
+        assert_eq!(xsdt.header.checksum, CHECK_SUM);
     }
 }

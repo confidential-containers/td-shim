@@ -107,3 +107,25 @@ pub type PayloadFvFfsSectionHeader = FvFfsSectionHeader;
 pub type IplFvHeader = PayloadFvHeader;
 pub type IplFvFfsHeader = PayloadFvFfsHeader;
 pub type IplFvFfsSectionHeader = FvFfsSectionHeader;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_fv_header() {
+        let fv_header = FvHeader::default();
+        let _ = fv_header.as_bytes();
+    }
+
+    #[test]
+    fn test_fvffsfile_header() {
+        let hdr = FvFfsFileHeader::default();
+        let _ = hdr.as_bytes();
+    }
+
+    #[test]
+    fn test_fvffssection_header() {
+        let _hdr = FvFfsSectionHeader::default();
+    }
+}

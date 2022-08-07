@@ -66,4 +66,22 @@ mod tests {
             20 * MAX_E820_ENTRY
         );
     }
+
+    #[test]
+    fn test_e820_entry() {
+        let _entry = E820Entry::new(0x1000, 0x1000, E820Type::Memory);
+    }
+
+    #[test]
+    fn test_e820_type() {
+        assert_eq!(E820Type::from(1) as u32, E820Type::Memory as u32);
+        assert_eq!(E820Type::from(2) as u32, E820Type::Reserved as u32);
+        assert_eq!(E820Type::from(3) as u32, E820Type::Acpi as u32);
+        assert_eq!(E820Type::from(4) as u32, E820Type::Nvs as u32);
+        assert_eq!(E820Type::from(5) as u32, E820Type::Unusable as u32);
+        assert_eq!(E820Type::from(6) as u32, E820Type::Disabled as u32);
+        assert_eq!(E820Type::from(7) as u32, E820Type::Pmem as u32);
+        assert_eq!(E820Type::from(8) as u32, E820Type::Unaccepted as u32);
+        assert_eq!(E820Type::from(0xff) as u32, E820Type::Unknown as u32);
+    }
 }
