@@ -126,3 +126,25 @@ pub fn write_u24(data: u32, buf: &mut [u8]) {
 pub fn speculation_barrier() {
     unsafe { core::arch::asm!("lfence") }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_tdkernel_info_hob_type() {
+        assert_eq!(
+            TdKernelInfoHobType::from(0),
+            TdKernelInfoHobType::ExecutablePayload
+        );
+        assert_eq!(TdKernelInfoHobType::from(1), TdKernelInfoHobType::BzImage);
+        assert_eq!(
+            TdKernelInfoHobType::from(2),
+            TdKernelInfoHobType::RawVmLinux
+        );
+        assert_eq!(
+            TdKernelInfoHobType::from(3),
+            TdKernelInfoHobType::UnknownImage
+        );
+    }
+}

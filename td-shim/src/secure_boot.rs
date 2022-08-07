@@ -365,36 +365,45 @@ mod test {
         );
     }
 
-    /*
-       #[test]
-       fn test() {
-           let bin = include_bytes!("../unit-test/input/final.sb.bin");
+    #[test]
+    fn test_get_trust_anchor() {
+        let cfv = include_bytes!("../fuzz/seeds/secure_boot_cfv/cfv");
+        let payload = include_bytes!("../fuzz/seeds/secure_boot_payload/td-payload-signed");
 
-           let pstart = TD_SHIM_PAYLOAD_OFFSET as usize;
-           let pend = pstart + TD_SHIM_PAYLOAD_SIZE as usize;
-           let payload_fv = &bin[pstart..pend];
+        let verifier = PayloadVerifier::new(payload, cfv);
+        assert!(
+            verifier.is_ok(),
+            "Cannot read verify header from payload binary"
+        );
 
-           let mut offset = 0;
-           let payload = fv::get_image_from_fv(
-               payload_fv,
-               pi::fv::FV_FILETYPE_DXE_CORE,
-               pi::fv::SECTION_PE32,
-           )
-           .unwrap();
+        let trust_anchor = PayloadVerifier::get_trust_anchor(cfv);
+        assert!(trust_anchor.is_ok(), "Fail to get trust anchor from CFV");
+    }
 
-           let cstart = TD_SHIM_CONFIG_OFFSET as usize;
-           let cend = cstart + TD_SHIM_CONFIG_SIZE as usize;
-           let cfv = &bin[cstart..cend];
+    #[test]
+    fn test_get_payload_svn() {
+        let cfv = include_bytes!("../fuzz/seeds/secure_boot_cfv/cfv");
+        let payload = include_bytes!("../fuzz/seeds/secure_boot_payload/td-payload-signed");
 
-           let verifier = PayloadVerifier::new(payload, cfv);
-           assert!(
-               verifier.is_some(),
-               "Cannot get verify header from payload binary"
-           );
-           assert!(
-               verifier.unwrap().verify().is_ok(),
-               "Payload verification fail"
-           );
-       }
-    */
+        let verifier = PayloadVerifier::new(payload, cfv);
+        assert!(
+            verifier.is_ok(),
+            "Cannot read verify header from payload binary"
+        );
+        assert_eq!(verifier.as_ref().unwrap().get_payload_svn(), 1);
+    }
+
+    #[test]
+    fn test_verifier() {
+        let cfv = include_bytes!("../fuzz/seeds/secure_boot_cfv/cfv");
+        let payload = include_bytes!("../fuzz/seeds/secure_boot_payload/td-payload-signed");
+
+        let verifier = PayloadVerifier::new(payload, cfv);
+        assert!(
+            verifier.is_ok(),
+            "Cannot read verify header from payload binary"
+        );
+
+        assert!(verifier.unwrap().verify().is_ok(), "Verification fails");
+    }
 }
