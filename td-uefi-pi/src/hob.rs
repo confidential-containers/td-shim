@@ -74,7 +74,7 @@ pub fn check_hob_integrity(hob_list: &[u8]) -> Option<&[u8]> {
 
     loop {
         let hob = &hob_list[offset..];
-        if offset + size_of::<Header>() > hob_list_len {
+        if offset.checked_add(size_of::<Header>())? > hob_list_len {
             return None;
         }
         speculation_barrier();
