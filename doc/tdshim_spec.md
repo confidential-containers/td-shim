@@ -230,6 +230,9 @@ INIT state. Because the TD HOB address is an input from VMM, it is
 untrusted. For detail, please refer to [Intel TDX Module 1.0 EAS](#eas), Section
 8.1 TD VCPU Initial State and Section 20.2.42 TDH.VP.INIT.
 
+TD HOB is untrusted data from VMM. The TD Shim shall measure the TD HOB content
+to RTMR[0] before consume it.
+
 #### Memory Information
 
 Resource Description HOB is to report the VMM assigned memory information.
@@ -238,8 +241,10 @@ If TD Shim does not include the PermMem section in metadata, then the VMM shall
 report the unaccepted memory via TD HOB. The unaccepted memory should be
 reported as TD Resource HOB with type: EFI_RESOURCE_SYSTEM_MEMORY and attribute:
 EFI_RESOURCE_ATTRIBUTE_PRESENT | EFI_RESOURCE_ATTRIBUTE_INITIALIZED |EFI_RESOURCE_ATTRIBUTE_UNACCEPTED.
-The private memory information is optional, because the TD Shim can get the
-information from metadata directly.
+The accepted memory information is optional, because the TD Shim can get the
+information from metadata directly. The TD Shim shall always consume the data
+from metadata, to ensure that the TD Shim will not accept the already accepted
+data again.
 
 If TD Shim reports the PermMem section in metadata, then the VMM does not need
 report unaccepted memory via TD HOB. If nothing else should be reported, then
