@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
 use td_layout::memslice;
-use td_layout::runtime::{TD_PAYLOAD_BASE, TD_PAYLOAD_SIZE};
 use td_loader::elf;
 use td_loader::elf64::ProgramHeader;
 use td_loader::pe::{self, Section};
@@ -37,9 +36,8 @@ pub fn efi_page_to_size(page: u64) -> u64 {
 pub fn find_and_report_entry_point(
     mem: &mut Memory,
     image_buffer: &[u8],
+    loaded_buffer: &mut [u8],
 ) -> Option<PayloadRelocationInfo> {
-    // Safe because we are the only user in single-thread context.
-    let loaded_buffer = unsafe { memslice::get_mem_slice_mut(memslice::SliceType::Payload) };
     let loaded_buffer_slice = loaded_buffer.as_ptr() as u64;
     let image_type;
 
@@ -56,9 +54,10 @@ pub fn find_and_report_entry_point(
     let entry_point = res.0;
     let base = res.1;
     let size = res.2;
-    if base < TD_PAYLOAD_BASE as u64
-        || base >= TD_PAYLOAD_BASE + TD_PAYLOAD_SIZE as u64
-        || size > TD_PAYLOAD_SIZE as u64 - (base - TD_PAYLOAD_BASE)
+    let loaded_buf_base = loaded_buffer.as_ptr() as u64;
+    if base < loaded_buf_base
+        || base >= loaded_buf_base + loaded_buffer.len() as u64
+        || size > loaded_buffer.len() as u64 - (base - loaded_buf_base)
         || entry_point < base
         || entry_point > base + size
     {

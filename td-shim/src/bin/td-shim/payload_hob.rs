@@ -195,7 +195,11 @@ pub fn build_payload_hob(acpi_tables: &Vec<&[u8]>, memory: &Memory) -> Option<Pa
         memory.layout.runtime_page_table_base,
         TD_PAYLOAD_PAGE_TABLE_SIZE as u64,
     );
-    e820.convert_range(E820Type::Reserved, TD_PAYLOAD_BASE, TD_PAYLOAD_SIZE as u64);
+    e820.convert_range(
+        E820Type::Reserved,
+        memory.layout.runtime_payload_base,
+        TD_PAYLOAD_SIZE as u64,
+    );
     e820.convert_range(
         E820Type::Reserved,
         memory.layout.runtime_stack_base,
@@ -207,6 +211,7 @@ pub fn build_payload_hob(acpi_tables: &Vec<&[u8]>, memory: &Memory) -> Option<Pa
         TD_PAYLOAD_ACPI_SIZE as u64,
     );
 
+    log::info!("e820 table: {:x?}\n", e820.as_slice());
     payload_hob
         .add_guided_data(&TD_E820_TABLE_HOB_GUID, e820.as_bytes())
         .ok()?;

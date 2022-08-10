@@ -106,10 +106,10 @@ macro_rules! RUNTIME_TEMPLATE {
                     |   ........   |
                     +--------------+ <-  {td_hob_base:#010X}
                     |    TD HOB    |
-                    +--------------+ <-  {payload_param_base:#010X}
-                    | PAYLOAD PARAM|    ({payload_param_size:#010X})
-                    +--------------+ <-  {payload_base:#010X}
-                    |    PAYLOAD   |    ({payload_size:#010X})
+                    +--------------+ <-  {kernel_param_base:#010X}
+                    | KERNEL PARAM |    ({kernel_param_size:#010X})
+                    +--------------+ <-  {kernel_base:#010X}
+                    |    KERNEL    |    ({kernel_size:#010X})
                     +--------------+
                     |   ........   |
                     +--------------+ <-  {unaccepted_memory_bitmap_base:#010X}
@@ -118,6 +118,8 @@ macro_rules! RUNTIME_TEMPLATE {
                     |     ACPI     |    ({acpi_size:#010X})
                     +--------------+ <-  {stack_base:#010X}
                     |     STACK    |    ({stack_size:#010X})
+                    +--------------+ <-  {payload_base:#010X}
+                    |    PAYLOAD   |    ({payload_size:#010X})
                     +--------------+ <-  {pt_base:#010X}
                     |  Page Table  | <-  {pt_size:#010x}
                     +--------------+ <-  {mailbox_base:#010X}
@@ -131,16 +133,17 @@ pub const TD_PAYLOAD_EVENT_LOG_SIZE: u32 = {event_log_size:#X};
 pub const TD_PAYLOAD_MAILBOX_SIZE: u32 = {mailbox_size:#X};
 pub const TD_PAYLOAD_PAGE_TABLE_SIZE: u32 = {pt_size:#X};
 pub const TD_PAYLOAD_ACPI_SIZE: u32 = {acpi_size:#X};
+pub const TD_PAYLOAD_SIZE: u32 = {payload_size:#X};
 pub const TD_PAYLOAD_UNACCEPTED_MEMORY_BITMAP_SIZE: u32 = {unaccepted_memory_bitmap_size:#X};
 pub const TD_PAYLOAD_PARTIAL_ACCEPT_MEMORY_SIZE: u32 = {partial_accept_memory_size:#X};
 pub const TD_PAYLOAD_STACK_SIZE: u32 = {stack_size:#X};
 
 pub const TD_HOB_BASE: u64 = {td_hob_base:#X};
 pub const TD_HOB_SIZE: u64 = {td_hob_size:#X};
-pub const TD_PAYLOAD_PARAM_BASE: u64 = {payload_param_base:#X};
-pub const TD_PAYLOAD_PARAM_SIZE: u64 = {payload_param_size:#X};
-pub const TD_PAYLOAD_BASE: u64 = {payload_base:#X};
-pub const TD_PAYLOAD_SIZE: u32 = {payload_size:#X};
+pub const KERNEL_PARAM_BASE: u64 = {kernel_param_base:#X};
+pub const KERNEL_PARAM_SIZE: u64 = {kernel_param_size:#X};
+pub const KERNEL_BASE: u64 = {kernel_base:#X};
+pub const KERNEL_SIZE: usize = {kernel_size:#X};
 "
     };
 }
@@ -173,10 +176,11 @@ struct TdRuntimeLayoutConfig {
     page_table_size: u32,
     unaccepted_memory_bitmap_size: u32,
     partial_accept_memory_size: u32,
-    stack_size: u32,
     payload_size: u32,
-    payload_param_size: u32,
-    payload_param_base: u32,
+    stack_size: u32,
+    kernel_size: u32,
+    kernel_param_size: u32,
+    kernel_param_base: u32,
     td_hob_base: u32,
     td_hob_size: u32,
 }
@@ -255,10 +259,14 @@ impl TdLayout {
             pt_size = self.runtime.pt_size,
             td_hob_base = self.runtime.td_hob_base,
             td_hob_size = self.runtime.td_hob_size,
-            payload_base = self.runtime.payload_base,
-            payload_size = self.runtime.payload_size,
+            kernel_param_base = self.runtime.kernel_param_base,
+            kernel_param_size = self.runtime.kernel_param_size,
+            kernel_base = self.runtime.kernel_base,
+            kernel_size = self.runtime.kernel_size,
             stack_base = self.runtime.stack_base,
             stack_size = self.runtime.stack_size,
+            payload_base = self.runtime.payload_base,
+            payload_size = self.runtime.payload_size,
             unaccepted_memory_bitmap_base = self.runtime.unaccepted_memory_bitmap_base,
             unaccepted_memory_bitmap_size = self.runtime.unaccepted_memory_bitmap_size,
             partial_accept_memory_size = self.runtime.partial_accept_memory_size,
@@ -268,8 +276,6 @@ impl TdLayout {
             event_log_size = self.runtime.event_log_size,
             acpi_base = self.runtime.acpi_base,
             acpi_size = self.runtime.acpi_size,
-            payload_param_base = self.runtime.payload_param_base,
-            payload_param_size = self.runtime.payload_param_size,
         )
         .expect("Failed to generate configuration code from the template and JSON config");
 
@@ -388,12 +394,14 @@ struct TdLayoutRuntime {
     pt_size: u32,
     td_hob_base: u32,
     td_hob_size: u32,
-    payload_base: u32,
-    payload_size: u32,
-    payload_param_base: u32,
-    payload_param_size: u32,
+    kernel_base: u32,
+    kernel_size: u32,
+    kernel_param_base: u32,
+    kernel_param_size: u32,
     stack_base: u32,
     stack_size: u32,
+    payload_base: u32,
+    payload_size: u32,
     unaccepted_memory_bitmap_base: u32,
     unaccepted_memory_bitmap_size: u32,
     partial_accept_memory_size: u32,
@@ -410,22 +418,25 @@ impl TdLayoutRuntime {
         let event_log_base = 0x80000000 - config.runtime_layout.event_log_size; // TODO: 0x80000000 is hardcoded LOW_MEM_TOP, to remove
         let mailbox_base = event_log_base - config.runtime_layout.mailbox_size;
         let pt_base = mailbox_base - config.runtime_layout.page_table_size;
-        let stack_base = pt_base - config.runtime_layout.stack_size;
+        let payload_base = pt_base - config.runtime_layout.payload_size;
+        let stack_base = payload_base - config.runtime_layout.stack_size;
         let acpi_base = stack_base - config.runtime_layout.acpi_size;
         let unaccepted_memory_bitmap_base =
             acpi_base - config.runtime_layout.unaccepted_memory_bitmap_size;
-        let payload_base =
-            config.runtime_layout.payload_param_base + config.runtime_layout.payload_param_size;
+        let kernel_base =
+            config.runtime_layout.kernel_param_base + config.runtime_layout.kernel_param_size;
 
         TdLayoutRuntime {
             td_hob_base: config.runtime_layout.td_hob_base,
             td_hob_size: config.runtime_layout.td_hob_size,
-            payload_param_base: config.runtime_layout.payload_param_base,
-            payload_param_size: config.runtime_layout.payload_param_size,
-            payload_base,
-            payload_size: config.runtime_layout.payload_size,
+            kernel_param_base: config.runtime_layout.kernel_param_base,
+            kernel_param_size: config.runtime_layout.kernel_param_size,
+            kernel_base,
+            kernel_size: config.runtime_layout.kernel_size,
             stack_base,
             stack_size: config.runtime_layout.stack_size,
+            payload_base,
+            payload_size: config.runtime_layout.payload_size,
             unaccepted_memory_bitmap_base,
             unaccepted_memory_bitmap_size: config.runtime_layout.unaccepted_memory_bitmap_size,
             partial_accept_memory_size: config.runtime_layout.partial_accept_memory_size,

@@ -47,16 +47,16 @@
                 |   ........   |
                 +--------------+ <-  td_hob_base - 0x800000 (128K)
                 |    TD_HOB    |
-                +--------------+ <-  payload_param_base - 0x900000 (1M)
-                | PAYLOAD_PARAM|     (payload_param_size)
-                +--------------+ <-  payload_base - 0xA00000 (32M)
-                |    PAYLOAD   |     (payload_size)
+                +--------------+ <-  kernel_param_base - 0x900000 (1M)
+                | KERNEL_PARAM |     (kernel_param_size)
+                +--------------+ <-  kernel_base - 0xA00000 (32M)
+                |    KERNEL    |     (kernel_size)
                 +--------------+
                 |   ........   |
                 +--------------+ <-  stack_base - 0x7F000000 (8M)
                 |     STACK    |     (stack_size)
-                +--------------+ <-  shadow_stack_base - 0x7F800000 (2M)
-                |      SS      |     (shadow_stack_size)
+                +--------------+ <-  payload_base - 0x7F800000 (16M)
+                |   PAYLOAD    |     (payload_size)
                 +--------------+ <-  payload_hob_base - 0x7FA00000 (5M)
                 |  PAYLOAD_HOB |     (payload_hob_size)
                 +--------------+ <-  event_log_base - 0x7FEF0000 (1M)
@@ -73,10 +73,11 @@
         "acpi_size": 0x100000,
         "unaccepted_memory_bitmap_size": 0x40000,
         "partial_accept_memory_size": 0x10000000,
+        "payload_size": 0x2000000,
         "stack_size": 0x10000,
-        "payload_size": 0x8000000,
-        "payload_param_size": 0x100000,
-        "payload_param_base": 0x0900000,
+        "kernel_size": 0x2000000,
+        "kernel_param_size": 0x100000,
+        "kernel_param_base": 0x0900000,
         "td_hob_size": 0x20000,
         "td_hob_base": 0x800000,
     }
