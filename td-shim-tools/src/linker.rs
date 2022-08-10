@@ -27,11 +27,9 @@ use td_layout::metadata::{
 use td_layout::metadata::{
     TDX_METADATA_SECTION_TYPE_PAYLOAD, TDX_METADATA_SECTION_TYPE_PAYLOAD_PARAM,
 };
-use td_layout::runtime::{TD_HOB_BASE, TD_HOB_SIZE};
 #[cfg(feature = "boot-kernel")]
-use td_layout::runtime::{
-    TD_PAYLOAD_BASE, TD_PAYLOAD_PARAM_BASE, TD_PAYLOAD_PARAM_SIZE, TD_PAYLOAD_SIZE,
-};
+use td_layout::runtime::{KERNEL_BASE, KERNEL_PARAM_BASE, KERNEL_PARAM_SIZE, KERNEL_SIZE};
+use td_layout::runtime::{TD_HOB_BASE, TD_HOB_SIZE};
 use td_loader::pe;
 use td_shim::fv::{
     FvFfsFileHeader, FvFfsSectionHeader, FvHeader, IplFvFfsHeader, IplFvFfsSectionHeader,
@@ -298,16 +296,16 @@ pub fn build_tdx_metadata() -> TdxMetadata {
         // kernel image
         tdx_metadata.payload_sections[0].data_offset = 0;
         tdx_metadata.payload_sections[0].raw_data_size = 0;
-        tdx_metadata.payload_sections[0].memory_address = TD_PAYLOAD_BASE as u64;
-        tdx_metadata.payload_sections[0].memory_data_size = TD_PAYLOAD_SIZE as u64;
+        tdx_metadata.payload_sections[0].memory_address = KERNEL_BASE as u64;
+        tdx_metadata.payload_sections[0].memory_data_size = KERNEL_SIZE as u64;
         tdx_metadata.payload_sections[0].r#type = TDX_METADATA_SECTION_TYPE_PAYLOAD;
         tdx_metadata.payload_sections[0].attributes = 0;
 
         // parameters
         tdx_metadata.payload_sections[1].data_offset = 0;
         tdx_metadata.payload_sections[1].raw_data_size = 0;
-        tdx_metadata.payload_sections[1].memory_address = TD_PAYLOAD_PARAM_BASE as u64;
-        tdx_metadata.payload_sections[1].memory_data_size = TD_PAYLOAD_PARAM_SIZE as u64;
+        tdx_metadata.payload_sections[1].memory_address = KERNEL_PARAM_BASE as u64;
+        tdx_metadata.payload_sections[1].memory_data_size = KERNEL_PARAM_SIZE as u64;
         tdx_metadata.payload_sections[1].r#type = TDX_METADATA_SECTION_TYPE_PAYLOAD_PARAM;
         tdx_metadata.payload_sections[1].attributes = 0;
     }

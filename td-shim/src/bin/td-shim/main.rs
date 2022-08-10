@@ -181,7 +181,7 @@ fn boot_linux_kernel(
     let e820_table = mem.create_e820();
     log::info!("e820 table: {:x?}\n", e820_table.as_slice());
     // Safe because we are handle off this buffer to linux kernel.
-    let payload = unsafe { memslice::get_mem_slice_mut(memslice::SliceType::Payload) };
+    let payload = unsafe { memslice::get_mem_slice_mut(memslice::SliceType::Kernel) };
 
     linux::boot::boot_kernel(
         payload,
@@ -201,7 +201,7 @@ fn boot_builtin_payload(
 ) {
     // Get and parse image file from the payload firmware volume.
     let fv_buffer = memslice::get_mem_slice(memslice::SliceType::ShimPayload);
-    let mut payload = fv::get_image_from_fv(
+    let mut payload_bin = fv::get_image_from_fv(
         fv_buffer,
         pi::fv::FV_FILETYPE_DXE_CORE,
         pi::fv::SECTION_PE32,
@@ -210,17 +210,24 @@ fn boot_builtin_payload(
 
     #[cfg(feature = "secure-boot")]
     {
-        payload = secure_boot_verify_payload(payload, td_event_log);
+        payload_bin = secure_boot_verify_payload(payload_bin, td_event_log);
     }
 
     // Record the payload binary information into event log.
-    log_payload_binary(payload, td_event_log);
+    log_payload_binary(payload_bin, td_event_log);
 
     // Create an EV_SEPARATOR event to mark the end of the td-shim events
     td_event_log.create_seperator();
 
-    let relocation_info =
-        ipl::find_and_report_entry_point(mem, payload).expect("Entry point not found!");
+    // Safe because we are the only user in single-thread context.
+    let payload = unsafe {
+        memslice::get_dynamic_mem_slice_mut(
+            memslice::SliceType::Payload,
+            mem.layout.runtime_payload_base as usize,
+        )
+    };
+    let relocation_info = ipl::find_and_report_entry_point(mem, payload_bin, payload)
+        .expect("Entry point not found!");
 
     // Set up NX (no-execute) protection for payload stack and hob
     mem.set_nx_bit(mem.layout.runtime_stack_base, TD_PAYLOAD_STACK_SIZE as u64);
@@ -250,7 +257,7 @@ fn boot_builtin_payload(
             relocation_info.entry_point as usize,
             stack_top,
             mem.layout.runtime_acpi_base as usize,
-            TD_PAYLOAD_BASE as usize,
+            mem.layout.runtime_payload_base as usize,
         )
     };
 }

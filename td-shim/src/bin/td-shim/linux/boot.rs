@@ -5,7 +5,7 @@
 use core::mem::size_of;
 use scroll::{Pread, Pwrite};
 use td_layout as layout;
-use td_layout::runtime::{TD_PAYLOAD_PARAM_BASE, TD_PAYLOAD_PARAM_SIZE};
+use td_layout::runtime::{KERNEL_PARAM_BASE, KERNEL_PARAM_SIZE};
 use td_shim::{e820::E820Entry, PayloadInfo, TdKernelInfoHobType};
 use x86_64::{
     instructions::{segmentation::Segment, tables::lgdt},
@@ -49,7 +49,7 @@ pub fn setup_header(kernel_image: &[u8]) -> Result<SetupHeader, Error> {
 
     setup_header.type_of_loader = 0xff;
     setup_header.code32_start = kernel_image.as_ptr() as u32 + setup_bytes;
-    setup_header.cmd_line_ptr = TD_PAYLOAD_PARAM_BASE as u32;
+    setup_header.cmd_line_ptr = KERNEL_PARAM_BASE as u32;
 
     Ok(setup_header)
 }
@@ -81,8 +81,8 @@ pub fn boot_kernel(
             params.hdr.boot_flag = 0xaa55;
             params.hdr.header = 0x5372_6448;
             params.hdr.kernel_alignment = 0x0100_0000;
-            params.hdr.cmd_line_ptr = TD_PAYLOAD_PARAM_BASE as u32;
-            params.hdr.cmdline_size = TD_PAYLOAD_PARAM_SIZE as u32;
+            params.hdr.cmd_line_ptr = KERNEL_PARAM_BASE as u32;
+            params.hdr.cmdline_size = KERNEL_PARAM_SIZE as u32;
             info.entry_point
         }
         _ => return Err(Error::UnknownImageType),

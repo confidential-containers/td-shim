@@ -5,7 +5,8 @@
 use alloc::vec::Vec;
 use td_layout::build_time::{TD_SHIM_FIRMWARE_BASE, TD_SHIM_FIRMWARE_SIZE};
 use td_layout::runtime::{
-    self, TD_PAYLOAD_BASE, TD_PAYLOAD_EVENT_LOG_SIZE, TD_PAYLOAD_PAGE_TABLE_SIZE, TD_PAYLOAD_SIZE,
+    self, KERNEL_BASE, KERNEL_SIZE, TD_PAYLOAD_EVENT_LOG_SIZE, TD_PAYLOAD_PAGE_TABLE_SIZE,
+    TD_PAYLOAD_SIZE,
 };
 use td_layout::{memslice, RuntimeMemoryLayout, MIN_MEMORY_SIZE};
 use td_shim::e820::{E820Entry, E820Type};
@@ -26,7 +27,7 @@ use crate::td;
 const EXTENDED_FUNCTION_INFO: u32 = 0x80000000;
 const VIRT_PHYS_MEM_SIZES: u32 = 0x80000008;
 const MEMORY_4G: u64 = 0x1_0000_0000;
-const LOW_MEM_TOP: u64 = TD_PAYLOAD_BASE + TD_PAYLOAD_SIZE as u64;
+const LOW_MEM_TOP: u64 = KERNEL_BASE + KERNEL_SIZE as u64;
 const SIZE_2M: u64 = 0x200000;
 
 pub struct Memory<'a> {
