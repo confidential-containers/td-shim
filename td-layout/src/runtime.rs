@@ -16,7 +16,7 @@
                     +--------------+ <-  0x00900000
                     | PAYLOAD PARAM|    (0x00100000)
                     +--------------+ <-  0x00A00000
-                    |    PAYLOAD   |    (0x08000000)
+                    |    PAYLOAD   |    (0x02000000)
                     +--------------+
                     |   ........   |
                     +--------------+ <-  0x7FD8E000
@@ -36,7 +36,7 @@
 
 pub const TD_PAYLOAD_EVENT_LOG_SIZE: u32 = 0x100000;
 pub const TD_PAYLOAD_MAILBOX_SIZE: u32 = 0x2000;
-pub const TD_PAYLOAD_PAGE_TABLE_SIZE: usize = 0x20000;
+pub const TD_PAYLOAD_PAGE_TABLE_SIZE: u32 = 0x20000;
 pub const TD_PAYLOAD_ACPI_SIZE: u32 = 0x100000;
 pub const TD_PAYLOAD_UNACCEPTED_MEMORY_BITMAP_SIZE: u32 = 0x40000;
 pub const TD_PAYLOAD_PARTIAL_ACCEPT_MEMORY_SIZE: u32 = 0x10000000;
@@ -47,4 +47,4 @@ pub const TD_HOB_SIZE: u64 = 0x20000;
 pub const TD_PAYLOAD_PARAM_BASE: u64 = 0x900000;
 pub const TD_PAYLOAD_PARAM_SIZE: u64 = 0x100000;
 pub const TD_PAYLOAD_BASE: u64 = 0xA00000;
-pub const TD_PAYLOAD_SIZE: usize = 0x2000000;
+pub const TD_PAYLOAD_SIZE: u32 = 0x2000000;

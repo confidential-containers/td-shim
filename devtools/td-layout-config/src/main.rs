@@ -129,7 +129,7 @@ macro_rules! RUNTIME_TEMPLATE {
 
 pub const TD_PAYLOAD_EVENT_LOG_SIZE: u32 = {event_log_size:#X};
 pub const TD_PAYLOAD_MAILBOX_SIZE: u32 = {mailbox_size:#X};
-pub const TD_PAYLOAD_PAGE_TABLE_SIZE: usize = {pt_size:#X};
+pub const TD_PAYLOAD_PAGE_TABLE_SIZE: u32 = {pt_size:#X};
 pub const TD_PAYLOAD_ACPI_SIZE: u32 = {acpi_size:#X};
 pub const TD_PAYLOAD_UNACCEPTED_MEMORY_BITMAP_SIZE: u32 = {unaccepted_memory_bitmap_size:#X};
 pub const TD_PAYLOAD_PARTIAL_ACCEPT_MEMORY_SIZE: u32 = {partial_accept_memory_size:#X};
@@ -140,7 +140,7 @@ pub const TD_HOB_SIZE: u64 = {td_hob_size:#X};
 pub const TD_PAYLOAD_PARAM_BASE: u64 = {payload_param_base:#X};
 pub const TD_PAYLOAD_PARAM_SIZE: u64 = {payload_param_size:#X};
 pub const TD_PAYLOAD_BASE: u64 = {payload_base:#X};
-pub const TD_PAYLOAD_SIZE: usize = {payload_size:#X};
+pub const TD_PAYLOAD_SIZE: u32 = {payload_size:#X};
 "
     };
 }

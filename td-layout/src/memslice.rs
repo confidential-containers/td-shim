@@ -53,7 +53,7 @@ pub fn get_mem_slice<'a>(t: SliceType) -> &'a [u8] {
                 core::slice::from_raw_parts(TD_HOB_BASE as *const u8, TD_HOB_SIZE as usize)
             }
             SliceType::Payload => {
-                core::slice::from_raw_parts(TD_PAYLOAD_BASE as *const u8, TD_PAYLOAD_SIZE)
+                core::slice::from_raw_parts(TD_PAYLOAD_BASE as *const u8, TD_PAYLOAD_SIZE as usize)
             }
             _ => panic!("get_mem_slice: not support"),
         }
@@ -72,7 +72,7 @@ pub unsafe fn get_mem_slice_mut<'a>(t: SliceType) -> &'a mut [u8] {
         SliceType::ShimPayload => panic!("get_mem_slice_mut: read only"),
         SliceType::Payload => core::slice::from_raw_parts_mut(
             TD_PAYLOAD_BASE as *const u8 as *mut u8,
-            TD_PAYLOAD_SIZE,
+            TD_PAYLOAD_SIZE as usize,
         ),
         SliceType::MailBox => core::slice::from_raw_parts_mut(
             TD_SHIM_MAILBOX_BASE as *const u8 as *mut u8,
