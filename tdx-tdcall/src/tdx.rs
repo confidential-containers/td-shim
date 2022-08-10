@@ -19,6 +19,7 @@ use crate::*;
 
 const IO_READ: u64 = 0;
 const IO_WRITE: u64 = 1;
+const TARGET_TD_UUID_NUM: usize = 4;
 
 /// SHA384 digest value extended to RTMR
 /// Both alignment and size are 64 bytes.
@@ -555,6 +556,10 @@ pub fn tdcall_servtd_rd(
     field_identifier: u64,
     target_td_uuid: &[u64],
 ) -> Result<ServtdRWResult, TdCallError> {
+    if target_td_uuid.len() != TARGET_TD_UUID_NUM {
+        return Err(TdCallError::TdxExitInvalidParameters);
+    }
+
     let mut args = TdcallArgs {
         rax: TDCALL_SERVTD_RD,
         rcx: binding_handle,
@@ -590,6 +595,10 @@ pub fn tdcall_servtd_wr(
     data: u64,
     target_td_uuid: &[u64],
 ) -> Result<ServtdRWResult, TdCallError> {
+    if target_td_uuid.len() != TARGET_TD_UUID_NUM {
+        return Err(TdCallError::TdxExitInvalidParameters);
+    }
+
     let mut args = TdcallArgs {
         rax: TDCALL_SERVTD_WR,
         rcx: binding_handle,
