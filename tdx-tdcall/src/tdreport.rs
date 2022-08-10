@@ -211,13 +211,10 @@ impl TdxReportBuf {
     }
 
     fn adjust(&mut self) {
-        let pos = self.buf.as_ptr() as *const u8 as usize;
-        if pos != self.start {
-            self.start = pos;
-            self.offset = TD_REPORT_SIZE - (pos & (TD_REPORT_SIZE - 1));
-            self.end = self.offset + TD_REPORT_SIZE;
-            self.additional = self.end + TD_REPORT_ADDITIONAL_DATA_SIZE;
-        }
+        self.start = self.buf.as_ptr() as *const u8 as usize;
+        self.offset = TD_REPORT_SIZE - (self.start & (TD_REPORT_SIZE - 1));
+        self.end = self.offset + TD_REPORT_SIZE;
+        self.additional = self.end + TD_REPORT_ADDITIONAL_DATA_SIZE;
     }
 
     fn report_buf_start(&mut self) -> u64 {
