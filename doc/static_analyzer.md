@@ -85,3 +85,37 @@ unsafe impl<P: Ord> Send for Atom<P> {}
 2021-09-09 23:19:12.760596 |INFO | [rudra-progress] Rudra started
 ```
 Scan Component A can find the issue.
+
+## Prusti
+Prusti description:
+> [Prusti](https://www.pm.inf.ethz.ch/research/prusti.html) is a prototype verifier for Rust, built upon the [Viper verification infrastructure](https://www.pm.inf.ethz.ch/research/viper.html).
+
+### Command-line setup
+Alternatively, Prusti can be set up by downloading the [precompiled binaries](https://github.com/viperproject/prusti-dev/releases) available from the project page. Currently it provides binaries for Windows, macOS, and Ubuntu. Releases marked as "Pre-release" may contain unstable or experimental features.
+
+#### Setup on Ubuntu:
+Install dependencies:
+```
+sudo apt-get update
+sudo apt-get install openjdk-11-jdk libssl-dev
+```
+
+Download prusti binaries:
+```
+mkdir prusti && cd prusti
+wget https://github.com/viperproject/prusti-dev/releases/download/v-2022-08-10-0013/prusti-release-ubuntu.zip # You can prefer newer version precompiled binaries
+unzip prusti-release-ubuntu.zip
+chmod +x cargo-prusti prusti-* viper_tools/z3/bin/z3
+```
+Add prusti path in system environment.
+
+#### Run Prusti Scan
+Firstly set variables to set "unsupported features" and "internal errors" to warnings
+```
+export PRUSTI_SKIP_UNSUPPORTED_FEATURES=true
+export PRUSTI_INTERNAL_ERRORS_AS_WARNINGS=true
+```
+Run command to scan each crate:
+```
+cd td-uefi-pi && cargo-prusti
+```
