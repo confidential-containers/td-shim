@@ -18,9 +18,6 @@ use td_shim::TD_E820_TABLE_HOB_GUID;
 use td_uefi_pi::hob;
 use zerocopy::{AsBytes, FromBytes};
 
-const RESERVED_MEMORY_SPACE_SIZE: u64 = 0x400_0000;
-const ADDRESS_4G: u64 = 0x1_0000_0000;
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MemoryMapConfig {
     pub size: String,
@@ -104,17 +101,6 @@ impl TestMemoryMap {
             {
                 log::error!("Invalid E820 entry: {:x?}\n", entry);
                 return TestResult::Fail;
-            }
-
-            // Do not count the memory in reserved range into total memory size
-            // VMM may reserve memory in this region for some special reason.
-            // For example, QEMU may reserve 4 pages at 0xfeffc000 for an EPT
-            // identity map and a TSS in order to use vm86 mode to emulate
-            // 16-bit code directly.
-            if entry.addr >= ADDRESS_4G - RESERVED_MEMORY_SPACE_SIZE
-                && entry.addr + entry.size < ADDRESS_4G
-            {
-                continue;
             }
 
             total += entry.size;
