@@ -29,6 +29,7 @@ const VIRT_PHYS_MEM_SIZES: u32 = 0x80000008;
 const MEMORY_4G: u64 = 0x1_0000_0000;
 const LOW_MEM_TOP: u64 = KERNEL_BASE + KERNEL_SIZE as u64;
 const SIZE_2M: u64 = 0x200000;
+const RESERVED_MEMORY_SPACE_SIZE: u64 = 0x400_0000;
 
 pub struct Memory<'a> {
     pub layout: RuntimeMemoryLayout,
@@ -173,6 +174,17 @@ impl<'a> Memory<'a> {
         for entry in resources {
             let entry_top = entry.physical_start + entry.resource_length;
             let mut new = *entry;
+
+            // Do not count the memory in reserved range into total memory size
+            // VMM may reserve memory in this region for some special reason.
+            // For example, QEMU may reserve 4 pages at 0xfeffc000 for an EPT
+            // identity map and a TSS in order to use vm86 mode to emulate
+            // 16-bit code directly.
+            if new.physical_start >= MEMORY_4G - RESERVED_MEMORY_SPACE_SIZE
+                && new.physical_start + new.resource_length < MEMORY_4G
+            {
+                continue;
+            }
 
             // To be compatible with the legacy resource types
             if !support_unaccepted {
