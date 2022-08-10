@@ -138,6 +138,9 @@ pub(crate) struct TdVmcallArgs {
 /// Refer to Intel TDX Module 1.0 Specifiction section 'TDCALL Instruction (Common)'
 #[derive(Debug, PartialEq)]
 pub enum TdCallError {
+    // Invalid parameters
+    TdxExitInvalidParameters,
+
     // The operand is busy (e.g., it is locked in Exclusive mode)
     TdxExitReasonOperandBusy,
 
