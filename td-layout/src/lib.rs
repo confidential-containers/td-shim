@@ -26,8 +26,22 @@ pub mod memslice;
 pub mod metadata;
 pub mod runtime;
 
+use runtime::*;
+
 // Minimal memory size to build the runtime layout.
-pub const MIN_MEMORY_SIZE: u64 = 0x3000000;
+#[cfg(feature = "boot-kernel")]
+pub const MIN_MEMORY_SIZE: u64 = (TD_PAYLOAD_ACPI_SIZE
+    + TD_PAYLOAD_PARTIAL_ACCEPT_MEMORY_SIZE
+    + TD_PAYLOAD_PAGE_TABLE_SIZE
+    + TD_PAYLOAD_EVENT_LOG_SIZE
+    + TD_PAYLOAD_MAILBOX_SIZE) as u64;
+
+#[cfg(not(feature = "boot-kernel"))]
+pub const MIN_MEMORY_SIZE: u64 = (TD_PAYLOAD_ACPI_SIZE
+    + TD_PAYLOAD_STACK_SIZE
+    + TD_PAYLOAD_PAGE_TABLE_SIZE
+    + TD_PAYLOAD_EVENT_LOG_SIZE
+    + TD_PAYLOAD_MAILBOX_SIZE) as u64;
 
 #[derive(Default)]
 pub struct RuntimeMemoryLayout {
@@ -44,10 +58,10 @@ pub struct RuntimeMemoryLayout {
 
 impl RuntimeMemoryLayout {
     pub fn new(memory_top: u64) -> Self {
-        use crate::runtime::*;
-        let current_base = memory_top & !0xfffff;
+        // Align the base with 4KiB
+        let current_base = memory_top & !0xfff;
 
-        if memory_top < MIN_MEMORY_SIZE {
+        if current_base < MIN_MEMORY_SIZE {
             panic!("memory_top 0x{:x} is too small", memory_top);
         }
 
@@ -117,7 +131,7 @@ mod tests {
 
     #[test]
     fn test_runtime_memory_layout_new() {
-        let layout = RuntimeMemoryLayout::new(MIN_MEMORY_SIZE + 0x1000);
+        let layout = RuntimeMemoryLayout::new(MIN_MEMORY_SIZE + 0x100);
 
         assert_eq!(layout.runtime_event_log_base, MIN_MEMORY_SIZE - 0x100000);
     }
