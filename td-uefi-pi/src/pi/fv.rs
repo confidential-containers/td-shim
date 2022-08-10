@@ -91,7 +91,7 @@ impl FirmwareVolumeHeader {
     pub fn update_checksum(&mut self) {
         // Clear the existing one before we calculate the chesum
         self.checksum = 0;
-        self.checksum = u16::MAX - sum16(self.as_bytes()) + 1;
+        self.checksum = (u16::MAX - sum16(self.as_bytes())).wrapping_add(1);
     }
 
     // Validate the checksum of the FirmwareVolumeHeader
