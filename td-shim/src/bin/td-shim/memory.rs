@@ -82,7 +82,7 @@ impl<'a> Memory<'a> {
         // Init frame allocator
         td_paging::init(
             self.layout.runtime_page_table_base,
-            TD_PAYLOAD_PAGE_TABLE_SIZE,
+            TD_PAYLOAD_PAGE_TABLE_SIZE as usize,
         );
 
         // Create mapping for 0 - base address of runtime layout region
