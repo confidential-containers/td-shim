@@ -525,7 +525,11 @@ pub struct SectionHeader {
 
 impl SectionHeader {
     pub fn vm_range(&self) -> Range<usize> {
-        self.sh_addr as usize..(self.sh_addr + self.sh_size) as usize
+        self.sh_addr as usize
+            ..self
+                .sh_addr
+                .checked_add(self.sh_size)
+                .expect("Add with overflow") as usize
     }
 }
 
