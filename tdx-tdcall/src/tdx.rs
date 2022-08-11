@@ -627,7 +627,7 @@ pub fn tdcall_servtd_wr(
 
 #[cfg(test)]
 mod tests {
-    use super::{TdInfo, TdVeInfo, TdxDigest};
+    use super::*;
     use core::mem::{align_of, size_of};
 
     #[test]
@@ -636,5 +636,21 @@ mod tests {
         assert_eq!(size_of::<TdxDigest>(), 64);
         assert_eq!(size_of::<TdInfo>(), 48);
         assert_eq!(size_of::<TdVeInfo>(), 48);
+    }
+
+    #[test]
+    fn test_tdcall_servtd_rd() {
+        let uuid: [u64; 3] = [0; 3];
+        let ret = tdcall_servtd_rd(0x0, 0x0, &uuid);
+
+        assert!(ret.is_err());
+    }
+
+    #[test]
+    fn test_tdcall_servtd_wr() {
+        let uuid: [u64; 3] = [0; 3];
+        let ret = tdcall_servtd_wr(0x0, 0x0, 0x0, &uuid);
+
+        assert!(ret.is_err());
     }
 }
