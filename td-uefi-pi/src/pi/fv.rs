@@ -401,4 +401,13 @@ mod tests {
         assert_eq!(header.integrity_check.header, 0xC);
         assert!(header.validate_checksum());
     }
+
+    #[test]
+    fn test_update_checksum() {
+        let mut header = FfsFileHeader::default();
+        header.update_checksum();
+
+        let mut header = FirmwareVolumeHeader::default();
+        header.update_checksum();
+    }
 }
