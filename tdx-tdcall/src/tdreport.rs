@@ -288,4 +288,16 @@ mod tests {
         TD_REPORT.lock().adjust();
         assert_eq!(TD_REPORT.lock().report_buf_start() & 0x3ff, 0);
     }
+
+    #[test]
+    fn test_to_owned() {
+        let mut buff = TdxReportBuf::new();
+        buff.start = buff.buf.as_ptr() as *const u8 as usize;
+        // If adjust does not work, the range end value may be out of bounds in to_owned
+        buff.offset = 0;
+        buff.end = TD_REPORT_BUFF_SIZE + 1;
+        buff.adjust();
+
+        buff.to_owned();
+    }
 }
