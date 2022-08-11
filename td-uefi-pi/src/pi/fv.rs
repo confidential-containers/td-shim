@@ -259,7 +259,7 @@ impl FfsFileHeader {
         self.integrity_check.header = 0;
         self.integrity_check.file = 0;
         self.state = 0;
-        self.integrity_check.header = u8::MAX - sum8(self.as_bytes()) + 1;
+        self.integrity_check.header = (u8::MAX - sum8(self.as_bytes())).wrapping_add(1);
 
         self.integrity_check.file = FFS_FIXED_CHECKSUM;
         self.state = EFI_FILE_HEADER_CONSTRUCTION | EFI_FILE_HEADER_VALID | EFI_FILE_DATA_VALID;
