@@ -904,4 +904,13 @@ mod test_elf_loader {
             println!("{:?}", &str);
         }
     }
+
+    #[test]
+    #[should_panic(expected = "Add with overflow")]
+    fn test_vm_range() {
+        let mut hdr = SectionHeader::default();
+        hdr.sh_addr = u64::MAX;
+        hdr.sh_size = 0x1;
+        hdr.vm_range();
+    }
 }
