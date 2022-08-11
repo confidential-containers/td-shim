@@ -103,7 +103,7 @@ pub fn tdvmcall_io_read_8(port: u16) -> u8 {
         tdvmcall_halt();
     }
 
-    args.r11 as u8
+    (args.r11 & 0xff) as u8
 }
 
 /// Request the VMM perform 2-bytes byte IO read operation
@@ -124,7 +124,7 @@ pub fn tdvmcall_io_read_16(port: u16) -> u16 {
         tdvmcall_halt();
     }
 
-    args.r11 as u16
+    (args.r11 & 0xffff) as u16
 }
 
 /// Request the VMM perform 4-bytes byte IO read operation
@@ -145,7 +145,7 @@ pub fn tdvmcall_io_read_32(port: u16) -> u32 {
         tdvmcall_halt();
     }
 
-    args.r11 as u32
+    (args.r11 & 0xffff_ffff) as u32
 }
 
 /// Request the VMM perform single byte IO write operation
@@ -345,10 +345,10 @@ pub fn tdvmcall_cpuid(eax: u32, ecx: u32) -> CpuIdInfo {
     }
 
     CpuIdInfo {
-        eax: args.r12 as u32,
-        ebx: args.r13 as u32,
-        ecx: args.r14 as u32,
-        edx: args.r15 as u32,
+        eax: (args.r12 & 0xffff_ffff) as u32,
+        ebx: (args.r13 & 0xffff_ffff) as u32,
+        ecx: (args.r14 & 0xffff_ffff) as u32,
+        edx: (args.r15 & 0xffff_ffff) as u32,
     }
 }
 
