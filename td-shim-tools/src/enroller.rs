@@ -161,6 +161,17 @@ pub fn enroll_files(
     Ok(())
 }
 
+// Uncompressed ecdsa p384 public key length
+const ECDSA_P384_PUB_KEY_LEN: usize = 96;
+// Prefix of uncompressed ecdsa public key
+const ECDSA_UNCOMPRESSED_PUB_KEY_PREFIX: u8 = 0x04;
+// Minimal RSA exponent
+const RSA_EXPONENT: u64 = 0x10001;
+// RSA 3072 public key modulus length
+const RSA_3072_PUB_KEY_MOD_LEN: usize = 384;
+// Maximum size of public key file (1024 KiB)
+const PUB_KEY_MAX_SIZE: usize = 1024 * 1024;
+
 /// Build a firmware file which contains public key bytes for secure boot.
 ///
 /// Secure boot in td-shim means the td-shim will verify the digital signature of the payload,
@@ -180,7 +191,7 @@ pub fn create_key_file(key_file: &str, hash_alg: &str) -> io::Result<FirmwareRaw
         }
     };
 
-    let key_data = InputData::new(key_file, 1..=1024 * 1024, "public key")?;
+    let key_data = InputData::new(key_file, 1..=PUB_KEY_MAX_SIZE, "public key")?;
     let key = SubjectPublicKeyInfo::try_from(key_data.as_bytes()).map_err(|e| {
         error!("Can not load key from file {}: {}", key_file, e);
         io::Error::new(io::ErrorKind::Other, "invalid key data")
@@ -197,7 +208,14 @@ pub fn create_key_file(key_file: &str, hash_alg: &str) -> io::Result<FirmwareRaw
                         "unsupported Named Curve",
                     ));
                 }
-                if key.subject_public_key.as_bytes()[0] != 0x04 {
+
+                // The first byte indicates whether the key is compressed or uncompressed. The
+                // uncompressed form is indicated by 0x04 and the compressed form is indicated by
+                // either 0x02 or 0x03
+                // Here only the uncompressed form is supported and the length should be 96 bytes.
+                if key.subject_public_key.as_bytes()[0] != ECDSA_UNCOMPRESSED_PUB_KEY_PREFIX
+                    || key.subject_public_key.as_bytes()[1..].len() != ECDSA_P384_PUB_KEY_LEN
+                {
                     error!("Invalid SECP384R1 public key from file {}", key_file);
                     return Err(io::Error::new(
                         io::ErrorKind::Other,
@@ -230,6 +248,16 @@ pub fn create_key_file(key_file: &str, hash_alg: &str) -> io::Result<FirmwareRaw
             }
             exp_bytes[8 - pubkey.exponents.as_bytes().len()..]
                 .copy_from_slice(pubkey.exponents.as_bytes());
+
+            let exp = u64::from_be_bytes(exp_bytes);
+
+            // According to FIPS 186-5, RSA exponent should be an odd and in range (2^16, 2^256)
+            // As stated in the https://github.com/confidential-containers/td-shim/blob/main/doc/secure_boot.md,
+            // use the fixed exponent 0x10001 here.
+            if exp != RSA_EXPONENT || pubkey.modulus.as_bytes().len() != RSA_3072_PUB_KEY_MOD_LEN {
+                return Err(io::Error::new(io::ErrorKind::Other, "Invalid exponent"));
+            }
+
             public_bytes.extend_from_slice(&exp_bytes);
         }
         t => {
