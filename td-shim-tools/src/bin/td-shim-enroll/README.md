@@ -26,6 +26,7 @@ Generate DER encoded public key from DER encoded EC private key file.
 ```
 openssl ec -inform der -in ecdsa-p384-private.der -pubout -outform der -out ecdsa-p384-public.der
 ```
+Note: for ECDSA, we only support uncompressed public key as input.
 
 2. RSA 3072
 
