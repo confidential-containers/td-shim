@@ -149,10 +149,10 @@ pub struct MemoryAllocation {
 impl MemoryAllocation {
     pub fn dump(&self) {
         log::info!(
-            "MemoryAllocation 0x{:08x} : 0x{:016x} - 0x{:016x}\n",
+            "MemoryAllocation type: 0x{:08x} base: 0x{:016x} length: 0x{:016x}\n",
             self.alloc_descriptor.memory_type as u32,
             self.alloc_descriptor.memory_base_address,
-            self.alloc_descriptor.memory_base_address + self.alloc_descriptor.memory_length - 1,
+            self.alloc_descriptor.memory_length
         );
     }
 
@@ -181,10 +181,10 @@ pub struct ResourceDescription {
 impl ResourceDescription {
     pub fn dump(&self) {
         log::info!(
-            "ResourceDescription 0x{:08x} : 0x{:016x} - 0x{:016x} (0x{:08x})\n",
+            "ResourceDescription type: 0x{:08x} start: 0x{:016x} length: 0x{:016x} attribute: (0x{:08x})\n",
             self.resource_type,
             self.physical_start,
-            self.physical_start + self.resource_length - 1,
+            self.resource_length,
             self.resource_attribute
         );
     }
@@ -265,9 +265,9 @@ pub struct FirmwareVolume {
 impl FirmwareVolume {
     pub fn dump(&self) {
         log::info!(
-            "FirmwareVolume : 0x{:016x} - 0x{:016x}\n",
+            "FirmwareVolume base: 0x{:016x} length: 0x{:016x}\n",
             self.base_address,
-            self.base_address + self.length - 1
+            self.length
         );
     }
 
