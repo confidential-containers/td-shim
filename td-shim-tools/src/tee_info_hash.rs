@@ -5,6 +5,7 @@
 use byteorder::LittleEndian;
 use byteorder::ReadBytesExt;
 use core::fmt;
+use r_efi::base::Guid;
 use scroll::Pread;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha384};
@@ -32,6 +33,25 @@ const MEM_PAGE_ADD_GPA_SIZE: usize = 0x8;
 const MR_EXTEND_ASCII_SIZE: usize = 0x9;
 const MR_EXTEND_GPA_OFFSET: usize = 0x10;
 const MR_EXTEND_GPA_SIZE: usize = 0x8;
+const OVMF_TABLE_FOOTER_GUID_OFFSET: usize = 0x30;
+
+const OVMF_TABLE_FOOTER_GUID: Guid = Guid::from_fields(
+    0x96b5_82de,
+    0x1fb2,
+    0x45f7,
+    0xba,
+    0xea,
+    &[0xa3, 0x66, 0xc5, 0x5a, 0x08, 0x2d],
+);
+
+const OVMF_TABLE_TDX_METADATA_GUID: Guid = Guid::from_fields(
+    0xe47a_6535,
+    0x984a,
+    0x4798,
+    0x86,
+    0x5e,
+    &[0x46, 0x85, 0xa7, 0xbf, 0x8e, 0xc2],
+);
 
 pub struct TdvfDesc {
     pub signature: [u8; size_of::<u32>()],
@@ -152,12 +172,71 @@ impl TdInfoStruct {
     }
 
     pub fn build_mrtd(&mut self, raw_image_file: &mut File, image_size: u64) {
+        let mut metadata_off: u32 = 0;
+
         raw_image_file
-            .seek(SeekFrom::Start(image_size - TDVF_DESCRIPTOR_OFFSET as u64))
+            .seek(SeekFrom::Start(
+                image_size - OVMF_TABLE_FOOTER_GUID_OFFSET as u64,
+            ))
             .unwrap();
 
-        let metadata_off = raw_image_file.read_u32::<LittleEndian>().unwrap()
-            - size_of::<TdxMetadataGuid>() as u32;
+        let mut footer_guid_buf = [0; size_of::<Guid>()];
+        raw_image_file.read_exact(&mut footer_guid_buf).unwrap();
+
+        if OVMF_TABLE_FOOTER_GUID.as_bytes() == &footer_guid_buf {
+            raw_image_file
+                .seek(SeekFrom::Start(
+                    image_size - OVMF_TABLE_FOOTER_GUID_OFFSET as u64 - size_of::<u16>() as u64,
+                ))
+                .unwrap();
+
+            let table_len = raw_image_file.read_u16::<LittleEndian>().unwrap()
+                - size_of::<Guid>() as u16
+                - size_of::<u16>() as u16;
+            let mut ovmf_table_offset =
+                image_size - OVMF_TABLE_FOOTER_GUID_OFFSET as u64 - size_of::<u16>() as u64;
+
+            let mut count: u16 = 0;
+            while count < table_len {
+                raw_image_file
+                    .seek(SeekFrom::Start(
+                        ovmf_table_offset - size_of::<Guid>() as u64,
+                    ))
+                    .unwrap();
+                let mut guid_buf = [0; size_of::<Guid>()];
+                raw_image_file.read_exact(&mut guid_buf).unwrap();
+
+                raw_image_file
+                    .seek(SeekFrom::Start(
+                        ovmf_table_offset - size_of::<Guid>() as u64 - size_of::<u16>() as u64,
+                    ))
+                    .unwrap();
+                let len = raw_image_file.read_u16::<LittleEndian>().unwrap();
+                if OVMF_TABLE_TDX_METADATA_GUID.as_bytes() == &guid_buf {
+                    raw_image_file
+                        .seek(SeekFrom::Start(
+                            ovmf_table_offset
+                                - size_of::<Guid>() as u64
+                                - size_of::<u16>() as u64
+                                - size_of::<u32>() as u64,
+                        ))
+                        .unwrap();
+                    metadata_off = image_size as u32
+                        - raw_image_file.read_u32::<LittleEndian>().unwrap()
+                        - size_of::<TdxMetadataGuid>() as u32;
+                    break;
+                }
+                ovmf_table_offset -= len as u64;
+                count += len;
+            }
+        } else {
+            raw_image_file
+                .seek(SeekFrom::Start(image_size - TDVF_DESCRIPTOR_OFFSET as u64))
+                .unwrap();
+
+            metadata_off = raw_image_file.read_u32::<LittleEndian>().unwrap()
+                - size_of::<TdxMetadataGuid>() as u32;
+        }
 
         raw_image_file
             .seek(SeekFrom::Start(metadata_off as u64))
