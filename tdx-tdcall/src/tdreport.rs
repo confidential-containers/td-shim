@@ -256,7 +256,7 @@ pub fn tdcall_report(
     let mut args = TdcallArgs {
         rax: TDCALL_TDREPORT,
         rcx: addr,
-        rdx: addr + TD_REPORT_SIZE as u64,
+        rdx: addr.checked_add(TD_REPORT_SIZE as u64).unwrap(),
         ..Default::default()
     };
 
