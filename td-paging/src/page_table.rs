@@ -108,7 +108,7 @@ pub fn create_mapping_with_flags(
             Size4KiB::SIZE
         };
 
-        sz -= mapped_size;
+        sz = sz.checked_sub(mapped_size).ok_or(Error::InvalidArguments)?;
         pa += mapped_size;
         va += mapped_size;
     }
