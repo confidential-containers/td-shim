@@ -544,7 +544,12 @@ pub fn td_shared_mask() -> Option<u64> {
     let td_info = tdcall_get_td_info().ok()?;
     let gpaw = (td_info.gpaw & 0x3f) as u8;
 
-    Some(1u64 << (gpaw - 1))
+    // Detail can be found in TDX Module v1.5 ABI spec section 'TDVPS(excluding TD VMCS)'.
+    if gpaw == 48 || gpaw == 52 {
+        Some(1u64 << (gpaw - 1))
+    } else {
+        None
+    }
 }
 
 /// Used by a service TD to read a metadata field (control structure field) of
