@@ -122,6 +122,10 @@ pub fn check_hob_integrity(hob_list: &[u8]) -> Option<&[u8]> {
                     resource_hob.dump();
                     return None;
                 }
+
+                resource_hob
+                    .physical_start
+                    .checked_add(resource_hob.resource_length)?;
             }
             HOB_TYPE_MEMORY_ALLOCATION => {
                 if header.length as usize != size_of::<MemoryAllocation>() {
