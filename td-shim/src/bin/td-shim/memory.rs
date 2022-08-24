@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
 use alloc::vec::Vec;
+use core::panic;
 use td_layout::build_time::{TD_SHIM_FIRMWARE_BASE, TD_SHIM_FIRMWARE_SIZE};
 use td_layout::runtime::{
     self, KERNEL_BASE, KERNEL_SIZE, TD_PAYLOAD_EVENT_LOG_SIZE, TD_PAYLOAD_PAGE_TABLE_SIZE,
@@ -285,6 +286,27 @@ impl<'a> Memory<'a> {
     fn accept_memory_resources(resources: &mut Vec<ResourceDescription>) {
         use td_layout::runtime::TD_PAYLOAD_PARTIAL_ACCEPT_MEMORY_SIZE;
         use td_uefi_pi::pi;
+
+        // The physical address must not exceed the shared mask (the last bit of GPAW).
+        let (index, max_phys_addr) = resources
+            .iter()
+            .enumerate()
+            .map(|(index, resource)| {
+                (
+                    index,
+                    resource.physical_start + resource.resource_length - 1,
+                )
+            })
+            .max_by(|cur, next| cur.1.cmp(&next.1))
+            .unwrap();
+        let shared_mask = td::get_shared_page_mask();
+        if max_phys_addr > shared_mask {
+            panic!(
+                "Invalid physical address in resource {:x?}.
+                The maximum physical address is {:x} while the it should be less than {:x}",
+                resources[index], max_phys_addr, shared_mask
+            );
+        }
 
         let mut to_be_accepted = u64::MAX;
         #[cfg(feature = "lazy-accept")]
