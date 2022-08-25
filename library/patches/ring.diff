@@ -1,0 +1,336 @@
+diff --git a/Cargo.toml b/Cargo.toml
+index c9daac82e..73adeb1c6 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -72,6 +72,7 @@ include = [
+     "crypto/fipsmodule/modes/asm/ghash-x86.pl",
+     "crypto/fipsmodule/modes/asm/ghash-x86_64.pl",
+     "crypto/fipsmodule/modes/asm/ghashv8-armx.pl",
++    "crypto/fipsmodule/rand/asm/rdrand-x86_64.pl",
+     "crypto/fipsmodule/sha/asm/sha256-armv4.pl",
+     "crypto/fipsmodule/sha/asm/sha512-armv4.pl",
+     "crypto/fipsmodule/sha/asm/sha512-armv8.pl",
+@@ -327,7 +328,7 @@ libc = { version = "0.2.80", default-features = false }
+ 
+ # Keep this in sync with `[dependencies]` in pregenerate_asm/Cargo.toml.
+ [build-dependencies]
+-cc = { version = "1.0.62", default-features = false }
++cc = { version = "1.0.63", default-features = false }
+ 
+ [features]
+ # These features are documented in the top-level module's documentation.
+diff --git a/build.rs b/build.rs
+index a5a8e1995..64914b29b 100644
+--- a/build.rs
++++ b/build.rs
+@@ -67,6 +67,7 @@ const RING_SRCS: &[(&[&str], &str)] = &[
+     (&[X86_64], "crypto/fipsmodule/ec/asm/p256-x86_64-asm.pl"),
+     (&[X86_64], "crypto/fipsmodule/modes/asm/aesni-gcm-x86_64.pl"),
+     (&[X86_64], "crypto/fipsmodule/modes/asm/ghash-x86_64.pl"),
++    (&[X86_64], "crypto/fipsmodule/rand/asm/rdrand-x86_64.pl"),
+     (&[X86_64], "crypto/poly1305/poly1305_vec.c"),
+     (&[X86_64], SHA512_X86_64),
+     (&[X86_64], "crypto/cipher_extra/asm/chacha20_poly1305_x86_64.pl"),
+@@ -217,11 +218,13 @@ const ASM_TARGETS: &[(&str, Option<&str>, Option<&str>)] = &[
+     ("x86_64", Some("ios"), Some("macosx")),
+     ("x86_64", Some("macos"), Some("macosx")),
+     ("x86_64", Some(WINDOWS), Some("nasm")),
++    ("x86_64", Some("uefi"), Some("nasm")),
+     ("x86_64", None, Some("elf")),
+     ("aarch64", Some("ios"), Some("ios64")),
+     ("aarch64", Some("macos"), Some("ios64")),
+     ("aarch64", None, Some("linux64")),
+     ("x86", Some(WINDOWS), Some("win32n")),
++    ("x86", Some("uefi"), Some("win32n")),
+     ("x86", Some("ios"), Some("macosx")),
+     ("x86", None, Some("elf")),
+     ("arm", Some("ios"), Some("ios32")),
+@@ -503,7 +506,7 @@ fn compile(
+         let mut out_path = out_dir.join(p.file_name().unwrap());
+         assert!(out_path.set_extension(target.obj_ext));
+         if need_run(&p, &out_path, includes_modified) {
+-            let cmd = if target.os != WINDOWS || ext != "asm" {
++            let cmd = if (target.os != WINDOWS && target.os != "uefi") || ext != "asm" {
+                 cc(p, ext, target, warnings_are_errors, &out_path)
+             } else {
+                 nasm(p, &target.arch, &out_path)
+@@ -548,6 +551,7 @@ fn cc(
+         && target.os != "redox"
+         && target.os != "windows"
+         && target.arch != "wasm32"
++        && target.os != "uefi"
+     {
+         let _ = c.flag("-fstack-protector");
+     }
+@@ -580,7 +584,9 @@ fn cc(
+     //
+     // poly1305_vec.c requires <emmintrin.h> which requires <stdlib.h>.
+     if (target.arch == "wasm32" && target.os == "unknown")
+-        || (target.os == "linux" && is_musl && target.arch != "x86_64")
++        || (target.os == "linux" && is_musl && target.arch != "x86_64"
++            || target.os == "uefi"
++            || target.os == "none")
+     {
+         if let Ok(compiler) = c.try_get_compiler() {
+             // TODO: Expand this to non-clang compilers in 0.17.0 if practical.
+@@ -589,6 +595,9 @@ fn cc(
+                 let _ = c.define("GFp_NOSTDLIBINC", "1");
+             }
+         }
++        if target.os == "uefi" || target.os == "none" {
++            let _ = c.flag("-ffreestanding");
++        }
+     }
+ 
+     if warnings_are_errors {
+@@ -626,7 +635,7 @@ fn nasm(file: &Path, arch: &str, out_file: &Path) -> Command {
+         "x86" => ("win32"),
+         _ => panic!("unsupported arch: {}", arch),
+     };
+-    let mut c = Command::new("./target/tools/nasm");
++    let mut c = Command::new("nasm");
+     let _ = c
+         .arg("-o")
+         .arg(out_file.to_str().expect("Invalid path"))
+@@ -714,7 +723,11 @@ fn asm_path(out_dir: &Path, src: &Path, os: Option<&str>, perlasm_format: &str)
+     let src_stem = src.file_stem().expect("source file without basename");
+ 
+     let dst_stem = src_stem.to_str().unwrap();
+-    let dst_extension = if os == Some("windows") { "asm" } else { "S" };
++    let dst_extension = if os == Some("windows") || os == Some("uefi") {
++        "asm"
++    } else {
++        "S"
++    };
+     let dst_filename = format!("{}-{}.{}", dst_stem, perlasm_format, dst_extension);
+     out_dir.join(dst_filename)
+ }
+diff --git a/crypto/fipsmodule/rand/asm/rdrand-x86_64.pl b/crypto/fipsmodule/rand/asm/rdrand-x86_64.pl
+new file mode 100644
+index 000000000..ac442a95b
+--- /dev/null
++++ b/crypto/fipsmodule/rand/asm/rdrand-x86_64.pl
+@@ -0,0 +1,87 @@
++#!/usr/bin/env perl
++
++# Copyright (c) 2015, Google Inc.
++#
++# Permission to use, copy, modify, and/or distribute this software for any
++# purpose with or without fee is hereby granted, provided that the above
++# copyright notice and this permission notice appear in all copies.
++#
++# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
++# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
++# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
++# SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
++# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
++# OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
++# CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE. */
++
++use strict;
++
++my $flavour = shift;
++my $output  = shift;
++if ($flavour =~ /\./) { $output = $flavour; undef $flavour; }
++
++my $win64 = 0;
++$win64 = 1 if ($flavour =~ /[nm]asm|mingw64/ || $output =~ /\.asm$/);
++
++$0 =~ m/(.*[\/\\])[^\/\\]+$/;
++my $dir = $1;
++my $xlate;
++( $xlate="${dir}../../../perlasm/x86_64-xlate.pl" and -f $xlate) or
++die "can't locate x86_64-xlate.pl";
++
++open OUT,"| \"$^X\" \"$xlate\" $flavour \"$output\"";
++*STDOUT=*OUT;
++
++my ($out, $len, $tmp1, $tmp2) = $win64 ? ("%rcx", "%rdx", "%r8", "%r9")
++                                       : ("%rdi", "%rsi", "%rdx", "%rcx");
++
++print<<___;
++.text
++
++# CRYPTO_rdrand writes eight bytes of random data from the hardware RNG to
++# |out|. It returns one on success or zero on hardware failure.
++# int CRYPTO_rdrand(uint8_t out[8]);
++.globl	CRYPTO_rdrand
++.type	CRYPTO_rdrand,\@abi-omnipotent
++.align	16
++CRYPTO_rdrand:
++.cfi_startproc
++	xorq %rax, %rax
++	rdrand $tmp1
++	# An add-with-carry of zero effectively sets %rax to the carry flag.
++	adcq %rax, %rax
++	movq $tmp1, 0($out)
++	retq
++.cfi_endproc
++.size CRYPTO_rdrand,.-CRYPTO_rdrand
++
++# CRYPTO_rdrand_multiple8_buf fills |len| bytes at |buf| with random data from
++# the hardware RNG. The |len| argument must be a multiple of eight. It returns
++# one on success and zero on hardware failure.
++# int CRYPTO_rdrand_multiple8_buf(uint8_t *buf, size_t len);
++.globl CRYPTO_rdrand_multiple8_buf
++.type CRYPTO_rdrand_multiple8_buf,\@abi-omnipotent
++.align 16
++CRYPTO_rdrand_multiple8_buf:
++.cfi_startproc
++	test $len, $len
++	jz .Lout
++	movq \$8, $tmp1
++.Lloop:
++	rdrand $tmp2
++	jnc .Lerr
++	movq $tmp2, 0($out)
++	addq $tmp1, $out
++	subq $tmp1, $len
++	jnz .Lloop
++.Lout:
++	movq \$1, %rax
++	retq
++.Lerr:
++	xorq %rax, %rax
++	retq
++.cfi_endproc
++.size CRYPTO_rdrand_multiple8_buf,.-CRYPTO_rdrand_multiple8_buf
++___
++
++close STDOUT or die "error closing STDOUT: $!";	# flush
+diff --git a/src/lib.rs b/src/lib.rs
+index cc66d73c3..ef07bf42a 100644
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -133,3 +133,7 @@ mod sealed {
+     // ```
+     pub trait Sealed {}
+ }
++
++/// TBD: Discuss how to upstream this work around
++#[cfg(any(target_os = "uefi"))]
++mod uefi_stub;
+diff --git a/src/rand.rs b/src/rand.rs
+index 9d1864fa1..b939398be 100644
+--- a/src/rand.rs
++++ b/src/rand.rs
+@@ -143,6 +143,10 @@ impl<T> RandomlyConstructable for T where T: self::sealed::RandomlyConstructable
+ /// random number generation.
+ ///
+ /// [`getrandom`]: http://man7.org/linux/man-pages/man2/getrandom.2.html
++///
++/// On UEFI, `fill` is implemented using `CRYPTO_rdrand`
++/// & `CRYPTO_rdrand_multiple8_buf` which provided by BoringSSL.
++///
+ #[derive(Clone, Debug)]
+ pub struct SystemRandom(());
+ 
+@@ -195,6 +199,9 @@ use self::darwin::fill as fill_impl;
+ #[cfg(any(target_os = "fuchsia"))]
+ use self::fuchsia::fill as fill_impl;
+ 
++#[cfg(any(target_os = "uefi", target_os = "none"))]
++use self::no_std::fill as fill_impl;
++
+ #[cfg(any(target_os = "android", target_os = "linux"))]
+ mod sysrand_chunk {
+     use crate::{c, error};
+@@ -431,3 +438,67 @@ mod fuchsia {
+         fn zx_cprng_draw(buffer: *mut u8, length: usize);
+     }
+ }
++
++#[cfg(any(target_os = "uefi", target_os = "none"))]
++mod no_std {
++    use crate::error;
++
++    pub fn fill(dest: &mut [u8]) -> Result<(), error::Unspecified> {
++        fill_impl(dest)
++    }
++
++    #[cfg(not(any(target_arch = "x86_64")))]
++    fn fill_impl(dest: &mut [u8]) -> Result<(), error::Unspecified> {
++        Err(error::Unspecified)
++    }
++
++    #[cfg(any(target_arch = "x86_64"))]
++    fn fill_impl(dest: &mut [u8]) -> Result<(), error::Unspecified> {
++        fn is_avaiable() -> bool {
++            // TODO(xiaoyuxlu): use cpu::intel::RDRAND.avaiable when cpu.rs updated
++            // https://github.com/briansmith/ring/pull/1406#discussion_r720394928
++            // Current implementation may cause problem on AMD cpu. REF:
++            // https://github.com/nagisa/rust_rdrand/blob/f2fdd528a6103c946a2e9d0961c0592498b36493/src/lib.rs#L161
++            extern "C" {
++                static mut GFp_ia32cap_P: [u32; 4];
++            }
++            const FLAG: u32 = 1 << 30;
++            unsafe { GFp_ia32cap_P[1] & FLAG == FLAG }
++        }
++
++        let _ = crate::cpu::features();
++        // We must make sure current cpu support `rdrand`
++        if !is_avaiable() {
++            return Err(error::Unspecified);
++        }
++
++        use crate::c;
++        extern "C" {
++            fn CRYPTO_rdrand_multiple8_buf(buffer: *mut u8, length: c::size_t) -> c::int;
++        }
++        extern "C" {
++            fn CRYPTO_rdrand(dest: *mut u8) -> c::int;
++        }
++
++        let len = dest.len();
++        let len_multiple8 = len & (!7usize);
++        let remainder = len - len_multiple8;
++
++        let mut res = 1;
++        if res != 0 && len_multiple8 != 0 {
++            res = unsafe { CRYPTO_rdrand_multiple8_buf(dest.as_mut_ptr(), len_multiple8) };
++        }
++        if res != 0 && remainder != 0 {
++            let mut rand_buf = [0u8; 8];
++            res = unsafe { CRYPTO_rdrand(rand_buf.as_mut_ptr()) };
++            if res != 0 {
++                dest[len_multiple8..].copy_from_slice(&rand_buf[..remainder]);
++            }
++        }
++        if res == 1 {
++            Ok(())
++        } else {
++            Err(error::Unspecified)
++        }
++    }
++}
+diff --git a/src/uefi_stub.rs b/src/uefi_stub.rs
+new file mode 100644
+index 000000000..5e2de1ace
+--- /dev/null
++++ b/src/uefi_stub.rs
+@@ -0,0 +1,25 @@
++//! UEFI Link support
++
++/// The x86_64 assembly files in OpenSSL set a flag called
++/// $win64 and automatically include calls to the RtlVirtualUnwind function if
++/// NASM is selected as the assembler scheme.
++/// example:
++///  (vpaes-x86_64-nasm.obj) : error LNK2001: unresolved external symbol __imp_RtlVirtualUnwind
++///  (aesni-x86_64-nasm.obj) : error LNK2001: unresolved external symbol __imp_RtlVirtualUnwind
++///  (aes-x86_64-nasm.obj) : error LNK2001: unresolved external symbol __imp_RtlVirtualUnwind
++///  (p256-x86_64-asm-nasm.obj) : error LNK2001: unresolved external symbol __imp_RtlVirtualUnwind
++///  (chacha-x86_64-nasm.obj) : error LNK2001: unresolved external symbol __imp_RtlVirtualUnwind
++///  (x86_64-mont5-nasm.obj) : error LNK2001: unresolved external symbol __imp_RtlVirtualUnwind
++///  (x86_64-mont-nasm.obj) : error LNK2001: unresolved external symbol __imp_RtlVirtualUnwind
++///  (sha256-x86_64-nasm.obj) : error LNK2001: unresolved external symbol __imp_RtlVirtualUnwind
++///  (sha512-x86_64-nasm.obj) : error LNK2001: unresolved external symbol __imp_RtlVirtualUnwind
++///  (poly1305-x86_64-nasm.obj) : error LNK2001: unresolved external symbol __imp_RtlVirtualUnwind
++///  (aesni-gcm-x86_64-nasm.obj) : error LNK2001: unresolved external symbol __imp_RtlVirtualUnwind
++///
++/// example:
++///  lld-link: error: undefined symbol: __imp_RtlVirtualUnwind
++///
++/// This is a work around for it.
++#[no_mangle]
++#[export_name = "__imp_RtlVirtualUnwind"]
++pub extern "C" fn RtlVirtualUnwind() {}

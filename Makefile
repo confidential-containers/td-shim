@@ -18,7 +18,9 @@ TEST_CRATES = test-td-exception test-td-paging
 TOOL_CRATES = td-shim-tools
 
 # Targets for normal artifacts
-all: install-devtools build test
+all: preparation install-devtools build test
+
+preparation: apply_patches
 
 build: $(SHIM_CRATES:%=uefi-build-%) $(TOOL_CRATES:%=build-%)
 
@@ -148,3 +150,6 @@ uninstall-subdir-%:
 
 tools-subdir-%:
 	make -C $(patsubst tools-subdir-%,%,$@) all-tools
+
+apply_patches:
+	bash sh_script/preparation.sh
