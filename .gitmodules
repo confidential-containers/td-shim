@@ -1,0 +1,4 @@
+[submodule "library/ring"]
+	path = library/ring
+	url = https://github.com/briansmith/ring.git
+	ignore = dirty
