@@ -74,7 +74,7 @@ Stack guard is setup at `stack_guard_enable()` in [stack_guard.rs](../td-shim/sr
 
 ### External dependency
 
-[ring](https://github.com/jyao1/ring/tree/uefi_support) is crypto function. The SHA384 function is used to calculate measurement.
+[ring](../library/ring/) is crypto function. The SHA384 function is used to calculate measurement.
 
 ## build
 

@@ -192,6 +192,8 @@ final_elf_sb_test() {
         -o target/x86_64-unknown-uefi/release/final-elf-sb-normal.bin
 }
 
+./sh_script/preparation.sh
+
 case "${1:-}" in
     boot_kernel) final_boot_kernel ;;
     pe) final_pe ;;
