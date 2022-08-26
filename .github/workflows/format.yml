@@ -39,7 +39,7 @@ jobs:
         run: make preparation
 
       - name: Run cargo clippy
-        run: cargo clippy -- -A clippy::redundant_field_names -D warnings
+        run: cargo clippy -- -A clippy::redundant_field_names
 
   rustfmt:
     name: Format
