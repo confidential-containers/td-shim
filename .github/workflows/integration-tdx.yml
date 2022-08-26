@@ -32,6 +32,8 @@ jobs:
 
       - name: Checkout sources
         uses: actions/checkout@v2
+        with:
+          submodules: recursive
 
       - name: Install toolchain
         uses: actions-rs/toolchain@v1
@@ -46,6 +48,9 @@ jobs:
         with:
           command: install
           args: cargo-xbuild
+
+      - name: Preparation Work
+        run: bash sh_script/preparation.sh
 
       - name: Build PE format payload with boot-kernel support
         run: bash sh_script/build_final.sh boot_kernel

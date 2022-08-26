@@ -42,6 +42,8 @@ jobs:
 
       - name: Checkout sources
         uses: actions/checkout@v2
+        with:
+          submodules: recursive
 
       - name: Install toolchain
         uses: actions-rs/toolchain@v1
@@ -60,6 +62,9 @@ jobs:
           command: install
           args: cargo-xbuild
       
+      - name: Preparation Work
+        run: bash sh_script/preparation.sh
+
       - name: Test Shim Crates
         run: make test 
 
@@ -99,6 +104,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+        with:
+          submodules: recursive
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -142,6 +149,9 @@ jobs:
           args: cargo-fuzz
         if: runner.os == 'Linux'
       
+      - name: Preparation work
+        run: bash sh_script/preparation.sh
+
       - name: Build all fuzzing test case (Linux)
         run: bash sh_script/fuzzing.sh -b
         if: runner.os == 'Linux'

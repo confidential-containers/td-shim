@@ -40,6 +40,8 @@ jobs:
 
       - name: Checkout sources
         uses: actions/checkout@v2
+        with:
+          submodules: recursive
 
       - name: Install toolchain
         uses: actions-rs/toolchain@v1
@@ -70,6 +72,9 @@ jobs:
         shell: pwsh
       - name: "Print QEMU Version"
         run: qemu-system-x86_64 --version
+
+      - name: Preparation Work
+        run: make preparation
 
       - name: Run Tests
         run: make integration-test
