@@ -55,9 +55,14 @@ jobs:
 
       - name: Checkout sources
         uses: actions/checkout@v2
+        with:
+          submodules: recursive
 
       - name: Cache
         uses: Swatinem/rust-cache@v1
+
+      - name: Preparation work
+        run: bash sh_script/preparation.sh
 
       - name: Build library crates
         run: make lib-build
@@ -99,9 +104,14 @@ jobs:
 
       - name: Checkout sources
         uses: actions/checkout@v2
+        with:
+          submodules: recursive
 
       - name: Cache
         uses: Swatinem/rust-cache@v1
+
+      - name: Preparation Work
+        run: make preparation
 
       - name: Test library crates
         run: make lib-test

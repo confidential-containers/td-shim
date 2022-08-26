@@ -14,6 +14,8 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v2
+        with:
+          submodules: recursive
 
       # Install first since it's needed to build NASM
       - name: Install LLVM and Clang
@@ -32,6 +34,9 @@ jobs:
           toolchain: nightly-2022-05-15
           override: true
           components: clippy
+
+      - name: Preparation Work
+        run: make preparation
 
       - name: Run cargo clippy
         run: cargo clippy -- -A clippy::redundant_field_names -D warnings
@@ -53,6 +58,8 @@ jobs:
 
       - name: Checkout sources
         uses: actions/checkout@v2
+        with:
+          submodules: recursive
 
       - name: Install toolchain with rustfmt available
         uses: actions-rs/toolchain@v1
@@ -61,6 +68,9 @@ jobs:
           toolchain: nightly-2022-05-15
           override: true
           components: rustfmt
+
+      - name: Preparation Work
+        run: make preparation
 
       - name: Run cargo check
         uses: actions-rs/cargo@v1

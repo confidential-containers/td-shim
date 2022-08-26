@@ -24,6 +24,8 @@ jobs:
 
       - name: Checkout sources
         uses: actions/checkout@v2
+        with:
+          submodules: recursive
 
       - name: Install toolchain
         uses: actions-rs/toolchain@v1
@@ -41,6 +43,9 @@ jobs:
         with:
           command: install
           args: cargo-xbuild
+
+      - name: Preparation Work
+        run: make preparation
 
       - name: Generate artifacts
         run: |
