@@ -2,6 +2,7 @@
 resolver = "2"
 default-members = ["td-shim", "td-payload"]
 members = [
+    "cc-measurement",
     "devtools/td-layout-config",
     "devtools/td-benchmark",
     "devtools/test-runner-server",

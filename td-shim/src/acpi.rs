@@ -128,6 +128,38 @@ impl Xsdt {
     }
 }
 
+#[repr(C, packed)]
+#[derive(Default, AsBytes, FromBytes)]
+pub struct Ccel {
+    pub header: GenericSdtHeader,
+    pub cc_type: u8,
+    pub cc_subtype: u8,
+    pub reserved: u16,
+    pub laml: u64,
+    pub lasa: u64,
+}
+
+impl Ccel {
+    pub fn new(cc_type: u8, cc_subtype: u8, laml: u64, lasa: u64) -> Ccel {
+        let mut ccel = Ccel {
+            header: GenericSdtHeader::new(b"CCEL", size_of::<Ccel>() as u32, 1),
+            cc_type,
+            cc_subtype,
+            reserved: 0,
+            laml,
+            lasa,
+        };
+        ccel.checksum();
+        ccel
+    }
+
+    pub fn checksum(&mut self) {
+        self.header.checksum = 0;
+        self.header
+            .set_checksum(calculate_checksum(self.as_bytes()));
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -196,27 +228,10 @@ mod tests {
     }
 
     #[test]
-    fn test_xsdt_add_table() {
-        let mut xsdt = Xsdt::new();
+    fn test_ccel() {
+        let ccel = Ccel::new(2, 0, 0x100, 0);
 
-        xsdt.add_table(100);
-        let first_table = xsdt.tables[0];
-        assert_eq!(first_table, 100);
-
-        // length < size_of::<GenericSdtHeader>(), add table fail
-        xsdt.header.length = size_of::<GenericSdtHeader>() as u32 - 1;
-        xsdt.add_table(100);
-        let second_table = xsdt.tables[1];
-        assert_eq!(second_table, 0);
-
-        // length >= ACPI_TABLES_MAX_NUM, add table fail
-        xsdt.header.length = size_of::<GenericSdtHeader>() as u32
-            + ACPI_TABLES_MAX_NUM as u32 * size_of::<u64>() as u32;
-        xsdt.add_table(100);
-        let end_tables = xsdt.tables;
-
-        let mut expected_tables: [u64; ACPI_TABLES_MAX_NUM] = [0; ACPI_TABLES_MAX_NUM];
-        expected_tables[0] = 100;
-        assert_eq!(end_tables, expected_tables);
+        assert_eq!(&ccel.header.signature, b"CCEL");
+        assert_eq!(ccel.header.checksum, 45);
     }
 }

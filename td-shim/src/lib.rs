@@ -91,20 +91,6 @@ impl From<u32> for TdKernelInfoHobType {
     }
 }
 
-#[derive(Pwrite)]
-pub struct ConfigurationTable {
-    pub guid: event_log::Guid,
-    pub table: u64, // should be usize, usize can't be derived by pwrite, but tdx only support 64bit
-}
-
-#[derive(Pwrite)]
-pub struct TdxHandoffTablePointers {
-    pub table_descripion_size: u8,
-    pub table_description: [u8; 8],
-    pub number_of_tables: u64,
-    pub table_entry: [ConfigurationTable; 1],
-}
-
 #[repr(C)]
 #[derive(Default, Clone, Copy, Pread, Pwrite)]
 pub struct PayloadInfo {
