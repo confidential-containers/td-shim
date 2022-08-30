@@ -9,26 +9,24 @@
 #![allow(unused_imports)]
 
 extern crate alloc;
+use alloc::boxed::Box;
 use alloc::vec::Vec;
 use core::ffi::c_void;
 use core::mem::size_of;
 use core::panic::PanicInfo;
+use td_shim::event_log::CCEL_CC_TYPE_TDX;
 
 use r_efi::efi;
 use scroll::{Pread, Pwrite};
 use zerocopy::{AsBytes, ByteSlice, FromBytes};
 
+use cc_measurement::{log::CcEventLogWriter, EV_EFI_HANDOFF_TABLES2, EV_PLATFORM_CONFIG_FLAGS};
 use td_layout::build_time::{self, *};
 use td_layout::memslice;
 use td_layout::runtime::{self, *};
 use td_layout::RuntimeMemoryLayout;
-use td_shim::acpi::GenericSdtHeader;
-use td_shim::event_log::{
-    self, TdHandoffTable, TdHandoffTablePointers, UefiPlatformFirmwareBlob2,
-    EV_EFI_HANDOFF_TABLES2, EV_EFI_PLATFORM_FIRMWARE_BLOB2, EV_PLATFORM_CONFIG_FLAGS,
-    PLATFORM_CONFIG_HOB, PLATFORM_CONFIG_PAYLOAD_PARAMETER, PLATFORM_FIRMWARE_BLOB2_PAYLOAD,
-    TD_LOG_EFI_HANDOFF_TABLE_GUID,
-};
+use td_shim::acpi::{Ccel, GenericSdtHeader};
+use td_shim::event_log::{log_hob_list, log_payload_binary, log_payload_parameter};
 use td_shim::{
     speculation_barrier, PayloadInfo, TdKernelInfoHobType, TD_ACPI_TABLE_HOB_GUID,
     TD_KERNEL_INFO_HOB_GUID,
@@ -36,7 +34,6 @@ use td_shim::{
 use td_uefi_pi::{fv, hob, pi};
 
 use crate::ipl::ExecutablePayloadType;
-use crate::tcg::TdEventLog;
 use crate::td_hob::TdHobInfo;
 
 mod acpi;
@@ -49,7 +46,6 @@ mod memory;
 mod mp;
 mod payload_hob;
 mod stack_guard;
-mod tcg;
 mod td;
 mod td_hob;
 
@@ -86,7 +82,7 @@ fn alloc_error(_info: core::alloc::Layout) -> ! {
 /// - `init_vp`: [31:0] TDINITVP - Untrusted Configuration
 /// - `info`: [6:0] CPU supported GPA width, [7:7] 5 level page table support, [23:16] VCPUID,
 ///           [32:24] VCPU_Index
-#[cfg(not(test))]
+// #[cfg(not(test))]
 #[no_mangle]
 #[cfg_attr(target_os = "uefi", export_name = "efi_main")]
 pub extern "win64" fn _start(
@@ -130,18 +126,13 @@ pub extern "win64" fn _start(
             mem.layout.runtime_event_log_base as usize,
         )
     };
-    let mut td_event_log =
-        tcg::TdEventLog::new(event_log_buf).expect("Failed to create and initialize the event log");
+    let mut td_event_log = CcEventLogWriter::new(event_log_buf, Box::new(td::extend_rtmr))
+        .expect("Failed to create and initialize the event log");
     log_hob_list(hob_list, &mut td_event_log);
 
     let num_vcpus = td::get_num_vcpus();
     //Create MADT and TDEL
-    let (madt, tdel) = prepare_acpi_tables(
-        &mut td_hob_info.acpi_tables,
-        &mem.layout,
-        &mut td_event_log,
-        num_vcpus,
-    );
+    let (madt, tdel) = prepare_acpi_tables(&mut td_hob_info.acpi_tables, &mem.layout, num_vcpus);
     td_hob_info.acpi_tables.push(madt.as_bytes());
     td_hob_info.acpi_tables.push(tdel.as_bytes());
 
@@ -165,11 +156,11 @@ fn boot_linux_kernel(
     kernel_info: &PayloadInfo,
     acpi_tables: &Vec<&[u8]>,
     mem: &memory::Memory,
-    td_event_log: &mut TdEventLog,
+    event_log: &mut CcEventLogWriter,
     vcpus: u32,
 ) {
     // Create an EV_SEPARATOR event to mark the end of the td-shim events
-    td_event_log.create_seperator();
+    event_log.create_seperator();
 
     let image_type = TdKernelInfoHobType::from(kernel_info.image_type);
     match image_type {
@@ -187,8 +178,8 @@ fn boot_linux_kernel(
         unsafe { memslice::get_mem_slice(memslice::SliceType::KernelParameter) };
 
     // Record the payload binary/paramater into event log.
-    log_payload_binary(payload, td_event_log);
-    log_payload_parameter(payload_parameter, td_event_log);
+    log_payload_binary(payload, event_log);
+    log_payload_parameter(payload_parameter, event_log);
 
     linux::boot::boot_kernel(
         payload,
@@ -203,7 +194,7 @@ fn boot_linux_kernel(
 
 fn boot_builtin_payload(
     mem: &mut memory::Memory,
-    td_event_log: &mut TdEventLog,
+    event_log: &mut CcEventLogWriter,
     acpi_tables: &Vec<&[u8]>,
 ) {
     // Get and parse image file from the payload firmware volume.
@@ -217,14 +208,14 @@ fn boot_builtin_payload(
 
     #[cfg(feature = "secure-boot")]
     {
-        payload_bin = secure_boot_verify_payload(payload_bin, td_event_log);
+        payload_bin = secure_boot_verify_payload(payload_bin, event_log);
     }
 
     // Record the payload binary information into event log.
-    log_payload_binary(payload_bin, td_event_log);
+    log_payload_binary(payload_bin, event_log);
 
     // Create an EV_SEPARATOR event to mark the end of the td-shim events
-    td_event_log.create_seperator();
+    event_log.create_seperator();
 
     // Safe because we are the only user in single-thread context.
     let payload = unsafe {
@@ -292,9 +283,8 @@ fn install_acpi_tables(acpi_tables: &Vec<&[u8]>, layout: &RuntimeMemoryLayout) -
 fn prepare_acpi_tables(
     acpi_tables: &mut Vec<&[u8]>,
     layout: &RuntimeMemoryLayout,
-    td_event_log: &mut TdEventLog,
     vcpus: u32,
-) -> (mp::Madt, event_log::Ccel) {
+) -> (mp::Madt, Ccel) {
     let mut vmm_madt = None;
     let mut idx = 0;
     while idx < acpi_tables.len() {
@@ -326,17 +316,24 @@ fn prepare_acpi_tables(
             .expect("Failed to create ACPI MADT table")
     };
 
-    let tdel = td_event_log.create_ccel();
+    let tdel = Ccel::new(
+        CCEL_CC_TYPE_TDX,
+        0,
+        TD_PAYLOAD_EVENT_LOG_SIZE as u64,
+        layout.runtime_event_log_base as u64,
+    );
 
     (madt, tdel)
 }
 
 #[cfg(feature = "secure-boot")]
-fn secure_boot_verify_payload<'a>(payload: &'a [u8], td_event_log: &mut TdEventLog) -> &'a [u8] {
+fn secure_boot_verify_payload<'a>(
+    payload: &'a [u8],
+    cc_event_log: &mut CcEventLogWriter,
+) -> &'a [u8] {
     use td_shim::event_log::{
-        UefiPlatformFirmwareBlob2, EV_EFI_PLATFORM_FIRMWARE_BLOB2,
-        PLATFORM_CONFIG_SECURE_AUTHORITY, PLATFORM_CONFIG_SECURE_POLICY_DB, PLATFORM_CONFIG_SVN,
-        PLATFORM_FIRMWARE_BLOB2_PAYLOAD,
+        create_event_log_platform_config, PLATFORM_CONFIG_SECURE_AUTHORITY,
+        PLATFORM_CONFIG_SECURE_POLICY_DB, PLATFORM_CONFIG_SVN, PLATFORM_FIRMWARE_BLOB2_PAYLOAD,
     };
     use td_shim::secure_boot::PayloadVerifier;
 
@@ -347,53 +344,36 @@ fn secure_boot_verify_payload<'a>(payload: &'a [u8], td_event_log: &mut TdEventL
         PayloadVerifier::get_trust_anchor(cfv).expect("Fail to get trust anchor from CFV");
 
     // Record the provisioned trust anchor into event log.
-    td_event_log
-        .create_event_log_platform_config(1, PLATFORM_CONFIG_SECURE_POLICY_DB, trust_anchor)
-        .expect("Fail to measure and log the provisioned trust anchor");
+    create_event_log_platform_config(
+        cc_event_log,
+        1,
+        PLATFORM_CONFIG_SECURE_POLICY_DB,
+        trust_anchor,
+    )
+    .expect("Fail to measure and log the provisioned trust anchor");
 
     verifier.verify().expect("Verification fails");
 
     // Record the matched trust anchor which is same as the provisioned
     // trust anchor if it passes the verification.
-    td_event_log
-        .create_event_log_platform_config(1, PLATFORM_CONFIG_SECURE_AUTHORITY, trust_anchor)
-        .expect("Fail to measure and log the provisioned trust anchor");
+    create_event_log_platform_config(
+        cc_event_log,
+        1,
+        PLATFORM_CONFIG_SECURE_AUTHORITY,
+        trust_anchor,
+    )
+    .expect("Fail to measure and log the provisioned trust anchor");
 
     // Record the payload SVN into event log.
-    td_event_log
-        .create_event_log_platform_config(
-            2,
-            PLATFORM_CONFIG_SVN,
-            &u64::to_le_bytes(verifier.get_payload_svn()),
-        )
-        .expect("Fail to measure and log the payload SVN");
+    create_event_log_platform_config(
+        cc_event_log,
+        2,
+        PLATFORM_CONFIG_SVN,
+        &u64::to_le_bytes(verifier.get_payload_svn()),
+    )
+    .expect("Fail to measure and log the payload SVN");
 
     // Parse out the image from signed payload
     return PayloadVerifier::get_payload_image(payload)
         .expect("Unable to get payload image from signed binary");
-}
-
-fn log_hob_list(hob_list: &[u8], td_event_log: &mut tcg::TdEventLog) {
-    td_event_log
-        .create_event_log_platform_config(1, PLATFORM_CONFIG_HOB, hob_list)
-        .expect("Failed to log HOB list to the td event log");
-}
-
-fn log_payload_binary(payload: &[u8], td_event_log: &mut tcg::TdEventLog) {
-    let blob2 = UefiPlatformFirmwareBlob2::new(
-        PLATFORM_FIRMWARE_BLOB2_PAYLOAD,
-        payload.as_ptr() as u64,
-        payload.len() as u64,
-    )
-    .expect("Invalid payload binary information or descriptor");
-
-    td_event_log
-        .create_event_log(2, EV_EFI_PLATFORM_FIRMWARE_BLOB2, blob2.as_bytes(), payload)
-        .expect("Failed to log HOB list to the td event log");
-}
-
-fn log_payload_parameter(payload_parameter: &[u8], td_event_log: &mut tcg::TdEventLog) {
-    td_event_log
-        .create_event_log_platform_config(2, PLATFORM_CONFIG_PAYLOAD_PARAMETER, payload_parameter)
-        .expect("Failed to log HOB list to the td event log");
 }

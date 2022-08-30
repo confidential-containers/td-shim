@@ -7,14 +7,13 @@ extern crate alloc;
 
 use crate::lib::{TestCase, TestResult};
 use alloc::{string::String, vec::Vec};
+use cc_measurement::log::CcEventLogReader;
 use core::{convert::TryInto, ffi::c_void, mem::size_of};
 use ring::digest;
 use scroll::Pread;
 use td_layout::memslice;
-use td_shim::acpi::GenericSdtHeader;
-use td_shim::event_log::{
-    CcEventDumper, CcEventHeader, Ccel, TcgPcrEventHeader, CCEL_CC_TYPE_TDX, CC_EVENT_HEADER_SIZE,
-};
+use td_shim::acpi::{Ccel, GenericSdtHeader};
+use td_shim::event_log::CCEL_CC_TYPE_TDX;
 use td_shim::TD_ACPI_TABLE_HOB_GUID;
 use td_uefi_pi::hob;
 use tdx_tdcall::tdreport;
@@ -105,55 +104,36 @@ impl TestTdTrustedBoot {
 
         let mut offset = 0;
 
-        // The first event of td-shim is TCG_EfiSpecIDEvent with TcgPcrEventHeader
-        if let Some(pcr_header) = Self::read_pcr_event_header(eventlog, offset) {
-            offset += pcr_header.event_size as usize + size_of::<TcgPcrEventHeader>();
-        } else {
-            return None;
-        }
+        let event_log = CcEventLogReader::new(eventlog)?;
 
-        while offset < eventlog_len {
-            if let Some(cc_event_header) = Self::read_cc_event_header(eventlog, offset) {
-                offset += CC_EVENT_HEADER_SIZE;
-                let cc_event_size = cc_event_header.event_size as usize;
-                if cc_event_size + offset <= eventlog_len {
-                    let cc_event_data = &eventlog[offset..offset + cc_event_size];
-                    let rtmr_index = match cc_event_header.mr_index {
-                        0 => 0xFF,
-                        1 | 2 | 3 | 4 => cc_event_header.mr_index - 1,
-                        _ => {
-                            log::info!("invalid pcr_index 0x{:x}\n", cc_event_header.mr_index);
-                            0xFF
-                        }
-                    };
-                    if rtmr_index == 0 {
-                        rtmr0[48..]
-                            .copy_from_slice(&cc_event_header.digest.digests[0].digest.sha384);
-                        let hash_value = digest::digest(&digest::SHA384, &rtmr0);
-                        rtmr0[0..48].copy_from_slice(hash_value.as_ref());
-                    } else if rtmr_index == 1 {
-                        rtmr1[48..]
-                            .copy_from_slice(&cc_event_header.digest.digests[0].digest.sha384);
-                        let hash_value = digest::digest(&digest::SHA384, &rtmr1);
-                        rtmr1[0..48].copy_from_slice(hash_value.as_ref());
-                    } else if rtmr_index == 2 {
-                        rtmr2[48..]
-                            .copy_from_slice(&cc_event_header.digest.digests[0].digest.sha384);
-                        let hash_value = digest::digest(&digest::SHA384, &rtmr2);
-                        rtmr2[0..48].copy_from_slice(hash_value.as_ref());
-                    } else if rtmr_index == 3 {
-                        rtmr3[48..]
-                            .copy_from_slice(&cc_event_header.digest.digests[0].digest.sha384);
-                        let hash_value = digest::digest(&digest::SHA384, &rtmr3);
-                        rtmr3[0..48].copy_from_slice(hash_value.as_ref());
-                    }
+        for (event_header, event_data) in event_log.cc_events {
+            let rtmr_index = match event_header.mr_index {
+                0 => 0xFF,
+                1 | 2 | 3 | 4 => event_header.mr_index - 1,
+                e => {
+                    log::info!("invalid pcr_index 0x{:x}\n", e);
+                    0xFF
                 }
-                offset = offset.saturating_add(cc_event_size);
-                if cc_event_size == 0 {
-                    break;
-                }
+            };
+            if rtmr_index == 0 {
+                rtmr0[48..].copy_from_slice(&event_header.digest.digests[0].digest.sha384);
+                let hash_value = digest::digest(&digest::SHA384, &rtmr0);
+                rtmr0[0..48].copy_from_slice(hash_value.as_ref());
+            } else if rtmr_index == 1 {
+                rtmr1[48..].copy_from_slice(&event_header.digest.digests[0].digest.sha384);
+                let hash_value = digest::digest(&digest::SHA384, &rtmr1);
+                rtmr1[0..48].copy_from_slice(hash_value.as_ref());
+            } else if rtmr_index == 2 {
+                rtmr2[48..].copy_from_slice(&event_header.digest.digests[0].digest.sha384);
+                let hash_value = digest::digest(&digest::SHA384, &rtmr2);
+                rtmr2[0..48].copy_from_slice(hash_value.as_ref());
+            } else if rtmr_index == 3 {
+                rtmr3[48..].copy_from_slice(&event_header.digest.digests[0].digest.sha384);
+                let hash_value = digest::digest(&digest::SHA384, &rtmr3);
+                rtmr3[0..48].copy_from_slice(hash_value.as_ref());
             }
         }
+
         let mr = Rtmr {
             rtmr0: rtmr0[0..48].try_into().unwrap(),
             rtmr1: rtmr1[0..48].try_into().unwrap(),
@@ -161,22 +141,6 @@ impl TestTdTrustedBoot {
             rtmr3: rtmr3[0..48].try_into().unwrap(),
         };
         Some(mr)
-    }
-
-    fn read_pcr_event_header(area: &[u8], offset: usize) -> Option<TcgPcrEventHeader> {
-        if let Ok(v) = area.pread::<TcgPcrEventHeader>(offset) {
-            Some(v)
-        } else {
-            None
-        }
-    }
-
-    fn read_cc_event_header(area: &[u8], offset: usize) -> Option<CcEventHeader> {
-        if let Ok(v) = area.pread::<CcEventHeader>(offset) {
-            Some(v)
-        } else {
-            None
-        }
     }
 }
 
