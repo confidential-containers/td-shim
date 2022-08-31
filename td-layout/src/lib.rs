@@ -31,7 +31,7 @@ use runtime::*;
 // Minimal memory size to build the runtime layout.
 #[cfg(feature = "boot-kernel")]
 pub const MIN_MEMORY_SIZE: u64 = (TD_PAYLOAD_ACPI_SIZE
-    + TD_PAYLOAD_PARTIAL_ACCEPT_MEMORY_SIZE
+    + TD_PAYLOAD_UNACCEPTED_MEMORY_BITMAP_SIZE
     + TD_PAYLOAD_PAGE_TABLE_SIZE
     + TD_PAYLOAD_EVENT_LOG_SIZE
     + TD_PAYLOAD_MAILBOX_SIZE) as u64;
@@ -94,7 +94,7 @@ impl RuntimeMemoryLayout {
         current_base -= TD_PAYLOAD_ACPI_SIZE as u64;
         let runtime_acpi_base = current_base;
 
-        #[cfg(not(feature = "boot-kernel"))]
+        #[cfg(feature = "boot-kernel")]
         {
             current_base -= TD_PAYLOAD_UNACCEPTED_MEMORY_BITMAP_SIZE as u64;
         }
