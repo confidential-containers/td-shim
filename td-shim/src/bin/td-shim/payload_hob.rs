@@ -177,10 +177,6 @@ pub fn build_payload_hob(acpi_tables: &Vec<&[u8]>, memory: &Memory) -> Option<Pa
     payload_hob.add_cpu(memory::cpu_get_memory_space_size(), 16);
     payload_hob.add_fv(TD_SHIM_PAYLOAD_BASE as u64, TD_SHIM_PAYLOAD_SIZE as u64);
 
-    for resource in &memory.regions {
-        payload_hob.add_resource(&resource).ok()?;
-    }
-
     for &table in acpi_tables {
         payload_hob
             .add_guided_data(&TD_ACPI_TABLE_HOB_GUID, table)
