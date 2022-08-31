@@ -187,18 +187,7 @@ launch_td_test_payload() {
 test_secure_boot() {
     echo "-- secure boot test"
     local time_out=10
-    if [[ ${firmware} == *normal* ]]
-    then
-        local key_str="Starting td-payload hob"
-    elif [[ ${firmware} == *mismatch-pubkey* ]]
-    then
-        local key_str="Verification fails: InvalidPublicKey"
-    elif [[ ${firmware} == *unsigned* ]]
-    then
-        local key_str="Secure Boot: Cannot read verify header from payload binary"
-    else
-        die "The firmware name ${firmware} is not suitable for secure boot test"
-    fi  
+    local key_str="Starting td-payload hob"
     
     nohup ${qemu_tdx_path} -accel kvm \
         -name process=rust-td,debug-threads=on \
@@ -216,7 +205,9 @@ test_secure_boot() {
     
     check_result ${nohup_logfile} "${key_str}" ${time_out}
 
-    if [[ $? -eq 0 ]]
+    if [[ $? -eq 0 && ${firmware} == *normal* ]] ||
+        [[ $? -ne 0 && ${firmware} == *mismatch-pubkey* ]] ||
+        [[ $? -ne 0 && ${firmware} == *unsigned* ]]
     then
         ps aux | grep ${qemu_tdx_path} | grep -v grep | awk -F ' ' '{print $2}' | xargs kill -9
         echo "-- secure boot test: Pass"
