@@ -4,6 +4,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 #
+readonly script_name=${0##*/}
 
 fuzz_folder=(
     "td-loader"
@@ -11,23 +12,25 @@ fuzz_folder=(
     "td-shim"
 )
 
-show_prompt_info() {
-    echo "Usage:"
-    echo "  -c Test case name, e.g. afl_pe, afl_all, libfuzzer_all"
+function show_prompt_info() {
+    echo "  -n Test case name, e.g. afl_pe, afl_all, libfuzzer_all"
     echo "  -t Excution time, default is 3600"
 	echo "  -b Build all test case for check"
+    echo "  -c Enable code coverage"
 	echo ""
 	echo "Example:"
-    echo "Run single test case:    bash fuzzing.sh -c afl_pe -t 3600"
-	echo "Run all test case:       bash fuzzing.sh -c afl_all -t 3600"
+    echo "Run single test case:    bash ${script_name} -n afl_pe -t 3600"
+	echo "Run all test case:       bash ${script_name} -n afl_all -t 3600"
+    exit -1
 }
 
-while getopts ':c:t:bh' OPT; do
+while getopts ':n:t:bch' OPT; do
     case $OPT in
-        c) test_case="$OPTARG";;
-        t) test_time="$OPTARG";;
-		b) check_build="YES";;
+        b) check_build="YES";;
+        c) collect_coverage="YES";;
         h) show_prompt_info;;
+        n) test_case="$OPTARG";;
+        t) test_time="$OPTARG";;
         ?) show_prompt_info;;
     esac
 done
@@ -46,6 +49,7 @@ else
 
 	if [ "$test_case" == "" ];then
 		echo "Test case name should not be empty"
+        exit 1
 	fi
 	echo "Test case: $test_case"
 fi
@@ -135,9 +139,11 @@ run_single_case() {
     echo $test_case | grep "^afl"
     if [ "$?" == "0" ];then
         echo "The test method is afl"
-        export RUSTFLAGS="-C instrument-coverage"
-        export LLVM_PROFILE_FILE="fuzz-%p-%m.profraw"
-        find . -name "*.profraw" | xargs rm -rf
+        if [ "${collect_coverage}" == "YES" ]; then
+            export RUSTFLAGS="-C instrument-coverage"
+            export LLVM_PROFILE_FILE="fuzz-%p-%m.profraw"
+            find . -name "*.profraw" | xargs rm -rf
+        fi
 
         cargo_build=`cargo afl build --manifest-path fuzz/Cargo.toml --bin $test_case --features fuzz --no-default-features`
 	    if [ "$?" != "0" ];then
@@ -156,10 +162,11 @@ run_single_case() {
             fi
 		    timeout $test_time cargo afl fuzz -i fuzz/seeds/${test_case#*_}/ -o fuzz/artifacts/$test_case fuzz/target/debug/$test_case
             
-            if [ -d "${test_case}_cov" ]; then
-                rm -rf "${test_case}_cov"
+            if [ "${collect_coverage}" == "YES" ]; then
+                [ -d "${test_case}_cov" ] && rm -rf "${test_case}_cov"
+
+                grcov . -s src --binary-path fuzz/target/debug/$test_case -t html --branch --ignore-not-existing -o "${test_case}_cov"
             fi
-            grcov . -s src --binary-path fuzz/target/debug/$test_case -t html --branch --ignore-not-existing -o "${test_case}_cov"
 	    fi
         popd
     else
@@ -173,14 +180,16 @@ run_single_case() {
         cp fuzz/seeds/$test_case/* fuzz/corpus/$test_case
         kill_pro=`ps aux | grep "fuzz/corpus/$test_case" | sed -n '1p' | awk -F ' ' '{print$2}'`
         kill $kill_pro
+        cargo fuzz build $test_case
         timeout $test_time cargo fuzz run $test_case
 
-        if [ ! -d "${test_case}_fuzz_cov" ]; then
-            rm -rf ${test_case}_fuzz_cov
+        if [ "${collect_coverage}" == "YES" ]; then
+            [ -d "${test_case}_fuzz_cov" ] && rm -rf ${test_case}_fuzz_cov;
+
+            find . -name "*.profraw" | xargs rm -rf
+            cargo fuzz coverage $test_case
+            grcov . -s src -b fuzz/target/x86_64-unknown-linux-gnu/release/$test_case -t html --branch --ignore-not-existing -o "${test_case}_fuzz_cov"
         fi
-        find . -name "*.profraw" | xargs rm -rf
-        cargo fuzz coverage $test_case
-        grcov . -s src -b fuzz/target/x86_64-unknown-linux-gnu/release/$test_case -t html --branch --ignore-not-existing -o "${test_case}_fuzz_cov"
         popd
     fi
 }
@@ -203,14 +212,17 @@ run_all_case(){
                 cp fuzz/seeds/$fuzz/* fuzz/corpus/$fuzz
                 kill_pro=`ps aux | grep "fuzz/corpus/$fuzz" | sed -n '1p' | awk -F ' ' '{print$2}'`
                 kill $kill_pro
+                cargo fuzz build $fuzz
                 timeout $test_time cargo fuzz run $fuzz
                 
-                if [ ! -d "${fuzz}_fuzz_cov" ]; then
-                    rm -rf ${fuzz}_fuzz_cov
+                if [ "${collect_coverage}" == "YES" ]; then
+                    if [ ! -d "${fuzz}_fuzz_cov" ]; then
+                        rm -rf ${fuzz}_fuzz_cov
+                    fi
+                    find . -name "*.profraw" | xargs rm -rf
+                    cargo fuzz coverage $fuzz
+                    grcov . -s src -b fuzz/target/x86_64-unknown-linux-gnu/release/$fuzz -t html --branch --ignore-not-existing -o "${fuzz}_fuzz_cov"
                 fi
-                find . -name "*.profraw" | xargs rm -rf
-                cargo fuzz coverage $fuzz
-                grcov . -s src -b fuzz/target/x86_64-unknown-linux-gnu/release/$fuzz -t html --branch --ignore-not-existing -o "${fuzz}_fuzz_cov"
             done
             popd
         done
@@ -220,9 +232,11 @@ run_all_case(){
             fuzz_list=$(cargo fuzz list)
             for fuzz in $fuzz_list;do
                 if [[ "$fuzz" =~ "afl" ]];then
-                    export RUSTFLAGS="-C instrument-coverage"
-                    export LLVM_PROFILE_FILE="fuzz-%p-%m.profraw"
-                    find . -name "*.profraw" | xargs rm -rf
+                    if [ "${collect_coverage}" == "YES" ]; then
+                        export RUSTFLAGS="-C instrument-coverage"
+                        export LLVM_PROFILE_FILE="fuzz-%p-%m.profraw"
+                        find . -name "*.profraw" | xargs rm -rf
+                    fi
 
                     cargo_build=`cargo afl build --manifest-path fuzz/Cargo.toml --bin $fuzz --features fuzz --no-default-features`
                     if [ "$?" != "0" ];then
@@ -241,10 +255,12 @@ run_all_case(){
                         fi
                         timeout $test_time cargo afl fuzz -i fuzz/seeds/${fuzz#*_}/ -o fuzz/artifacts/$fuzz fuzz/target/debug/$fuzz
 
-                        if [ -d "${fuzz}_cov" ]; then
-                            rm -rf "${fuzz}_cov"
+                        if [ "${collect_coverage}" == "YES" ]; then
+                            if [ -d "${fuzz}_cov" ]; then
+                                rm -rf "${fuzz}_cov"
+                            fi
+                            grcov . -s src --binary-path fuzz/target/debug/$fuzz -t html --branch --ignore-not-existing -o "${fuzz}_cov"
                         fi
-                        grcov . -s src --binary-path fuzz/target/debug/$fuzz -t html --branch --ignore-not-existing -o "${fuzz}_cov"
                     fi
                 else
                     continue
@@ -256,6 +272,7 @@ run_all_case(){
 }
 
 check_test_result() {
+    check_total_result=0
 	if [ "$test_case" == "libfuzzer_all" ];then
         for path in ${fuzz_folder[@]}; do
             pushd $path
@@ -264,11 +281,15 @@ check_test_result() {
                 if [[ $fuzz =~ "afl" ]]; then
                     continue
                 fi
-				if [[ "`find fuzz/corpus/$fuzz -name '*leak*'`" != "" || "`find fuzz/corpus/$fuzz -name '*timeout*'`" != "" || "`find fuzz/corpus/$fuzz -name '*crash*'`" != ""  ]]; then
-					echo "Test Case: $path - $fuzz fail"
-				else
-					echo "Test Case: $path - $fuzz pass"
-				fi
+                if [[ `ls -A fuzz/corpus/$fuzz | wc -l` -le 1 || \
+                        "`find fuzz/corpus/$fuzz -name '*leak*'`" != "" || \
+                        "`find fuzz/corpus/$fuzz -name '*timeout*'`" != "" || \
+                        "`find fuzz/corpus/$fuzz -name '*crash*'`" != ""  ]]; then
+                    echo "Test Case: $path - $fuzz fail"
+                    check_total_result=`expr $check_total_result + 1`
+                else
+                    echo "Test Case: $path - $fuzz pass"
+                fi
             done
             popd
         done
@@ -279,8 +300,11 @@ check_test_result() {
             for fuzz in $fuzz_list;do
                 if [[ "$fuzz" =~ "afl" ]];then
 					queue_seed_num=`ls -A fuzz/artifacts/$fuzz/default/queue | wc -l`
-                    if [[ $queue_seed_num -le 1 || "`ls -A fuzz/artifacts/$fuzz/default/crashes`" != "" || "`ls -A fuzz/artifacts/$fuzz/default/hangs`" != "" ]]; then
+                    if [[ $queue_seed_num -le 1 || \
+                            "`ls -A fuzz/artifacts/$fuzz/default/crashes`" != "" || \
+                            "`ls -A fuzz/artifacts/$fuzz/default/hangs`" != "" ]]; then
 						echo "Test Case: $path - $fuzz fail"
+                        check_total_result=`expr $check_total_result + 1`
 					else
 						echo "Test Case: $path - $fuzz pass"
                     fi
@@ -292,6 +316,9 @@ check_test_result() {
         done
     fi
 
+    if [[ $check_total_result -ne 0 ]]; then
+        exit 1
+    fi
 }
 
 main() {
