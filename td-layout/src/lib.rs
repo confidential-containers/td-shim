@@ -149,9 +149,34 @@ mod tests {
         let layout = RuntimeMemoryLayout::new(MIN_MEMORY_SIZE + 0x100);
 
         assert_eq!(
-            layout.runtime_event_log_base,
-            MIN_MEMORY_SIZE as u64 - 0x100000
+            layout.runtime_mailbox_base,
+            MIN_MEMORY_SIZE as u64 - (TD_PAYLOAD_EVENT_LOG_SIZE + TD_PAYLOAD_MAILBOX_SIZE) as u64,
         );
+
+        assert_eq!(
+            layout.runtime_event_log_base,
+            MIN_MEMORY_SIZE as u64 - TD_PAYLOAD_EVENT_LOG_SIZE as u64,
+        );
+    }
+
+    #[test]
+    #[cfg(feature = "boot-kernel")]
+    fn test_runtime_memory_layout_boot_kernel() {
+        assert_eq!(MIN_MEMORY_SIZE, 0x262000);
+
+        let layout = RuntimeMemoryLayout::new(MIN_MEMORY_SIZE + 0x1000);
+
+        assert_eq!(layout.runtime_memory_bottom, 0x1000);
+    }
+
+    #[test]
+    #[cfg(not(feature = "boot-kernel"))]
+    fn test_runtime_memory_layout_boot_payload() {
+        assert_eq!(MIN_MEMORY_SIZE, 0x2232000);
+
+        let layout = RuntimeMemoryLayout::new(MIN_MEMORY_SIZE + 0x1000);
+
+        assert_eq!(layout.runtime_memory_bottom, 0x1000);
     }
 
     #[test]
