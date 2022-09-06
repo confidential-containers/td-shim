@@ -20,7 +20,7 @@ which = "4.2.4"
 
 [dependencies]
 lazy_static = { version = "1.4.0", features = ["spin_no_std"] }
-log = "0.4.13"
+log = { version = "0.4.13", features = ["release_max_level_off"] }
 r-efi = "3.2.0"
 scroll = { version = "0.10", default-features = false, features = ["derive"] }
 td-layout = { path = "../td-layout" }
