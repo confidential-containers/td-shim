@@ -26,7 +26,8 @@ use td_shim::acpi::GenericSdtHeader;
 use td_shim::event_log::{
     self, TdHandoffTable, TdHandoffTablePointers, UefiPlatformFirmwareBlob2,
     EV_EFI_HANDOFF_TABLES2, EV_EFI_PLATFORM_FIRMWARE_BLOB2, EV_PLATFORM_CONFIG_FLAGS,
-    PLATFORM_CONFIG_HOB, PLATFORM_FIRMWARE_BLOB2_PAYLOAD, TD_LOG_EFI_HANDOFF_TABLE_GUID,
+    PLATFORM_CONFIG_HOB, PLATFORM_CONFIG_PAYLOAD_PARAMETER, PLATFORM_FIRMWARE_BLOB2_PAYLOAD,
+    TD_LOG_EFI_HANDOFF_TABLE_GUID,
 };
 use td_shim::{
     speculation_barrier, PayloadInfo, TdKernelInfoHobType, TD_ACPI_TABLE_HOB_GUID,
@@ -182,6 +183,12 @@ fn boot_linux_kernel(
     log::info!("e820 table: {:x?}\n", e820_table.as_slice());
     // Safe because we are handle off this buffer to linux kernel.
     let payload = unsafe { memslice::get_mem_slice_mut(memslice::SliceType::Kernel) };
+    let payload_parameter =
+        unsafe { memslice::get_mem_slice(memslice::SliceType::KernelParameter) };
+
+    // Record the payload binary/paramater into event log.
+    log_payload_binary(payload, td_event_log);
+    log_payload_parameter(payload_parameter, td_event_log);
 
     linux::boot::boot_kernel(
         payload,
@@ -382,5 +389,11 @@ fn log_payload_binary(payload: &[u8], td_event_log: &mut tcg::TdEventLog) {
 
     td_event_log
         .create_event_log(2, EV_EFI_PLATFORM_FIRMWARE_BLOB2, blob2.as_bytes(), payload)
+        .expect("Failed to log HOB list to the td event log");
+}
+
+fn log_payload_parameter(payload_parameter: &[u8], td_event_log: &mut tcg::TdEventLog) {
+    td_event_log
+        .create_event_log_platform_config(2, PLATFORM_CONFIG_PAYLOAD_PARAMETER, payload_parameter)
         .expect("Failed to log HOB list to the td event log");
 }
