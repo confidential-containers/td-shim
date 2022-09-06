@@ -7,8 +7,8 @@ use crate::build_time::{
     TD_SHIM_PAYLOAD_BASE, TD_SHIM_PAYLOAD_SIZE,
 };
 use crate::runtime::{
-    KERNEL_BASE, KERNEL_SIZE, TD_HOB_BASE, TD_HOB_SIZE, TD_PAYLOAD_ACPI_SIZE,
-    TD_PAYLOAD_EVENT_LOG_SIZE, TD_PAYLOAD_MAILBOX_SIZE, TD_PAYLOAD_SIZE,
+    KERNEL_BASE, KERNEL_PARAM_BASE, KERNEL_PARAM_SIZE, KERNEL_SIZE, TD_HOB_BASE, TD_HOB_SIZE,
+    TD_PAYLOAD_ACPI_SIZE, TD_PAYLOAD_EVENT_LOG_SIZE, TD_PAYLOAD_MAILBOX_SIZE, TD_PAYLOAD_SIZE,
     TD_PAYLOAD_UNACCEPTED_MEMORY_BITMAP_SIZE,
 };
 
@@ -24,6 +24,8 @@ pub enum SliceType {
     MailBox,
     /// The `Kernel` region in runtime memory layout
     Kernel,
+    /// The `Kernel Parameter` region in runtime memory layout
+    KernelParameter,
     /// The `PAYLOAD` region in runtime memory layout
     Payload,
     /// The `TD_HOB` region in runtime memory layout
@@ -55,6 +57,10 @@ pub fn get_mem_slice<'a>(t: SliceType) -> &'a [u8] {
             SliceType::TdHob => {
                 core::slice::from_raw_parts(TD_HOB_BASE as *const u8, TD_HOB_SIZE as usize)
             }
+            SliceType::KernelParameter => core::slice::from_raw_parts(
+                KERNEL_PARAM_BASE as *const u8,
+                KERNEL_PARAM_SIZE as usize,
+            ),
             _ => panic!("get_mem_slice: not support"),
         }
     }
@@ -129,6 +135,12 @@ mod test {
     fn test_get_mem_slice_with_type_tdhob() {
         let hob_list = get_mem_slice(SliceType::TdHob);
         assert_eq!(hob_list.len(), TD_HOB_SIZE as usize);
+    }
+
+    #[test]
+    fn test_get_mem_slice_with_type_kernelparam() {
+        let kernel_param = get_mem_slice(SliceType::KernelParameter);
+        assert_eq!(kernel_param.len(), KERNEL_PARAM_SIZE as usize);
     }
 
     #[test]
