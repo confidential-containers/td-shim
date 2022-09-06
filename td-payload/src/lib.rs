@@ -14,18 +14,11 @@
 // limitations under the License.
 
 #![no_std]
-#![feature(alloc_error_handler)]
 
 #[macro_use]
 extern crate alloc;
 
-#[cfg(not(test))]
-#[alloc_error_handler]
-#[allow(clippy::empty_loop)]
-fn alloc_error(_info: core::alloc::Layout) -> ! {
-    log::info!("alloc_error ... {:?}\n", _info);
-    panic!("deadloop");
-}
-
 mod json;
 pub use json::json_test;
+
+pub mod serial;

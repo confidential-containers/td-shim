@@ -42,6 +42,7 @@ use crate::testtrustedboot::{TdTrustedBoot, TestTdTrustedBoot};
 use r_efi::efi::Guid;
 use serde::{Deserialize, Serialize};
 use serde_json::{Result, Value};
+use td_payload::{serial::serial, serial_print};
 use td_shim::e820::{E820Entry, E820Type};
 use td_shim::{TD_ACPI_TABLE_HOB_GUID, TD_E820_TABLE_HOB_GUID};
 use td_uefi_pi::{fv, hob, pi};
@@ -251,11 +252,11 @@ extern "C" fn _start(hob: *const c_void) -> ! {
     }
 
     // run the TestSuite which contains the test cases
-    log::info!("---------------------------------------------\n");
-    log::info!("Start to run tests.\n");
-    log::info!("---------------------------------------------\n");
+    serial_print!("---------------------------------------------\n");
+    serial_print!("Start to run tests.\n");
+    serial_print!("---------------------------------------------\n");
     ts.run();
-    log::info!(
+    serial_print!(
         "Test Result: Total run {0} tests; {1} passed; {2} failed\n",
         ts.testsuite.len(),
         ts.passed_cases,
