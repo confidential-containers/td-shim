@@ -23,6 +23,7 @@ serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
 x86 = { version = "0.47.0" }
 ring = { path = "../../library/ring", default-features = false, features = ["alloc"] }
 td-shim = { path = "../../td-shim" }
+td-payload = { path = "../../td-payload" }
 zerocopy = "0.6.0"
 
 [dependencies.lazy_static]

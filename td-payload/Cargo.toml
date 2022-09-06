@@ -18,6 +18,7 @@ td-layout = { path = "../td-layout" }
 td-logger =  { path = "../td-logger" }
 td-shim = { path = "../td-shim"}
 td-uefi-pi =  { path = "../td-uefi-pi" }
+x86 = "0.47.0"
 
 td-benchmark = { path = "../devtools/td-benchmark", optional = true }
 tdx-tdcall = { path = "../tdx-tdcall", optional = true }

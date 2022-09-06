@@ -15,6 +15,7 @@
 
 #![no_std]
 #![cfg_attr(not(test), no_main)]
+#![feature(alloc_error_handler)]
 #![allow(unused)]
 
 use core::mem::size_of;
@@ -50,6 +51,7 @@ mod payload_impl {
     use core::panic::PanicInfo;
     use td_layout::memslice;
     use td_layout::runtime::*;
+    use td_payload::{serial::serial, serial_print};
     use td_uefi_pi::hob;
 
     #[cfg(feature = "benches")]
@@ -60,6 +62,14 @@ mod payload_impl {
     #[cfg(not(feature = "benches"))]
     #[global_allocator]
     pub static ALLOCATOR: LockedHeap = LockedHeap::empty();
+
+    #[cfg(not(test))]
+    #[alloc_error_handler]
+    #[allow(clippy::empty_loop)]
+    fn alloc_error(_info: core::alloc::Layout) -> ! {
+        log::info!("alloc_error ... {:?}\n", _info);
+        panic!("deadloop");
+    }
 
     fn init_heap(heap_start: usize, heap_size: usize) {
         #[cfg(feature = "benches")]
@@ -88,7 +98,7 @@ mod payload_impl {
         {
             td_logger::init().expect("td-payload: failed to initialize tdx logger");
         }
-        log::info!("Starting td-payload hob - {:p}\n", hob);
+        serial_print!("Starting td-payload hob - {:p}\n", hob);
         log::info!("setup_exception_handlers done\n");
 
         let hob_list = hob::check_hob_integrity(unsafe {
@@ -116,7 +126,7 @@ mod payload_impl {
             //Dump TD Report
             let tdx_report =
                 tdx_tdcall::tdreport::tdcall_report(&[0u8; TD_REPORT_ADDITIONAL_DATA_SIZE]);
-            log::info!("{:?}", tdx_report);
+            serial_print!("{:?}", tdx_report);
         }
 
         //Test JSON function using no-std serd_json.
