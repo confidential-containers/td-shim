@@ -84,6 +84,11 @@ set AR_x86_64_unknown_none=llvm-ar
 
 Please follow [Secure Boot Guide](doc/secure_boot_guide.md)
 
+### Before build
+```
+git submodule update --init --recursive
+./sh_script/preparation.sh
+```
 
 ### Build TdShim
 ```
