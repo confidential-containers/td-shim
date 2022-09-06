@@ -14,8 +14,8 @@
                     +--------------+ <-  0x00800000
                     |    TD HOB    |
                     +--------------+ <-  0x00900000
-                    | KERNEL PARAM |    (0x00100000)
-                    +--------------+ <-  0x00A00000
+                    | KERNEL PARAM |    (0x00001000)
+                    +--------------+ <-  0x00901000
                     |    KERNEL    |    (0x02000000)
                     +--------------+
                     |   ........   |
@@ -48,6 +48,6 @@ pub const TD_PAYLOAD_STACK_SIZE: u32 = 0x10000;
 pub const TD_HOB_BASE: u64 = 0x800000;
 pub const TD_HOB_SIZE: u64 = 0x20000;
 pub const KERNEL_PARAM_BASE: u64 = 0x900000;
-pub const KERNEL_PARAM_SIZE: u64 = 0x100000;
-pub const KERNEL_BASE: u64 = 0xA00000;
+pub const KERNEL_PARAM_SIZE: u64 = 0x1000;
+pub const KERNEL_BASE: u64 = 0x901000;
 pub const KERNEL_SIZE: usize = 0x2000000;

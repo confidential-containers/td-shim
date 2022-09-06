@@ -76,7 +76,7 @@
         "payload_size": 0x2000000,
         "stack_size": 0x10000,
         "kernel_size": 0x2000000,
-        "kernel_param_size": 0x100000,
+        "kernel_param_size": 0x1000,
         "kernel_param_base": 0x0900000,
         "td_hob_size": 0x20000,
         "td_hob_base": 0x800000,
