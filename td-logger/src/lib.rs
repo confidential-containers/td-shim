@@ -35,7 +35,6 @@ impl log::Log for LoggerBackend {
 static LOGGER_BACKEND: LoggerBackend = LoggerBackend;
 
 pub fn init() -> Result<(), SetLoggerError> {
-    dbg_write_string("logger init\n");
     log::set_logger(&LOGGER_BACKEND).map(|()| log::set_max_level(LevelFilter::Info))
 }
 
