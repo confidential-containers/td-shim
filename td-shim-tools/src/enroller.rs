@@ -82,7 +82,7 @@ impl FirmwareRawFile {
             self.data.push(0);
         }
 
-        // Update lengh field
+        // Update length field
         write_u24(
             self.data.len() as u32,
             &mut self.data[20..23].try_into().unwrap(),
