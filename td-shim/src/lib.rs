@@ -114,8 +114,8 @@ pub struct PayloadInfo {
 }
 
 /// Write three bytes from an integer value into the buffer.
-pub fn write_u24(data: u32, buf: &mut [u8]) {
-    assert!(data < 0xffffff);
+pub fn write_u24(data: u32, buf: &mut [u8; 3]) {
+    assert!(data <= 0xffffff);
     buf[0] = (data & 0xFF) as u8;
     buf[1] = ((data >> 8) & 0xFF) as u8;
     buf[2] = ((data >> 16) & 0xFF) as u8;

@@ -36,12 +36,13 @@ use td_shim::fv::{
     IplFvHeader,
 };
 use td_shim::reset_vector::{ResetVectorHeader, ResetVectorParams};
+use td_shim::write_u24;
 use td_uefi_pi::pi::fv::{
     FfsFileHeader, FVH_REVISION, FVH_SIGNATURE, FV_FILETYPE_DXE_CORE, FV_FILETYPE_SECURITY_CORE,
     SECTION_PE32,
 };
 
-use crate::{write_u24, InputData, OutputFile};
+use crate::{InputData, OutputFile};
 
 pub const MAX_IPL_CONTENT_SIZE: usize =
     TD_SHIM_IPL_SIZE as usize - size_of::<IplFvHeaderByte>() - size_of::<ResetVectorHeader>();
