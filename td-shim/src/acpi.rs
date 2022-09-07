@@ -104,13 +104,19 @@ impl Xsdt {
     }
 
     pub fn add_table(&mut self, addr: u64) {
-        let table_num =
-            (self.header.length as usize - size_of::<GenericSdtHeader>()) / size_of::<u64>();
-        if table_num < ACPI_TABLES_MAX_NUM {
-            self.tables[table_num] = addr as u64;
-            self.header.length += size_of::<u64>() as u32;
+        if self.header.length < size_of::<GenericSdtHeader>() as u32 {
+            log::error!(
+                "Invalid header: Xsdt header length should not be less than generic header size"
+            );
         } else {
-            log::error!("too many ACPI tables, max {}", ACPI_TABLES_MAX_NUM);
+            let table_num =
+                (self.header.length as usize - size_of::<GenericSdtHeader>()) / size_of::<u64>();
+            if table_num < ACPI_TABLES_MAX_NUM {
+                self.tables[table_num] = addr as u64;
+                self.header.length += size_of::<u64>() as u32;
+            } else {
+                log::error!("too many ACPI tables, max {}", ACPI_TABLES_MAX_NUM);
+            }
         }
     }
 
