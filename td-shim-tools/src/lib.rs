@@ -27,15 +27,6 @@ pub mod loader;
 
 #[cfg(feature = "tee")]
 pub mod tee_info_hash;
-
-/// Write three bytes from an integer value into the buffer.
-pub fn write_u24(data: u32, buf: &mut [u8]) {
-    assert!(data < 0xffffff);
-    buf[0] = (data & 0xFF) as u8;
-    buf[1] = ((data >> 8) & 0xFF) as u8;
-    buf[2] = ((data >> 16) & 0xFF) as u8;
-}
-
 /// Struct to read input data from a file.
 pub struct InputData {
     data: Vec<u8>,

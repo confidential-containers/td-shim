@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
-use std::convert::TryFrom;
+use std::convert::{TryFrom, TryInto};
 use std::io;
 use std::mem::size_of;
 use std::path::PathBuf;
@@ -17,6 +17,7 @@ use td_shim::secure_boot::{
     CfvPubKeyFileHeader, CFV_FFS_HEADER_TRUST_ANCHOR_GUID, CFV_FILE_HEADER_PUBKEY_GUID,
     PUBKEY_FILE_STRUCT_VERSION_V1, PUBKEY_HASH_ALGORITHM_SHA384,
 };
+use td_shim::write_u24;
 use td_uefi_pi::pi::fv::{
     FIRMWARE_FILE_SYSTEM3_GUID, FVH_REVISION, FVH_SIGNATURE, FV_FILETYPE_RAW,
 };
@@ -24,7 +25,7 @@ use td_uefi_pi::pi::fv::{
 use crate::public_key::{
     RsaPublicKeyInfo, SubjectPublicKeyInfo, ID_EC_PUBKEY_OID, RSA_PUBKEY_OID, SECP384R1_OID,
 };
-use crate::{write_u24, InputData, OutputFile};
+use crate::{InputData, OutputFile};
 
 //
 // FFS File Header offset
@@ -82,7 +83,10 @@ impl FirmwareRawFile {
         }
 
         // Update lengh field
-        write_u24(self.data.len() as u32, &mut self.data[20..23]);
+        write_u24(
+            self.data.len() as u32,
+            &mut self.data[20..23].try_into().unwrap(),
+        );
 
         // Update Checksum
         update_checksum(&mut self.data);
