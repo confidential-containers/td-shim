@@ -343,7 +343,7 @@ impl<'a> Iterator for Sections<'a> {
             return None;
         }
 
-        let offset = self.index * COFF_SECTION_SIZE;
+        let offset = self.index.checked_mul(COFF_SECTION_SIZE)?;
         let current_bytes = &self.entries[offset..];
         let section: Section = current_bytes.pread(0).ok()?;
         self.index += 1;
@@ -383,7 +383,10 @@ impl<'a> Iterator for RelocationEntries<'a> {
             return None;
         }
 
-        let entry: u16 = self.entries.pread(self.index * Self::ENTRY_SIZE).ok()?;
+        let entry: u16 = self
+            .entries
+            .pread(self.index.checked_mul(Self::ENTRY_SIZE)?)
+            .ok()?;
         self.index += 1;
         Some(RelocationEntry {
             entry_type: (entry >> 12) as u8,
