@@ -147,4 +147,10 @@ mod test {
             TdKernelInfoHobType::UnknownImage
         );
     }
+
+    #[test]
+    fn test_write_u24() {
+        let mut buf: [u8; 3] = [0; 3];
+        write_u24(0xffffff, &mut buf);
+    }
 }
