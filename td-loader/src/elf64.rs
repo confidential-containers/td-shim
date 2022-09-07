@@ -488,7 +488,7 @@ impl<'a> Iterator for ProgramHeaders<'a> {
         if self.index == self.e_phnum {
             return None;
         }
-        let offset = self.index * ENTRY_SIZE;
+        let offset = self.index.checked_mul(ENTRY_SIZE)?;
 
         let current_bytes = &self.entries[offset..];
 
@@ -558,7 +558,7 @@ impl<'a> Iterator for SectionHeaders<'a> {
         if self.index == self.e_shnum {
             return None;
         }
-        let offset = self.index * ENTRY_SIZE;
+        let offset = self.index.checked_mul(ENTRY_SIZE)?;
 
         let current_bytes = &self.entries[offset..];
 
@@ -604,10 +604,10 @@ impl<'a> Iterator for Dyns<'a> {
     type Item = Dyn;
     fn next(&mut self) -> Option<Self::Item> {
         const ENTRY_SIZE: usize = 16;
-        if self.index * ENTRY_SIZE >= self.entries_len {
+        if self.index.saturating_mul(ENTRY_SIZE) >= self.entries_len {
             return None;
         }
-        let offset = self.index * ENTRY_SIZE;
+        let offset = self.index.checked_mul(ENTRY_SIZE)?;
 
         let current_bytes = &self.entries[offset..];
 
@@ -660,11 +660,6 @@ impl Rela {
     pub fn r_type(&self) -> u32 {
         (self.r_info & 0xffff_ffff) as u32
     }
-
-    #[inline(always)]
-    pub fn r_info(sym: u64, typ: u64) -> u64 {
-        (sym << 32) + typ
-    }
 }
 
 impl fmt::Debug for Rela {
@@ -707,7 +702,7 @@ impl<'a> Iterator for Relocs<'a> {
             return None;
         }
 
-        let offset = self.index * self.relaent;
+        let offset = self.index.checked_mul(self.relaent)?;
         self.entries.len().checked_sub(offset)?;
         let current_bytes = &self.entries[offset..];
 
@@ -834,10 +829,7 @@ mod test_elf_loader {
         for relocs in elf.relocations() {
             for rel in relocs {
                 println!("rel:{:?}", rel);
-                println!(
-                    "rel_info:{:?}",
-                    Rela::r_info(rel.r_sym() as u64, rel.r_type() as u64)
-                );
+                println!("rel_info:{:?}", rel.r_sym() as u64 + rel.r_type() as u64);
             }
         }
     }

@@ -49,7 +49,6 @@ pub fn relocate_elf_with_per_program_header(
     let mut top = top + new_image_base as u64;
     bottom = align_value(bottom, SIZE_4KB, true);
     top = align_value(top, SIZE_4KB, false);
-    top.checked_sub(bottom)?;
     // load per program header
     for ph in elf.program_headers() {
         if (ph.p_type == PT_LOAD || ph.p_type == PT_PHDR) && ph.p_memsz != 0 {
@@ -80,7 +79,7 @@ pub fn relocate_elf_with_per_program_header(
     Some((
         elf.header.e_entry.checked_add(new_image_base as u64)? as u64,
         bottom as u64,
-        (top - bottom) as u64,
+        top.checked_sub(bottom)? as u64,
     ))
 }
 
