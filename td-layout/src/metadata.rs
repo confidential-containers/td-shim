@@ -225,6 +225,9 @@ impl TdxMetadata {
                 TDX_METADATA_SECTION_TYPE_BFV => {
                     // A TD-Shim shall include at least one BFV and the reset vector shall be inside
                     // of BFV. The RawDataSize of BFV must be non-zero.
+                    if bfv_cnt == i32::MAX {
+                        return false;
+                    }
                     bfv_cnt += 1;
                     if section.raw_data_size == 0 {
                         return false;
@@ -265,6 +268,9 @@ impl TdxMetadata {
                     // A TD-Shim may have zero or one TD_HOB section. The RawDataSize of TD_HOB must
                     // be zero. If TD-Shim reports zero TD_HOB section, then TD-Shim shall report
                     // all required memory in PermMem section.
+                    if hob_cnt == i32::MAX {
+                        return false;
+                    }
                     hob_cnt += 1;
                     if hob_cnt > 1 {
                         return false;
@@ -309,6 +315,9 @@ impl TdxMetadata {
                     // will own the memory allocation. VMM shall allocate the permanent memory for
                     // this TD. TD will NOT use the system memory information in the TD HOB. Even if
                     // VMM adds system memory information in the TD HOB, it will ne ignored.
+                    if perm_mem_cnt == i32::MAX {
+                        return false;
+                    }
                     perm_mem_cnt += 1;
                     if section.raw_data_size != 0 || section.data_offset != 0 {
                         return false;
@@ -330,6 +339,9 @@ impl TdxMetadata {
                     // A TD-Shim may have zero or one Payload. The RawDataSize of Payload must be
                     // non-zero, if the whole image includes the Payload. Otherwise the RawDataSize
                     // must be zero.
+                    if payload_cnt == i32::MAX {
+                        return false;
+                    }
                     payload_cnt += 1;
                     if payload_cnt > 1 {
                         return false;
@@ -350,6 +362,9 @@ impl TdxMetadata {
                 TDX_METADATA_SECTION_TYPE_PAYLOAD_PARAM => {
                     // A TD-Shim may have zero or one PayloadParam. PayloadParam is present only if
                     // the Payload is present.
+                    if payload_param_cnt == i32::MAX {
+                        return false;
+                    }
                     payload_param_cnt += 1;
                     if payload_param_cnt > 1 {
                         return false;
