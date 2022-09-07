@@ -19,14 +19,14 @@ pub fn fuzz_elf_loader(data: &[u8]) {
     if let Some(elf) = Elf::parse(data) {
         log::info!("{:?}\n", elf.header);
 
-        if let Some(hd) = elf.program_headers().next() {
+        if let Some(hd) = elf.program_headers().unwrap().next() {
             let status = hd.is_executable();
             log::info!("executable status: {}", status);
             let status = hd.is_write();
             log::info!("write status: {}", status);
         }
 
-        for header in elf.program_headers() {
+        for header in elf.program_headers().unwrap() {
             log::info!("header: {:?}\n", header);
         }
 

@@ -490,6 +490,9 @@ impl<'a> Iterator for ProgramHeaders<'a> {
         }
         let offset = self.index.checked_mul(ENTRY_SIZE)?;
 
+        if offset >= self.entries.len() {
+            return None;
+        }
         let current_bytes = &self.entries[offset..];
 
         let obj = current_bytes.pread::<ProgramHeader>(0).ok()?;
@@ -560,6 +563,9 @@ impl<'a> Iterator for SectionHeaders<'a> {
         }
         let offset = self.index.checked_mul(ENTRY_SIZE)?;
 
+        if offset >= self.entries.len() {
+            return None;
+        }
         let current_bytes = &self.entries[offset..];
 
         let obj = current_bytes.pread::<SectionHeader>(0).ok()?;
@@ -609,6 +615,9 @@ impl<'a> Iterator for Dyns<'a> {
         }
         let offset = self.index.checked_mul(ENTRY_SIZE)?;
 
+        if offset >= self.entries.len() {
+            return None;
+        }
         let current_bytes = &self.entries[offset..];
 
         let obj = current_bytes.pread::<Dyn>(0).ok()?;
@@ -733,7 +742,7 @@ impl<'a> Elf<'a> {
     fn dynamic_info(&self) -> Option<DynamicInfo> {
         let elf_bin = self.bytes;
         let mut dynamic_info = DynamicInfo::default();
-        for header in self.program_headers() {
+        for header in self.program_headers()? {
             if header.p_type == PT_DYNAMIC {
                 if header.p_offset.checked_add(header.p_filesz)? > elf_bin.len() as u64 {
                     return None;
@@ -744,7 +753,11 @@ impl<'a> Elf<'a> {
                 )?;
                 for d in dyns {
                     if d.d_tag == DT_RELA {
-                        dynamic_info.rela = vm_to_offset(self.program_headers(), d.d_val)? as usize;
+                        if self.header.e_phoff >= self.bytes.len() as u64 {
+                            return None;
+                        }
+                        dynamic_info.rela =
+                            vm_to_offset(self.program_headers().unwrap(), d.d_val)? as usize;
                     }
                     if d.d_tag == DT_RELACOUNT {
                         dynamic_info.relacount = d.d_val as usize;
@@ -761,14 +774,20 @@ impl<'a> Elf<'a> {
         Some(dynamic_info)
     }
 
-    pub fn program_headers(&self) -> ProgramHeaders<'a> {
+    pub fn program_headers(&self) -> Option<ProgramHeaders<'a>> {
+        if self.header.e_phoff >= self.bytes.len() as u64 {
+            return None;
+        }
         let bytes = &self.bytes[self.header.e_phoff as usize..];
-        ProgramHeaders::parse(bytes, self.header.e_phnum as usize).unwrap()
+        Some(ProgramHeaders::parse(bytes, self.header.e_phnum as usize).unwrap())
     }
 
-    pub fn section_headers(&self) -> SectionHeaders<'a> {
+    pub fn section_headers(&self) -> Option<SectionHeaders<'a>> {
+        if self.header.e_shoff >= self.bytes.len() as u64 {
+            return None;
+        }
         let bytes = &self.bytes[self.header.e_shoff as usize..];
-        SectionHeaders::parse(bytes, self.header.e_shnum as usize).unwrap()
+        Some(SectionHeaders::parse(bytes, self.header.e_shnum as usize).unwrap())
     }
 
     pub fn relocations(&self) -> Option<Relocs<'a>> {
@@ -796,7 +815,7 @@ mod test_elf_loader {
         let elf = crate::elf64::Elf::parse(pe_image).unwrap();
         println!("{:?}\n", elf.header);
 
-        let hd = elf.program_headers().next().unwrap();
+        let hd = elf.program_headers().unwrap().next().unwrap();
         let status = hd.is_executable();
         assert!(!status);
 
@@ -804,7 +823,7 @@ mod test_elf_loader {
         assert!(!status);
 
         let elf_bin = elf.bytes;
-        for header in elf.program_headers() {
+        for header in elf.program_headers().unwrap() {
             println!("header: {:?}\n", header);
 
             let dyns = Dyns::parse(
@@ -817,7 +836,7 @@ mod test_elf_loader {
             }
         }
 
-        for header in elf.section_headers() {
+        for header in elf.section_headers().unwrap() {
             println!("header: {:?}\n", header);
 
             assert_eq!(
