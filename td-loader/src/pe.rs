@@ -344,6 +344,10 @@ impl<'a> Iterator for Sections<'a> {
         }
 
         let offset = self.index.checked_mul(COFF_SECTION_SIZE)?;
+
+        if offset >= self.entries.len() {
+            return None;
+        }
         let current_bytes = &self.entries[offset..];
         let section: Section = current_bytes.pread(0).ok()?;
         self.index += 1;
