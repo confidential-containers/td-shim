@@ -346,7 +346,12 @@ impl<'a> CcEventDumper<'a> {
             return;
         };
 
-        while offset < self.size as usize {
+        if self.size < size_of::<TcgPcrEventHeader>() + CC_EVENT_HEADER_SIZE {
+            log::info!("No event header in event log\n");
+            return;
+        }
+
+        while offset <= self.size - CC_EVENT_HEADER_SIZE as usize {
             if let Some(cc_event_header) = self.read_cc_event_header(offset) {
                 offset += CC_EVENT_HEADER_SIZE;
                 let cc_event_size = cc_event_header.event_size as usize;
