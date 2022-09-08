@@ -194,4 +194,29 @@ mod tests {
         xsdt.checksum();
         assert_eq!(xsdt.header.checksum, CHECK_SUM);
     }
+
+    #[test]
+    fn test_xsdt_add_table() {
+        let mut xsdt = Xsdt::new();
+
+        xsdt.add_table(100);
+        let first_table = xsdt.tables[0];
+        assert_eq!(first_table, 100);
+
+        // length < size_of::<GenericSdtHeader>(), add table fail
+        xsdt.header.length = size_of::<GenericSdtHeader>() as u32 - 1;
+        xsdt.add_table(100);
+        let second_table = xsdt.tables[1];
+        assert_eq!(second_table, 0);
+
+        // length >= ACPI_TABLES_MAX_NUM, add table fail
+        xsdt.header.length = size_of::<GenericSdtHeader>() as u32
+            + ACPI_TABLES_MAX_NUM as u32 * size_of::<u64>() as u32;
+        xsdt.add_table(100);
+        let end_tables = xsdt.tables;
+
+        let mut expected_tables: [u64; ACPI_TABLES_MAX_NUM] = [0; ACPI_TABLES_MAX_NUM];
+        expected_tables[0] = 100;
+        assert_eq!(end_tables, expected_tables);
+    }
 }
