@@ -5,7 +5,7 @@ This guide follows the [Secure Boot Specification](secure_boot.md) for td-shim.
 ## Build td-shim with secure boot feature enabled
 
 ```
-cargo xbuild -p td-shim --target x86_64-unknown-uefi --release --features=main,tdx,secure-boot
+cargo xbuild -p td-shim --target x86_64-unknown-none --release --features=main,tdx,secure-boot
 ```
 
 ## Build payload
@@ -13,7 +13,7 @@ cargo xbuild -p td-shim --target x86_64-unknown-uefi --release --features=main,t
 Refer to [README](../README.md), using ELF as example:
 
 ```
-cargo xbuild -p td-payload --target devtools/rustc-targets/x86_64-unknown-none.json --release --features=main,tdx
+cargo xbuild -p td-payload --target x86_64-unknown-none --release --features=main,tdx
 ```
 
 ## Generate Key
@@ -68,12 +68,12 @@ The signed payload file **td-payload-signed** is located in the same folder with
 ## Enroll public key into CFV with [rust-tdshim-key-enroll](../td-shim-tools)
 Build final.bin:
 ```
-cargo run -p td-shim-tools --bin td-shim-ld -- target/x86_64-unknown-uefi/release/ResetVector.bin target/x86_64-unknown-uefi/release/td-shim.efi -p target/x86_64-unknown-none/release/td-payload-signed -o target/x86_64-unknown-uefi/release/final.bin
+cargo run -p td-shim-tools --bin td-shim-ld -- target/x86_64-unknown-none/release/ResetVector.bin target/x86_64-unknown-none/release/td-shim -p target/x86_64-unknown-none/release/td-payload-signed -o target/release/final.bin
 ```
 
 Enroll public key:
 ```
-cargo run -p td-shim-tools --bin td-shim-enroll -- target/x86_64-unknown-uefi/release/final.bin -H SHA384 -k data/sample-keys/ecdsa-p384-public.der
+cargo run -p td-shim-tools --bin td-shim-enroll -- target/release/final.bin -H SHA384 -k data/sample-keys/ecdsa-p384-public.der
 ```
 
 The output file **final.sb.bin** with secure boot enabled is located in the same folder with input final.bin.

@@ -22,11 +22,11 @@ all: preparation install-devtools build test
 
 preparation: apply_patches
 
-build: $(SHIM_CRATES:%=uefi-build-%) $(TOOL_CRATES:%=build-%)
+build: $(SHIM_CRATES:%=none-build-%) $(TOOL_CRATES:%=build-%)
 
-check: $(SHIM_CRATES:%=uefi-check-%) $(TOOL_CRATES:%=check-%)
+check: $(SHIM_CRATES:%=none-check-%) $(TOOL_CRATES:%=check-%)
 
-clean: $(SHIM_CRATES:%=uefi-clean-%) $(TOOL_CRATES:%=clean-%)
+clean: $(SHIM_CRATES:%=none-clean-%) $(TOOL_CRATES:%=clean-%)
 
 test: $(SHIM_CRATES:%=test-%) $(TOOL_CRATES:%=test-%)
 
@@ -83,15 +83,15 @@ integration-test: $(TEST_CRATES:%=integration-test-%)
 
 integration-clean: $(TEST_CRATES:%=integration-clean-%)
 
-# Target for crates which should be compiled with `x86_64-unknown-uefi` target
-uefi-build-%:
-	${CARGO} +${NIGHTLY_TOOLCHAIN} xbuild --target x86_64-unknown-uefi -p $(patsubst uefi-build-%,%,$@) ${BUILD_TYPE_FLAG}
+# Target for crates which should be compiled with `x86_64-unknown-none` target
+none-build-%:
+	${CARGO} +${NIGHTLY_TOOLCHAIN} xbuild --target x86_64-unknown-none -p $(patsubst none-build-%,%,$@) ${BUILD_TYPE_FLAG}
 
-uefi-check-%:
-	 ${CARGO} +${NIGHTLY_TOOLCHAIN}xcheck --target x86_64-unknown-uefi -p $(patsubst uefi-check-%,%,$@) ${BUILD_TYPE_FLAG}
+none-check-%:
+	 ${CARGO} +${NIGHTLY_TOOLCHAIN}xcheck --target x86_64-unknown-none -p $(patsubst none-check-%,%,$@) ${BUILD_TYPE_FLAG}
 
-uefi-clean-%:
-	${CARGO} +${NIGHTLY_TOOLCHAIN} clean --target x86_64-unknown-uefi -p $(patsubst uefi-clean-%,%,$@) ${BUILD_TYPE_FLAG}
+none-clean-%:
+	${CARGO} +${NIGHTLY_TOOLCHAIN} clean --target x86_64-unknown-none -p $(patsubst none-clean-%,%,$@) ${BUILD_TYPE_FLAG}
 
 # Target for integration test crates which should be compiled with `x86_64-custom.json` target
 integration-build-%:

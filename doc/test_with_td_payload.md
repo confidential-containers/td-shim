@@ -27,19 +27,19 @@ Refer to [README](../README.md), using PE as example:
 ### Build test TD payload
 ```
 $ cd tests
-$ cargo xbuild -p test-td-payload --target x86_64-unknown-uefi --release --features=main,tdx
+$ cargo xbuild -p test-td-payload --target x86_64-unknown-none --release --features=main,tdx
 $ cd ..
 ```
 
 ### Generate final.bin
 ```
-$ cargo xbuild -p td-shim --target x86_64-unknown-uefi --release --features=main,tdx --no-default-features
-$ cargo run -p td-shim-tools --bin td-shim-ld --no-default-features --features=linker -- target/x86_64-unknown-uefi/release/ResetVector.bin target/x86_64-unknown-uefi/release/td-shim.efi -p target/x86_64-unknown-uefi/release/test-td-payload.efi -o target/x86_64-unknown-uefi/release/final-pe.bin
+$ cargo xbuild -p td-shim --target x86_64-unknown-none --release --features=main,tdx --no-default-features
+$ cargo run -p td-shim-tools --bin td-shim-ld --no-default-features --features=linker -- target/x86_64-unknown-none/release/ResetVector.bin target/x86_64-unknown-none/release/td-shim -p target/x86_64-unknown-uefi/release/test-td-payload.efi -o target/release/final-pe.bin
 ```
 
 ### Enroll json file in CFV
 ```
-$ cargo run -p td-shim-tools --features="enroller" --bin td-shim-enroll target/x86_64-unknown-uefi/release/final-pe.bin -f F10E684E-3ABD-20E4-5932-8F973C355E57 tests/test-td-payload/src/test.json -o target/x86_64-unknown-uefi/release/final.test.bin
+$ cargo run -p td-shim-tools --features="enroller" --bin td-shim-enroll target/release/final-pe.bin -f F10E684E-3ABD-20E4-5932-8F973C355E57 tests/test-td-payload/src/test.json -o target/release/final.test.bin
 ```
 
 The output file **final.test.bin** with [test.json](../tests/test-td-payload/src/test.json) is located in the same folder with input final.bin. 
