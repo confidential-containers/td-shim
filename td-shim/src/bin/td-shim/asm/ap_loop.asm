@@ -17,22 +17,6 @@
 .set MailboxApicIdBroadcast,              0xfffffffe
 
 .section .text
-#---------------------------------------------------------------------
-#  ap_relocated_func_size (
-#       size: *mut u64, // rcx
-#  );
-#---------------------------------------------------------------------
-.global ap_relocated_func_size
-ap_relocated_func_size:
-    push       rax
-    push       rbx
-    lea        rax, .ap_relocated_func_end
-    lea        rbx, ap_relocated_func
-    sub        rax, rbx
-    mov        qword ptr[rcx], rax
-    pop        rbx
-    pop        rax
-    ret
 
 #--------------------------------------------------------------------
 # ap_relocated_vector
@@ -91,4 +75,6 @@ ap_relocated_func:
 .panic:
     ud2
 
-.ap_relocated_func_end:
+.global ap_relocated_func_end
+ap_relocated_func_end:
+    jmp .panic
