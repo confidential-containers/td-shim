@@ -337,9 +337,7 @@ fn ap_set_cr3(cpu_index: u32, cr3: u64) {
 }
 
 pub fn relocate_page_table(cpu_num: u32, page_table_base: u64) {
-    log::info!("relocate_page_table\n");
     for cpu_index in make_apic_range(cpu_num - 1) {
         ap_set_cr3(cpu_index, page_table_base);
     }
-    log::info!("relocate_page_table done\n");
 }

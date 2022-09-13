@@ -92,25 +92,25 @@ git submodule update --init --recursive
 
 ### Build TdShim
 ```
-cargo xbuild -p td-shim --target x86_64-unknown-uefi --release --features=main,tdx
-cargo run -p td-shim-tools --bin td-shim-ld -- target/x86_64-unknown-uefi/release/ResetVector.bin target/x86_64-unknown-uefi/release/td-shim.efi -o target/x86_64-unknown-uefi/release/final.bin
+cargo xbuild -p td-shim --target x86_64-unknown-none --release --features=main,tdx
+cargo run -p td-shim-tools --bin td-shim-ld -- target/x86_64-unknown-none/release/ResetVector.bin target/x86_64-unknown-none/release/td-shim -o target/release/final.bin
 ```
 
 ### Build TdShim to launch a executable payload
 ```
-cargo xbuild -p td-shim --target x86_64-unknown-uefi --release --features=main,tdx --no-default-features
+cargo xbuild -p td-shim --target x86_64-unknown-none --release --features=main,tdx --no-default-features
 ```
 
 ### Build PE format payload
 ```
 cargo xbuild -p td-payload --target x86_64-unknown-uefi --release --features=main,tdx
-cargo run -p td-shim-tools --bin td-shim-ld --no-default-features --features=linker -- target/x86_64-unknown-uefi/release/ResetVector.bin target/x86_64-unknown-uefi/release/td-shim.efi -p target/x86_64-unknown-uefi/release/td-payload.efi -o target/x86_64-unknown-uefi/release/final-pe.bin
+cargo run -p td-shim-tools --bin td-shim-ld --no-default-features --features=linker -- target/x86_64-unknown-none/release/ResetVector.bin target/x86_64-unknown-none/release/td-shim -p target/x86_64-unknown-uefi/release/td-payload.efi -o target/release/final-pe.bin
 ```
 
 ### Build Elf format payload
 ```
-cargo xbuild -p td-payload --target devtools/rustc-targets/x86_64-unknown-none.json --release --features=main,tdx
-cargo run -p td-shim-tools --bin td-shim-ld --no-default-features --features=linker -- target/x86_64-unknown-uefi/release/ResetVector.bin target/x86_64-unknown-uefi/release/td-shim.efi -p target/x86_64-unknown-none/release/td-payload -o target/x86_64-unknown-uefi/release/final-elf.bin
+cargo xbuild -p td-payload --target x86_64-unknown-none --release --features=main,tdx
+cargo run -p td-shim-tools --bin td-shim-ld --no-default-features --features=linker -- target/x86_64-unknown-none/release/ResetVector.bin target/x86_64-unknown-none/release/td-shim -p target/x86_64-unknown-none/release/td-payload -o target/release/final-elf.bin
 ```
 
 ## Run

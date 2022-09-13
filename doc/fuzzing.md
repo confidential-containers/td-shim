@@ -171,7 +171,7 @@ $ cargo fuzz list
 
 # Copy the torrent to the default torrent folder, so you don't have to process the generated torrent file.
 $ mkdir fuzz/corpus/pe
-$ cp fuzz/seeds/pe/td-shim.efi fuzz/corpus/pe
+$ cp fuzz/seeds/pe/td-shim fuzz/corpus/pe
 
 
 # Run pe fuzz.
