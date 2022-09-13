@@ -11,7 +11,7 @@ use core::ops::RangeInclusive;
 use td_layout::memslice::{get_dynamic_mem_slice_mut, get_mem_slice_mut, SliceType};
 use tdx_tdcall::{self, tdx};
 
-use crate::asm::{ap_relocated_func, ap_relocated_func_size};
+use crate::asm::{ap_relocated_func_addr, ap_relocated_func_size};
 
 // The count of AP to wakeup is limited by the heap size that can be used for stack allocation
 // The maximum size of memory used for AP stacks is 30 KB.
@@ -191,7 +191,7 @@ fn td_accept_pages(address: u64, pages: u64, page_size: u64) {
     }
 }
 
-fn parallel_accept_memory(cpu_index: u64) {
+extern "win64" fn parallel_accept_memory(cpu_index: u64) {
     // Safety:
     // During this state, all the BSPs/APs are accessing the mailbox in shared immutable mode.
     let mail_box = unsafe { MailBox::new(get_mem_slice_mut(SliceType::MailBox)) };
@@ -291,9 +291,8 @@ pub fn relocate_mailbox(address: u32) -> Result<(), MailboxError> {
         unsafe { get_dynamic_mem_slice_mut(SliceType::RelocatedMailbox, address as usize) };
 
     // Get the new AP function and its size
-    let func_addr = ap_relocated_func as *const fn() as u64;
-    let mut func_size = 0u64;
-    unsafe { ap_relocated_func_size(&mut func_size as *mut u64) };
+    let func_addr = ap_relocated_func_addr();
+    let func_size = ap_relocated_func_size();
 
     // Ensure that the Mailbox memory can hold the AP loop function
     if func_size as usize > mailbox.len() {
@@ -338,7 +337,9 @@ fn ap_set_cr3(cpu_index: u32, cr3: u64) {
 }
 
 pub fn relocate_page_table(cpu_num: u32, page_table_base: u64) {
+    log::info!("relocate_page_table\n");
     for cpu_index in make_apic_range(cpu_num - 1) {
         ap_set_cr3(cpu_index, page_table_base);
     }
+    log::info!("relocate_page_table done\n");
 }
