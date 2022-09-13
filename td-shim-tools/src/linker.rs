@@ -30,7 +30,7 @@ use td_layout::metadata::{
 #[cfg(feature = "boot-kernel")]
 use td_layout::runtime::{KERNEL_BASE, KERNEL_PARAM_BASE, KERNEL_PARAM_SIZE, KERNEL_SIZE};
 use td_layout::runtime::{TD_HOB_BASE, TD_HOB_SIZE};
-use td_loader::pe;
+use td_loader::{elf, pe};
 use td_shim::fv::{
     FvFfsFileHeader, FvFfsSectionHeader, FvHeader, IplFvFfsHeader, IplFvFfsSectionHeader,
     IplFvHeader,
@@ -435,14 +435,18 @@ impl TdShimLinker {
 
         let mut ipl_reloc_buf = vec![0x00u8; MAX_IPL_CONTENT_SIZE];
         // relocate ipl to 1M
-        let reloc = pe::relocate(&ipl_bin.data, &mut ipl_reloc_buf, 0x100000 as usize)
-            .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "Can not relocate IPL content"))?;
+        let reloc = elf::relocate_elf_with_per_program_header(
+            &ipl_bin.data,
+            &mut ipl_reloc_buf,
+            0x100000 as usize,
+        )
+        .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "Can not relocate IPL content"))?;
         trace!(
             "reloc IPL entrypoint - 0x{:x} - base: 0x{:x}",
-            reloc,
+            reloc.0,
             0x100000
         );
-        let entry_point = (reloc - 0x100000) as u32;
+        let entry_point = (reloc.0 - 0x100000) as u32;
         let current_pos = output_file.current_pos()?;
         let reset_vector_info = ResetVectorParams {
             entry_point,

@@ -87,7 +87,7 @@ fn alloc_error(_info: core::alloc::Layout) -> ! {
 ///           [32:24] VCPU_Index
 #[cfg(not(test))]
 #[no_mangle]
-#[export_name = "efi_main"]
+#[cfg_attr(target_os = "uefi", export_name = "efi_main")]
 pub extern "win64" fn _start(
     boot_fv: *const c_void,
     top_of_stack: *const c_void,
@@ -116,8 +116,10 @@ pub extern "win64" fn _start(
         .expect("Unable to find a piece of suitable memory for runtime");
     mem.setup_paging();
 
+    log::info!("setup_paging done\n");
     // Relocate the page table that map all the physical memory
     td::relocate_ap_page_table(mem.layout.runtime_page_table_base);
+    log::info!("relocate_ap_page_table done\n");
     // Relocate Mailbox along side with the AP function
     td::relocate_mailbox(mem.layout.runtime_mailbox_base as u32);
 
