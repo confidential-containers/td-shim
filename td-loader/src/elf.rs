@@ -21,11 +21,18 @@ pub fn is_elf(image: &[u8]) -> bool {
     image.len() >= 4 && image[0..4] == ELFMAG
 }
 
-pub fn relocate_elf_with_per_program_header(
+pub fn relocate_elf_mem_with_per_program_header(
     image: &[u8],
     loaded_buffer: &mut [u8],
 ) -> Option<(u64, u64, u64)> {
-    let new_image_base = loaded_buffer as *const [u8] as *const u8 as usize;
+    relocate_elf_with_per_program_header(image, loaded_buffer, loaded_buffer.as_ptr() as usize)
+}
+
+pub fn relocate_elf_with_per_program_header(
+    image: &[u8],
+    loaded_buffer: &mut [u8],
+    new_image_base: usize,
+) -> Option<(u64, u64, u64)> {
     // parser file and get entry point
     let elf = crate::elf64::Elf::parse(image)?;
 
@@ -146,7 +153,22 @@ mod test_elf_loader {
         let image_bytes = &include_bytes!("../../data/blobs/td-payload.elf")[..];
 
         let mut loaded_buffer = vec![0u8; 0x800000];
+        let new_image_base = loaded_buffer.as_ptr() as usize;
 
-        super::relocate_elf_with_per_program_header(image_bytes, loaded_buffer.as_mut_slice());
+        super::relocate_elf_with_per_program_header(
+            image_bytes,
+            loaded_buffer.as_mut_slice(),
+            new_image_base,
+        )
+        .unwrap();
+    }
+    #[test]
+    fn test_relocate_mem() {
+        let image_bytes = &include_bytes!("../../data/blobs/td-payload.elf")[..];
+
+        let mut loaded_buffer = vec![0u8; 0x800000];
+
+        super::relocate_elf_mem_with_per_program_header(image_bytes, loaded_buffer.as_mut_slice())
+            .unwrap();
     }
 }
