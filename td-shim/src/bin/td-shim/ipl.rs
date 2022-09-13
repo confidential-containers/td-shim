@@ -43,7 +43,7 @@ pub fn find_and_report_entry_point(
 
     let res = if elf::is_elf(image_buffer) {
         image_type = ExecutablePayloadType::Elf;
-        elf::relocate_elf_with_per_program_header(image_buffer, loaded_buffer)?
+        elf::relocate_elf_mem_with_per_program_header(image_buffer, loaded_buffer)?
     } else if pe::is_x86_64_pe(image_buffer) {
         image_type = ExecutablePayloadType::PeCoff;
         pe::relocate_pe_mem_with_per_sections(image_buffer, loaded_buffer)?
@@ -100,7 +100,7 @@ mod tests {
         let mut loaded_buffer = vec![0u8; elf.len()];
 
         assert!(elf::is_elf(elf));
-        elf::relocate_elf_with_per_program_header(elf, &mut loaded_buffer, |_ph| {}).unwrap();
+        elf::relocate_elf_mem_with_per_program_header(elf, &mut loaded_buffer, |_ph| {}).unwrap();
     }
 
     #[test]
