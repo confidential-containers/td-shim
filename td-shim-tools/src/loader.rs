@@ -137,7 +137,7 @@ impl TdShimLoader {
         }
 
         // check the validness of the sections
-        if !TdxMetadata::is_valid_sections(&metadata_sections) {
+        if TdxMetadata::validate_sections(&metadata_sections).is_err() {
             error!("Invalid metadata sections.");
             return None;
         }
