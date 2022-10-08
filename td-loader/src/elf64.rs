@@ -924,4 +924,47 @@ mod test_elf_loader {
         hdr.sh_size = 0x1;
         hdr.vm_range();
     }
+
+    #[test]
+    fn test_programheaders_iterator() {
+        const ENTRY_SIZE: usize = 56;
+        let pe_image = &include_bytes!("../../data/blobs/td-payload.elf")[..];
+        let elf = crate::elf64::Elf::parse(pe_image).unwrap();
+        let mut p_hdrs = elf.program_headers().unwrap();
+
+        p_hdrs.index = (usize::MAX as usize / ENTRY_SIZE) + 1;
+        assert!(p_hdrs.next().is_none());
+    }
+
+    #[test]
+    fn test_sectionheaders_iterator() {
+        const ENTRY_SIZE: usize = 64;
+        let pe_image = &include_bytes!("../../data/blobs/td-payload.elf")[..];
+        let elf = crate::elf64::Elf::parse(pe_image).unwrap();
+        let mut s_hdrs = elf.section_headers().unwrap();
+
+        s_hdrs.index = (usize::MAX as usize / ENTRY_SIZE) + 1;
+        assert!(s_hdrs.next().is_none());
+    }
+
+    #[test]
+    fn test_dyns_iterator() {
+        const ENTRY_SIZE: usize = 16;
+        let pe_image = &include_bytes!("../../data/blobs/td-payload.elf")[..];
+        let elf = crate::elf64::Elf::parse(pe_image).unwrap();
+        let elf_bin = elf.bytes;
+
+        for header in elf.program_headers().unwrap() {
+            println!("header: {:?}\n", header);
+
+            let mut dyns = Dyns::parse(
+                &elf_bin[header.p_offset as usize..],
+                header.p_filesz as usize,
+            )
+            .unwrap();
+
+            dyns.index = (usize::MAX as usize / ENTRY_SIZE) + 1;
+            assert!(dyns.next().is_none());
+        }
+    }
 }
