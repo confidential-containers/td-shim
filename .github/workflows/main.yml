@@ -84,7 +84,7 @@ jobs:
 
       - name: Build PE format payload
         run: |
-          cargo xbuild -p td-payload --target x86_64-unknown-none --release --features=main,tdx
+          cargo xbuild -p td-payload --target x86_64-unknown-uefi --release --features=main,tdx
           cargo run -p td-shim-tools --no-default-features --features=linker --bin td-shim-ld -- target/x86_64-unknown-none/release/ResetVector.bin target/x86_64-unknown-none/release/td-shim -p target/x86_64-unknown-uefi/release/td-payload.efi -o target/release/final-pe.bin
 
       - name: Build Elf format payload
