@@ -598,4 +598,22 @@ mod test {
         }
         assert_eq!(entries, 1);
     }
+
+    #[test]
+    fn test_sections_iterator() {
+        let pe_image = &include_bytes!("../../data/blobs/td-payload.efi")[..];
+        let coff_header_offset = pe_image.pread::<u32>(0x3c).unwrap() as usize;
+        let pe_region = &pe_image[coff_header_offset..];
+
+        let num_sections = pe_region.pread::<u16>(6).unwrap() as usize;
+        let optional_header_size = pe_region.pread::<u16>(20).unwrap() as usize;
+        let optional_region = &pe_image[24 + coff_header_offset..];
+
+        let mut num_section = 0;
+        let sections_buffer = &pe_image[(24 + coff_header_offset + optional_header_size)..];
+        let mut sections = Sections::parse(sections_buffer, num_sections as usize).unwrap();
+
+        sections.index = (usize::MAX as usize / COFF_SECTION_SIZE) + 1;
+        assert!(sections.next().is_none());
+    }
 }
