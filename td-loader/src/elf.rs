@@ -5,7 +5,7 @@
 use core::ops::Range;
 use scroll::Pwrite;
 
-use crate::elf64::{self, PT_LOAD, PT_PHDR};
+use crate::elf64;
 
 const SIZE_4KB: u64 = 0x00001000u64;
 
@@ -39,13 +39,11 @@ pub fn relocate_elf_with_per_program_header(
     let mut top: u64 = 0u64;
 
     for ph in elf.program_headers().unwrap() {
-        if ph.p_type == PT_LOAD {
-            if bottom > ph.p_vaddr {
-                bottom = ph.p_vaddr;
-            }
-            if top < ph.p_vaddr.checked_add(ph.p_memsz)? {
-                top = ph.p_vaddr + ph.p_memsz;
-            }
+        if bottom > ph.p_vaddr {
+            bottom = ph.p_vaddr;
+        }
+        if top < ph.p_vaddr.checked_add(ph.p_memsz)? {
+            top = ph.p_vaddr + ph.p_memsz;
         }
     }
 
@@ -57,7 +55,7 @@ pub fn relocate_elf_with_per_program_header(
     top = align_value(top, SIZE_4KB, false);
     // load per program header
     for ph in elf.program_headers().unwrap() {
-        if (ph.p_type == PT_LOAD || ph.p_type == PT_PHDR) && ph.p_memsz != 0 {
+        if ph.p_memsz != 0 {
             if ph.p_offset.checked_add(ph.p_filesz)? > image.len() as u64
                 || ph.p_vaddr.checked_add(ph.p_filesz)? > loaded_buffer.len() as u64
             {
