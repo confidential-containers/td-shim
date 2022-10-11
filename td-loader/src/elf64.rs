@@ -804,6 +804,40 @@ impl<'a> Elf<'a> {
     }
 }
 
+pub(crate) fn get_init_array(loaded_image: &[u8], tag: u64, sz_tag: u64) -> Option<Range<usize>> {
+    let elf = crate::elf64::Elf::parse(loaded_image)?;
+
+    let mut addr: Option<usize> = None;
+    let mut size: Option<usize> = None;
+    for ph in elf.program_headers()? {
+        if ph.p_type == crate::elf64::PT_DYNAMIC {
+            if ph.p_vaddr + ph.p_memsz > loaded_image.len() as u64 {
+                return None;
+            }
+
+            let dyn_entries = crate::elf64::Dyns::parse(
+                &loaded_image[ph.p_vaddr as usize..],
+                ph.p_memsz as usize,
+            )?;
+            for e in dyn_entries {
+                if e.d_tag == tag {
+                    addr = Some(e.d_val as usize);
+                } else if e.d_tag == sz_tag {
+                    size = Some(e.d_val as usize);
+                }
+            }
+            break;
+        }
+    }
+
+    let addr = addr?;
+    let size = size?;
+    Some(Range {
+        start: addr,
+        end: addr.checked_add(size)?,
+    })
+}
+
 #[cfg(test)]
 mod test_elf_loader {
     use super::*;
