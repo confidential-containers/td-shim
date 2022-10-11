@@ -2,11 +2,10 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
+use core::ops::Range;
 use scroll::Pwrite;
 
-use crate::elf64::{PT_LOAD, PT_PHDR};
-
-use core::ops::Range;
+use crate::elf64::{self, PT_LOAD, PT_PHDR};
 
 const SIZE_4KB: u64 = 0x00001000u64;
 
@@ -90,43 +89,22 @@ pub fn relocate_elf_with_per_program_header(
     ))
 }
 
-pub fn parse_pre_init_array_section(image: &[u8]) -> Option<Range<usize>> {
-    // parser file and get the .preinit_array section, if any
-    let elf = crate::elf64::Elf::parse(image)?;
-
-    for sh in elf.section_headers().unwrap() {
-        if sh.sh_type == crate::elf64::SHT_PREINIT_ARRAY {
-            sh.sh_addr.checked_add(sh.sh_size)?;
-            return Some(sh.vm_range());
-        }
-    }
-    None
+pub fn parse_pre_init_array_section(loaded_image: &[u8]) -> Option<Range<usize>> {
+    elf64::get_init_array(
+        loaded_image,
+        elf64::DT_PREINIT_ARRAY,
+        elf64::DT_PREINIT_ARRAYSZ,
+    )
 }
 
-pub fn parse_init_array_section(image: &[u8]) -> Option<Range<usize>> {
-    // parser file and get the .init_array section, if any
-    let elf = crate::elf64::Elf::parse(image)?;
-
-    for sh in elf.section_headers().unwrap() {
-        if sh.sh_type == crate::elf64::SHT_INIT_ARRAY {
-            sh.sh_addr.checked_add(sh.sh_size)?;
-            return Some(sh.vm_range());
-        }
-    }
-    None
+/// Parse ELF binary and get the .init_array section, if any
+pub fn parse_init_array_section(loaded_image: &[u8]) -> Option<Range<usize>> {
+    elf64::get_init_array(loaded_image, elf64::DT_INIT_ARRAY, elf64::DT_INIT_ARRAYSZ)
 }
 
-pub fn parse_finit_array_section(image: &[u8]) -> Option<Range<usize>> {
-    // parser file and get the .finit_array section, if any
-    let elf = crate::elf64::Elf::parse(image)?;
-
-    for sh in elf.section_headers().unwrap() {
-        if sh.sh_type == crate::elf64::SHT_FINI_ARRAY {
-            sh.sh_addr.checked_add(sh.sh_size)?;
-            return Some(sh.vm_range());
-        }
-    }
-    None
+// Parse ELF binary and get the .finit_array section, if any
+pub fn parse_finit_array_section(loaded_image: &[u8]) -> Option<Range<usize>> {
+    elf64::get_init_array(loaded_image, elf64::DT_FINI_ARRAY, elf64::DT_FINI_ARRAYSZ)
 }
 
 /// flag true align to low address else high address
