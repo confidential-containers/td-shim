@@ -122,8 +122,10 @@ impl BMFrameAllocator {
 
 unsafe impl FrameAllocator<Size4KiB> for BMFrameAllocator {
     fn allocate_frame(&mut self) -> Option<PhysFrame<Size4KiB>> {
-        self.alloc()
-            .map(|addr| PhysFrame::containing_address(PhysAddr::new(addr as u64)))
+        let addr = self.alloc()?;
+        Some(PhysFrame::containing_address(
+            PhysAddr::try_new(addr as u64).ok()?,
+        ))
     }
 }
 
