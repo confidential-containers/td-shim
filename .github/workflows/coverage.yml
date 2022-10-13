@@ -1,0 +1,126 @@
+on:
+  push:
+    paths-ignore:
+      - "**.md"
+  pull_request:
+    paths-ignore:
+      - "**.md"
+  workflow_dispatch:
+
+name: Code Coverage
+
+env:
+  AS: nasm
+  AR_x86_64_unknown_uefi: llvm-ar
+  CC_x86_64_unknown_uefi: clang
+  AR_x86_64_unknown_none: llvm-ar
+  CC_x86_64_unknown_none: clang
+  RUST_TOOLCHAIN: nightly-2022-05-15
+  TOOLCHAIN_PROFILE: minimal
+
+jobs:
+  build:
+    name: Collect test code coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+  
+    steps:
+    - name: Run cargo install grcov
+      uses: actions-rs/cargo@v1
+      with:
+        command: install
+        args: grcov
+        
+    - name: Install LLVM and Clang
+      uses: KyleMayes/install-llvm-action@v1
+      with:
+        version: "10.0"
+        directory: ${{ runner.temp }}/llvm
+    
+    - name: install NASM
+      uses: ilammy/setup-nasm@v1
+    
+    - name: Install toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: ${{ env.TOOLCHAIN_PROFILE }}
+        toolchain: ${{ env.RUST_TOOLCHAIN }}
+        override: true
+    
+    - name: Run cargo install cargo-xbuild
+      uses: actions-rs/cargo@v1
+      with:
+        command: install
+        args: cargo-xbuild
+      
+    - name: Checkout sources
+      uses: actions/checkout@v2
+      with:
+        submodules: recursive
+      
+    - uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        override: true
+        components: rust-src, llvm-tools-preview
+      
+    - name: Install AFL (Linux)
+      uses: actions-rs/cargo@v1
+      with:
+        command: install
+        args: afl
+      if: runner.os == 'Linux'
+      
+    - name: Install Cargo-Fuzz (Linux)
+      uses: actions-rs/cargo@v1
+      with:
+        command: install
+        args: cargo-fuzz
+      if: runner.os == 'Linux'
+    
+    - name: Cache
+      uses: Swatinem/rust-cache@v1
+    
+    - name: Preparation work
+      run: bash sh_script/preparation.sh
+    
+    - name: Test Shim Crates
+      env:
+        LLVM_PROFILE_FILE: your_name-%p-%m.profraw
+        RUSTFLAGS: -Zinstrument-coverage 
+      run: make test 
+    
+    - name: Test library Crates
+      env:
+        LLVM_PROFILE_FILE: your_name-%p-%m.profraw
+        RUSTFLAGS: -Zinstrument-coverage 
+      run: make lib-test 
+    
+    - name: Run all afl fuzzing test cases (Linux)
+      env:
+        LLVM_PROFILE_FILE: your_name-%p-%m.profraw
+        RUSTFLAGS: -Zinstrument-coverage 
+      run: make afl-test
+  
+    - name: Run all libfuzzer fuzzing test cases (Linux)
+      env:
+        LLVM_PROFILE_FILE: your_name-%p-%m.profraw
+        RUSTFLAGS: -Zinstrument-coverage 
+      run: make libfuzzer-test
+
+    - name: Collect coverage
+      run: |
+          grcov $(find . -name "*.profraw") \
+            --branch \
+            --binary-path . \
+            -s . \
+            -t lcov \
+            --ignore-not-existing \
+            -o lcov.info
+
+    - name: Upload coverage reports to Codecov with GitHub Action
+      uses: codecov/codecov-action@v3
+      with: 
+        files: ./lcov.info
+        fail_ci_if_error: true
+        verbose: true 

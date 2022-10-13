@@ -1,3 +1,5 @@
+[![codecov](https://codecov.io/gh/td-shim/branch/main/graph/badge.svg)](https://codecov.io/gh/liuw1/td-shim)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fconfidential-containers%2Ftd-shim.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fconfidential-containers%2Ftd-shim?ref=badge_shield)
 # TD-shim - Confidential Containers Shim Firmware
 
 Hardware virtualization-based containers are designed to launch and run
@@ -24,7 +26,6 @@ interface between the TD Shim and TD VMM and between the TD Shim and the
 simplified kernel.
 
 ![Overview](doc/td-shim-diagram.png)
-[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fconfidential-containers%2Ftd-shim.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fconfidential-containers%2Ftd-shim?ref=badge_shield)
 
 ## Documents
 

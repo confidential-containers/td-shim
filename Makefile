@@ -11,14 +11,14 @@ else
 	export BUILD_TYPE_FLAG=
 endif
 
-GENERIC_LIB_CRATES = td-layout td-logger td-uefi-pi
+GENERIC_LIB_CRATES = td-layout td-logger td-uefi-pi td-loader cc-measurement
 NIGHTLY_LIB_CRATES = td-exception td-paging tdx-tdcall
 SHIM_CRATES = td-shim td-payload
 TEST_CRATES = test-td-exception test-td-paging
 TOOL_CRATES = td-shim-tools
 
 # Targets for normal artifacts
-all: preparation install-devtools build test
+all: preparation install-devtools build test afl-test libfuzzer-test
 
 preparation: apply_patches
 
@@ -39,7 +39,7 @@ full-build: lib-build build integration-build
 
 full-check: lib-check check integration-check
 
-full-test: lib-test test integration-test
+full-test: lib-test test integration-test afl-test libfuzzer-test
 
 full-clean: lib-clean clean integration-clean clean-subdir-devtools
 
@@ -64,6 +64,11 @@ install-tool-%: build-%
 
 uninstall-tool-%:
 	${CARGO} uninstall --path $(patsubst uninstall-devtool-%,%,$@)
+
+# Fuzzing test
+afl-test: afl_test
+
+libfuzzer-test: libfuzzer_test
 
 # Targets for library crates
 lib-build: $(GENERIC_LIB_CRATES:%=build-%) $(NIGHTLY_LIB_CRATES:%=nightly-build-%)
@@ -153,3 +158,9 @@ tools-subdir-%:
 
 apply_patches:
 	bash sh_script/preparation.sh
+
+afl_test:
+	bash sh_script/fuzzing.sh -n afl_all -t 10
+
+libfuzzer_test:
+	bash sh_script/fuzzing.sh -n libfuzzer_all -t 20
