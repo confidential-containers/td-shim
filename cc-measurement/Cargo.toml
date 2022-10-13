@@ -6,5 +6,9 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-ring = { path = "../library/ring", default-features = false, features = ["alloc"] }
+sha2 = { version = "0.10.6", default-features = false, features = ["force-soft"], optional = true }
+ring = { path = "../library/ring", default-features = false, features = ["alloc"], optional = true }
 zerocopy = "0.6.0"
+
+[features]
+default = ["sha2"]
