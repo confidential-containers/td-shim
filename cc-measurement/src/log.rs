@@ -66,23 +66,6 @@ impl<'a> CcEventLogWriter<'a> {
         &self.area[..self.offset]
     }
 
-    fn calculate_digest_and_extend(
-        &self,
-        hash_data: &[u8],
-        mr_index: u32,
-    ) -> [u8; SHA384_DIGEST_SIZE] {
-        let hash_value = ring::digest::digest(&ring::digest::SHA384, hash_data);
-        let hash_value = hash_value.as_ref();
-        assert_eq!(hash_value.len(), SHA384_DIGEST_SIZE);
-
-        // Safe to unwrap() because we have checked the size.
-        let digest_sha384 = hash_value.try_into().unwrap();
-        // Extend the digest to the RTMR
-        (self.extender)(digest_sha384, mr_index);
-
-        *digest_sha384
-    }
-
     fn log_pcr_event(
         &mut self,
         mr_index: u32,
@@ -188,6 +171,42 @@ impl<'a> CcEventLogWriter<'a> {
     fn update_offset(&mut self, new_log_size: usize) {
         self.last = self.offset;
         self.offset += new_log_size;
+    }
+
+    fn calculate_digest_and_extend(
+        &self,
+        hash_data: &[u8],
+        mr_index: u32,
+    ) -> [u8; SHA384_DIGEST_SIZE] {
+        let mut digest_sha384 = [0u8; SHA384_DIGEST_SIZE];
+
+        Self::hash_sha384(hash_data, &mut digest_sha384);
+
+        // Extend the digest to the RTMR
+        (self.extender)(&digest_sha384, mr_index);
+
+        digest_sha384
+    }
+
+    #[cfg(feature = "ring")]
+    fn hash_sha384(hash_data: &[u8], digest_sha384: &mut [u8; SHA384_DIGEST_SIZE]) {
+        let digest = ring::digest::digest(&ring::digest::SHA384, hash_data);
+        let digest = digest.as_ref();
+        assert_eq!(digest.len(), SHA384_DIGEST_SIZE);
+
+        digest_sha384.clone_from_slice(digest);
+    }
+
+    #[cfg(all(not(feature = "ring"), feature = "sha2"))]
+    fn hash_sha384(hash_data: &[u8], digest_sha384: &mut [u8; SHA384_DIGEST_SIZE]) {
+        use sha2::{Digest, Sha384};
+
+        let mut digest = Sha384::new();
+        digest.update(hash_data);
+        let digest = digest.finalize();
+        assert_eq!(digest.as_slice().len(), SHA384_DIGEST_SIZE);
+
+        digest_sha384.clone_from_slice(digest.as_slice());
     }
 }
 
