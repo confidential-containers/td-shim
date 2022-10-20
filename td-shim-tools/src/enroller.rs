@@ -77,15 +77,17 @@ impl FirmwareRawFile {
         self.real_size = self.data.len();
 
         // padding zero to ensure the file size is align with 8 bytes
-        let padding = 8 - (self.data.len() & 0x7);
-        for _ in 0..padding {
-            self.data.push(0);
+        if self.real_size % 8 != 0 {
+            let padding = 8 - (self.data.len() & 0x7);
+            for _ in 0..padding {
+                self.data.push(0);
+            }
         }
 
         // Update length field
         write_u24(
-            self.data.len() as u32,
-            &mut self.data[20..23].try_into().unwrap(),
+            self.real_size as u32,
+            (&mut self.data[20..23]).try_into().unwrap(),
         );
 
         // Update Checksum
@@ -298,6 +300,14 @@ mod test {
     use super::*;
     use td_uefi_pi::pi::guid;
 
+    fn read_u24(data: &[u8]) -> u32 {
+        let mut num = data[0] as u32;
+        num |= (data[1] as u32) << 8;
+        num |= (data[2] as u32) << 16;
+
+        num
+    }
+
     #[test]
     fn test_firmware_file() {
         // {214D240F-77A3-441B-9DA8-C588E43192C1}
@@ -308,12 +318,15 @@ mod test {
         assert_eq!(ff.as_bytes().len(), size);
 
         ff.append("Firmware file test.".as_bytes());
+        assert_eq!(read_u24(&ff.as_bytes()[20..23]), size as u32 + 19);
         assert_eq!(ff.as_bytes().len(), size + 24);
 
         ff.append("\n".as_bytes());
+        assert_eq!(read_u24(&ff.as_bytes()[20..23]), size as u32 + 20);
         assert_eq!(ff.as_bytes().len(), size + 24);
 
         ff.append("Done.".as_bytes());
+        assert_eq!(read_u24(&ff.as_bytes()[20..23]), size as u32 + 25);
         assert_eq!(ff.as_bytes().len(), size + 32);
     }
 }
