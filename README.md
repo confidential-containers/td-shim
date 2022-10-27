@@ -1,3 +1,10 @@
+[![Main](https://github.com/confidential-containers/td-shim/actions/workflows/main.yml/badge.svg)](https://github.com/confidential-containers/td-shim/actions/workflows/main.yml)
+[![Libray Crates](https://github.com/confidential-containers/td-shim/actions/workflows/library.yml/badge.svg)](https://github.com/confidential-containers/td-shim/actions/workflows/library.yml)
+[![Cargo Deny](https://github.com/confidential-containers/td-shim/actions/workflows/deny.yml/badge.svg)](https://github.com/confidential-containers/td-shim/actions/workflows/deny.yml)
+[![Cargo Fmt & Clippy](https://github.com/confidential-containers/td-shim/actions/workflows/format.yml/badge.svg)](https://github.com/confidential-containers/td-shim/actions/workflows/format.yml)
+[![Integration Test](https://github.com/confidential-containers/td-shim/actions/workflows/integration.yml/badge.svg)](https://github.com/confidential-containers/td-shim/actions/workflows/integration.yml)
+[![TDX Integration Test](https://github.com/confidential-containers/td-shim/actions/workflows/integration-tdx.yml/badge.svg)](https://github.com/confidential-containers/td-shim/actions/workflows/integration-tdx.yml)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fconfidential-containers%2Ftd-shim.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fconfidential-containers%2Ftd-shim?ref=badge_shield)
 # TD-shim - Confidential Containers Shim Firmware
 
 Hardware virtualization-based containers are designed to launch and run
@@ -24,7 +31,6 @@ interface between the TD Shim and TD VMM and between the TD Shim and the
 simplified kernel.
 
 ![Overview](doc/td-shim-diagram.png)
-[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fconfidential-containers%2Ftd-shim.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fconfidential-containers%2Ftd-shim?ref=badge_shield)
 
 ## Documents
 
