@@ -7,7 +7,7 @@ on:
       - "**.md"
   workflow_dispatch:
 
-name: Ingetration Test on TDX Server
+name: Integration Test on TDX Server
 
 env:
   AS: nasm
