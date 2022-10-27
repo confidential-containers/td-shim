@@ -153,7 +153,7 @@ jobs:
         run: bash sh_script/preparation.sh
 
       - name: Run all afl fuzzing test cases (Linux)
-        run: bash sh_script/fuzzing.sh -n afl_all -t 10
+        run: make afl-test
 
       - name: Run all libfuzzer fuzzing test cases (Linux)
-        run: bash sh_script/fuzzing.sh -n libfuzzer_all -t 20
+        run: make libfuzzer-test
