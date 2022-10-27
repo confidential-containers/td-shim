@@ -27,8 +27,9 @@ usage() {
     cat << EOM
 Usage: $(basename "$0") [OPTION]...
   -f <TD Shim Firmware file path> required.
-  -i <Guest image file path> by default is td-guest-centos8.4.qcow2.
-  -k <Kernel binary file path> by default is bzImage.
+  -p <Cloud Hypervisor/Qemu path>.
+  -i <Guest image file path> by default is td-guest.raw.
+  -k <Kernel binary file path> by default is vmlinuz.
   -t [pe|elf] firmware type, by default it is "pe".
   -c <CPU number> by default is 1.
   -m <Memory size> by defalt is 2G.
@@ -38,10 +39,12 @@ EOM
 }
 
 proccess_args() {
-    while getopts ":i:k:f:t:c:m:h" option; do
+    while getopts ":i:p:k:f:t:c:m:h" option; do
         case "${option}" in
             i) guest_image=${OPTARG};;
-            K) kernel=${OPTARG};;
+            p) cloud_hypervisor_tdx_path=${OPTARG}
+               qemu_tdx_path=${OPTARG};;
+            k) kernel=${OPTARG};;
             f) firmware=${OPTARG};;
             t) type=${OPTARG};;
             c) cpus=${OPTARG};;
@@ -55,9 +58,16 @@ proccess_args() {
     fi
 
     [ -e ${firmware} ] || die "TD Shim Image path: ${firmware} is not exists"
-    [ -e ${guest_image} ] || die "TDX Guest Image path: ${guest_image} is not exists"
-    [ -e ${kernel} ] || die "TDX Guest Kernel Image path: ${kernel} is not exists"
 
+    if [[ ${firmware} == *final-boot-kernel.bin* ]]
+    then
+        [ -e ${guest_image} ] || die "TDX Guest Image path: ${guest_image} is not exists"
+        [ -e ${kernel} ] || die "TDX Guest Kernel Image path: ${kernel} is not exists"
+        [ -e ${cloud_hypervisor_tdx_path} ] || die "TDX Cloud Hypervisor path: ${cloud_hypervisor_tdx_path} is not exists"
+    else
+        [ -e ${qemu_tdx_path} ] || die "TDX QEMU path: ${qemu_tdx_path} is not exists"
+    fi
+    
     if [[ -n ${type} ]]; then
         case "${type}" in
             pe|elf) echo "";;
@@ -73,19 +83,6 @@ proccess_args() {
     echo "CPUs              : ${cpus}"
     echo "Memmory Size      : ${memory}"
     echo "========================================="
-}
-
-setup() {
-    echo "========================================="
-    echo "              Setup ENV                  "
-    echo "========================================="
-    [ -e "/home/env" ] || mkdir -p "/home/env"
-
-    [ -e ${cloud_hypervisor_tdx_path} ] || install_cloudhypervisor_tdx
-    [ -e ${cloud_hypervisor_tdx_path} ] || die "TDX Cloud Hypervisor path: ${cloud_hypervisor_tdx_path} is not exists"
-
-    [ -e ${qemu_tdx_path} ] ||install_qemu_tdx
-    [ -e ${qemu_tdx_path} ] || die "TDX QEMU path: ${qemu_tdx_path} is not exists"
 }
 
 cleanup() {
@@ -111,20 +108,6 @@ check_result()  {
         let "time++"
     done
     return ${result}
-}
-
-install_cloudhypervisor_tdx() {
-    echo "-- Install Cloud Hypervisor"
-    cd "/home/env"
-    git clone https://github.com/cloud-hypervisor/cloud-hypervisor.git && cd cloud-hypervisor
-    # Build TDX supported Cloud Hypervisor
-    cargo build --release --features "fwdebug,tdx"
-    cd ${script_path}
-}
-
-install_qemu_tdx() {
-    echo "-- Install QEMU"
-    dnf update qemu --allowerasing
 }
 
 launch_td_os() {
@@ -238,7 +221,6 @@ run_test() {
 }
 
 main() {
-    setup
     run_test
     cleanup
 }
