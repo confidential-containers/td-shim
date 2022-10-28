@@ -811,7 +811,7 @@ pub(crate) fn get_init_array(loaded_image: &[u8], tag: u64, sz_tag: u64) -> Opti
     let mut size: Option<usize> = None;
     for ph in elf.program_headers()? {
         if ph.p_type == crate::elf64::PT_DYNAMIC {
-            if ph.p_vaddr + ph.p_memsz > loaded_image.len() as u64 {
+            if ph.p_vaddr.checked_add(ph.p_memsz)? > loaded_image.len() as u64 {
                 return None;
             }
 
