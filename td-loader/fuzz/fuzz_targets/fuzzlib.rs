@@ -19,6 +19,9 @@ pub fn fuzz_elf_loader(data: &[u8]) {
     if let Some(elf) = Elf::parse(data) {
         log::info!("{:?}\n", elf.header);
 
+        if elf.program_headers().is_none() {
+            return;
+        }
         if let Some(hd) = elf.program_headers().unwrap().next() {
             let status = hd.is_executable();
             log::info!("executable status: {}", status);
