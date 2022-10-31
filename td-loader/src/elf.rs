@@ -38,7 +38,7 @@ pub fn relocate_elf_with_per_program_header(
     let mut bottom: u64 = 0xFFFFFFFFu64;
     let mut top: u64 = 0u64;
 
-    for ph in elf.program_headers().unwrap() {
+    for ph in elf.program_headers()? {
         if bottom > ph.p_vaddr {
             bottom = ph.p_vaddr;
         }
@@ -54,7 +54,7 @@ pub fn relocate_elf_with_per_program_header(
     bottom = align_value(bottom, SIZE_4KB, true);
     top = align_value(top, SIZE_4KB, false);
     // load per program header
-    for ph in elf.program_headers().unwrap() {
+    for ph in elf.program_headers()? {
         if ph.p_memsz != 0 {
             if ph.p_offset.checked_add(ph.p_filesz)? > image.len() as u64
                 || ph.p_vaddr.checked_add(ph.p_filesz)? > loaded_buffer.len() as u64
