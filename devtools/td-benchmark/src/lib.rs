@@ -46,7 +46,7 @@ impl MyHeap {
 
     pub fn init(&self, heap_size: usize, heap_start: usize) {
         unsafe {
-            self.inner.lock().init(heap_start, heap_size);
+            self.inner.lock().init(heap_start as *mut u8, heap_size);
         }
     }
 }

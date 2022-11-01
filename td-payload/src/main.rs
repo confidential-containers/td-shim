@@ -80,7 +80,7 @@ mod payload_impl {
 
         #[cfg(not(feature = "benches"))]
         unsafe {
-            ALLOCATOR.lock().init(heap_start, heap_size);
+            ALLOCATOR.lock().init(heap_start as *mut u8, heap_size);
         }
     }
 

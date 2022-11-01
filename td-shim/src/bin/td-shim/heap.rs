@@ -16,7 +16,7 @@ pub(super) fn init() {
 
     unsafe {
         #[cfg(not(test))]
-        HEAP_ALLOCATOR.lock().init(heap_start, heap_size);
+        HEAP_ALLOCATOR.lock().init(heap_start as *mut u8, heap_size);
     }
     log::info!(
         "Heap allocator init done: {:#x?}\n",
