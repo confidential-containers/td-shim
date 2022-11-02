@@ -13,15 +13,17 @@ fuzz_folder=(
 )
 
 function show_prompt_info() {
-    echo "  -n Test case name, e.g. afl_pe, afl_all, libfuzzer_all"
-    echo "  -t Excution time, default is 3600"
-	echo "  -b Build all test case for check"
-    echo "  -c Enable code coverage"
-	echo ""
-	echo "Example:"
-    echo "Run single test case:    bash ${script_name} -n afl_pe -t 3600"
-	echo "Run all test case:       bash ${script_name} -n afl_all -t 3600"
-    exit -1
+        cat << EOM
+Usage: $(basename "$0") [OPTION]...
+  -n Test case name, e.g. afl_pe, afl_all, libfuzzer_all
+  -t Excution time, default is 3600
+  -b Build all test case for check
+  -c Enable code coverage
+  Example:
+  Run single test case:    bash ${script_name} -n afl_pe -t 3600
+  Run all test case:       bash ${script_name} -n afl_all -t 3600
+EOM
+    exit 0
 }
 
 while getopts ':n:t:bch' OPT; do
@@ -161,6 +163,16 @@ run_single_case() {
                 kill $kill_pro
             fi
 		    timeout $test_time cargo afl fuzz -i fuzz/seeds/${test_case#*_}/ -o fuzz/artifacts/$test_case fuzz/target/debug/$test_case
+
+            queue_seed_num=`ls -A fuzz/artifacts/$test_case/default/queue | wc -l`
+            if [[ $queue_seed_num -le 1 || \
+                    "`ls -A fuzz/artifacts/$test_case/default/crashes`" != "" || \
+                    "`ls -A fuzz/artifacts/$test_case/default/hangs`" != "" ]]; then
+                echo "Test Case: $test_case fail"
+                exit 1
+            else
+                echo "Test Case: $test_case pass"
+            fi
             
             if [ "${collect_coverage}" == "YES" ]; then
                 [ -d "${test_case}_cov" ] && rm -rf "${test_case}_cov"
@@ -182,6 +194,16 @@ run_single_case() {
         kill $kill_pro
         cargo fuzz build $test_case
         timeout $test_time cargo fuzz run $test_case
+
+        if [[ `ls -A fuzz/corpus/$test_case | wc -l` -le 1 || \
+                "`find fuzz/corpus/$test_case -name '*leak*'`" != "" || \
+                "`find fuzz/corpus/$test_case -name '*timeout*'`" != "" || \
+                "`find fuzz/corpus/$test_case -name '*crash*'`" != ""  ]]; then
+            echo "Test Case: $test_case fail"
+            exit 1
+        else
+            echo "Test Case: $test_case pass"
+        fi
 
         if [ "${collect_coverage}" == "YES" ]; then
             [ -d "${test_case}_fuzz_cov" ] && rm -rf ${test_case}_fuzz_cov;
