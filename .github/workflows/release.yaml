@@ -73,15 +73,15 @@ jobs:
           asset_name: final-pe.bin
           asset_content_type: application/octet-stream
 
-      - name: Upload final-pe-boot-kernel.bin
-        id: upload_release_final_pe_boot_kernel_bin
+      - name: Upload final-boot-kernel.bin
+        id: upload_release_final_boot_kernel_bin
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: target/release/final-pe-boot-kernel.bin
-          asset_name: final-pe-boot-kernel.bin
+          asset_path: target/release/final-boot-kernel.bin
+          asset_name: final-boot-kernel.bin
           asset_content_type: application/octet-stream
 
       - name: Upload final-elf.bin
