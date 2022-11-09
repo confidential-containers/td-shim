@@ -9,7 +9,7 @@ use log::{error, LevelFilter};
 use std::str::FromStr;
 use std::vec::Vec;
 use std::{env, io};
-use td_layout::metadata::{TdxMetadataDescriptor, TdxMetadataSection};
+use td_shim::metadata::{TdxMetadataDescriptor, TdxMetadataSection};
 use td_shim_tools::loader::TdShimLoader;
 
 struct Config {

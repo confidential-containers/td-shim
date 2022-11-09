@@ -5,7 +5,7 @@ use std::fs;
 use std::io;
 use std::io::Read;
 use std::io::Seek;
-use td_layout::metadata::{
+use td_shim::metadata::{
     TdxMetadata, TdxMetadataDescriptor, TdxMetadataGuid, TdxMetadataSection,
     TDX_METADATA_DESCRIPTOR_LEN, TDX_METADATA_GUID_LEN, TDX_METADATA_OFFSET,
     TDX_METADATA_SECTION_LEN,

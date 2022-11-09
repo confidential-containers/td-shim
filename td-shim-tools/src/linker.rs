@@ -18,15 +18,6 @@ use td_layout::build_time::{
     TD_SHIM_TEMP_STACK_BASE, TD_SHIM_TEMP_STACK_SIZE,
 };
 use td_layout::mailbox::TdxMpWakeupMailbox;
-use td_layout::metadata::{
-    TdxMetadata, TdxMetadataGuid, TdxMetadataPtr, TDX_METADATA_ATTRIBUTES_EXTENDMR,
-    TDX_METADATA_SECTION_TYPE_BFV, TDX_METADATA_SECTION_TYPE_CFV, TDX_METADATA_SECTION_TYPE_TD_HOB,
-    TDX_METADATA_SECTION_TYPE_TEMP_MEM,
-};
-#[cfg(feature = "boot-kernel")]
-use td_layout::metadata::{
-    TDX_METADATA_SECTION_TYPE_PAYLOAD, TDX_METADATA_SECTION_TYPE_PAYLOAD_PARAM,
-};
 #[cfg(feature = "boot-kernel")]
 use td_layout::runtime::{KERNEL_BASE, KERNEL_PARAM_BASE, KERNEL_PARAM_SIZE, KERNEL_SIZE};
 use td_layout::runtime::{TD_HOB_BASE, TD_HOB_SIZE};
@@ -34,6 +25,16 @@ use td_loader::{elf, pe};
 use td_shim::fv::{
     FvFfsFileHeader, FvFfsSectionHeader, FvHeader, IplFvFfsHeader, IplFvFfsSectionHeader,
     IplFvHeader,
+};
+use td_shim::metadata::{
+    TdxMetadata, TdxMetadataGuid, TdxMetadataPtr, TDX_METADATA_ATTRIBUTES_EXTENDMR,
+    TDX_METADATA_SECTION_TYPE_BFV, TDX_METADATA_SECTION_TYPE_CFV,
+    TDX_METADATA_SECTION_TYPE_PERM_MEM, TDX_METADATA_SECTION_TYPE_TD_HOB,
+    TDX_METADATA_SECTION_TYPE_TEMP_MEM,
+};
+#[cfg(feature = "boot-kernel")]
+use td_shim::metadata::{
+    TDX_METADATA_SECTION_TYPE_PAYLOAD, TDX_METADATA_SECTION_TYPE_PAYLOAD_PARAM,
 };
 use td_shim::reset_vector::{ResetVectorHeader, ResetVectorParams};
 use td_shim::write_u24;

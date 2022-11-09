@@ -12,6 +12,7 @@ pub mod acpi;
 pub mod e820;
 pub mod event_log;
 pub mod fv;
+pub mod metadata;
 pub mod reset_vector;
 
 #[cfg(feature = "secure-boot")]

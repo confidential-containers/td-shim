@@ -14,7 +14,7 @@ use std::io::Read;
 use std::io::Seek;
 use std::io::SeekFrom;
 use std::mem::size_of;
-use td_layout::metadata::*;
+use td_shim::metadata::*;
 use zeroize::Zeroize;
 
 pub const SHA384_DIGEST_SIZE: usize = 0x30;
