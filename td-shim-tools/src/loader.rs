@@ -6,9 +6,8 @@ use std::io;
 use std::io::Read;
 use std::io::Seek;
 use td_shim::metadata::{
-    TdxMetadata, TdxMetadataDescriptor, TdxMetadataGuid, TdxMetadataSection,
-    TDX_METADATA_DESCRIPTOR_LEN, TDX_METADATA_GUID_LEN, TDX_METADATA_OFFSET,
-    TDX_METADATA_SECTION_LEN,
+    self, TdxMetadataDescriptor, TdxMetadataGuid, TdxMetadataSection, TDX_METADATA_DESCRIPTOR_LEN,
+    TDX_METADATA_GUID_LEN, TDX_METADATA_OFFSET, TDX_METADATA_SECTION_LEN,
 };
 
 pub struct TdShimLoader;
@@ -137,7 +136,7 @@ impl TdShimLoader {
         }
 
         // check the validness of the sections
-        if TdxMetadata::validate_sections(&metadata_sections).is_err() {
+        if metadata::validate_sections(&metadata_sections).is_err() {
             error!("Invalid metadata sections.");
             return None;
         }

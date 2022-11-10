@@ -18,6 +18,8 @@ pub mod public_key;
 
 #[cfg(feature = "linker")]
 pub mod linker;
+#[cfg(feature = "linker")]
+pub mod metadata;
 
 #[cfg(feature = "signer")]
 pub mod signer;
@@ -27,6 +29,7 @@ pub mod loader;
 
 #[cfg(feature = "tee")]
 pub mod tee_info_hash;
+
 /// Struct to read input data from a file.
 pub struct InputData {
     data: Vec<u8>,
