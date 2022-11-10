@@ -14,6 +14,7 @@ use std::io::Read;
 use std::io::Seek;
 use std::io::SeekFrom;
 use std::mem::size_of;
+use td_layout::build_time::TD_SHIM_METADATA_SIZE;
 use td_shim::metadata::*;
 use zeroize::Zeroize;
 
@@ -242,7 +243,7 @@ impl TdInfoStruct {
             .seek(SeekFrom::Start(metadata_off as u64))
             .unwrap();
 
-        let mut metadata_buf = [0; size_of::<TdxMetadata>()];
+        let mut metadata_buf = [0; TD_SHIM_METADATA_SIZE as usize];
 
         raw_image_file.read_exact(&mut metadata_buf).unwrap();
 

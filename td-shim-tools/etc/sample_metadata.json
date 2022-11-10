@@ -1,0 +1,52 @@
+{
+    "Sections": [
+        {
+            "DataOffset": "0x82000",
+            "RawDataSize": "0xF7E000",
+            "MemoryAddress": "0xFF082000",
+            "MemoryDataSize": "0xF7E000",
+            "Type": "BFV",
+            "Attributes": "0x1"
+        },
+        {
+            "DataOffset": "0x0",
+            "RawDataSize": "0x40000",
+            "MemoryAddress": "0xFF000000",
+            "MemoryDataSize": "0x40000",
+            "Type": "CFV",
+            "Attributes": "0x0"
+        },
+        {
+            "DataOffset": "0x0",
+            "RawDataSize": "0x0",
+            "MemoryAddress": "0xFF042000",
+            "MemoryDataSize": "0x20000",
+            "Type": "TempMem",
+            "Attributes": "0x0"
+        },
+        {
+            "DataOffset": "0x0",
+            "RawDataSize": "0x0",
+            "MemoryAddress": "0xFF062000",
+            "MemoryDataSize": "0x20000",
+            "Type": "TempMem",
+            "Attributes": "0x0"
+        },
+        {
+            "DataOffset": "0x0",
+            "RawDataSize": "0x0",
+            "MemoryAddress": "0x800000",
+            "MemoryDataSize": "0x20000",
+            "Type": "TD_HOB",
+            "Attributes": "0x0"
+        },
+        {
+            "DataOffset": "0x0",
+            "RawDataSize": "0x0",
+            "MemoryAddress": "0xFF040000",
+            "MemoryDataSize": "0x1000",
+            "Type": "TempMem",
+            "Attributes": "0x0"
+        }
+    ]
+}

@@ -9,13 +9,21 @@ use core::{ptr::slice_from_raw_parts, str::FromStr};
 use scroll::{Pread, Pwrite};
 use td_uefi_pi::pi::guid::Guid;
 
-const TDX_METADATA_GUID_STR: &str = "F3F9EAE9-8E16-D544-A8EB-7F4D8738F6AE";
+/// TDX Metadata GUID defined in td-shim specification
+pub const TDX_METADATA_GUID_STR: &str = "F3F9EAE9-8E16-D544-A8EB-7F4D8738F6AE";
+pub const TDX_METADATA_GUID: Guid = Guid::from_fields(
+    0xF3F9EAE9,
+    0x8E16,
+    0xD544,
+    [0xA8, 0xEB, 0x7F, 0x4D, 0x87, 0x38, 0xF6, 0xAE],
+);
 
-const TDX_METADATA_SIGNATURE: u32 = 0x46564454;
-
+/// 'TDVF' signature
+pub const TDX_METADATA_SIGNATURE: u32 = 0x46564454;
+/// Version of the `TdxMetadataDescriptor` structure. It must be 1.
+pub const TDX_METADATA_VERSION: u32 = 1;
 /// TdxMetadata Offset
 pub const TDX_METADATA_OFFSET: u32 = 0x20;
-
 /// TdxMetadata guid length
 pub const TDX_METADATA_GUID_LEN: u32 = 16;
 /// TdxMetadata description length
@@ -92,6 +100,15 @@ impl TdxMetadataDescriptor {
             || (len - 16) % 32 != 0
             || (len - 16) / 32 != self.number_of_section_entry)
     }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        unsafe {
+            core::slice::from_raw_parts(
+                self as *const TdxMetadataDescriptor as *const u8,
+                core::mem::size_of::<Self>(),
+            )
+        }
+    }
 }
 
 #[repr(C)]
@@ -113,6 +130,15 @@ impl TdxMetadataSection {
             Some(String::from(
                 TDX_METADATA_SECTION_TYPE_STRS[r#type as usize],
             ))
+        }
+    }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        unsafe {
+            core::slice::from_raw_parts(
+                self as *const TdxMetadataSection as *const u8,
+                core::mem::size_of::<Self>(),
+            )
         }
     }
 }
@@ -163,251 +189,208 @@ pub enum TdxMetadataError {
     InvalidSection,
 }
 
-#[repr(C)]
-#[derive(Pwrite)]
-pub struct TdxMetadata {
-    pub guid: TdxMetadataGuid,
-    pub descriptor: TdxMetadataDescriptor,
-    /// Sections for BFV, CFV, stack, heap, TD_HOP, Mailbox.
-    pub sections: [TdxMetadataSection; 6],
-    #[cfg(feature = "boot-kernel")]
-    /// Sections for kernel image and parameters.
-    pub payload_sections: [TdxMetadataSection; 2],
-}
-
-impl Default for TdxMetadata {
-    fn default() -> Self {
-        let mut data = TdxMetadata {
-            guid: Default::default(),
-            descriptor: Default::default(),
-            sections: [Default::default(); 6],
-            #[cfg(feature = "boot-kernel")]
-            payload_sections: [Default::default(); 2],
+pub fn validate_sections(sections: &[TdxMetadataSection]) -> Result<(), TdxMetadataError> {
+    let mut bfv_cnt = 0;
+    let mut hob_cnt = 0;
+    let mut perm_mem_cnt = 0;
+    let mut payload_cnt = 0;
+    let mut payload_param_cnt = 0;
+    let check_data_memory_fields =
+        |data_offset: u32, data_size: u32, memory_address: u64, memory_size: u64| -> bool {
+            if data_size == 0 && data_offset != 0 {
+                return false;
+            }
+            if data_size != 0 && memory_size < data_size as u64 {
+                return false;
+            }
+            if (memory_address & 0xfff) != 0 {
+                return false;
+            }
+            true
         };
-
-        if cfg!(feature = "boot-kernel") {
-            data.descriptor.set_sections(8);
-        } else {
-            data.descriptor.set_sections(6);
-        }
-
-        data
-    }
-}
-
-impl TdxMetadata {
-    pub fn as_bytes(&self) -> &[u8] {
-        unsafe {
-            &*slice_from_raw_parts(
-                self as *const TdxMetadata as *const u8,
-                core::mem::size_of::<Self>(),
-            )
-        }
-    }
-
-    pub fn validate_sections(sections: &[TdxMetadataSection]) -> Result<(), TdxMetadataError> {
-        let mut bfv_cnt = 0;
-        let mut hob_cnt = 0;
-        let mut perm_mem_cnt = 0;
-        let mut payload_cnt = 0;
-        let mut payload_param_cnt = 0;
-        let check_data_memory_fields =
-            |data_offset: u32, data_size: u32, memory_address: u64, memory_size: u64| -> bool {
-                if data_size == 0 && data_offset != 0 {
-                    return false;
+    for section in sections.iter() {
+        match section.r#type {
+            TDX_METADATA_SECTION_TYPE_BFV => {
+                // A TD-Shim shall include at least one BFV and the reset vector shall be inside
+                // of BFV. The RawDataSize of BFV must be non-zero.
+                if bfv_cnt == i32::MAX {
+                    return Err(TdxMetadataError::InvalidSection);
                 }
-                if data_size != 0 && memory_size < data_size as u64 {
-                    return false;
+                bfv_cnt += 1;
+                if section.raw_data_size == 0 {
+                    return Err(TdxMetadataError::InvalidSection);
                 }
-                if (memory_address & 0xfff) != 0 {
-                    return false;
+                if section.attributes != TDX_METADATA_ATTRIBUTES_EXTENDMR {
+                    return Err(TdxMetadataError::InvalidSection);
                 }
-                true
-            };
-        for section in sections.iter() {
-            match section.r#type {
-                TDX_METADATA_SECTION_TYPE_BFV => {
-                    // A TD-Shim shall include at least one BFV and the reset vector shall be inside
-                    // of BFV. The RawDataSize of BFV must be non-zero.
-                    if bfv_cnt == i32::MAX {
-                        return Err(TdxMetadataError::InvalidSection);
-                    }
-                    bfv_cnt += 1;
-                    if section.raw_data_size == 0 {
-                        return Err(TdxMetadataError::InvalidSection);
-                    }
-                    if section.attributes != TDX_METADATA_ATTRIBUTES_EXTENDMR {
-                        return Err(TdxMetadataError::InvalidSection);
-                    }
-                    if !check_data_memory_fields(
-                        section.data_offset,
-                        section.raw_data_size,
-                        section.memory_address,
-                        section.memory_data_size,
-                    ) {
-                        return Err(TdxMetadataError::InvalidSection);
-                    }
-                }
-
-                TDX_METADATA_SECTION_TYPE_CFV => {
-                    // A TD-Shim may have zero, one or multiple CFVs. The RawDataSize of CFV must be
-                    // non-zero.
-                    if section.raw_data_size == 0 {
-                        return Err(TdxMetadataError::InvalidSection);
-                    }
-                    if section.attributes != 0 {
-                        return Err(TdxMetadataError::InvalidSection);
-                    }
-                    if !check_data_memory_fields(
-                        section.data_offset,
-                        section.raw_data_size,
-                        section.memory_address,
-                        section.memory_data_size,
-                    ) {
-                        return Err(TdxMetadataError::InvalidSection);
-                    }
-                }
-
-                TDX_METADATA_SECTION_TYPE_TD_HOB => {
-                    // A TD-Shim may have zero or one TD_HOB section. The RawDataSize of TD_HOB must
-                    // be zero. If TD-Shim reports zero TD_HOB section, then TD-Shim shall report
-                    // all required memory in PermMem section.
-                    if hob_cnt == i32::MAX {
-                        return Err(TdxMetadataError::InvalidSection);
-                    }
-                    hob_cnt += 1;
-                    if hob_cnt > 1 {
-                        return Err(TdxMetadataError::InvalidSection);
-                    }
-                    if section.raw_data_size != 0 || section.data_offset != 0 {
-                        return Err(TdxMetadataError::InvalidSection);
-                    }
-                    if section.attributes != 0 {
-                        return Err(TdxMetadataError::InvalidSection);
-                    }
-                    if !check_data_memory_fields(
-                        section.data_offset,
-                        section.raw_data_size,
-                        section.memory_address,
-                        section.memory_data_size,
-                    ) {
-                        return Err(TdxMetadataError::InvalidSection);
-                    }
-                }
-
-                TDX_METADATA_SECTION_TYPE_TEMP_MEM => {
-                    // The RawDataSize of TempMem must be zero.
-                    if section.raw_data_size != 0 || section.data_offset != 0 {
-                        return Err(TdxMetadataError::InvalidSection);
-                    }
-                    if section.attributes != 0 {
-                        return Err(TdxMetadataError::InvalidSection);
-                    }
-                    if !check_data_memory_fields(
-                        section.data_offset,
-                        section.raw_data_size,
-                        section.memory_address,
-                        section.memory_data_size,
-                    ) {
-                        return Err(TdxMetadataError::InvalidSection);
-                    }
-                }
-
-                TDX_METADATA_SECTION_TYPE_PERM_MEM => {
-                    // A TD-Shim may have zero, one or multiple PermMem section. The RawDataSize of
-                    // PermMem must be zero. If a TD provides PermMem section, that means the TD
-                    // will own the memory allocation. VMM shall allocate the permanent memory for
-                    // this TD. TD will NOT use the system memory information in the TD HOB. Even if
-                    // VMM adds system memory information in the TD HOB, it will ne ignored.
-                    if perm_mem_cnt == i32::MAX {
-                        return Err(TdxMetadataError::InvalidSection);
-                    }
-                    perm_mem_cnt += 1;
-                    if section.raw_data_size != 0 || section.data_offset != 0 {
-                        return Err(TdxMetadataError::InvalidSection);
-                    }
-                    if section.attributes != 0 {
-                        return Err(TdxMetadataError::InvalidSection);
-                    }
-                    if !check_data_memory_fields(
-                        section.data_offset,
-                        section.raw_data_size,
-                        section.memory_address,
-                        section.memory_data_size,
-                    ) {
-                        return Err(TdxMetadataError::InvalidSection);
-                    }
-                }
-
-                TDX_METADATA_SECTION_TYPE_PAYLOAD => {
-                    // A TD-Shim may have zero or one Payload. The RawDataSize of Payload must be
-                    // non-zero, if the whole image includes the Payload. Otherwise the RawDataSize
-                    // must be zero.
-                    if payload_cnt == i32::MAX {
-                        return Err(TdxMetadataError::InvalidSection);
-                    }
-                    payload_cnt += 1;
-                    if payload_cnt > 1 {
-                        return Err(TdxMetadataError::InvalidSection);
-                    }
-                    if section.attributes != 0 {
-                        return Err(TdxMetadataError::InvalidSection);
-                    }
-                    if !check_data_memory_fields(
-                        section.data_offset,
-                        section.raw_data_size,
-                        section.memory_address,
-                        section.memory_data_size,
-                    ) {
-                        return Err(TdxMetadataError::InvalidSection);
-                    }
-                }
-
-                TDX_METADATA_SECTION_TYPE_PAYLOAD_PARAM => {
-                    // A TD-Shim may have zero or one PayloadParam. PayloadParam is present only if
-                    // the Payload is present.
-                    if payload_param_cnt == i32::MAX {
-                        return Err(TdxMetadataError::InvalidSection);
-                    }
-                    payload_param_cnt += 1;
-                    if payload_param_cnt > 1 {
-                        return Err(TdxMetadataError::InvalidSection);
-                    }
-                    if section.attributes != 0 {
-                        return Err(TdxMetadataError::InvalidSection);
-                    }
-                    if !check_data_memory_fields(
-                        section.data_offset,
-                        section.raw_data_size,
-                        section.memory_address,
-                        section.memory_data_size,
-                    ) {
-                        return Err(TdxMetadataError::InvalidSection);
-                    }
-                }
-
-                _ => {
+                if !check_data_memory_fields(
+                    section.data_offset,
+                    section.raw_data_size,
+                    section.memory_address,
+                    section.memory_data_size,
+                ) {
                     return Err(TdxMetadataError::InvalidSection);
                 }
             }
-        }
 
-        // A TD-Shim shall include at least one BFV
-        if bfv_cnt == 0 {
-            return Err(TdxMetadataError::InvalidSection);
-        }
-        // If TD-Shim reports zero TD_HOB section, then TD-Shim shall report
-        // all required memory in PermMem section.
-        if hob_cnt == 0 && perm_mem_cnt == 0 {
-            return Err(TdxMetadataError::InvalidSection);
-        }
-        // PayloadParam is present only if the Payload is present.
-        if payload_cnt == 0 && payload_param_cnt != 0 {
-            return Err(TdxMetadataError::InvalidSection);
-        }
+            TDX_METADATA_SECTION_TYPE_CFV => {
+                // A TD-Shim may have zero, one or multiple CFVs. The RawDataSize of CFV must be
+                // non-zero.
+                if section.raw_data_size == 0 {
+                    return Err(TdxMetadataError::InvalidSection);
+                }
+                if section.attributes != 0 {
+                    return Err(TdxMetadataError::InvalidSection);
+                }
+                if !check_data_memory_fields(
+                    section.data_offset,
+                    section.raw_data_size,
+                    section.memory_address,
+                    section.memory_data_size,
+                ) {
+                    return Err(TdxMetadataError::InvalidSection);
+                }
+            }
 
-        Ok(())
+            TDX_METADATA_SECTION_TYPE_TD_HOB => {
+                // A TD-Shim may have zero or one TD_HOB section. The RawDataSize of TD_HOB must
+                // be zero. If TD-Shim reports zero TD_HOB section, then TD-Shim shall report
+                // all required memory in PermMem section.
+                if hob_cnt == i32::MAX {
+                    return Err(TdxMetadataError::InvalidSection);
+                }
+                hob_cnt += 1;
+                if hob_cnt > 1 {
+                    return Err(TdxMetadataError::InvalidSection);
+                }
+                if section.raw_data_size != 0 || section.data_offset != 0 {
+                    return Err(TdxMetadataError::InvalidSection);
+                }
+                if section.attributes != 0 {
+                    return Err(TdxMetadataError::InvalidSection);
+                }
+                if !check_data_memory_fields(
+                    section.data_offset,
+                    section.raw_data_size,
+                    section.memory_address,
+                    section.memory_data_size,
+                ) {
+                    return Err(TdxMetadataError::InvalidSection);
+                }
+            }
+
+            TDX_METADATA_SECTION_TYPE_TEMP_MEM => {
+                // The RawDataSize of TempMem must be zero.
+                if section.raw_data_size != 0 || section.data_offset != 0 {
+                    return Err(TdxMetadataError::InvalidSection);
+                }
+                if section.attributes != 0 {
+                    return Err(TdxMetadataError::InvalidSection);
+                }
+                if !check_data_memory_fields(
+                    section.data_offset,
+                    section.raw_data_size,
+                    section.memory_address,
+                    section.memory_data_size,
+                ) {
+                    return Err(TdxMetadataError::InvalidSection);
+                }
+            }
+
+            TDX_METADATA_SECTION_TYPE_PERM_MEM => {
+                // A TD-Shim may have zero, one or multiple PermMem section. The RawDataSize of
+                // PermMem must be zero. If a TD provides PermMem section, that means the TD
+                // will own the memory allocation. VMM shall allocate the permanent memory for
+                // this TD. TD will NOT use the system memory information in the TD HOB. Even if
+                // VMM adds system memory information in the TD HOB, it will ne ignored.
+                if perm_mem_cnt == i32::MAX {
+                    return Err(TdxMetadataError::InvalidSection);
+                }
+                perm_mem_cnt += 1;
+                if section.raw_data_size != 0 || section.data_offset != 0 {
+                    return Err(TdxMetadataError::InvalidSection);
+                }
+                if section.attributes != 0 {
+                    return Err(TdxMetadataError::InvalidSection);
+                }
+                if !check_data_memory_fields(
+                    section.data_offset,
+                    section.raw_data_size,
+                    section.memory_address,
+                    section.memory_data_size,
+                ) {
+                    return Err(TdxMetadataError::InvalidSection);
+                }
+            }
+
+            TDX_METADATA_SECTION_TYPE_PAYLOAD => {
+                // A TD-Shim may have zero or one Payload. The RawDataSize of Payload must be
+                // non-zero, if the whole image includes the Payload. Otherwise the RawDataSize
+                // must be zero.
+                if payload_cnt == i32::MAX {
+                    return Err(TdxMetadataError::InvalidSection);
+                }
+                payload_cnt += 1;
+                if payload_cnt > 1 {
+                    return Err(TdxMetadataError::InvalidSection);
+                }
+                if section.attributes != 0 {
+                    return Err(TdxMetadataError::InvalidSection);
+                }
+                if !check_data_memory_fields(
+                    section.data_offset,
+                    section.raw_data_size,
+                    section.memory_address,
+                    section.memory_data_size,
+                ) {
+                    return Err(TdxMetadataError::InvalidSection);
+                }
+            }
+
+            TDX_METADATA_SECTION_TYPE_PAYLOAD_PARAM => {
+                // A TD-Shim may have zero or one PayloadParam. PayloadParam is present only if
+                // the Payload is present.
+                if payload_param_cnt == i32::MAX {
+                    return Err(TdxMetadataError::InvalidSection);
+                }
+                payload_param_cnt += 1;
+                if payload_param_cnt > 1 {
+                    return Err(TdxMetadataError::InvalidSection);
+                }
+                if section.attributes != 0 {
+                    return Err(TdxMetadataError::InvalidSection);
+                }
+                if !check_data_memory_fields(
+                    section.data_offset,
+                    section.raw_data_size,
+                    section.memory_address,
+                    section.memory_data_size,
+                ) {
+                    return Err(TdxMetadataError::InvalidSection);
+                }
+            }
+
+            _ => {
+                return Err(TdxMetadataError::InvalidSection);
+            }
+        }
     }
+
+    // A TD-Shim shall include at least one BFV
+    if bfv_cnt == 0 {
+        return Err(TdxMetadataError::InvalidSection);
+    }
+    // If TD-Shim reports zero TD_HOB section, then TD-Shim shall report
+    // all required memory in PermMem section.
+    if hob_cnt == 0 && perm_mem_cnt == 0 {
+        return Err(TdxMetadataError::InvalidSection);
+    }
+    // PayloadParam is present only if the Payload is present.
+    if payload_cnt == 0 && payload_param_cnt != 0 {
+        return Err(TdxMetadataError::InvalidSection);
+    }
+
+    Ok(())
 }
 
 #[repr(C)]
@@ -438,10 +421,6 @@ mod tests {
         assert_eq!(size_of::<TdxMetadataSection>(), 32);
         assert_eq!(size_of::<TdxMetadataGuid>(), 16);
         assert_eq!(size_of::<TdxMetadataPtr>(), 4);
-        #[cfg(not(feature = "boot-kernel"))]
-        assert_eq!(size_of::<TdxMetadata>(), 224);
-        #[cfg(feature = "boot-kernel")]
-        assert_eq!(size_of::<TdxMetadata>(), 288);
     }
 
     #[test]
@@ -503,23 +482,10 @@ mod tests {
     }
 
     #[test]
-    fn test_tdx_metadata() {
-        let metadata = TdxMetadata::default();
-
-        let _ = metadata.as_bytes();
-
-        assert_eq!(
-            metadata.guid.as_bytes(),
-            Guid::from_str(TDX_METADATA_GUID_STR).unwrap().as_bytes()
-        );
-        assert!(metadata.descriptor.is_valid());
-    }
-
-    #[test]
     fn test_validate_sections() {
         // empty sections at leaset one bfv section
         let sections = [];
-        assert!(!TdxMetadata::validate_sections(&sections).is_ok());
+        assert!(!validate_sections(&sections).is_ok());
 
         // init sections include all types
         let mut sections: [TdxMetadataSection; 6] = [TdxMetadataSection::default(); 6];
@@ -578,30 +544,30 @@ mod tests {
             r#type: TDX_METADATA_SECTION_TYPE_PAYLOAD_PARAM,
         };
 
-        assert!(TdxMetadata::validate_sections(&sections).is_ok());
+        assert!(validate_sections(&sections).is_ok());
 
         // test BFV
         // section.raw_data_size == 0
         sections[0].raw_data_size = 0;
-        assert!(!TdxMetadata::validate_sections(&sections).is_ok());
+        assert!(!validate_sections(&sections).is_ok());
         sections[0].raw_data_size = 0xf7e000;
         // section.attributes != TDX_METADATA_ATTRIBUTES_EXTENDMR
         sections[0].attributes = 0;
-        assert!(!TdxMetadata::validate_sections(&sections).is_ok());
+        assert!(!validate_sections(&sections).is_ok());
         sections[0].attributes = TDX_METADATA_ATTRIBUTES_EXTENDMR;
         // memory_data_size < raw_data_size
         sections[0].memory_data_size = sections[0].raw_data_size as u64 - 1;
-        assert!(!TdxMetadata::validate_sections(&sections).is_ok());
+        assert!(!validate_sections(&sections).is_ok());
         sections[0].memory_data_size += 1;
         // memory_address is not 4K align
         sections[0].memory_address += 1;
-        assert!(!TdxMetadata::validate_sections(&sections).is_ok());
+        assert!(!validate_sections(&sections).is_ok());
         sections[0].memory_address -= 1;
         // multiple CFV
         sections[3].r#type = TDX_METADATA_SECTION_TYPE_BFV;
         sections[3].attributes = TDX_METADATA_ATTRIBUTES_EXTENDMR;
         sections[3].raw_data_size = sections[3].memory_data_size as u32;
-        assert!(TdxMetadata::validate_sections(&sections).is_ok());
+        assert!(validate_sections(&sections).is_ok());
         sections[3].r#type = TDX_METADATA_SECTION_TYPE_TEMP_MEM;
         sections[3].attributes = 0;
         sections[3].raw_data_size = 0;
@@ -610,54 +576,54 @@ mod tests {
         // no CFV
         sections[1].r#type = TDX_METADATA_SECTION_TYPE_TEMP_MEM;
         sections[1].raw_data_size = 0;
-        assert!(TdxMetadata::validate_sections(&sections).is_ok());
+        assert!(validate_sections(&sections).is_ok());
         sections[1].r#type = TDX_METADATA_SECTION_TYPE_CFV;
         // section.raw_data_size == 0
-        assert!(!TdxMetadata::validate_sections(&sections).is_ok());
+        assert!(!validate_sections(&sections).is_ok());
         sections[1].raw_data_size = 0x40000;
         // section.attributes != 0
         sections[1].attributes = 1;
-        assert!(!TdxMetadata::validate_sections(&sections).is_ok());
+        assert!(!validate_sections(&sections).is_ok());
         sections[1].attributes = 0;
         // memory_data_size < raw_data_size
         sections[1].memory_data_size = sections[1].raw_data_size as u64 - 1;
-        assert!(!TdxMetadata::validate_sections(&sections).is_ok());
+        assert!(!validate_sections(&sections).is_ok());
         sections[1].memory_data_size += 1;
         // memory_address is not 4K align
         sections[1].memory_address += 1;
-        assert!(!TdxMetadata::validate_sections(&sections).is_ok());
+        assert!(!validate_sections(&sections).is_ok());
         sections[1].memory_address -= 1;
         // multiple CFV
         sections[3].r#type = TDX_METADATA_SECTION_TYPE_CFV;
         sections[3].raw_data_size = sections[3].memory_data_size as u32;
-        assert!(TdxMetadata::validate_sections(&sections).is_ok());
+        assert!(validate_sections(&sections).is_ok());
         sections[3].r#type = TDX_METADATA_SECTION_TYPE_TEMP_MEM;
         sections[3].raw_data_size = 0;
 
         // test TD HOB
         // no TD HOB and no PermMem
         sections[2].r#type = TDX_METADATA_SECTION_TYPE_TEMP_MEM;
-        assert!(!TdxMetadata::validate_sections(&sections).is_ok());
+        assert!(!validate_sections(&sections).is_ok());
         sections[2].r#type = TDX_METADATA_SECTION_TYPE_TD_HOB;
         // raw_data_size != 0
         sections[2].raw_data_size = 1;
-        assert!(!TdxMetadata::validate_sections(&sections).is_ok());
+        assert!(!validate_sections(&sections).is_ok());
         sections[2].raw_data_size = 0;
         // data_offset != 0
         sections[2].data_offset = 1;
-        assert!(!TdxMetadata::validate_sections(&sections).is_ok());
+        assert!(!validate_sections(&sections).is_ok());
         sections[2].data_offset = 0;
         // section.attributes != 0
         sections[2].attributes = 1;
-        assert!(!TdxMetadata::validate_sections(&sections).is_ok());
+        assert!(!validate_sections(&sections).is_ok());
         sections[2].attributes = 0;
         // memory_address is not 4K align
         sections[2].memory_address += 1;
-        assert!(!TdxMetadata::validate_sections(&sections).is_ok());
+        assert!(!validate_sections(&sections).is_ok());
         sections[2].memory_address -= 1;
         // multiple TD HOB
         sections[3].r#type = TDX_METADATA_SECTION_TYPE_TD_HOB;
-        assert!(!TdxMetadata::validate_sections(&sections).is_ok());
+        assert!(!validate_sections(&sections).is_ok());
         sections[3].r#type = TDX_METADATA_SECTION_TYPE_TEMP_MEM;
 
         // test TEMP MEM
@@ -665,96 +631,96 @@ mod tests {
 
         // raw_data_size != 0
         sections[3].raw_data_size = 1;
-        assert!(!TdxMetadata::validate_sections(&sections).is_ok());
+        assert!(!validate_sections(&sections).is_ok());
         sections[3].raw_data_size = 0;
         // data_offset != 0
         sections[3].data_offset = 1;
-        assert!(!TdxMetadata::validate_sections(&sections).is_ok());
+        assert!(!validate_sections(&sections).is_ok());
         sections[3].data_offset = 0;
         // section.attributes != 0
         sections[3].attributes = 1;
-        assert!(!TdxMetadata::validate_sections(&sections).is_ok());
+        assert!(!validate_sections(&sections).is_ok());
         sections[3].attributes = 0;
         // memory_address is not 4K align
         sections[3].memory_address += 1;
-        assert!(!TdxMetadata::validate_sections(&sections).is_ok());
+        assert!(!validate_sections(&sections).is_ok());
         sections[3].memory_address -= 1;
         // multiple TEMP MEM already covered by CFV test
 
         // test PERM MEM
         // no TD HOB  one PERM MEM
         sections[2].r#type = TDX_METADATA_SECTION_TYPE_PERM_MEM;
-        assert!(TdxMetadata::validate_sections(&sections).is_ok());
+        assert!(validate_sections(&sections).is_ok());
         // raw_data_size != 0
         sections[2].raw_data_size = 1;
-        assert!(!TdxMetadata::validate_sections(&sections).is_ok());
+        assert!(!validate_sections(&sections).is_ok());
         sections[2].raw_data_size = 0;
         // data_offset != 0
         sections[2].data_offset = 1;
-        assert!(!TdxMetadata::validate_sections(&sections).is_ok());
+        assert!(!validate_sections(&sections).is_ok());
         sections[2].data_offset = 0;
         // section.attributes != 0
         sections[2].attributes = 1;
-        assert!(!TdxMetadata::validate_sections(&sections).is_ok());
+        assert!(!validate_sections(&sections).is_ok());
         sections[2].attributes = 0;
         // memory_address is not 4K align
         sections[2].memory_address += 1;
-        assert!(!TdxMetadata::validate_sections(&sections).is_ok());
+        assert!(!validate_sections(&sections).is_ok());
         sections[2].memory_address -= 1;
         // both have TD HOB and PERM MEM
         sections[3].r#type = TDX_METADATA_SECTION_TYPE_TD_HOB;
-        assert!(TdxMetadata::validate_sections(&sections).is_ok());
+        assert!(validate_sections(&sections).is_ok());
         sections[3].r#type = TDX_METADATA_SECTION_TYPE_TEMP_MEM;
         // multiple PERM MEM
         sections[3].r#type = TDX_METADATA_SECTION_TYPE_PERM_MEM;
-        assert!(TdxMetadata::validate_sections(&sections).is_ok());
+        assert!(validate_sections(&sections).is_ok());
         sections[3].r#type = TDX_METADATA_SECTION_TYPE_TEMP_MEM;
 
         // test PAYLAOD
         // no PAYLOAD but has PAYLOAD_PARAM
         sections[4].r#type = TDX_METADATA_SECTION_TYPE_TEMP_MEM;
-        assert!(!TdxMetadata::validate_sections(&sections).is_ok());
+        assert!(!validate_sections(&sections).is_ok());
         // no PAYLOAD and PAYLOAD_PARAM
         sections[5].r#type = TDX_METADATA_SECTION_TYPE_TEMP_MEM;
-        assert!(TdxMetadata::validate_sections(&sections).is_ok());
+        assert!(validate_sections(&sections).is_ok());
         sections[4].r#type = TDX_METADATA_SECTION_TYPE_PAYLOAD;
         sections[5].r#type = TDX_METADATA_SECTION_TYPE_PAYLOAD_PARAM;
         // section.attributes != 0
         sections[4].attributes = 1;
-        assert!(!TdxMetadata::validate_sections(&sections).is_ok());
+        assert!(!validate_sections(&sections).is_ok());
         sections[4].attributes = 0;
         // raw_data_size == 0 but data_offset != 0
         sections[4].data_offset = 1;
-        assert!(!TdxMetadata::validate_sections(&sections).is_ok());
+        assert!(!validate_sections(&sections).is_ok());
         sections[4].data_offset = 0;
         // memory_address is not 4K align
         sections[4].memory_address += 1;
-        assert!(!TdxMetadata::validate_sections(&sections).is_ok());
+        assert!(!validate_sections(&sections).is_ok());
         sections[4].memory_address -= 1;
         // multiple PAYLOAD
         sections[5].r#type = TDX_METADATA_SECTION_TYPE_PAYLOAD;
-        assert!(!TdxMetadata::validate_sections(&sections).is_ok());
+        assert!(!validate_sections(&sections).is_ok());
         sections[5].r#type = TDX_METADATA_SECTION_TYPE_PAYLOAD_PARAM;
 
         // test PAYLOAD_PARAM
         sections[5].r#type = TDX_METADATA_SECTION_TYPE_TEMP_MEM;
-        assert!(TdxMetadata::validate_sections(&sections).is_ok());
+        assert!(validate_sections(&sections).is_ok());
         sections[5].r#type = TDX_METADATA_SECTION_TYPE_PAYLOAD_PARAM;
         // section.attributes != 0
         sections[5].attributes = 1;
-        assert!(!TdxMetadata::validate_sections(&sections).is_ok());
+        assert!(!validate_sections(&sections).is_ok());
         sections[5].attributes = 0;
         // memory_address is not 4K align
         sections[5].memory_address += 1;
-        assert!(!TdxMetadata::validate_sections(&sections).is_ok());
+        assert!(!validate_sections(&sections).is_ok());
         sections[5].memory_address -= 1;
         // multiple PAYLOAD_PARAM
         sections[3].r#type = TDX_METADATA_SECTION_TYPE_PAYLOAD_PARAM;
-        assert!(!TdxMetadata::validate_sections(&sections).is_ok());
+        assert!(!validate_sections(&sections).is_ok());
 
         // Invalid seciton type
         sections[5].r#type = TDX_METADATA_SECTION_TYPE_MAX;
-        assert!(!TdxMetadata::validate_sections(&sections).is_ok());
+        assert!(!validate_sections(&sections).is_ok());
     }
 
     #[test]

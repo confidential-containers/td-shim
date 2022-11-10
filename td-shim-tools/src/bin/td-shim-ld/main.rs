@@ -38,6 +38,12 @@ fn main() -> io::Result<()> {
                 .allow_invalid_utf8(false),
         )
         .arg(
+            arg!(-m --metadata "Metadata sections config file")
+                .required(false)
+                .takes_value(true)
+                .allow_invalid_utf8(false),
+        )
+        .arg(
             arg!(-l --"log-level" "Logging level: [off, error, warn, info, debug, trace]")
                 .required(false)
                 .default_value("info"),
@@ -67,6 +73,7 @@ fn main() -> io::Result<()> {
     let reset_name = matches.value_of("reset_vector").unwrap();
     let ipl_name = matches.value_of("ipl").unwrap();
     let payload_name = matches.value_of("payload");
+    let metadata_name = matches.value_of("metadata");
 
-    builder.build(reset_name, ipl_name, payload_name)
+    builder.build(reset_name, ipl_name, payload_name, metadata_name)
 }
