@@ -172,8 +172,6 @@ pub fn relocate_with_per_section(
     let coff_optional_offset = coff_standard_end;
     let coff_optional_end = coff_header_end.checked_add(coff_optional_size)?;
     image_buffer.len().checked_sub(coff_optional_end)?;
-    let coff_optional_region = &image_buffer[coff_optional_offset..coff_optional_end];
-    let image_base = coff_optional_region.pread::<u64>(0).ok()?;
 
     // Validate section header region
     // There's no "Data Directories", so "Section Table" follows COFF Optional Fields.
@@ -210,16 +208,20 @@ pub fn relocate_with_per_section(
         }
     }
 
-    let sections = Sections::parse(sections_buffer, num_sections as usize)?;
-    for section in sections {
-        if &section.name == b".reloc\0\0" && image_base != new_image_base as u64 {
-            reloc_to_base(
-                loaded_buffer,
-                image_buffer,
-                &section,
-                image_base as usize,
-                new_image_base as usize,
-            )?;
+    if !cfg!(feature = "disable-relocation") {
+        let coff_optional_region = &image_buffer[coff_optional_offset..coff_optional_end];
+        let image_base = coff_optional_region.pread::<u64>(0).ok()?;
+        let sections = Sections::parse(sections_buffer, num_sections as usize)?;
+        for section in sections {
+            if &section.name == b".reloc\0\0" && image_base != new_image_base as u64 {
+                reloc_to_base(
+                    loaded_buffer,
+                    image_buffer,
+                    &section,
+                    image_base as usize,
+                    new_image_base as usize,
+                )?;
+            }
         }
     }
 

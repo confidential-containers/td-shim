@@ -67,16 +67,18 @@ pub fn relocate_elf_with_per_program_header(
         }
     }
 
-    // relocate to base
-    for reloc in elf.relocations()? {
-        if reloc.r_type() == R_X86_64_RELATIVE {
-            let r_addend = reloc.r_addend;
-            loaded_buffer
-                .pwrite::<u64>(
-                    new_image_base.checked_add(r_addend as usize)? as u64,
-                    reloc.r_offset as usize,
-                )
-                .ok()?;
+    if !cfg!(feature = "disable-relocation") {
+        // relocate to base
+        for reloc in elf.relocations()? {
+            if reloc.r_type() == R_X86_64_RELATIVE {
+                let r_addend = reloc.r_addend;
+                loaded_buffer
+                    .pwrite::<u64>(
+                        new_image_base.checked_add(r_addend as usize)? as u64,
+                        reloc.r_offset as usize,
+                    )
+                    .ok()?;
+            }
         }
     }
 

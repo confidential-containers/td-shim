@@ -51,6 +51,7 @@ boot-kernel = ["td-layout/boot-kernel"]
 secure-boot = ["der", "ring"]
 tdx = ["tdx-tdcall", "td-exception/tdx", "td-logger/tdx", "x86"]
 lazy-accept = ["tdx"]
+disable-relocation = ["td-loader/disable-relocation"]
 main = [
     "td-loader",
     "linked_list_allocator",
