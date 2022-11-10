@@ -33,13 +33,14 @@ use td_shim::{
 };
 use td_uefi_pi::{fv, hob, pi};
 
+use crate::info::ShimInfo;
 use crate::ipl::ExecutablePayloadType;
-use crate::td_hob::TdHobInfo;
 
 mod acpi;
 mod asm;
 mod e820;
 mod heap;
+mod info;
 mod ipl;
 mod linux;
 mod memory;
@@ -47,7 +48,6 @@ mod mp;
 mod payload_hob;
 mod stack_guard;
 mod td;
-mod td_hob;
 
 extern "win64" {
     fn switch_stack_call_win64(entry_point: usize, stack_top: usize, P1: usize, P2: usize);
@@ -101,15 +101,16 @@ pub extern "win64" fn _start(
     // First initialize the heap allocator so that we have a normal rust world to live in...
     heap::init();
 
-    // Get HOB list
-    let hob_list = hob::check_hob_integrity(memslice::get_mem_slice(memslice::SliceType::TdHob))
-        .expect("Integrity check failed: invalid HOB list");
-    hob::dump_hob(hob_list);
-    let mut td_hob_info =
-        TdHobInfo::read_from_hob(hob_list).expect("Error occurs reading from VMM HOB");
+    // Init the Shim Info from the metadata
+    let mut shim_info = ShimInfo::new().expect("Invalid metadata");
+
+    // Read additional information from TD HOB if exists
+    if shim_info.td_hob.is_some() {
+        shim_info.read_td_hob().expect("Invalid TD HOB");
+    }
 
     // Initialize memory subsystem.
-    let mut mem = memory::Memory::new(&td_hob_info.memory)
+    let mut mem = memory::Memory::new(&shim_info.memory)
         .expect("Unable to find a piece of suitable memory for runtime");
     mem.setup_paging();
 
@@ -128,26 +129,30 @@ pub extern "win64" fn _start(
     };
     let mut td_event_log = CcEventLogWriter::new(event_log_buf, Box::new(td::extend_rtmr))
         .expect("Failed to create and initialize the event log");
-    log_hob_list(hob_list, &mut td_event_log);
+
+    // Log the TD HOB if td-shim consumed its content
+    if let Some(td_hob) = shim_info.td_hob {
+        log_hob_list(td_hob, &mut td_event_log);
+    }
 
     let num_vcpus = td::get_num_vcpus();
     //Create MADT and TDEL
-    let (madt, tdel) = prepare_acpi_tables(&mut td_hob_info.acpi_tables, &mem.layout, num_vcpus);
-    td_hob_info.acpi_tables.push(madt.as_bytes());
-    td_hob_info.acpi_tables.push(tdel.as_bytes());
+    let (madt, tdel) = prepare_acpi_tables(&mut shim_info.acpi_tables, &mem.layout, num_vcpus);
+    shim_info.acpi_tables.push(madt.as_bytes());
+    shim_info.acpi_tables.push(tdel.as_bytes());
 
     // If the Payload Information GUID HOB is present, try to boot the Linux kernel.
-    if let Some(payload_info) = td_hob_info.payload_info {
+    if let Some(payload_info) = shim_info.payload_info {
         boot_linux_kernel(
             &payload_info,
-            &td_hob_info.acpi_tables,
+            &shim_info.acpi_tables,
             &mem,
             &mut td_event_log,
             num_vcpus,
         );
     }
 
-    boot_builtin_payload(&mut mem, &mut td_event_log, &td_hob_info.acpi_tables);
+    boot_builtin_payload(&mut mem, &mut td_event_log, &shim_info.acpi_tables);
 
     panic!("payload entry() should not return here, deadloop!!!");
 }
