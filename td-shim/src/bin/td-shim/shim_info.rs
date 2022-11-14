@@ -16,22 +16,15 @@ use td_uefi_pi::pi::guid::Guid;
 use td_uefi_pi::pi::hob::*;
 use td_uefi_pi::{fv, hob, pi};
 
-pub struct ShimInfo<'a> {
-    // If metadata contains the `TD_HOB` section, TD-Shim
-    // can get additional information from TD HOB
-    pub td_hob: Option<&'static [u8]>,
+pub struct BootTimeStatic {
+    sections: Vec<TdxMetadataSection>,
 
     // If metadata contains one/more `PermMem` sections,
     // TD-Shim should ignore the memory information in TD HOB.
     metadata_has_perm: bool,
-
-    pub memory: Vec<ResourceDescription>,
-    pub acpi_tables: Vec<&'a [u8]>,
-    pub payload_info: Option<PayloadInfo>,
-    pub payload_param: Option<&'a [u8]>,
 }
 
-impl<'a> ShimInfo<'a> {
+impl BootTimeStatic {
     // Validate the metadata and get the basic infomation from
     // it if any
     pub fn new() -> Option<Self> {
@@ -81,14 +74,11 @@ impl<'a> ShimInfo<'a> {
         let mut offset = metadata_offset + TDX_METADATA_DESCRIPTOR_LEN;
         let mut sections = Vec::new();
         let mut metadata_has_perm = false;
-        let mut td_hob_section = None;
 
         for _ in 0..descriptor.number_of_section_entry {
             let section = firmware.pread::<TdxMetadataSection>(offset as usize).ok()?;
             if section.r#type == TDX_METADATA_SECTION_TYPE_PERM_MEM {
                 metadata_has_perm = true;
-            } else if section.r#type == TDX_METADATA_SECTION_TYPE_TD_HOB {
-                td_hob_section = Some(section);
             }
 
             sections.push(section);
@@ -101,58 +91,84 @@ impl<'a> ShimInfo<'a> {
             return None;
         }
 
-        // Get memory information of the TD from metadata sections
-        let mut memory = Vec::new();
-        if metadata_has_perm {
-            for section in sections {
-                let resource_type = if section.r#type == TDX_METADATA_SECTION_TYPE_PERM_MEM {
-                    RESOURCE_MEMORY_UNACCEPTED
-                } else {
-                    RESOURCE_SYSTEM_MEMORY
-                };
-
-                let resource = ResourceDescription {
-                    header: Header {
-                        r#type: HOB_TYPE_RESOURCE_DESCRIPTOR,
-                        length: size_of::<ResourceDescription>() as u16,
-                        reserved: 0,
-                    },
-                    owner: [0u8; 16],
-                    resource_type,
-                    resource_attribute: 0,
-                    physical_start: section.memory_address,
-                    resource_length: section.memory_data_size,
-                };
-
-                memory.push(resource)
-            }
-        }
-
-        let td_hob = td_hob_section.and_then(|section| unsafe {
-            Some(core::slice::from_raw_parts(
-                section.memory_address as *const u8,
-                section.memory_data_size as usize,
-            ))
-        });
-
         Some(Self {
-            td_hob,
-            payload_info: None,
-            payload_param: None,
-            acpi_tables: Vec::new(),
-            memory,
+            sections,
             metadata_has_perm,
         })
     }
 
-    pub fn read_td_hob(&mut self) -> Option<()> {
-        let hob_list = hob::check_hob_integrity(self.td_hob?)?;
+    pub fn sections(&self) -> &[TdxMetadataSection] {
+        self.sections.as_slice()
+    }
+}
 
+pub struct BootTimeDynamic<'a> {
+    // If metadata contains the `TD_HOB` section, TD-Shim
+    // can get additional information from TD HOB
+    td_hob: Option<&'static [u8]>,
+
+    pub memory: Vec<ResourceDescription>,
+    pub acpi_tables: Vec<&'a [u8]>,
+    pub payload_info: Option<PayloadInfo>,
+    pub payload_param: Option<&'a [u8]>,
+}
+
+impl<'a> BootTimeDynamic<'a> {
+    pub fn new(static_info: &BootTimeStatic) -> Option<Self> {
+        let mut td_hob = static_info
+            .sections()
+            .iter()
+            .find(|&section| section.r#type == TDX_METADATA_SECTION_TYPE_TD_HOB)
+            .and_then(|section| unsafe {
+                Some(core::slice::from_raw_parts(
+                    section.memory_address as *const u8,
+                    section.memory_data_size as usize,
+                ))
+            });
+
+        if let Some(td_hob) = td_hob {
+            // If we cannot validate or get correct information from TD HOB,
+            // return None.
+            let mut dynamic_info = Self::parse_td_hob(td_hob)?;
+
+            // If `PermMem` exist in metadata, use the static memory information in
+            // the metadata
+            if static_info.metadata_has_perm {
+                dynamic_info.memory = Self::parse_metadata(static_info.sections());
+            }
+
+            Some(dynamic_info)
+        } else if static_info.metadata_has_perm {
+            // If `TD_HOB` section does not exist but `PermMem` exists, use static
+            // memory information in the metadata
+            Some(Self {
+                td_hob: None,
+                memory: Self::parse_metadata(static_info.sections()),
+                payload_info: None,
+                payload_param: None,
+                acpi_tables: Vec::new(),
+            })
+        } else {
+            log::info!("both not exists\n");
+            // If there is no `PermMem` or `TD_HOB` section in metadata, retur None
+            None
+        }
+    }
+
+    pub fn td_hob(&self) -> Option<&'static [u8]> {
+        self.td_hob
+    }
+
+    fn parse_td_hob(td_hob: &'static [u8]) -> Option<Self> {
+        let mut memory = Vec::new();
+        let mut acpi_tables = Vec::new();
+        let mut payload_info = None;
+        let mut payload_param = None;
+
+        let hob_list = hob::check_hob_integrity(td_hob)?;
         hob::dump_hob(hob_list);
 
         let mut offset = 0;
-        let mut memory: Vec<ResourceDescription> = Vec::new();
-
         loop {
             let hob = &hob_list[offset..];
             let header: Header = hob.pread(0).ok()?;
@@ -170,9 +186,9 @@ impl<'a> ShimInfo<'a> {
                     let guided_hob: GuidExtension = hob.pread(0).ok()?;
                     let hob_data = hob::get_guid_data(hob)?;
                     if &guided_hob.name == TD_KERNEL_INFO_HOB_GUID.as_bytes() {
-                        self.payload_info = Some(hob_data.pread::<PayloadInfo>(0).ok()?);
+                        payload_info = Some(hob_data.pread::<PayloadInfo>(0).ok()?);
                     } else if &guided_hob.name == TD_ACPI_TABLE_HOB_GUID.as_bytes() {
-                        self.acpi_tables.push(hob_data);
+                        acpi_tables.push(hob_data);
                     }
                 }
                 HOB_TYPE_END_OF_HOB_LIST => {
@@ -186,12 +202,40 @@ impl<'a> ShimInfo<'a> {
             offset = hob::align_to_next_hob_offset(hob_list.len(), offset, header.length)?;
         }
 
-        // If `PermMem` does not exist in metadata, use the memory
-        // information reported by the HOB
-        if !self.metadata_has_perm {
-            self.memory = memory;
+        Some(Self {
+            td_hob: Some(td_hob),
+            memory,
+            payload_info,
+            payload_param,
+            acpi_tables,
+        })
+    }
+
+    fn parse_metadata(sections: &[TdxMetadataSection]) -> Vec<ResourceDescription> {
+        let mut memory = Vec::new();
+        for section in sections {
+            let resource_type = if section.r#type == TDX_METADATA_SECTION_TYPE_PERM_MEM {
+                RESOURCE_MEMORY_UNACCEPTED
+            } else {
+                RESOURCE_SYSTEM_MEMORY
+            };
+
+            let resource = ResourceDescription {
+                header: Header {
+                    r#type: HOB_TYPE_RESOURCE_DESCRIPTOR,
+                    length: size_of::<ResourceDescription>() as u16,
+                    reserved: 0,
+                },
+                owner: [0u8; 16],
+                resource_type,
+                resource_attribute: 0,
+                physical_start: section.memory_address,
+                resource_length: section.memory_data_size,
+            };
+
+            memory.push(resource)
         }
 
-        Some(())
+        memory
     }
 }
