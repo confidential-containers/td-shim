@@ -4,6 +4,8 @@ export CC_x86_64_unknown_none=clang
 export AR_x86_64_unknown_none=llvm-ar
 export CC_x86_64_unknown_uefi=clang
 export AR_x86_64_unknown_uefi=llvm-ar
+export CC=clang
+export AR=llvm-ar
 export AS=nasm
 
 config_num=5

@@ -76,11 +76,11 @@ jobs:
 
       - name: Build image without payload
         run: |
-          cargo run -p td-shim-tools --features=td-shim/default --bin td-shim-ld -- target/x86_64-unknown-none/release/ResetVector.bin target/x86_64-unknown-none/release/td-shim -o target/release/final.bin
+          cargo run -p td-shim-tools --bin td-shim-ld --no-default-features --features=linker -- target/x86_64-unknown-none/release/ResetVector.bin target/x86_64-unknown-none/release/td-shim -o target/release/final.bin
       
       - name: Meta data check
         run: |
-          cargo run -p td-shim-tools --bin td-shim-checker -- target/release/final.bin
+          cargo run -p td-shim-tools --bin td-shim-checker  --no-default-features --features=loader -- target/release/final.bin
 
       - name: Build PE format payload
         run: |

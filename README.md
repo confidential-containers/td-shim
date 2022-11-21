@@ -99,7 +99,7 @@ git submodule update --init --recursive
 ### Build TdShim
 ```
 cargo xbuild -p td-shim --target x86_64-unknown-none --release --features=main,tdx
-cargo run -p td-shim-tools --bin td-shim-ld -- target/x86_64-unknown-none/release/ResetVector.bin target/x86_64-unknown-none/release/td-shim -o target/release/final.bin
+cargo run -p td-shim-tools --bin td-shim-ld --no-default-features --features=linker -- target/x86_64-unknown-none/release/ResetVector.bin target/x86_64-unknown-none/release/td-shim -o target/release/final.bin
 ```
 
 ### Build TdShim to launch a executable payload
