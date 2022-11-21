@@ -4,8 +4,8 @@ name: Format and Clippy
 
 env:
   AS: nasm
-  AR_x86_64_unknown_uefi: llvm-ar
-  CC_x86_64_unknown_uefi: clang
+  AR: llvm-ar
+  CC: clang
 
 jobs:
   clippy:
