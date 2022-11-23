@@ -4,6 +4,7 @@
 [![Cargo Fmt & Clippy](https://github.com/confidential-containers/td-shim/actions/workflows/format.yml/badge.svg)](https://github.com/confidential-containers/td-shim/actions/workflows/format.yml)
 [![Integration Test](https://github.com/confidential-containers/td-shim/actions/workflows/integration.yml/badge.svg)](https://github.com/confidential-containers/td-shim/actions/workflows/integration.yml)
 [![TDX Integration Test](https://github.com/confidential-containers/td-shim/actions/workflows/integration-tdx.yml/badge.svg)](https://github.com/confidential-containers/td-shim/actions/workflows/integration-tdx.yml)
+[![Fuzzing Test](https://github.com/confidential-containers/td-shim/actions/workflows/fuzz.yml/badge.svg)](https://github.com/confidential-containers/td-shim/actions/workflows/fuzz.yml)
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fconfidential-containers%2Ftd-shim.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fconfidential-containers%2Ftd-shim?ref=badge_shield)
 # TD-shim - Confidential Containers Shim Firmware
 
