@@ -10,12 +10,16 @@ edition = "2018"
 [dependencies]
 linked_list_allocator = "0.10.4"
 log = "0.4.13"
-scroll = { version = "0.10", default-features = false, features = ["derive"]}
-td-layout = { path = "../../td-layout" }
-x86 = "0.47.0"
+x86 = { version = "0.47.0", optional = true }
+scroll = { version = "0.10", default-features = false, features = ["derive"], optional = true }
+td-layout = { path = "../../td-layout", optional = true }
 
 lazy_static = { version = "1.4.0", features = ["spin_no_std"] }
 spin = "0.9.2"
 
 [dev-dependencies]
 alloca = "0.3.3"
+
+[features]
+default = ["benchmark"]
+benchmark = ["td-layout", "x86", "scroll"]
