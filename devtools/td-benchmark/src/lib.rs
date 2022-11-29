@@ -14,6 +14,12 @@ use linked_list_allocator::LockedHeap;
 use scroll::Pread;
 use td_layout::RuntimeMemoryLayout;
 
+mod heap;
+mod stack;
+
+pub use heap::{Alloc, HeapProfiling};
+pub use stack::StackProfiling;
+
 #[global_allocator]
 pub static ALLOCATOR: MyHeap = MyHeap::empty();
 
