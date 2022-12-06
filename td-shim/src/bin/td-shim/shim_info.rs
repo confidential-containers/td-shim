@@ -203,7 +203,7 @@ impl<'a> BootTimeDynamic<'a> {
         }
 
         Some(Self {
-            td_hob: Some(td_hob),
+            td_hob: Some(hob_list),
             memory,
             payload_info,
             payload_param,
