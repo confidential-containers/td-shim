@@ -9,6 +9,7 @@ use alloc::boxed::Box;
 use alloc::string::String;
 use alloc::vec::Vec;
 use serde::{Deserialize, Serialize};
+use td_payload::print;
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 pub enum TestResult {
@@ -34,7 +35,7 @@ pub struct TestSuite {
 impl TestSuite {
     pub fn run(&mut self) {
         for tc in self.testsuite.iter_mut() {
-            log::info!("[Test: {}]\n", String::from(tc.get_name()));
+            print!("[Test: {}]\n", String::from(tc.get_name()));
             tc.setup();
             tc.run();
             tc.teardown();
@@ -43,18 +44,18 @@ impl TestSuite {
             match res {
                 TestResult::Pass => {
                     self.passed_cases += 1;
-                    log::info!("[Test: {0}] - Pass\n", tc.get_name());
+                    print!("[Test: {0}] - Pass\n", tc.get_name());
                 }
                 TestResult::Fail => {
                     self.failed_cases += 1;
-                    log::info!("[Test: {0}] - Fail\n", tc.get_name());
+                    print!("[Test: {0}] - Fail\n", tc.get_name());
                 }
                 TestResult::None => {
-                    log::info!("[Test: {0}] - Skip\n", tc.get_name());
+                    print!("[Test: {0}] - Skip\n", tc.get_name());
                 }
             }
 
-            log::info!("---------------------------------------------\n")
+            print!("---------------------------------------------\n")
         }
     }
 }

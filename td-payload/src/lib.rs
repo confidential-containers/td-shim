@@ -1,24 +1,64 @@
-// Copyright © 2019 Intel Corporation
+// Copyright (c) 2022 Intel Corporation
 // Copyright (c) 2022 Alibaba Cloud
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-License-Identifier: BSD-2-Clause-Patent
 
-#![no_std]
+#![cfg_attr(not(test), no_std)]
+#![cfg_attr(not(test), no_main)]
+#![feature(alloc_error_handler)]
 
-#[macro_use]
+use console::CONSOLE;
+use core::fmt::{Arguments, Write};
+
 extern crate alloc;
 
-mod json;
-pub use json::json_test;
+pub mod acpi;
+pub mod arch;
+pub mod console;
+pub mod hob;
+pub mod mm;
 
-pub mod serial;
+/// The entry point of Payload
+///
+/// For the x86_64-unknown-uefi target, the entry point name is 'efi_main'
+/// For the x86_64-unknown-none target, the entry point name is '_start'
+#[no_mangle]
+#[cfg(all(not(test), feature = "start"))]
+#[cfg_attr(target_os = "uefi", export_name = "efi_main")]
+pub extern "C" fn _start(hob: u64, _payload: u64) -> ! {
+    use mm::layout::RuntimeLayout;
+    extern "C" {
+        fn main();
+    }
+
+    let layout = RuntimeLayout::default();
+
+    arch::init::pre_init(hob, &layout);
+    arch::init::init(&layout, main);
+}
+
+pub fn console(args: Arguments) {
+    CONSOLE
+        .lock()
+        .write_fmt(args)
+        .expect("Failed to write console");
+}
+
+#[macro_export]
+macro_rules! print {
+    ($($arg:tt)*) => ($crate::console(format_args!($($arg)*)));
+}
+
+#[macro_export]
+macro_rules! println {
+    ($($arg:tt)*) => ($crate::print!("{}\n", format_args!($($arg)*)));
+}
+
+#[derive(Debug)]
+pub enum Error {
+    ParseHob,
+    GetMemoryMap,
+    GetAcpiTable,
+    SetupMemoryLayout,
+    SetupPageTable,
+}

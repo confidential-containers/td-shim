@@ -13,7 +13,7 @@ cargo xbuild -p td-shim --target x86_64-unknown-none --release --features=main,t
 Refer to [README](../README.md), using ELF as example:
 
 ```
-cargo xbuild -p td-payload --target x86_64-unknown-none --release --features=main,tdx
+cargo xbuild -p td-payload --target x86_64-unknown-none --release --bin example --features=tdx,start,cet-shstk,stack-guard
 ```
 
 ## Generate Key
@@ -61,9 +61,9 @@ set AR=llvm-ar
 
 Run the signing tool:
 ```
-cargo run -p td-shim-tools --bin td-shim-sign-payload -- -A ECDSA_NIST_P384_SHA384 data/sample-keys/ecdsa-p384-private.pk8 target/x86_64-unknown-none/release/td-payload 1 1 
+cargo run -p td-shim-tools --bin td-shim-sign-payload -- -A ECDSA_NIST_P384_SHA384 data/sample-keys/ecdsa-p384-private.pk8 target/x86_64-unknown-none/release/test 1 1 
 ```
-The signed payload file **td-payload-signed** is located in the same folder with input `td-payload`.
+The signed payload file **td-payload-signed** is located in the same folder with input `test`.
 
 ## Enroll public key into CFV with [rust-tdshim-key-enroll](../td-shim-tools)
 Build final.bin:
