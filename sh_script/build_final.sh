@@ -29,15 +29,15 @@ final_boot_kernel() {
 final_pe() {
     echo final-pe
     cargo xbuild -p td-shim --target x86_64-unknown-none --release --features=main,tdx --no-default-features
-    cargo xbuild -p td-payload --target x86_64-unknown-uefi --release --features=main,tdx --no-default-features
+    cargo xbuild -p td-payload --target x86_64-unknown-uefi --release --bin example --features=tdx,start,cet-shstk,stack-guard
 
     cargo run -p td-shim-tools --bin td-shim-strip-info -- -n td-shim --target x86_64-unknown-none
-    cargo run -p td-shim-tools --bin td-shim-strip-info -- -n td-payload --target x86_64-unknown-uefi
+    cargo run -p td-shim-tools --bin td-shim-strip-info -- -n example --target x86_64-unknown-uefi
 
     cargo run -p td-shim-tools --features="linker" --no-default-features --bin td-shim-ld -- \
         target/x86_64-unknown-none/release/ResetVector.bin \
         target/x86_64-unknown-none/release/td-shim \
-        -p target/x86_64-unknown-uefi/release/td-payload.efi \
+        -p target/x86_64-unknown-uefi/release/example.efi \
         -o target/release/final-pe.bin
 }
 
@@ -70,15 +70,15 @@ final_pe_test() {
 final_elf() {
     echo final-elf
     cargo xbuild -p td-shim --target x86_64-unknown-none --release --features=main,tdx --no-default-features
-    cargo xbuild -p td-payload --target x86_64-unknown-none --release --features=main,tdx --no-default-features
+    cargo xbuild -p td-payload --target x86_64-unknown-none --release --bin example --features=tdx,start,cet-shstk,stack-guard
 
     cargo run -p td-shim-tools --bin td-shim-strip-info -- -n td-shim --target x86_64-unknown-none
-    cargo run -p td-shim-tools --bin td-shim-strip-info -- -n td-payload --target x86_64-unknown-none
+    cargo run -p td-shim-tools --bin td-shim-strip-info -- -n example --target x86_64-unknown-none
 
     cargo run -p td-shim-tools --features="linker" --no-default-features --bin td-shim-ld -- \
         target/x86_64-unknown-none/release/ResetVector.bin \
         target/x86_64-unknown-none/release/td-shim \
-        -p target/x86_64-unknown-none/release/td-payload \
+        -p target/x86_64-unknown-none/release/example \
         -o target/release/final-elf.bin 
 }
 
@@ -111,18 +111,18 @@ final_elf_test() {
 final_pe_sb_test() {
     echo "Build final binaries with PE format td payload for secure boot test"
     cargo xbuild -p td-shim --target x86_64-unknown-none --release --features=main,tdx,secure-boot --no-default-features
-    cargo xbuild -p td-payload --target x86_64-unknown-uefi --release --features=main,tdx --no-default-features
+    cargo xbuild -p td-payload --target x86_64-unknown-uefi --release --bin example --features=tdx,start,cet-shstk,stack-guard
 
     cargo run -p td-shim-tools --bin td-shim-strip-info -- -n td-shim --target x86_64-unknown-none
-    cargo run -p td-shim-tools --bin td-shim-strip-info -- -n td-payload --target x86_64-unknown-uefi
+    cargo run -p td-shim-tools --bin td-shim-strip-info -- -n example --target x86_64-unknown-uefi
 
-    cargo run -p td-shim-tools --bin td-shim-sign-payload -- -A ECDSA_NIST_P384_SHA384 data/sample-keys/ecdsa-p384-private.pk8 target/x86_64-unknown-uefi/release/td-payload.efi 1 1
+    cargo run -p td-shim-tools --bin td-shim-sign-payload -- -A ECDSA_NIST_P384_SHA384 data/sample-keys/ecdsa-p384-private.pk8 target/x86_64-unknown-uefi/release/example.efi 1 1
 
     echo "Build final binary with unsigned td payload"
     cargo run -p td-shim-tools --features="linker" --no-default-features --bin td-shim-ld -- \
         target/x86_64-unknown-none/release/ResetVector.bin \
         target/x86_64-unknown-none/release/td-shim \
-        -p target/x86_64-unknown-uefi/release/td-payload.efi \
+        -p target/x86_64-unknown-uefi/release/example.efi \
         -o target/release/final-pe-unsigned.bin
     
     cargo run -p td-shim-tools --bin td-shim-enroll -- \
@@ -155,18 +155,18 @@ final_pe_sb_test() {
 final_elf_sb_test() {
     echo "Build final binaries with ELF format td payload for secure boot test"
     cargo xbuild -p td-shim --target x86_64-unknown-none --release --features=main,tdx,secure-boot --no-default-features
-    cargo xbuild -p td-payload --target x86_64-unknown-none --release --features=main,tdx --no-default-features
+    cargo xbuild -p td-payload --target x86_64-unknown-none --release --bin example --features=tdx,start,cet-shstk,stack-guard
 
     cargo run -p td-shim-tools --bin td-shim-strip-info -- -n td-shim --target x86_64-unknown-none
-    cargo run -p td-shim-tools --bin td-shim-strip-info -- -n td-payload --target x86_64-unknown-none
+    cargo run -p td-shim-tools --bin td-shim-strip-info -- -n example --target x86_64-unknown-none
 
-    cargo run -p td-shim-tools --bin td-shim-sign-payload -- -A ECDSA_NIST_P384_SHA384 data/sample-keys/ecdsa-p384-private.pk8 target/x86_64-unknown-none/release/td-payload 1 1 
+    cargo run -p td-shim-tools --bin td-shim-sign-payload -- -A ECDSA_NIST_P384_SHA384 data/sample-keys/ecdsa-p384-private.pk8 target/x86_64-unknown-none/release/example 1 1 
 
     echo "Build final binary with unsigned td payload"
     cargo run -p td-shim-tools --features="linker" --no-default-features --bin td-shim-ld -- \
         target/x86_64-unknown-none/release/ResetVector.bin \
         target/x86_64-unknown-none/release/td-shim \
-        -p target/x86_64-unknown-none/release/td-payload \
+        -p target/x86_64-unknown-none/release/example \
         -o target/release/final-elf-unsigned.bin
     
     cargo run -p td-shim-tools --bin td-shim-enroll -- \

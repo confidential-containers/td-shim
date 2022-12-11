@@ -90,20 +90,20 @@ jobs:
 
       - name: Build Release PE format payload
         run: |
-          cargo xbuild -p td-payload --target x86_64-unknown-uefi --release --features=main,tdx
-          cargo run -p td-shim-tools --no-default-features --features=linker --bin td-shim-ld -- target/x86_64-unknown-none/release/ResetVector.bin target/x86_64-unknown-none/release/td-shim -p target/x86_64-unknown-uefi/release/td-payload.efi -o target/release/final-pe.bin
+          cargo xbuild -p td-payload --target x86_64-unknown-uefi --release --bin example --features=tdx,start,cet-shstk,stack-guard
+          cargo run -p td-shim-tools --no-default-features --features=linker --bin td-shim-ld -- target/x86_64-unknown-none/release/ResetVector.bin target/x86_64-unknown-none/release/td-shim -p target/x86_64-unknown-uefi/release/example.efi -o target/release/final-pe.bin
       
       - name: Build Debug PE format payload
         run: |
-          cargo xbuild -p td-payload --target x86_64-unknown-uefi --features=main,tdx
-          cargo run -p td-shim-tools --no-default-features --features=linker --bin td-shim-ld -- target/x86_64-unknown-none/debug/ResetVector.bin target/x86_64-unknown-none/debug/td-shim -p target/x86_64-unknown-uefi/debug/td-payload.efi -o target/debug/final-pe.bin
+          cargo xbuild -p td-payload --target x86_64-unknown-uefi --bin example --features=tdx,start,cet-shstk,stack-guard
+          cargo run -p td-shim-tools --no-default-features --features=linker --bin td-shim-ld -- target/x86_64-unknown-none/debug/ResetVector.bin target/x86_64-unknown-none/debug/td-shim -p target/x86_64-unknown-uefi/debug/example.efi -o target/debug/final-pe.bin
 
       - name: Build Release Elf format payload
         run: |
-          cargo xbuild -p td-payload --target x86_64-unknown-none --release --features=main,tdx
-          cargo run -p td-shim-tools --no-default-features --features=linker --bin td-shim-ld -- target/x86_64-unknown-none/release/ResetVector.bin target/x86_64-unknown-none/release/td-shim -p target/x86_64-unknown-none/release/td-payload -o target/release/final-elf.bin
+          cargo xbuild -p td-payload --target x86_64-unknown-none --release --bin example --features=tdx,start,cet-shstk,stack-guard
+          cargo run -p td-shim-tools --no-default-features --features=linker --bin td-shim-ld -- target/x86_64-unknown-none/release/ResetVector.bin target/x86_64-unknown-none/release/td-shim -p target/x86_64-unknown-none/release/example -o target/release/final-elf.bin
 
       - name: Build Debug Elf format payload
         run: |
-          cargo xbuild -p td-payload --target x86_64-unknown-none --features=main,tdx
-          cargo run -p td-shim-tools --no-default-features --features=linker --bin td-shim-ld -- target/x86_64-unknown-none/debug/ResetVector.bin target/x86_64-unknown-none/debug/td-shim -p target/x86_64-unknown-none/debug/td-payload -o target/debug/final-elf.bin
+          cargo xbuild -p td-payload --bin example --target x86_64-unknown-none --bin example --features=tdx,start,cet-shstk,stack-guard
+          cargo run -p td-shim-tools --no-default-features --features=linker --bin td-shim-ld -- target/x86_64-unknown-none/debug/ResetVector.bin target/x86_64-unknown-none/debug/td-shim -p target/x86_64-unknown-none/debug/example -o target/debug/final-elf.bin

@@ -110,14 +110,14 @@ cargo xbuild -p td-shim --target x86_64-unknown-none --release --features=main,t
 
 ### Build PE format payload
 ```
-cargo xbuild -p td-payload --target x86_64-unknown-uefi --release --features=main,tdx
-cargo run -p td-shim-tools --bin td-shim-ld --no-default-features --features=linker -- target/x86_64-unknown-none/release/ResetVector.bin target/x86_64-unknown-none/release/td-shim -p target/x86_64-unknown-uefi/release/td-payload.efi -o target/release/final-pe.bin
+cargo xbuild -p td-payload --target x86_64-unknown-uefi --release --bin example --features=tdx,start,cet-shstk,stack-guard
+cargo run -p td-shim-tools --bin td-shim-ld --no-default-features --features=linker -- target/x86_64-unknown-none/release/ResetVector.bin target/x86_64-unknown-none/release/td-shim -p target/x86_64-unknown-uefi/release/example.efi -o target/release/final-pe.bin
 ```
 
 ### Build Elf format payload
 ```
-cargo xbuild -p td-payload --target x86_64-unknown-none --release --features=main,tdx
-cargo run -p td-shim-tools --bin td-shim-ld --no-default-features --features=linker -- target/x86_64-unknown-none/release/ResetVector.bin target/x86_64-unknown-none/release/td-shim -p target/x86_64-unknown-none/release/td-payload -o target/release/final-elf.bin
+cargo xbuild -p td-payload --target x86_64-unknown-none --release --bin example --features=tdx,start,cet-shstk,stack-guard
+cargo run -p td-shim-tools --bin td-shim-ld --no-default-features --features=linker -- target/x86_64-unknown-none/release/ResetVector.bin target/x86_64-unknown-none/release/td-shim -p target/x86_64-unknown-none/release/example -o target/release/final-elf.bin
 ```
 
 ## Run
