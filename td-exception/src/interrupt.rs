@@ -424,7 +424,55 @@ interrupt_no_error!(virtualization, stack, {
             deadloop();
         }
     };
+
     stack.iret.rip += ve_info.exit_instruction_length as usize;
+
+    // If CET shadow stack is enabled, processor will compare the `LIP` value saved in the shadow
+    // stack and the `RIP` value saved in the normal stack when executing a return from an
+    // exception handler and cause a control protection exception if they do not match.
+    #[cfg(feature = "cet-shstk")]
+    {
+        use x86_64::registers::control::{Cr4, Cr4Flags};
+        use x86_64::registers::model_specific::Msr;
+
+        const MSR_IA32_S_CET: u32 = 0x6A2;
+        const SH_STK_EN: u64 = 1;
+        const WR_SHSTK_E: u64 = 1 << 1;
+
+        let mut msr_cet = Msr::new(MSR_IA32_S_CET);
+
+        // If shadow stack is not enabled, return
+        if (msr_cet.read() & SH_STK_EN) == 0
+            || (Cr4::read() & Cr4Flags::CONTROL_FLOW_ENFORCEMENT).is_empty()
+        {
+            return;
+        }
+
+        // Read the Shadow Stack Pointer
+        let mut ssp: u64;
+        asm!(
+            "rdsspq {ssp}",
+            ssp = out(reg) ssp,
+        );
+
+        // SSP -> Return address of current function | SSP | LIP | CS
+        let lip_ptr = ssp + 0x10;
+        let lip = *(lip_ptr as *const u64) + ve_info.exit_instruction_length as u64;
+
+        // Enables the WRSSD/WRSSQ instructions by setting the `WR_SHSTK_E`
+        // to 1, then we can write the shadow stack
+        msr_cet.write(msr_cet.read() | WR_SHSTK_E);
+
+        // Write the new LIP to the shadow stack
+        asm!(
+            "wrssq [{lip_ptr}], {lip}",
+            lip_ptr = in(reg) lip_ptr,
+            lip = in(reg) lip,
+        );
+
+        // Clear the `WR_SHSTK_E`
+        msr_cet.write(msr_cet.read() & !WR_SHSTK_E);
+    }
 });
 
 // Handle IO exit from TDX Module
