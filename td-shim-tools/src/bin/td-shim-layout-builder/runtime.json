@@ -1,0 +1,54 @@
+[
+    {
+        "name": "LEGACY",
+        "length": 0x100000
+    },
+    {
+        "name": "RESERVED1",
+        "length": 0x700000
+    },
+    {
+        "name": "TD_HOB",
+        "length": 0x100000
+    },
+    {
+        "name": "KERNEL_PARAM",
+        "length": 0x1000
+    },
+    {
+        "name": "KERNEL",
+        "length": 0x2000000
+    },
+    {
+        "name": "UNKNOWN",
+        "length": 0x7B48D000
+    },
+    {
+        "name": "TD_PAYLOAD_UNACCEPTED_MEMORY_BITMAP",
+        "length": 0x40000
+    },
+    {
+        "name": "TD_PAYLOAD_ACPI",
+        "length": 0x100000
+    },
+    {
+        "name": "TD_PAYLOAD_STACK",
+        "length": 0x10000
+    },
+    {
+        "name": "TD_PAYLOAD",
+        "length": 0x2000000
+    },
+    {
+        "name": "TD_PAYLOAD_PAGE_TABLE",
+        "length": 0x20000
+    },
+    {
+        "name": "TD_PAYLOAD_MAILBOX",
+        "length": 0x2000
+    },
+    {
+        "name": "TD_PAYLOAD_EVENT_LOG",
+        "length": 0x100000
+    }
+]
