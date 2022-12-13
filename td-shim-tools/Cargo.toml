@@ -30,6 +30,10 @@ name = "td-shim-strip-info"
 name = "td-shim-tee-info-hash"
 required-features = ["tee"]
 
+[[bin]]
+name = "td-shim-layout-builder"
+required-features = ["layout_builder"]
+
 [dependencies]
 r-efi = "3.2.0"
 argparse = "0.2.2"
@@ -53,12 +57,15 @@ hex = { version = "0.4", features = ["serde"], optional = true }
 sha2 = { version = "0.10.2", optional = true }
 byteorder = { version = "1.4.3", optional = true }
 parse_int = { version = "0.6.0", optional = true }
+tera = { version = "1.17.1", optional = true }
+json5 = { version = "0.3.0", optional = true }
 
 [features]
-default = ["boot-kernel", "enroller", "linker", "signer", "loader", "tee"]
+default = ["boot-kernel", "enroller", "linker", "signer", "loader", "tee", "layout_builder"]
 boot-kernel = ["td-layout/boot-kernel", "td-shim/boot-kernel"]
 enroller = ["clap", "der", "env_logger", "log", "ring", "td-shim/secure-boot"]
 linker = ["clap", "env_logger", "log", "parse_int", "serde_json", "serde", "td-loader"]
 signer = ["clap", "der", "env_logger", "log", "ring", "td-shim/secure-boot"]
 loader = ["clap", "env_logger", "log"]
 tee = ["clap", "env_logger", "log", "serde_json", "serde", "hex", "sha2", "byteorder"]
+layout_builder = ["clap", "env_logger", "log", "clap/derive", "serde", "serde_json", "tera", "json5"]

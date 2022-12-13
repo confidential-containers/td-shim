@@ -30,6 +30,9 @@ pub mod loader;
 #[cfg(feature = "tee")]
 pub mod tee_info_hash;
 
+#[cfg(feature = "layout_builder")]
+pub mod layout_builder;
+
 /// Struct to read input data from a file.
 pub struct InputData {
     data: Vec<u8>,
