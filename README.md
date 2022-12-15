@@ -79,12 +79,11 @@ Please make sure clang can be found in PATH.
 Set env:
 
 ```
-set CC_x86_64_unknown_uefi=clang
-set AR_x86_64_unknown_uefi=llvm-ar
+export CC=clang
+export AR=llvm-ar
 
-For Elf format payload build:
-set CC_x86_64_unknown_none=clang
-set AR_x86_64_unknown_none=llvm-ar
+export CC_x86_64_unknown_none=clang
+export AR_x86_64_unknown_none=llvm-ar
 ```
 
 ### Secure boot support
@@ -100,7 +99,7 @@ git submodule update --init --recursive
 ### Build TdShim
 ```
 cargo xbuild -p td-shim --target x86_64-unknown-none --release --features=main,tdx
-cargo run -p td-shim-tools --bin td-shim-ld --no-default-features --features=linker -- target/x86_64-unknown-none/release/ResetVector.bin target/x86_64-unknown-none/release/td-shim -o target/release/final.bin
+cargo run -p td-shim-tools --bin td-shim-ld --features=linker -- target/x86_64-unknown-none/release/ResetVector.bin target/x86_64-unknown-none/release/td-shim -o target/release/final.bin
 ```
 
 ### Build TdShim to launch a executable payload
