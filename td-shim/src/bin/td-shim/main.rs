@@ -46,7 +46,6 @@ mod memory;
 mod mp;
 mod payload_hob;
 mod shim_info;
-mod stack_guard;
 mod td;
 
 extern "win64" {
@@ -237,7 +236,6 @@ fn boot_builtin_payload(
     mem.set_nx_bit(mem.layout.runtime_acpi_base, TD_PAYLOAD_ACPI_SIZE as u64);
 
     // Initialize the stack to run the image
-    stack_guard::stack_guard_enable(mem);
     let stack_top = (mem.layout.runtime_stack_base + TD_PAYLOAD_STACK_SIZE as u64) as usize;
 
     // Prepare the HOB list to run the image
