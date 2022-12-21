@@ -11,10 +11,13 @@
 extern crate alloc;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
+use asm::{empty_exception_handler, empty_exception_handler_size};
 use core::ffi::c_void;
 use core::mem::size_of;
 use core::panic::PanicInfo;
+use td_exception::idt::{load_idtr, Idt};
 use td_shim::event_log::CCEL_CC_TYPE_TDX;
+use x86_64::registers::segmentation::{Segment, CS};
 
 use r_efi::efi;
 use scroll::{Pread, Pwrite};
@@ -189,6 +192,7 @@ fn boot_linux_kernel(
         payload,
         rsdp,
         e820_table.as_slice(),
+        mem.layout.runtime_idt_base,
         kernel_info,
         #[cfg(feature = "tdx")]
         mem.build_unaccepted_memory_bitmap(),
@@ -253,6 +257,9 @@ fn boot_builtin_payload(
         ExecutablePayloadType::PeCoff => switch_stack_call_win64,
     };
 
+    // Relocate the Interrupt Descriptor Table before jump to payload
+    switch_idt(mem.layout.runtime_idt_base);
+
     unsafe {
         switch_stack_call(
             relocation_info.entry_point as usize,
@@ -261,6 +268,30 @@ fn boot_builtin_payload(
             mem.layout.runtime_payload_base as usize,
         )
     };
+}
+
+// We reserved two pages for the IDT used before payload setup
+// its own one.
+pub fn switch_idt(idt_base: u64) {
+    let idt_page = unsafe {
+        memslice::get_dynamic_mem_slice_mut(memslice::SliceType::RelocatedIdt, idt_base as usize)
+    };
+
+    let mut idt = unsafe { &mut *(idt_page.as_ptr() as u64 as *mut Idt) };
+
+    let handler_offset = size_of::<Idt>();
+    let handler_size = empty_exception_handler_size();
+
+    // Copy the handler code into the reserved page
+    idt_page[handler_offset..handler_offset + handler_size].copy_from_slice(unsafe {
+        core::slice::from_raw_parts(empty_exception_handler as u64 as *const u8, handler_size)
+    });
+
+    for entry in &mut idt.entries {
+        entry.set_func(idt_base as usize + handler_offset);
+    }
+
+    unsafe { load_idtr(&idt.idtr()) };
 }
 
 // Install ACPI tables into ACPI reclaimable memory for the virtual machine
