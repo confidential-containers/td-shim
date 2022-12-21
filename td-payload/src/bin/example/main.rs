@@ -1,4 +1,4 @@
-// Copyright © 2019 Intel Corporation
+// Copyright © 2019-2022 Intel Corporation
 // Copyright (c) 2022 Alibaba Cloud
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -62,8 +62,30 @@ pub extern "C" fn main() -> ! {
         println!("{:?}", tdx_report);
     }
 
+    #[cfg(all(feature = "coverage", feature = "tdx"))]
+    {
+        const MAX_COVERAGE_DATA_PAGE_COUNT: usize = 0x100;
+        let mut dma = td_payload::mm::dma::DmaMemory::new(MAX_COVERAGE_DATA_PAGE_COUNT)
+            .expect("New dma fail.");
+        let buffer = dma.as_mut_bytes();
+
+        let coverage_len = minicov::get_coverage_data_size();
+        assert!(coverage_len < MAX_COVERAGE_DATA_PAGE_COUNT * td_paging::PAGE_SIZE);
+        minicov::capture_coverage_to_buffer(&mut buffer[0..coverage_len]);
+        println!(
+            "coverage addr: {:x}, coverage len: {}",
+            buffer.as_ptr() as u64,
+            coverage_len
+        );
+    }
+
     panic!("td-payload: all tests finished and enters dead loop");
 }
 
 #[cfg(test)]
 fn main() {}
+
+// FIXME: remove when https://github.com/Amanieu/minicov/issues/12 is fixed.
+#[cfg(all(feature = "coverage", feature = "tdx", target_os = "none"))]
+#[no_mangle]
+static __llvm_profile_runtime: u32 = 0;
