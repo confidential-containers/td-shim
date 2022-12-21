@@ -18,6 +18,7 @@ use core::panic::PanicInfo;
 use td_exception::idt::{load_idtr, Idt};
 use td_shim::event_log::CCEL_CC_TYPE_TDX;
 use x86_64::registers::segmentation::{Segment, CS};
+use x86_64::structures::DescriptorTablePointer;
 
 use r_efi::efi;
 use scroll::{Pread, Pwrite};
@@ -118,8 +119,6 @@ pub extern "win64" fn _start(
 
     // Relocate the page table that map all the physical memory
     td::relocate_ap_page_table(mem.layout.runtime_page_table_base);
-    // Relocate Mailbox along side with the AP function
-    td::relocate_mailbox(mem.layout.runtime_mailbox_base as u32);
 
     // Set up the TD event log buffer.
     // Safe because it's used to initialize the EventLog subsystem which ensures safety.
@@ -192,6 +191,7 @@ fn boot_linux_kernel(
         payload,
         rsdp,
         e820_table.as_slice(),
+        mem.layout.runtime_mailbox_base,
         mem.layout.runtime_idt_base,
         kernel_info,
         #[cfg(feature = "tdx")]
@@ -260,6 +260,9 @@ fn boot_builtin_payload(
     // Relocate the Interrupt Descriptor Table before jump to payload
     switch_idt(mem.layout.runtime_idt_base);
 
+    // Relocate Mailbox along side with the AP function
+    td::relocate_mailbox(mem.layout.runtime_mailbox_base as u32);
+
     unsafe {
         switch_stack_call(
             relocation_info.entry_point as usize,
@@ -291,7 +294,11 @@ pub fn switch_idt(idt_base: u64) {
         entry.set_func(idt_base as usize + handler_offset);
     }
 
-    unsafe { load_idtr(&idt.idtr()) };
+    let idt_ptr = idt.idtr();
+    unsafe { load_idtr(&idt_ptr) };
+
+    // Set the IDT for application processors
+    td::set_idt(&idt_ptr);
 }
 
 // Install ACPI tables into ACPI reclaimable memory for the virtual machine

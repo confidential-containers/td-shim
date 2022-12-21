@@ -275,6 +275,11 @@ ParkAp:
     cmp     eax, MpProtectedModeWakeupCommandSetCr3
     je      .set_page_table
 
+    ;
+    ; Set IDT for AP
+    cmp     eax, MpProtectedModeWakeupCommandSetIdt
+    je      .set_idt
+
     jmp    .check_apicid
 
 .check_avalible
@@ -291,6 +296,17 @@ ParkAp:
 
     ;
     ; Set the ApicId to be invalid to show the CR3 has been set
+    mov     dword[rsp + ApicidOffset], MailboxApicIdInvalid
+    jmp     .check_apicid
+
+.set_idt
+    ;
+    ; Read out the IDT pointer from mailbox and load it into idtr
+    mov     rax, [rsp + IdtBaseOffset]
+    lidt    [rax]
+
+    ;
+    ; Set the ApicId to be invalid to show the IDT has been set
     mov     dword[rsp + ApicidOffset], MailboxApicIdInvalid
     jmp     .check_apicid
 
