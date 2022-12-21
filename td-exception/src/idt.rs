@@ -80,39 +80,39 @@ impl Idt {
 
         // Set up exceptions handler according to Intel64 & IA32 Software Developer Manual
         // Reference: https://www.intel.com/content/www/us/en/developer/articles/technical/intel-sdm.html
-        current_idt[0].set_func(interrupt::divide_by_zero);
-        current_idt[1].set_func(interrupt::debug);
-        current_idt[2].set_func(interrupt::non_maskable);
-        current_idt[3].set_func(interrupt::breakpoint);
-        current_idt[4].set_func(interrupt::overflow);
-        current_idt[5].set_func(interrupt::bound_range);
-        current_idt[6].set_func(interrupt::invalid_opcode);
-        current_idt[7].set_func(interrupt::device_not_available);
-        current_idt[8].set_func(interrupt::double_fault);
+        current_idt[0].set_func(interrupt::divide_by_zero as usize);
+        current_idt[1].set_func(interrupt::debug as usize);
+        current_idt[2].set_func(interrupt::non_maskable as usize);
+        current_idt[3].set_func(interrupt::breakpoint as usize);
+        current_idt[4].set_func(interrupt::overflow as usize);
+        current_idt[5].set_func(interrupt::bound_range as usize);
+        current_idt[6].set_func(interrupt::invalid_opcode as usize);
+        current_idt[7].set_func(interrupt::device_not_available as usize);
+        current_idt[8].set_func(interrupt::double_fault as usize);
         // 9 no longer available
-        current_idt[9].set_func(interrupt::default_exception);
-        current_idt[10].set_func(interrupt::invalid_tss);
-        current_idt[11].set_func(interrupt::segment_not_present);
-        current_idt[12].set_func(interrupt::stack_segment);
-        current_idt[13].set_func(interrupt::protection);
-        current_idt[14].set_func(interrupt::page);
+        current_idt[9].set_func(interrupt::default_exception as usize);
+        current_idt[10].set_func(interrupt::invalid_tss as usize);
+        current_idt[11].set_func(interrupt::segment_not_present as usize);
+        current_idt[12].set_func(interrupt::stack_segment as usize);
+        current_idt[13].set_func(interrupt::protection as usize);
+        current_idt[14].set_func(interrupt::page as usize);
         // 15 reserved
-        current_idt[15].set_func(interrupt::default_exception);
-        current_idt[16].set_func(interrupt::fpu);
-        current_idt[17].set_func(interrupt::alignment_check);
-        current_idt[18].set_func(interrupt::machine_check);
-        current_idt[19].set_func(interrupt::simd);
+        current_idt[15].set_func(interrupt::default_exception as usize);
+        current_idt[16].set_func(interrupt::fpu as usize);
+        current_idt[17].set_func(interrupt::alignment_check as usize);
+        current_idt[18].set_func(interrupt::machine_check as usize);
+        current_idt[19].set_func(interrupt::simd as usize);
         #[cfg(feature = "tdx")]
-        current_idt[20].set_func(interrupt::virtualization);
+        current_idt[20].set_func(interrupt::virtualization as usize);
         #[cfg(not(feature = "tdx"))]
-        current_idt[20].set_func(interrupt::default_exception);
+        current_idt[20].set_func(interrupt::default_exception as usize);
         // reset exception reserved
         for i in 21..32 {
-            current_idt[i].set_func(interrupt::default_exception);
+            current_idt[i].set_func(interrupt::default_exception as usize);
         }
         // Setup reset potential interrupt handler.
         for i in 32..IDT_ENTRY_COUNT {
-            current_idt[i].set_func(interrupt::default_interrupt);
+            current_idt[i].set_func(interrupt::default_interrupt as usize);
         }
     }
 
@@ -130,7 +130,7 @@ impl Idt {
     // Register function pointer into the #index slot of IDT
     pub fn register_handler(&mut self, index: u8, func: unsafe extern "C" fn()) {
         let current_idt = &mut self.entries;
-        current_idt[index as usize].set_func(func);
+        current_idt[index as usize].set_func(func as usize);
     }
 }
 
@@ -184,7 +184,7 @@ impl IdtEntry {
     }
 
     // A function to set the offset more easily
-    pub fn set_func(&mut self, func: unsafe extern "C" fn()) {
+    pub fn set_func(&mut self, func: usize) {
         self.set_flags(IdtFlags::PRESENT | IdtFlags::RING_0 | IdtFlags::INTERRUPT);
         self.set_offset(unsafe { read_cs_call() }, func as usize); // GDT_KERNEL_CODE 1u16
     }

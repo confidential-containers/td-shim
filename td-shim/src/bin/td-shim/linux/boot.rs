@@ -15,6 +15,7 @@ use x86_64::{
 };
 
 use crate::linux::kernel_param::{BootParams, SetupHeader};
+use crate::switch_idt;
 
 const KERNEL_64BIT_ENTRY_OFFSET: u64 = 0x200;
 const GDT: [u64; 4] = [
@@ -58,6 +59,7 @@ pub fn boot_kernel(
     kernel: &[u8],
     rsdp_addr: u64,
     e820: &[E820Entry],
+    idt_base: u64,
     info: &PayloadInfo,
     #[cfg(feature = "tdx")] unaccepted_bitmap: u64,
 ) -> Result<(), Error> {
@@ -105,6 +107,9 @@ pub fn boot_kernel(
 
     // Jump to kernel 64-bit entrypoint
     log::info!("Jump to kernel...\n");
+
+    // Relocate the Interrupt Descriptor Table before jump to payload
+    switch_idt(idt_base);
 
     // Calling kernel 64bit entry follows sysv64 calling convention
     let entry64: extern "sysv64" fn(usize, usize) = unsafe { core::mem::transmute(entry64) };
