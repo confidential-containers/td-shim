@@ -34,6 +34,8 @@ td-benchmark = { path = "../devtools/td-benchmark", optional = true }
 tdx-tdcall = { path = "../tdx-tdcall", optional = true }
 zerocopy = "0.6.0"
 
+minicov = { version = "0.2", default-features = false, optional = true }
+
 [features]
 default = ["tdx"]
 tdx = ["tdx-tdcall", "td-logger/tdx", "td-exception/tdx"]
@@ -42,3 +44,4 @@ cet-shstk = ["td-exception/cet-shstk"]
 cet-ibt = []
 acpi = []
 start = []
+coverage = ["minicov"]
