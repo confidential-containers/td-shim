@@ -32,6 +32,7 @@ use runtime::*;
 pub const MIN_MEMORY_SIZE: u64 = (TD_PAYLOAD_ACPI_SIZE
     + TD_PAYLOAD_UNACCEPTED_MEMORY_BITMAP_SIZE
     + TD_PAYLOAD_PAGE_TABLE_SIZE
+    + TD_PAYLOAD_IDT_SIZE
     + TD_PAYLOAD_EVENT_LOG_SIZE
     + TD_PAYLOAD_MAILBOX_SIZE) as u64;
 
@@ -40,6 +41,7 @@ pub const MIN_MEMORY_SIZE: u64 = (TD_PAYLOAD_ACPI_SIZE
     + TD_PAYLOAD_STACK_SIZE
     + TD_PAYLOAD_SIZE
     + TD_PAYLOAD_PAGE_TABLE_SIZE
+    + TD_PAYLOAD_IDT_SIZE
     + TD_PAYLOAD_EVENT_LOG_SIZE
     + TD_PAYLOAD_MAILBOX_SIZE) as u64;
 
@@ -49,6 +51,7 @@ pub struct RuntimeMemoryLayout {
     pub runtime_page_table_base: u64,
     pub runtime_acpi_base: u64,
     pub runtime_mailbox_base: u64,
+    pub runtime_idt_base: u64,
     pub runtime_unaccepted_bitmap_base: u64,
     pub runtime_payload_base: u64,
     pub runtime_stack_base: u64,
@@ -71,6 +74,9 @@ impl RuntimeMemoryLayout {
 
         current_base -= TD_PAYLOAD_MAILBOX_SIZE as u64;
         let runtime_mailbox_base = current_base;
+
+        current_base -= TD_PAYLOAD_IDT_SIZE as u64;
+        let runtime_idt_base = current_base;
 
         current_base -= TD_PAYLOAD_PAGE_TABLE_SIZE as u64;
         let runtime_page_table_base = current_base;
@@ -102,6 +108,7 @@ impl RuntimeMemoryLayout {
         RuntimeMemoryLayout {
             runtime_event_log_base,
             runtime_mailbox_base,
+            runtime_idt_base,
             runtime_page_table_base,
             runtime_acpi_base,
             runtime_unaccepted_bitmap_base,
@@ -161,7 +168,7 @@ mod tests {
     #[test]
     #[cfg(feature = "boot-kernel")]
     fn test_runtime_memory_layout_boot_kernel() {
-        assert_eq!(MIN_MEMORY_SIZE, 0x262000);
+        assert_eq!(MIN_MEMORY_SIZE, 0x264000);
 
         let layout = RuntimeMemoryLayout::new(MIN_MEMORY_SIZE + 0x1000);
 
@@ -171,7 +178,7 @@ mod tests {
     #[test]
     #[cfg(not(feature = "boot-kernel"))]
     fn test_runtime_memory_layout_boot_payload() {
-        assert_eq!(MIN_MEMORY_SIZE, 0x2232000);
+        assert_eq!(MIN_MEMORY_SIZE, 0x2234000);
 
         let layout = RuntimeMemoryLayout::new(MIN_MEMORY_SIZE + 0x1000);
 

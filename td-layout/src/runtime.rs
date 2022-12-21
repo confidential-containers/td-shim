@@ -19,16 +19,18 @@
                     |    KERNEL    |    (0x02000000)
                     +--------------+
                     |   ........   |
-                    +--------------+ <-  0x7DD8E000
+                    +--------------+ <-  0x7DD8C000
                     |  UNACCEPTED  |    (0x00040000)
-                    +--------------+ <-  0x7DDCE000
+                    +--------------+ <-  0x7DDCC000
                     |     ACPI     |    (0x00100000)
-                    +--------------+ <-  0x7DECE000
+                    +--------------+ <-  0x7DECC000
                     |     STACK    |    (0x00010000)
-                    +--------------+ <-  0x7DEDE000
+                    +--------------+ <-  0x7DEDC000
                     |    PAYLOAD   |    (0x02000000)
-                    +--------------+ <-  0x7FEDE000
+                    +--------------+ <-  0x7FEDC000
                     |  Page Table  | <-  0x00020000
+                    +--------------+ <-  0x7FEFC000
+                    |      IDT     |    (0x00002000)
                     +--------------+ <-  0x7FEFE000
                     |    MAILBOX   |    (0x00002000)
                     +--------------+ <-  0x7FF00000
@@ -38,6 +40,7 @@
 
 pub const TD_PAYLOAD_EVENT_LOG_SIZE: u32 = 0x100000;
 pub const TD_PAYLOAD_MAILBOX_SIZE: u32 = 0x2000;
+pub const TD_PAYLOAD_IDT_SIZE: u32 = 0x2000;
 pub const TD_PAYLOAD_PAGE_TABLE_SIZE: u32 = 0x20000;
 pub const TD_PAYLOAD_ACPI_SIZE: u32 = 0x100000;
 pub const TD_PAYLOAD_SIZE: u32 = 0x2000000;
