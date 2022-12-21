@@ -37,6 +37,7 @@ FirmwareArgsOffset                        equ       800h
 WakeupArgsRelocatedMailBox                equ       800h
 ApWorkingStackStart                       equ       800h
 PageTableBaseOffset                       equ       800h
+IdtBaseOffset                             equ       800h
 CpuArrivalOffset                          equ       900h
 CpusExitingOffset                         equ       0a00h
 TalliesOffset                             equ       0a08h
@@ -47,6 +48,7 @@ MpProtectedModeWakeupCommandSleep         equ       2
 MpProtectedModeWakeupCommandAssignWork    equ       3
 MpProtectedModeWakeupCommandCheck         equ       4
 MpProtectedModeWakeupCommandSetCr3        equ       5
+MpProtectedModeWakeupCommandSetIdt        equ       6
 
 MailboxApicIdInvalid                      equ       0xffffffff
 MailboxApicidBroadcast                    equ       0xfffffffe

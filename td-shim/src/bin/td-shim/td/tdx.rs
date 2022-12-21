@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
+use td_exception::idt::DescriptorTablePointer;
 use tdx_tdcall::tdx;
 
 extern "win64" {
@@ -29,6 +30,10 @@ pub fn relocate_mailbox(address: u32) {
 
 pub fn relocate_ap_page_table(page_table_base: u64) {
     super::tdx_mailbox::relocate_page_table(get_num_vcpus(), page_table_base);
+}
+
+pub fn set_idt(idt_ptr: &DescriptorTablePointer) {
+    super::tdx_mailbox::set_idt(get_num_vcpus(), idt_ptr);
 }
 
 pub fn get_num_vcpus() -> u32 {
