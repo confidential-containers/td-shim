@@ -36,7 +36,7 @@ Get code coverage `profraw` data in `no_std` environment. In this way, the code 
 
    let mut buffer: [u8; COVERAGE_DATA_SIZE] = [0; COVERAGE_DATA_SIZE];
 
-   assert!(actual_size <= COVERAGE_DATA_SIZE, "Not enough space reserved for coverage daa");
+   assert!(actual_size <= COVERAGE_DATA_SIZE, "Not enough space reserved for coverage data");
    minicov::capture_coverage_to_buffer(&mut buffer[0..actual_size]);
    ```
 
@@ -50,6 +50,18 @@ pmemsave [addr] [size] [file]
 
 Note: In the TD environment profiling data need to be saved in shared memory.
 
+### Generate coverage report
+
+`grcov` is a tool to collect and aggregate code coverage data for multiple source files.
+
+For example:
+
+```
+grcov --branch --guess-directory-when-missing --ignore-not-existing --llvm --binary-path target/x86_64-unknown-none --source-dir ./ --output-type html --output-path target/release/coverage out.profraw
+```
+
+The final html files can be found at `target/release/coverage/` directory.
+
 ### Reference
 
 [Rust compiler Instrument Coverage](https://github.com/rust-lang/rust/blob/master/src/doc/rustc/src/instrument-coverage.md)
@@ -61,3 +73,5 @@ Note: In the TD environment profiling data need to be saved in shared memory.
 [minicov](https://github.com/Amanieu/minicov)
 
 [qemu monitor](https://qemu.readthedocs.io/en/latest/system/monitor.html)
+
+[grcov](https://github.com/mozilla/grcov)
