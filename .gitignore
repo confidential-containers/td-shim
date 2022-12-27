@@ -5,7 +5,6 @@ Cargo.lock
 target/
 *.bin
 *.obj
-bin
 # afl fuzz and cargo fuzz
 *.profraw
 corpus
