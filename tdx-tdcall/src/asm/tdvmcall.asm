@@ -26,6 +26,7 @@
 # )
 .global asm_td_vmcall
 asm_td_vmcall:
+        endbr64
         # Save the registers accroding to MS x64 calling convention
         push rbp
         mov rbp, rsp
