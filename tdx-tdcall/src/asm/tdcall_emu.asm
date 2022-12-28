@@ -18,6 +18,7 @@
 #    )
 .global td_call
 td_call:
+        endbr64
         # tdcall_push_regs
         push rbp
         mov rbp, rsp

@@ -25,6 +25,7 @@
 #    )
 .global td_vm_call
 td_vm_call:
+        endbr64
         # tdcall_push_regs
         push rbp
         mov  rbp, rsp
