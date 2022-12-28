@@ -185,7 +185,7 @@ pub fn build_payload_hob(acpi_tables: &Vec<&[u8]>, memory: &Memory) -> Option<Pa
 
     let mut e820 = memory.create_e820();
 
-    // Convert page table, payload binary, payload stack and payload HOB(reuse ACPI) to be reserved.
+    // Convert page table, payload binary, and payload HOB(reuse ACPI) to be reserved.
     e820.convert_range(
         E820Type::Reserved,
         memory.layout.runtime_page_table_base,
@@ -195,11 +195,6 @@ pub fn build_payload_hob(acpi_tables: &Vec<&[u8]>, memory: &Memory) -> Option<Pa
         E820Type::Reserved,
         memory.layout.runtime_payload_base,
         TD_PAYLOAD_SIZE as u64,
-    );
-    e820.convert_range(
-        E820Type::Reserved,
-        memory.layout.runtime_stack_base,
-        TD_PAYLOAD_STACK_SIZE as u64,
     );
     e820.convert_range(
         E820Type::Reserved,

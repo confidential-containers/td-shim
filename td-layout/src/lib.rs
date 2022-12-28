@@ -38,7 +38,6 @@ pub const MIN_MEMORY_SIZE: u64 = (TD_PAYLOAD_ACPI_SIZE
 
 #[cfg(not(feature = "boot-kernel"))]
 pub const MIN_MEMORY_SIZE: u64 = (TD_PAYLOAD_ACPI_SIZE
-    + TD_PAYLOAD_STACK_SIZE
     + TD_PAYLOAD_SIZE
     + TD_PAYLOAD_PAGE_TABLE_SIZE
     + TD_PAYLOAD_IDT_SIZE
@@ -54,8 +53,6 @@ pub struct RuntimeMemoryLayout {
     pub runtime_idt_base: u64,
     pub runtime_unaccepted_bitmap_base: u64,
     pub runtime_payload_base: u64,
-    pub runtime_stack_base: u64,
-    pub runtime_stack_top: u64,
     pub runtime_memory_bottom: u64,
     pub runtime_memory_top: u64,
 }
@@ -88,14 +85,6 @@ impl RuntimeMemoryLayout {
         }
         let runtime_payload_base = current_base;
 
-        // Stack is not needed for booting Linux Kernel
-        let runtime_stack_top = current_base;
-        #[cfg(not(feature = "boot-kernel"))]
-        {
-            current_base -= TD_PAYLOAD_STACK_SIZE as u64;
-        }
-        let runtime_stack_base = current_base;
-
         current_base -= TD_PAYLOAD_ACPI_SIZE as u64;
         let runtime_acpi_base = current_base;
 
@@ -113,8 +102,6 @@ impl RuntimeMemoryLayout {
             runtime_acpi_base,
             runtime_unaccepted_bitmap_base,
             runtime_payload_base,
-            runtime_stack_base,
-            runtime_stack_top,
             runtime_memory_bottom: current_base,
             runtime_memory_top: memory_top,
         }
@@ -125,16 +112,24 @@ impl fmt::Debug for RuntimeMemoryLayout {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("RuntimeMemoryLayout")
             .field(
+                "runtime_mailbox_base",
+                &format_args!("0x{:x}", self.runtime_mailbox_base),
+            )
+            .field(
                 "runtime_event_log_base",
                 &format_args!("0x{:x}", self.runtime_event_log_base),
             )
             .field(
-                "runtime_stack_base",
-                &format_args!("0x{:x}", self.runtime_stack_base),
+                "runtime_idt_base",
+                &format_args!("0x{:x}", self.runtime_idt_base),
             )
             .field(
-                "runtime_stack_top",
-                &format_args!("0x{:x}", self.runtime_stack_top),
+                "runtime_page_table_base",
+                &format_args!("0x{:x}", self.runtime_page_table_base),
+            )
+            .field(
+                "runtime_acpi_base",
+                &format_args!("0x{:x}", self.runtime_acpi_base),
             )
             .finish()
     }
@@ -178,7 +173,7 @@ mod tests {
     #[test]
     #[cfg(not(feature = "boot-kernel"))]
     fn test_runtime_memory_layout_boot_payload() {
-        assert_eq!(MIN_MEMORY_SIZE, 0x2234000);
+        assert_eq!(MIN_MEMORY_SIZE, 0x2224000);
 
         let layout = RuntimeMemoryLayout::new(MIN_MEMORY_SIZE + 0x1000);
 

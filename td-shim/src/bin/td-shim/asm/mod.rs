@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 use core::arch::global_asm;
 
-global_asm!(include_str!("switch_stack.asm"));
 global_asm!(include_str!("msr64.asm"));
 global_asm!(include_str!("ap_loop.asm"));
 global_asm!(include_str!("exception.asm"));
