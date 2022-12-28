@@ -18,6 +18,7 @@ use core::panic::PanicInfo;
 use td_exception::idt::{load_idtr, DescriptorTablePointer, Idt, IdtEntry};
 use td_shim::event_log::CCEL_CC_TYPE_TDX;
 use x86_64::registers::segmentation::{Segment, CS};
+use x86_64::VirtAddr;
 
 use r_efi::efi;
 use scroll::{Pread, Pwrite};
@@ -308,7 +309,7 @@ pub fn switch_idt(mailbox_base: u64) {
 
     let idt_ptr = DescriptorTablePointer {
         limit: size_of::<IdtEntry>() as u16 * 32,
-        base: idt_base,
+        base: VirtAddr::new(idt_base),
     };
     unsafe { load_idtr(&idt_ptr) };
 

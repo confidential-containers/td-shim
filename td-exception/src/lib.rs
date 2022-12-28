@@ -5,7 +5,6 @@
 #![no_std]
 #![feature(naked_functions)]
 
-pub mod asm;
 pub mod idt;
 pub mod interrupt;
 

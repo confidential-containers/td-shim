@@ -15,25 +15,19 @@ use core::slice::from_raw_parts_mut;
 use bitflags::bitflags;
 use lazy_static::lazy_static;
 use spin::Mutex;
+pub use x86_64::structures::DescriptorTablePointer;
+use x86_64::{
+    instructions::tables::lidt,
+    registers::segmentation::{Segment, CS},
+    VirtAddr,
+};
 
 use crate::interrupt;
 
 const IDT_ENTRY_COUNT: usize = 256;
 
-extern "win64" {
-    fn sidt_call(addr: usize);
-    fn lidt_call(addr: usize);
-    fn read_cs_call() -> u16;
-}
-
 lazy_static! {
     static ref INIT_IDT: Mutex<Idt> = Mutex::new(Idt::new());
-}
-
-#[repr(C, packed)]
-pub struct DescriptorTablePointer {
-    pub limit: u16,
-    pub base: u64,
 }
 
 #[no_mangle]
@@ -119,12 +113,10 @@ impl Idt {
     // Construct the Interrupt Descriptor Table Pointer (IDTR) based
     // on the base address and size of entries.
     pub fn idtr(&self) -> DescriptorTablePointer {
-        let mut desc = DescriptorTablePointer { limit: 1, base: 0 };
-
-        desc.limit = (self.entries.len() * mem::size_of::<IdtEntry>() - 1) as u16;
-        desc.base = self.entries.as_ptr() as u64;
-
-        desc
+        DescriptorTablePointer {
+            limit: (self.entries.len() * mem::size_of::<IdtEntry>() - 1) as u16,
+            base: VirtAddr::new(self.entries.as_ptr() as u64),
+        }
     }
 
     // Register function pointer into the #index slot of IDT
@@ -186,7 +178,7 @@ impl IdtEntry {
     // A function to set the offset more easily
     pub fn set_func(&mut self, func: usize) {
         self.set_flags(IdtFlags::PRESENT | IdtFlags::RING_0 | IdtFlags::INTERRUPT);
-        self.set_offset(unsafe { read_cs_call() }, func as usize); // GDT_KERNEL_CODE 1u16
+        self.set_offset(CS::get_reg().0, func as usize); // GDT_KERNEL_CODE 1u16
     }
 
     pub fn set_ist(&mut self, index: u8) {
@@ -196,11 +188,7 @@ impl IdtEntry {
 }
 
 pub fn store_idtr() -> DescriptorTablePointer {
-    let mut idtr = DescriptorTablePointer { limit: 0, base: 0 };
-    unsafe {
-        sidt_call(&mut idtr as *mut DescriptorTablePointer as usize);
-    }
-    idtr
+    x86_64::instructions::tables::sidt()
 }
 
 /// Get the Interrupt Descriptor Table from the DescriptorTablePointer.
@@ -212,7 +200,7 @@ pub fn store_idtr() -> DescriptorTablePointer {
 /// - the lifetime of the return reference
 /// - concurrent access to the returned reference
 pub unsafe fn read_idt(idtr: &DescriptorTablePointer) -> &'static mut [IdtEntry] {
-    let addr = idtr.base as *mut IdtEntry;
+    let addr = idtr.base.as_u64() as *mut IdtEntry;
     let size = (idtr.limit + 1) as usize / size_of::<IdtEntry>();
     from_raw_parts_mut(addr, size)
 }
@@ -223,5 +211,5 @@ pub unsafe fn read_idt(idtr: &DescriptorTablePointer) -> &'static mut [IdtEntry]
 ///
 /// Caller needs to ensure that `idtr` is valid, otherwise behavior is undefined.
 pub unsafe fn load_idtr(idtr: &DescriptorTablePointer) {
-    lidt_call(idtr as *const DescriptorTablePointer as usize);
+    lidt(idtr)
 }
