@@ -19,12 +19,10 @@
                     |    KERNEL    |    (0x02000000)
                     +--------------+
                     |   ........   |
-                    +--------------+ <-  0x7DD8C000
+                    +--------------+ <-  0x7DD9C000
                     |  UNACCEPTED  |    (0x00040000)
-                    +--------------+ <-  0x7DDCC000
+                    +--------------+ <-  0x7DDDC000
                     |     ACPI     |    (0x00100000)
-                    +--------------+ <-  0x7DECC000
-                    |     STACK    |    (0x00010000)
                     +--------------+ <-  0x7DEDC000
                     |    PAYLOAD   |    (0x02000000)
                     +--------------+ <-  0x7FEDC000
@@ -46,7 +44,6 @@ pub const TD_PAYLOAD_ACPI_SIZE: u32 = 0x100000;
 pub const TD_PAYLOAD_SIZE: u32 = 0x2000000;
 pub const TD_PAYLOAD_UNACCEPTED_MEMORY_BITMAP_SIZE: u32 = 0x40000;
 pub const TD_PAYLOAD_PARTIAL_ACCEPT_MEMORY_SIZE: u32 = 0x10000000;
-pub const TD_PAYLOAD_STACK_SIZE: u32 = 0x10000;
 
 pub const TD_HOB_BASE: u64 = 0x800000;
 pub const TD_HOB_SIZE: u64 = 0x20000;

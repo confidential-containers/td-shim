@@ -116,8 +116,6 @@ macro_rules! RUNTIME_TEMPLATE {
                     |  UNACCEPTED  |    ({unaccepted_memory_bitmap_size:#010X})
                     +--------------+ <-  {acpi_base:#010X}
                     |     ACPI     |    ({acpi_size:#010X})
-                    +--------------+ <-  {stack_base:#010X}
-                    |     STACK    |    ({stack_size:#010X})
                     +--------------+ <-  {payload_base:#010X}
                     |    PAYLOAD   |    ({payload_size:#010X})
                     +--------------+ <-  {pt_base:#010X}
@@ -139,7 +137,6 @@ pub const TD_PAYLOAD_ACPI_SIZE: u32 = {acpi_size:#X};
 pub const TD_PAYLOAD_SIZE: u32 = {payload_size:#X};
 pub const TD_PAYLOAD_UNACCEPTED_MEMORY_BITMAP_SIZE: u32 = {unaccepted_memory_bitmap_size:#X};
 pub const TD_PAYLOAD_PARTIAL_ACCEPT_MEMORY_SIZE: u32 = {partial_accept_memory_size:#X};
-pub const TD_PAYLOAD_STACK_SIZE: u32 = {stack_size:#X};
 
 pub const TD_HOB_BASE: u64 = {td_hob_base:#X};
 pub const TD_HOB_SIZE: u64 = {td_hob_size:#X};
@@ -181,7 +178,6 @@ struct TdRuntimeLayoutConfig {
     unaccepted_memory_bitmap_size: u32,
     partial_accept_memory_size: u32,
     payload_size: u32,
-    stack_size: u32,
     kernel_size: u32,
     kernel_param_size: u32,
     kernel_param_base: u32,
@@ -267,8 +263,6 @@ impl TdLayout {
             kernel_param_size = self.runtime.kernel_param_size,
             kernel_base = self.runtime.kernel_base,
             kernel_size = self.runtime.kernel_size,
-            stack_base = self.runtime.stack_base,
-            stack_size = self.runtime.stack_size,
             payload_base = self.runtime.payload_base,
             payload_size = self.runtime.payload_size,
             unaccepted_memory_bitmap_base = self.runtime.unaccepted_memory_bitmap_base,
@@ -404,8 +398,6 @@ struct TdLayoutRuntime {
     kernel_size: u32,
     kernel_param_base: u32,
     kernel_param_size: u32,
-    stack_base: u32,
-    stack_size: u32,
     payload_base: u32,
     payload_size: u32,
     unaccepted_memory_bitmap_base: u32,
@@ -428,8 +420,7 @@ impl TdLayoutRuntime {
         let idt_base = mailbox_base - config.runtime_layout.idt_size;
         let pt_base = idt_base - config.runtime_layout.page_table_size;
         let payload_base = pt_base - config.runtime_layout.payload_size;
-        let stack_base = payload_base - config.runtime_layout.stack_size;
-        let acpi_base = stack_base - config.runtime_layout.acpi_size;
+        let acpi_base = payload_base - config.runtime_layout.acpi_size;
         let unaccepted_memory_bitmap_base =
             acpi_base - config.runtime_layout.unaccepted_memory_bitmap_size;
         let kernel_base =
@@ -442,8 +433,6 @@ impl TdLayoutRuntime {
             kernel_param_size: config.runtime_layout.kernel_param_size,
             kernel_base,
             kernel_size: config.runtime_layout.kernel_size,
-            stack_base,
-            stack_size: config.runtime_layout.stack_size,
             payload_base,
             payload_size: config.runtime_layout.payload_size,
             unaccepted_memory_bitmap_base,

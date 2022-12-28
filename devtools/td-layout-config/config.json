@@ -53,8 +53,6 @@
                 |    KERNEL    |     (kernel_size)
                 +--------------+
                 |   ........   |
-                +--------------+ <-  stack_base - 0x7F000000 (8M)
-                |     STACK    |     (stack_size)
                 +--------------+ <-  payload_base - 0x7F800000 (16M)
                 |   PAYLOAD    |     (payload_size)
                 +--------------+ <-  payload_hob_base - 0x7FA00000 (5M)
@@ -75,7 +73,6 @@
         "unaccepted_memory_bitmap_size": 0x40000,
         "partial_accept_memory_size": 0x10000000,
         "payload_size": 0x2000000,
-        "stack_size": 0x10000,
         "kernel_size": 0x2000000,
         "kernel_param_size": 0x1000,
         "kernel_param_base": 0x0900000,

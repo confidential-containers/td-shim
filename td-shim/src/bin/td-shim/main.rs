@@ -52,11 +52,6 @@ mod payload_hob;
 mod shim_info;
 mod td;
 
-extern "win64" {
-    fn switch_stack_call_win64(entry_point: usize, stack_top: usize, P1: usize, P2: usize);
-    fn switch_stack_call_sysv(entry_point: usize, stack_top: usize, P1: usize, P2: usize);
-}
-
 #[cfg(not(test))]
 #[panic_handler]
 #[allow(clippy::empty_loop)]
@@ -235,27 +230,17 @@ fn boot_builtin_payload(
     let relocation_info = ipl::find_and_report_entry_point(mem, payload_bin, payload)
         .expect("Entry point not found!");
 
-    // Set up NX (no-execute) protection for payload stack and hob
-    mem.set_nx_bit(mem.layout.runtime_stack_base, TD_PAYLOAD_STACK_SIZE as u64);
+    // Set up NX (no-execute) protection for payload hob
     mem.set_nx_bit(mem.layout.runtime_acpi_base, TD_PAYLOAD_ACPI_SIZE as u64);
-
-    // Initialize the stack to run the image
-    let stack_top = (mem.layout.runtime_stack_base + TD_PAYLOAD_STACK_SIZE as u64) as usize;
 
     // Prepare the HOB list to run the image
     payload_hob::build_payload_hob(acpi_tables, &mem).expect("Fail to create payload HOB");
 
     // Finally let's switch stack and jump to the image entry point...
     log::info!(
-        " start launching payload {:p} and switch stack {:p}...\n",
+        " start launching payload {:p}...\n",
         relocation_info.entry_point as *const usize,
-        stack_top as *const usize
     );
-
-    let switch_stack_call = match relocation_info.image_type {
-        ExecutablePayloadType::Elf => switch_stack_call_sysv,
-        ExecutablePayloadType::PeCoff => switch_stack_call_win64,
-    };
 
     // Relocate the Interrupt Descriptor Table before jump to payload
     switch_idt(mem.layout.runtime_idt_base);
@@ -263,13 +248,29 @@ fn boot_builtin_payload(
     // Relocate Mailbox along side with the AP function
     td::relocate_mailbox(mem.layout.runtime_mailbox_base as u32);
 
-    unsafe {
-        switch_stack_call(
-            relocation_info.entry_point as usize,
-            stack_top,
-            mem.layout.runtime_acpi_base as usize,
-            mem.layout.runtime_payload_base as usize,
-        )
+    match relocation_info.image_type {
+        ExecutablePayloadType::Elf => {
+            let entry = unsafe {
+                core::mem::transmute::<u64, extern "sysv64" fn(u64, u64)>(
+                    relocation_info.entry_point,
+                )
+            };
+            entry(
+                mem.layout.runtime_acpi_base,
+                mem.layout.runtime_payload_base,
+            );
+        }
+        ExecutablePayloadType::PeCoff => {
+            let entry = unsafe {
+                core::mem::transmute::<u64, extern "win64" fn(u64, u64)>(
+                    relocation_info.entry_point,
+                )
+            };
+            entry(
+                mem.layout.runtime_acpi_base,
+                mem.layout.runtime_payload_base,
+            );
+        }
     };
 }
 
