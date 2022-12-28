@@ -7,6 +7,17 @@ use zerocopy::{AsBytes, FromBytes};
 
 use td_shim::e820::E820Entry;
 
+// Reference: The Linux/x86 Boot Protocol at https://docs.kernel.org/x86/boot.html
+// 1.2. The Real-Mode Kernel Header
+pub const HDR_BOOT_FLAG: u16 = 0xaa55;
+pub const HDR_SIGNATURE: u32 = 0x5372_6448;
+// 1.3. Details of Header Fields
+// Our boot loader does not have an assigned id
+pub const HDR_TYPE_LOADER: u8 = 0xff;
+// 1.10. Loading The Rest of The Kernel
+pub const HDR_LOAD_HIGH: u8 = 0x01;
+pub const HDR_MIN_VERSION: u16 = 0x0200;
+
 #[derive(Clone, Copy, Default, Debug, AsBytes, FromBytes)]
 #[repr(C, packed)]
 pub struct SetupHeader {

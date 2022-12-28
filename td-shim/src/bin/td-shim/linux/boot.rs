@@ -14,7 +14,7 @@ use x86_64::{
     PrivilegeLevel as RPL, VirtAddr,
 };
 
-use crate::linux::kernel_param::{BootParams, SetupHeader};
+use crate::linux::kernel_param::*;
 use crate::{switch_idt, td};
 
 const KERNEL_64BIT_ENTRY_OFFSET: u64 = 0x200;
@@ -33,11 +33,12 @@ pub enum Error {
 pub fn setup_header(kernel_image: &[u8]) -> Result<SetupHeader, Error> {
     let mut setup_header = SetupHeader::from_file(kernel_image);
 
-    if setup_header.header != 0x5372_6448 {
+    if setup_header.header != HDR_SIGNATURE {
         return Err(Error::InvalidBzImage);
     }
 
-    if (setup_header.version < 0x0200) || ((setup_header.loadflags & 0x1) == 0x0) {
+    if (setup_header.version < HDR_MIN_VERSION) || ((setup_header.loadflags & HDR_LOAD_HIGH) == 0x0)
+    {
         return Err(Error::InvalidBzImage);
     }
 
@@ -48,7 +49,7 @@ pub fn setup_header(kernel_image: &[u8]) -> Result<SetupHeader, Error> {
 
     let setup_bytes = (setup_sects + 1) * 512;
 
-    setup_header.type_of_loader = 0xff;
+    setup_header.type_of_loader = HDR_TYPE_LOADER;
     setup_header.code32_start = kernel_image.as_ptr() as u32 + setup_bytes;
     setup_header.cmd_line_ptr = KERNEL_PARAM_BASE as u32;
 
@@ -80,9 +81,9 @@ pub fn boot_kernel(
             params.hdr.code32_start as u64 + 0x200
         }
         TdKernelInfoHobType::RawVmLinux => {
-            params.hdr.type_of_loader = 0xff;
-            params.hdr.boot_flag = 0xaa55;
-            params.hdr.header = 0x5372_6448;
+            params.hdr.type_of_loader = HDR_TYPE_LOADER;
+            params.hdr.boot_flag = HDR_BOOT_FLAG;
+            params.hdr.header = HDR_SIGNATURE;
             params.hdr.kernel_alignment = 0x0100_0000;
             params.hdr.cmd_line_ptr = KERNEL_PARAM_BASE as u32;
             params.hdr.cmdline_size = KERNEL_PARAM_SIZE as u32;
