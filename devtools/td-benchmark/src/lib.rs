@@ -60,7 +60,3 @@ mod stack;
 
 pub use heap::{Alloc, HeapProfiling};
 pub use stack::StackProfiling;
-#[cfg(feature = "benchmark")]
-mod benchmark;
-#[cfg(feature = "benchmark")]
-pub use benchmark::{BenchmarkContext, MyHeap, ALLOCATOR};
