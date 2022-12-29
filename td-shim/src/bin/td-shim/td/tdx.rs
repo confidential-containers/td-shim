@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
+use cc_measurement::log::CcEventLogError;
 use td_exception::idt::DescriptorTablePointer;
 use tdx_tdcall::tdx;
 
@@ -45,24 +46,13 @@ pub fn get_num_vcpus() -> u32 {
     td_info.num_vcpus
 }
 
-pub fn extend_rtmr(data: &[u8; SHA384_DIGEST_SIZE], mr_index: u32) {
+pub fn extend_rtmr(data: &[u8; SHA384_DIGEST_SIZE], mr_index: u32) -> Result<(), CcEventLogError> {
     let digest = tdx::TdxDigest { data: *data };
 
     let rtmr_index = match mr_index {
-        0 => {
-            log::info!("MrIndex 0 should be extended vith RDMR\n");
-            0xFF
-        }
         1 | 2 | 3 | 4 => mr_index - 1,
-        _ => {
-            log::info!("invalid mr_index 0x{:x}\n", mr_index);
-            0xFF
-        }
+        e => return Err(CcEventLogError::InvalidMrIndex(e)),
     };
 
-    if rtmr_index > 3 {
-        return;
-    }
-
-    tdx::tdcall_extend_rtmr(&digest, rtmr_index);
+    tdx::tdcall_extend_rtmr(&digest, rtmr_index).map_err(|_| CcEventLogError::ExtendMr)
 }

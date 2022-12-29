@@ -6,10 +6,14 @@ use super::*;
 use alloc::boxed::Box;
 use core::mem::size_of;
 
+type Result<T> = core::result::Result<T, CcEventLogError>;
+
 #[derive(Debug)]
 pub enum CcEventLogError {
     InvalidParameter,
     OutOfResource,
+    InvalidMrIndex(u32),
+    ExtendMr,
 }
 
 #[allow(unused)]
@@ -17,14 +21,14 @@ pub struct CcEventLogWriter<'a> {
     area: &'a mut [u8],
     offset: usize,
     last: usize,
-    extender: Box<dyn Fn(&[u8; SHA384_DIGEST_SIZE], u32)>,
+    extender: Box<dyn Fn(&[u8; SHA384_DIGEST_SIZE], u32) -> Result<()>>,
 }
 
 impl<'a> CcEventLogWriter<'a> {
     pub fn new(
         area: &mut [u8],
-        extender: Box<dyn Fn(&[u8; SHA384_DIGEST_SIZE], u32)>,
-    ) -> Result<CcEventLogWriter, CcEventLogError> {
+        extender: Box<dyn Fn(&[u8; SHA384_DIGEST_SIZE], u32) -> Result<()>>,
+    ) -> Result<CcEventLogWriter> {
         let mut cc_event_log = CcEventLogWriter {
             area,
             offset: 0,
@@ -45,18 +49,18 @@ impl<'a> CcEventLogWriter<'a> {
         event_type: u32,
         event_data: &[&[u8]],
         hash_data: &[u8],
-    ) -> Result<(), CcEventLogError> {
-        let sha384 = self.calculate_digest_and_extend(hash_data, mr_index);
+    ) -> Result<()> {
+        let sha384 = self.calculate_digest_and_extend(hash_data, mr_index)?;
 
         self.log_cc_event(mr_index, event_type, event_data, &sha384)
     }
 
-    pub fn create_seperator(&mut self) -> Result<(), CcEventLogError> {
+    pub fn create_seperator(&mut self) -> Result<()> {
         let separator = u32::to_le_bytes(0);
 
         // Measure 0x0000_0000 into RTMR[0] and RTMR[1]
-        let _ = self.calculate_digest_and_extend(&separator, 1);
-        let sha384 = self.calculate_digest_and_extend(&separator, 2);
+        let _ = self.calculate_digest_and_extend(&separator, 1)?;
+        let sha384 = self.calculate_digest_and_extend(&separator, 2)?;
 
         self.log_cc_event(1, EV_SEPARATOR, &[&separator], &sha384)?;
         self.log_cc_event(2, EV_SEPARATOR, &[&separator], &sha384)
@@ -71,7 +75,7 @@ impl<'a> CcEventLogWriter<'a> {
         mr_index: u32,
         event_type: u32,
         event_data: &[u8],
-    ) -> Result<usize, CcEventLogError> {
+    ) -> Result<usize> {
         let event_size = size_of::<TcgPcrEventHeader>()
             .checked_add(event_data.len())
             .ok_or(CcEventLogError::InvalidParameter)?;
@@ -106,7 +110,7 @@ impl<'a> CcEventLogWriter<'a> {
         event_type: u32,
         event_data: &[&[u8]],
         sha384: &[u8; 48],
-    ) -> Result<(), CcEventLogError> {
+    ) -> Result<()> {
         let event_data_size: usize = event_data.iter().map(|&data| data.len()).sum();
         let event_size = size_of::<CcEventHeader>()
             .checked_add(event_data_size)
@@ -177,15 +181,15 @@ impl<'a> CcEventLogWriter<'a> {
         &self,
         hash_data: &[u8],
         mr_index: u32,
-    ) -> [u8; SHA384_DIGEST_SIZE] {
+    ) -> Result<[u8; SHA384_DIGEST_SIZE]> {
         let mut digest_sha384 = [0u8; SHA384_DIGEST_SIZE];
 
         Self::hash_sha384(hash_data, &mut digest_sha384);
 
         // Extend the digest to the RTMR
-        (self.extender)(&digest_sha384, mr_index);
+        (self.extender)(&digest_sha384, mr_index)?;
 
-        digest_sha384
+        Ok(digest_sha384)
     }
 
     #[cfg(feature = "ring")]
@@ -295,10 +299,11 @@ mod tests {
         SHA384_DIGEST_SIZE,
     };
 
-    use super::CcEventLogWriter;
+    use super::{CcEventLogWriter, Result};
 
-    fn extender(_digest: &[u8; SHA384_DIGEST_SIZE], _mr_index: u32) {
+    fn extender(_digest: &[u8; SHA384_DIGEST_SIZE], _mr_index: u32) -> Result<()> {
         // Do nothing
+        Ok(())
     }
 
     #[test]
