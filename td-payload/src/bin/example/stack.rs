@@ -13,8 +13,8 @@
 // limitations under the License.
 // This function will cause page fault by memory protection.
 
-use td_benchmark::BenchmarkContext;
-use td_layout::RuntimeMemoryLayout;
+use td_benchmark::StackProfiling;
+use td_payload::{mm::layout::DEFAULT_STACK_SIZE, println};
 
 fn test_stack() {
     let mut a = [0u8; 0x3000];
@@ -25,16 +25,13 @@ fn test_stack() {
     unsafe {
         asm!("mov {}, rsp", out(reg) rsp);
     }
-    log::info!("rsp_test: {:x}\n", rsp);
+    println!("Testa RSP: {:x}\n", rsp);
     let b = vec![1u8, 2, 3, 4];
-    log::info!("test stack!!!!!!!!\n");
-    log::info!("a: {:x}\n", a.as_ptr() as usize);
-    log::info!("b: {:p}\n", &b);
 }
 
 pub fn bench_stack(memory_layout: RuntimeMemoryLayout) {
-    let mut bench = BenchmarkContext::new(memory_layout, "stack");
-    bench.bench_start();
+    StackProfiling::init(0x5a5a_5a5a_5a5a_5a5a, 0x20_0000);
     test_stack();
-    bench.bench_end();
+    let stack_usage = StackProfiling::stack_usage().unwrap();
+    println!("Stack bench result: {:#x}\n", stack_usage);
 }

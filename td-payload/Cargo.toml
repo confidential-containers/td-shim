@@ -29,7 +29,6 @@ td-exception =  { path = "../td-exception" }
 td-paging =  { path = "../td-paging" }
 x86 = "0.47.0"
 x86_64 = "0.14"
-
 td-benchmark = { path = "../devtools/td-benchmark", optional = true }
 tdx-tdcall = { path = "../tdx-tdcall", optional = true }
 zerocopy = "0.6.0"
@@ -44,4 +43,5 @@ cet-shstk = ["td-exception/cet-shstk"]
 cet-ibt = []
 acpi = []
 start = []
+benches = ["td-benchmark"]
 coverage = ["minicov"]
