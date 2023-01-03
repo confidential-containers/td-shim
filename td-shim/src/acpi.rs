@@ -5,7 +5,6 @@
 use core::mem::size_of;
 use zerocopy::{AsBytes, FromBytes};
 
-pub const ACPI_TABLES_MAX_NUM: usize = 20;
 pub const ACPI_RSDP_REVISION: u8 = 2;
 
 pub fn calculate_checksum(data: &[u8]) -> u8 {
@@ -86,46 +85,14 @@ impl GenericSdtHeader {
     pub fn set_checksum(&mut self, checksum: u8) {
         self.checksum = checksum;
     }
-}
 
-#[repr(C, packed)]
-#[derive(Default, AsBytes, FromBytes)]
-pub struct Xsdt {
-    pub header: GenericSdtHeader,
-    pub tables: [u64; ACPI_TABLES_MAX_NUM],
-}
-
-impl Xsdt {
-    pub fn new() -> Self {
-        Xsdt {
-            header: GenericSdtHeader::new(b"XSDT", size_of::<GenericSdtHeader>() as u32, 1),
-            tables: [0; ACPI_TABLES_MAX_NUM],
-        }
-    }
-
-    pub fn add_table(&mut self, addr: u64) {
-        if self.header.length < size_of::<GenericSdtHeader>() as u32 {
-            return;
-        } else {
-            let table_num =
-                (self.header.length as usize - size_of::<GenericSdtHeader>()) / size_of::<u64>();
-            if table_num < ACPI_TABLES_MAX_NUM {
-                self.tables[table_num] = addr as u64;
-                self.header.length += size_of::<u64>() as u32;
-            }
-        }
-    }
-
-    pub fn checksum(&mut self) {
-        self.header.set_checksum(0);
-        self.header.set_checksum(calculate_checksum(
-            &self.as_bytes()[..self.header.length as usize],
-        ));
+    pub fn as_bytes(&self) -> &[u8] {
+        unsafe { core::slice::from_raw_parts(self as *const _ as *const u8, size_of::<Self>()) }
     }
 }
 
 #[repr(C, packed)]
-#[derive(Default, AsBytes, FromBytes)]
+#[derive(Default, FromBytes)]
 pub struct Ccel {
     pub header: GenericSdtHeader,
     pub cc_type: u8,
@@ -153,6 +120,34 @@ impl Ccel {
         self.header.checksum = 0;
         self.header
             .set_checksum(calculate_checksum(self.as_bytes()));
+    }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        unsafe { core::slice::from_raw_parts(self as *const _ as *const u8, size_of::<Self>()) }
+    }
+}
+
+pub mod madt {
+    use zerocopy::{AsBytes, FromBytes};
+
+    #[repr(packed)]
+    #[derive(Default, AsBytes, FromBytes)]
+    pub struct LocalApic {
+        pub r#type: u8,
+        pub length: u8,
+        pub processor_id: u8,
+        pub apic_id: u8,
+        pub flags: u32,
+    }
+
+    #[repr(packed)]
+    #[derive(Default, AsBytes, FromBytes)]
+    pub struct MadtMpwkStruct {
+        pub r#type: u8,
+        pub length: u8,
+        pub mail_box_version: u16,
+        pub reserved: u32,
+        pub mail_box_address: u64,
     }
 }
 
@@ -196,38 +191,26 @@ mod tests {
     }
 
     #[test]
-    fn test_xsdt() {
-        const CHECK_SUM: u8 = 186;
-        let mut xsdt = Xsdt::new();
-        assert_eq!(xsdt.header.length as usize, size_of::<GenericSdtHeader>());
-        for idx in 0..ACPI_TABLES_MAX_NUM {
-            xsdt.add_table(idx as u64);
-            assert_eq!(
-                xsdt.header.length as usize,
-                size_of::<GenericSdtHeader>() + (idx + 1) * 8
-            );
-        }
-
-        xsdt.add_table(100);
-        assert_eq!(
-            xsdt.header.length as usize,
-            size_of::<GenericSdtHeader>() + ACPI_TABLES_MAX_NUM * 8
-        );
-        xsdt.add_table(101);
-        assert_eq!(
-            xsdt.header.length as usize,
-            size_of::<GenericSdtHeader>() + ACPI_TABLES_MAX_NUM * 8
-        );
-
-        xsdt.checksum();
-        assert_eq!(xsdt.header.checksum, CHECK_SUM);
-    }
-
-    #[test]
     fn test_ccel() {
         let ccel = Ccel::new(2, 0, 0x100, 0);
 
         assert_eq!(&ccel.header.signature, b"CCEL");
         assert_eq!(ccel.header.checksum, 45);
+    }
+
+    #[test]
+    fn test_madt_local_apic() {
+        let local_apic = madt::LocalApic::default();
+
+        assert_eq!(size_of::<madt::LocalApic>(), 8);
+        assert_eq!(local_apic.as_bytes().len(), 8);
+    }
+
+    #[test]
+    fn test_madt_mpwk() {
+        let mpwk = madt::MadtMpwkStruct::default();
+
+        assert_eq!(size_of::<madt::MadtMpwkStruct>(), 16);
+        assert_eq!(mpwk.as_bytes().len(), 16);
     }
 }

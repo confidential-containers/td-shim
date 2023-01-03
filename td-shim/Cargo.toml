@@ -19,6 +19,7 @@ tdx-tdcall = { path = "../tdx-tdcall" }
 which = "4.2.4"
 
 [dependencies]
+anyhow = { version = "1.0", default-features = false, optional = true }
 lazy_static = { version = "1.4.0", features = ["spin_no_std"] }
 r-efi = "3.2.0"
 scroll = { version = "0.10", default-features = false, features = ["derive"] }
@@ -54,6 +55,7 @@ lazy-accept = ["tdx"]
 ring-hash = ["cc-measurement/ring"]
 sha2-hash = ["cc-measurement/sha2"]
 main = [
+    "anyhow",
     "log",
     "td-loader",
     "linked_list_allocator",

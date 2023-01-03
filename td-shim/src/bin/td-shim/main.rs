@@ -9,6 +9,7 @@
 #![allow(unused_imports)]
 
 extern crate alloc;
+use acpi::Sdt;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 use asm::{empty_exception_handler, empty_exception_handler_size};
@@ -312,13 +313,13 @@ fn install_acpi_tables(acpi_tables: &Vec<&[u8]>, layout: &RuntimeMemoryLayout) -
             layout.runtime_acpi_base as usize,
         )
     };
-    let mut acpi = acpi::AcpiTables::new(acpi_slice, acpi_slice.as_ptr() as *const _ as u64);
+    let mut acpi = acpi::AcpiTables::new(acpi_slice);
 
     for &table in acpi_tables {
-        acpi.install(table);
+        acpi.install(table).expect("Failed to install ACPI table");
     }
 
-    acpi.finish()
+    acpi.finish().expect("Failed to create XSDT/RSDP")
 }
 
 // Prepare ACPI tables for payload and panic if error happens
@@ -326,7 +327,7 @@ fn prepare_acpi_tables(
     acpi_tables: &mut Vec<&[u8]>,
     layout: &RuntimeMemoryLayout,
     vcpus: u32,
-) -> (mp::Madt, Ccel) {
+) -> (Sdt, Ccel) {
     let mut vmm_madt = None;
     let mut idx = 0;
     while idx < acpi_tables.len() {
