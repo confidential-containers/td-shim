@@ -28,7 +28,6 @@ use crate::td;
 const EXTENDED_FUNCTION_INFO: u32 = 0x80000000;
 const VIRT_PHYS_MEM_SIZES: u32 = 0x80000008;
 const MEMORY_4G: u64 = 0x1_0000_0000;
-const LOW_MEM_TOP: u64 = KERNEL_BASE + KERNEL_SIZE as u64;
 const SIZE_2M: u64 = 0x200000;
 const RESERVED_MEMORY_SPACE_SIZE: u64 = 0x400_0000;
 
@@ -49,7 +48,6 @@ impl<'a> Memory<'a> {
         for entry in &regions {
             let entry_top = entry.physical_start + entry.resource_length;
             if entry.resource_type == RESOURCE_SYSTEM_MEMORY
-                && entry_top - MIN_MEMORY_SIZE >= LOW_MEM_TOP
                 && entry_top < MEMORY_4G
                 && entry.resource_length >= MIN_MEMORY_SIZE
                 && entry_top > runtime_top
