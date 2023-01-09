@@ -103,15 +103,32 @@ fn basic_metadata_sections() -> MetadataSections {
     let mut metadata_sections = MetadataSections::new();
 
     // BFV
-    let data_size = (TD_SHIM_PAYLOAD_SIZE
-        + TD_SHIM_IPL_SIZE
-        + TD_SHIM_RESET_VECTOR_SIZE
-        + TD_SHIM_METADATA_SIZE) as u64;
+    let bfv_offset = if cfg!(feature = "exec-payload-section") {
+        TD_SHIM_METADATA_OFFSET
+    } else {
+        TD_SHIM_PAYLOAD_OFFSET
+    };
+
+    let bfv_data_size = if cfg!(feature = "exec-payload-section") {
+        (TD_SHIM_METADATA_SIZE + TD_SHIM_IPL_SIZE + TD_SHIM_RESET_VECTOR_SIZE) as u64
+    } else {
+        (TD_SHIM_PAYLOAD_SIZE
+            + TD_SHIM_METADATA_SIZE
+            + TD_SHIM_IPL_SIZE
+            + TD_SHIM_RESET_VECTOR_SIZE) as u64
+    };
+
+    let bfv_memory_address = if cfg!(feature = "exec-payload-section") {
+        TD_SHIM_METADATA_BASE
+    } else {
+        TD_SHIM_PAYLOAD_BASE
+    };
+
     metadata_sections.add(TdxMetadataSection {
-        data_offset: TD_SHIM_PAYLOAD_OFFSET,
-        raw_data_size: data_size as u32,
-        memory_address: TD_SHIM_PAYLOAD_BASE as u64,
-        memory_data_size: data_size,
+        data_offset: bfv_offset,
+        raw_data_size: bfv_data_size as u32,
+        memory_address: bfv_memory_address as u64,
+        memory_data_size: bfv_data_size,
         r#type: TDX_METADATA_SECTION_TYPE_BFV,
         attributes: TDX_METADATA_ATTRIBUTES_EXTENDMR,
     });
@@ -198,7 +215,21 @@ pub fn default_metadata_sections() -> MetadataSections {
 
 #[cfg(not(feature = "boot-kernel"))]
 pub fn default_metadata_sections() -> MetadataSections {
-    basic_metadata_sections()
+    let mut metadata_sections = basic_metadata_sections();
+
+    if cfg!(feature = "exec-payload-section") {
+        // payload image
+        metadata_sections.add(TdxMetadataSection {
+            data_offset: TD_SHIM_PAYLOAD_OFFSET,
+            raw_data_size: TD_SHIM_PAYLOAD_SIZE,
+            memory_address: TD_SHIM_PAYLOAD_BASE as u64,
+            memory_data_size: TD_SHIM_PAYLOAD_SIZE as u64,
+            r#type: TDX_METADATA_SECTION_TYPE_PAYLOAD,
+            attributes: 0,
+        });
+    }
+
+    metadata_sections
 }
 
 #[repr(C)]
