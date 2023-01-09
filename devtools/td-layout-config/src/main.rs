@@ -82,6 +82,7 @@ pub const TD_SHIM_MAILBOX_BASE: u32 = {mailbox_base:#X}; // TD_SHIM_FIRMWARE_BAS
 pub const TD_SHIM_TEMP_STACK_BASE: u32 = {temp_stack_base:#X}; // TD_SHIM_FIRMWARE_BASE + TD_SHIM_TEMP_STACK_OFFSET
 pub const TD_SHIM_TEMP_HEAP_BASE: u32 = {temp_heap_base:#X}; // TD_SHIM_FIRMWARE_BASE + TD_SHIM_TEMP_HEAP_OFFSET
 pub const TD_SHIM_PAYLOAD_BASE: u32 = {payload_base:#X}; // TD_SHIM_FIRMWARE_BASE + TD_SHIM_PAYLOAD_OFFSET
+pub const TD_SHIM_METADATA_BASE: u32 = {metadata_base:#X}; // TD_SHIM_FIRMWARE_BASE + TD_SHIM_METADATA_OFFSET
 pub const TD_SHIM_IPL_BASE: u32 = {ipl_base:#X}; // TD_SHIM_FIRMWARE_BASE + TD_SHIM_IPL_OFFSET
 pub const TD_SHIM_RESET_VECTOR_BASE: u32 = {rst_vec_base:#X}; // TD_SHIM_FIRMWARE_BASE + TD_SHIM_RESET_VECTOR_OFFSET
 pub const TD_SHIM_SEC_CORE_INFO_BASE: u32 = {sec_core_info_base:#X}; // 0xFFFFFFFF - TD_SHIM_SEC_INFO_OFFSET + 1
@@ -236,6 +237,7 @@ impl TdLayout {
             temp_stack_base = self.img_loaded.temp_stack_base,
             temp_heap_base = self.img_loaded.temp_heap_base,
             payload_base = self.img_loaded.payload_base,
+            metadata_base = self.img_loaded.metadata_base,
             ipl_base = self.img_loaded.ipl_base,
             rst_vec_base = self.img_loaded.rst_vec_base,
             sec_core_info_base = self.img_loaded.sec_core_info_base,
@@ -357,6 +359,7 @@ struct TdLayoutImageLoaded {
     temp_stack_base: u32,
     temp_heap_base: u32,
     payload_base: u32,
+    metadata_base: u32,
     ipl_base: u32,
     rst_vec_base: u32,
     sec_core_info_base: u32,
@@ -370,6 +373,7 @@ impl TdLayoutImageLoaded {
         let temp_stack_base = firmware_base + img.temp_stack_offset;
         let temp_heap_base = firmware_base + img.temp_heap_offset;
         let payload_base = firmware_base + img.payload_offset;
+        let metadata_base = firmware_base + img.metadata_offset;
         let ipl_base = firmware_base + img.ipl_offset;
         let rst_vec_base = firmware_base + img.rst_vec_offset;
         let sec_core_info_base = firmware_base + TD_SHIM_SEC_INFO_OFFSET;
@@ -381,6 +385,7 @@ impl TdLayoutImageLoaded {
             temp_stack_base,
             temp_heap_base,
             payload_base,
+            metadata_base,
             ipl_base,
             rst_vec_base,
             sec_core_info_base,
