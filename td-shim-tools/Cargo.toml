@@ -34,6 +34,10 @@ required-features = ["tee"]
 name = "td-shim-layout-builder"
 required-features = ["layout_builder"]
 
+[[bin]]
+name = "td-payload-reference-calculator"
+required-features = ["calculator"]
+
 [dependencies]
 r-efi = "3.2.0"
 argparse = "0.2.2"
@@ -45,6 +49,8 @@ td-shim = { path = "../td-shim", default-features = false }
 td-uefi-pi =  { path = "../td-uefi-pi" }
 cfg-if = "1.0"
 
+anyhow = { version = "1.0.68", optional = true }
+block-padding = { version = "0.3.2", optional = true }
 clap = { version = "3.0", features = ["cargo"], optional = true }
 der = { version = "0.4.5", features = ["oid"], optional = true }
 env_logger = { version = "0.9.0", optional = true }
@@ -69,3 +75,4 @@ signer = ["clap", "der", "env_logger", "log", "ring", "td-shim/secure-boot"]
 loader = ["clap", "env_logger", "log"]
 tee = ["clap", "env_logger", "log", "serde_json", "serde", "hex", "sha2", "byteorder"]
 layout_builder = ["clap", "env_logger", "log", "clap/derive", "serde", "serde_json", "tera", "json5"]
+calculator = ["clap", "hex", "parse_int", "sha2", "anyhow", "block-padding"]
