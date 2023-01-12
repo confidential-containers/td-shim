@@ -60,7 +60,7 @@ pub unsafe fn alloc_dma_pages(num: usize) -> Option<usize> {
         .map(|ptr| ptr.as_ptr() as usize)
         .ok()?;
 
-    core::slice::from_raw_parts_mut(addr as *mut u8, SIZE_4K).fill(0);
+    core::slice::from_raw_parts_mut(addr as *mut u8, size).fill(0);
 
     Some(addr)
 }
