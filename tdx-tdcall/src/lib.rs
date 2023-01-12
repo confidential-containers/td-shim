@@ -80,7 +80,7 @@ const TDVMCALL_STATUS_SUCCESS: u64 = 0;
 // * R11 - Correspond to each TDG.VP.VMCALL.
 // * R8-R9, R12-R15, RBX, RBP, RDI, RSI - Correspond to each TDG.VP.VMCALL sub-function.
 //
-pub(crate) fn td_vmcall(args: &mut TdVmcallArgs) -> u64 {
+pub fn td_vmcall(args: &mut TdVmcallArgs) -> u64 {
     unsafe { asm::asm_td_vmcall(args as *mut TdVmcallArgs as *mut c_void) }
 }
 
@@ -98,7 +98,7 @@ pub(crate) fn td_vmcall(args: &mut TdVmcallArgs) -> u64 {
 //  * RAX - Instruction return code.
 //  * Other - Used by leaf functions as output values.
 //
-pub(crate) fn td_call(args: &mut TdcallArgs) -> u64 {
+pub fn td_call(args: &mut TdcallArgs) -> u64 {
     unsafe { asm::asm_td_call(args as *mut TdcallArgs as *mut c_void) }
 }
 
@@ -106,7 +106,7 @@ pub(crate) fn td_call(args: &mut TdcallArgs) -> u64 {
 // instruction
 #[repr(C)]
 #[derive(Default)]
-pub(crate) struct TdcallArgs {
+pub struct TdcallArgs {
     pub rax: u64,
     pub rcx: u64,
     pub rdx: u64,
@@ -122,7 +122,7 @@ pub(crate) struct TdcallArgs {
 // instruction
 #[repr(C)]
 #[derive(Default)]
-pub(crate) struct TdVmcallArgs {
+pub struct TdVmcallArgs {
     // Input: Always 0 for  (standard VMCALL)
     // Output: Sub-function
     pub r10: u64,
