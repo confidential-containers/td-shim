@@ -77,6 +77,7 @@ pub extern "C" fn main() -> ! {
             buffer.as_ptr() as u64,
             coverage_len
         );
+        loop {}
     }
 
     panic!("td-payload: all tests finished and enters dead loop");
