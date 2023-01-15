@@ -17,6 +17,7 @@ td-uefi-pi =  { path = "../../td-uefi-pi" }
 tdx-tdcall = { path = "../../tdx-tdcall" , optional = true }
 td-logger =  { path = "../../td-logger" }
 td-layout = { path = "../../td-layout" }
+td-paging = { path = "../../td-paging" }
 scroll = { version = "0.10.0", default-features = false, features = ["derive"]}
 serde = { version = "1.0", default-features = false, features = ["derive"]}
 serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
@@ -25,6 +26,8 @@ ring = { path = "../../library/ring", default-features = false, features = ["all
 td-shim = { path = "../../td-shim" }
 td-payload = { path = "../../td-payload", features = ["tdx","cet-shstk","stack-guard"] }
 zerocopy = "0.6.0"
+
+minicov = { version = "0.2", default-features = false, optional = true }
 
 [dependencies.lazy_static]
 version = "1.0"
@@ -36,3 +39,4 @@ map-physical-memory = true
 [features]
 tdx = ["tdx-tdcall", "td-logger/tdx"]
 main = []
+coverage = ["minicov"]
