@@ -76,11 +76,8 @@ macro_rules! interrupt_handler_template {
                 "
                 mov rcx, rsp
                 call {inner}
-                mov rcx, 0x80b
-                mov edx, 0
-                mov eax, 0
-                wrmsr
                 ",
+                eoi!(),
                 preserved_pop!(),
                 scratch_pop!(),
                 "
@@ -91,5 +88,19 @@ macro_rules! interrupt_handler_template {
                 options(noreturn),
             )
         }
+    };
+}
+
+#[macro_export]
+macro_rules! eoi {
+    // Write the end-of-interrupt (EOI) register (0x80B) at the end of the handler
+    // routine, sometime before the IRET instruction
+    () => {
+        "
+        mov rcx, 0x80B
+        mov edx, 0
+        mov eax, 0
+        wrmsr
+    "
     };
 }
