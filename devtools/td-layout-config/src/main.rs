@@ -121,10 +121,11 @@ macro_rules! RUNTIME_TEMPLATE {
                     |    PAYLOAD   |    ({payload_size:#010X})
                     +--------------+ <-  {pt_base:#010X}
                     |  Page Table  | <-  {pt_size:#010x}
-                    +--------------+ <-  {idt_base:#010X}
-                    |      IDT     |    ({idt_size:#010X})
                     +--------------+ <-  {mailbox_base:#010X}
-                    |    MAILBOX   |    ({mailbox_size:#010X})
+                    |              |    // (0 - 0x7FF, mailbox header and OS)
+                    |    MAILBOX   |    // (0x800 - 0xBFF, BSP - AP communication)
+                    | ({mailbox_size:#010X}) |    // (0xC00 - 0xFFF, IDT and an exception hander)
+                    |              |    // (0x1000 - 0x1FFF, AP loop function)
                     +--------------+ <-  {event_log_base:#010X}
                     | TD_EVENT_LOG |    ({event_log_size:#010X})
                     +--------------+ <-  0x80000000 (2G) - for example
@@ -132,7 +133,6 @@ macro_rules! RUNTIME_TEMPLATE {
 
 pub const TD_PAYLOAD_EVENT_LOG_SIZE: u32 = {event_log_size:#X};
 pub const TD_PAYLOAD_MAILBOX_SIZE: u32 = {mailbox_size:#X};
-pub const TD_PAYLOAD_IDT_SIZE: u32 = {idt_size:#X};
 pub const TD_PAYLOAD_PAGE_TABLE_SIZE: u32 = {pt_size:#X};
 pub const TD_PAYLOAD_ACPI_SIZE: u32 = {acpi_size:#X};
 pub const TD_PAYLOAD_SIZE: u32 = {payload_size:#X};
@@ -174,7 +174,6 @@ struct TdRuntimeLayoutConfig {
     event_log_size: u32,
     acpi_size: u32,
     mailbox_size: u32,
-    idt_size: u32,
     page_table_size: u32,
     unaccepted_memory_bitmap_size: u32,
     partial_accept_memory_size: u32,
@@ -272,8 +271,6 @@ impl TdLayout {
             partial_accept_memory_size = self.runtime.partial_accept_memory_size,
             mailbox_base = self.runtime.mailbox_base,
             mailbox_size = self.runtime.mailbox_size,
-            idt_base = self.runtime.idt_base,
-            idt_size = self.runtime.idt_size,
             event_log_base = self.runtime.event_log_base,
             event_log_size = self.runtime.event_log_size,
             acpi_base = self.runtime.acpi_base,
@@ -414,16 +411,13 @@ struct TdLayoutRuntime {
     acpi_size: u32,
     mailbox_base: u32,
     mailbox_size: u32,
-    idt_base: u32,
-    idt_size: u32,
 }
 
 impl TdLayoutRuntime {
     fn new_from_config(config: &TdLayoutConfig) -> Self {
         let event_log_base = 0x80000000 - config.runtime_layout.event_log_size; // TODO: 0x80000000 is hardcoded LOW_MEM_TOP, to remove
         let mailbox_base = event_log_base - config.runtime_layout.mailbox_size;
-        let idt_base = mailbox_base - config.runtime_layout.idt_size;
-        let pt_base = idt_base - config.runtime_layout.page_table_size;
+        let pt_base = mailbox_base - config.runtime_layout.page_table_size;
         let payload_base = pt_base - config.runtime_layout.payload_size;
         let acpi_base = payload_base - config.runtime_layout.acpi_size;
         let unaccepted_memory_bitmap_base =
@@ -451,8 +445,6 @@ impl TdLayoutRuntime {
             pt_size: config.runtime_layout.page_table_size,
             mailbox_base,
             mailbox_size: config.runtime_layout.mailbox_size,
-            idt_base,
-            idt_size: config.runtime_layout.idt_size,
         }
     }
 }

@@ -8,8 +8,8 @@ use crate::build_time::{
 };
 use crate::runtime::{
     KERNEL_BASE, KERNEL_PARAM_BASE, KERNEL_PARAM_SIZE, KERNEL_SIZE, TD_HOB_BASE, TD_HOB_SIZE,
-    TD_PAYLOAD_ACPI_SIZE, TD_PAYLOAD_EVENT_LOG_SIZE, TD_PAYLOAD_IDT_SIZE, TD_PAYLOAD_MAILBOX_SIZE,
-    TD_PAYLOAD_SIZE, TD_PAYLOAD_UNACCEPTED_MEMORY_BITMAP_SIZE,
+    TD_PAYLOAD_ACPI_SIZE, TD_PAYLOAD_EVENT_LOG_SIZE, TD_PAYLOAD_MAILBOX_SIZE, TD_PAYLOAD_SIZE,
+    TD_PAYLOAD_UNACCEPTED_MEMORY_BITMAP_SIZE,
 };
 
 /// Type of build time and runtime memory regions.
@@ -32,8 +32,6 @@ pub enum SliceType {
     PayloadHob,
     /// The 'Mailbox' region in runtime memory layout
     RelocatedMailbox,
-    /// The 'IDT' region in runtime memory layout
-    RelocatedIdt,
     /// The `TD_EVENT_LOG` region in runtime memory layout
     EventLog,
     /// The `ACPI` region in runtime memory layout
@@ -104,10 +102,6 @@ pub unsafe fn get_dynamic_mem_slice_mut<'a>(t: SliceType, base_address: usize) -
         SliceType::RelocatedMailbox => core::slice::from_raw_parts_mut(
             base_address as *const u8 as *mut u8,
             TD_PAYLOAD_MAILBOX_SIZE as usize,
-        ),
-        SliceType::RelocatedIdt => core::slice::from_raw_parts_mut(
-            base_address as *const u8 as *mut u8,
-            TD_PAYLOAD_IDT_SIZE as usize,
         ),
         SliceType::Acpi | SliceType::PayloadHob => core::slice::from_raw_parts_mut(
             base_address as *const u8 as *mut u8,

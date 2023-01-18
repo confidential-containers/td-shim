@@ -15,10 +15,9 @@ use asm::{empty_exception_handler, empty_exception_handler_size};
 use core::ffi::c_void;
 use core::mem::size_of;
 use core::panic::PanicInfo;
-use td_exception::idt::{load_idtr, Idt};
+use td_exception::idt::{load_idtr, DescriptorTablePointer, Idt, IdtEntry};
 use td_shim::event_log::CCEL_CC_TYPE_TDX;
 use x86_64::registers::segmentation::{Segment, CS};
-use x86_64::structures::DescriptorTablePointer;
 
 use r_efi::efi;
 use scroll::{Pread, Pwrite};
@@ -187,7 +186,6 @@ fn boot_linux_kernel(
         rsdp,
         e820_table.as_slice(),
         mem.layout.runtime_mailbox_base,
-        mem.layout.runtime_idt_base,
         kernel_info,
         #[cfg(feature = "tdx")]
         mem.build_unaccepted_memory_bitmap(),
@@ -243,7 +241,7 @@ fn boot_builtin_payload(
     );
 
     // Relocate the Interrupt Descriptor Table before jump to payload
-    switch_idt(mem.layout.runtime_idt_base);
+    switch_idt(mem.layout.runtime_mailbox_base);
 
     // Relocate Mailbox along side with the AP function
     td::relocate_mailbox(mem.layout.runtime_mailbox_base as u32);
@@ -274,28 +272,44 @@ fn boot_builtin_payload(
     };
 }
 
-// We reserved two pages for the IDT used before payload setup
-// its own one.
-pub fn switch_idt(idt_base: u64) {
-    let idt_page = unsafe {
-        memslice::get_dynamic_mem_slice_mut(memslice::SliceType::RelocatedIdt, idt_base as usize)
-    };
+// Reuse mailbox for the IDT used before payload setup its own one.
+pub fn switch_idt(mailbox_base: u64) {
+    // IDT offset inside the mailbox memory region.
+    const IDT_OFFSET: usize = 0xC00;
+    const IDT_SIZE: usize = 0x400;
 
-    let mut idt = unsafe { &mut *(idt_page.as_ptr() as u64 as *mut Idt) };
+    let idt_base = mailbox_base + IDT_OFFSET as u64;
+    let idt_page = &mut unsafe {
+        memslice::get_dynamic_mem_slice_mut(
+            memslice::SliceType::RelocatedMailbox,
+            mailbox_base as usize,
+        )
+    }[IDT_OFFSET..IDT_OFFSET + IDT_SIZE];
 
-    let handler_offset = size_of::<Idt>();
+    // Set IDT only for interrupt [0..32)
+    let mut idt =
+        unsafe { core::slice::from_raw_parts_mut(idt_page.as_ptr() as u64 as *mut IdtEntry, 32) };
+
+    let handler_offset = size_of::<IdtEntry>() * 32;
     let handler_size = empty_exception_handler_size();
+
+    if handler_offset + handler_size > idt_page.len() {
+        panic!("Reserved memory cannot hold the runtime exception hander")
+    }
 
     // Copy the handler code into the reserved page
     idt_page[handler_offset..handler_offset + handler_size].copy_from_slice(unsafe {
         core::slice::from_raw_parts(empty_exception_handler as u64 as *const u8, handler_size)
     });
 
-    for entry in &mut idt.entries {
+    for entry in idt {
         entry.set_func(idt_base as usize + handler_offset);
     }
 
-    let idt_ptr = idt.idtr();
+    let idt_ptr = DescriptorTablePointer {
+        limit: size_of::<IdtEntry>() as u16 * 32,
+        base: idt_base,
+    };
     unsafe { load_idtr(&idt_ptr) };
 
     // Set the IDT for application processors
