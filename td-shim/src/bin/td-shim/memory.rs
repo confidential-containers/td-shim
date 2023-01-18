@@ -6,8 +6,8 @@ use alloc::vec::Vec;
 use core::panic;
 use td_layout::build_time::{TD_SHIM_FIRMWARE_BASE, TD_SHIM_FIRMWARE_SIZE};
 use td_layout::runtime::{
-    self, KERNEL_BASE, KERNEL_SIZE, TD_PAYLOAD_EVENT_LOG_SIZE, TD_PAYLOAD_IDT_SIZE,
-    TD_PAYLOAD_PAGE_TABLE_SIZE, TD_PAYLOAD_SIZE,
+    self, KERNEL_BASE, KERNEL_SIZE, TD_PAYLOAD_EVENT_LOG_SIZE, TD_PAYLOAD_PAGE_TABLE_SIZE,
+    TD_PAYLOAD_SIZE,
 };
 use td_layout::{memslice, RuntimeMemoryLayout, MIN_MEMORY_SIZE};
 use td_shim::e820::{E820Entry, E820Type};
@@ -146,11 +146,6 @@ impl<'a> Memory<'a> {
             E820Type::Reserved,
             self.layout.runtime_page_table_base,
             TD_PAYLOAD_PAGE_TABLE_SIZE as u64,
-        );
-        table.convert_range(
-            E820Type::Reserved,
-            self.layout.runtime_idt_base,
-            TD_PAYLOAD_IDT_SIZE as u64,
         );
         table.convert_range(
             E820Type::Acpi,

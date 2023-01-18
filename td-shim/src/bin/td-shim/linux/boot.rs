@@ -61,7 +61,6 @@ pub fn boot_kernel(
     rsdp_addr: u64,
     e820: &[E820Entry],
     mailbox_base: u64,
-    idt_base: u64,
     info: &PayloadInfo,
     #[cfg(feature = "tdx")] unaccepted_bitmap: u64,
 ) -> Result<(), Error> {
@@ -111,7 +110,7 @@ pub fn boot_kernel(
     log::info!("Jump to kernel...\n");
 
     // Relocate the Interrupt Descriptor Table before jump to payload
-    switch_idt(idt_base);
+    switch_idt(mailbox_base);
 
     // Relocate Mailbox along side with the AP function
     td::relocate_mailbox(mailbox_base as u32);

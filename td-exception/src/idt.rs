@@ -32,8 +32,8 @@ lazy_static! {
 
 #[repr(C, packed)]
 pub struct DescriptorTablePointer {
-    limit: u16,
-    base: u64,
+    pub limit: u16,
+    pub base: u64,
 }
 
 #[no_mangle]

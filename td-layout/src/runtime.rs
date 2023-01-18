@@ -19,18 +19,19 @@
                     |    KERNEL    |    (0x02000000)
                     +--------------+
                     |   ........   |
-                    +--------------+ <-  0x7DD9C000
+                    +--------------+ <-  0x7DD9E000
                     |  UNACCEPTED  |    (0x00040000)
-                    +--------------+ <-  0x7DDDC000
+                    +--------------+ <-  0x7DDDE000
                     |     ACPI     |    (0x00100000)
-                    +--------------+ <-  0x7DEDC000
+                    +--------------+ <-  0x7DEDE000
                     |    PAYLOAD   |    (0x02000000)
-                    +--------------+ <-  0x7FEDC000
+                    +--------------+ <-  0x7FEDE000
                     |  Page Table  | <-  0x00020000
-                    +--------------+ <-  0x7FEFC000
-                    |      IDT     |    (0x00002000)
                     +--------------+ <-  0x7FEFE000
-                    |    MAILBOX   |    (0x00002000)
+                    |              |    // (0 - 0x7FF, mailbox header and OS)
+                    |    MAILBOX   |    // (0x800 - 0xBFF, BSP - AP communication)
+                    | (0x00002000) |    // (0xC00 - 0xFFF, IDT and an exception hander)
+                    |              |    // (0x1000 - 0x1FFF, AP loop function)
                     +--------------+ <-  0x7FF00000
                     | TD_EVENT_LOG |    (0x00100000)
                     +--------------+ <-  0x80000000 (2G) - for example
@@ -38,7 +39,6 @@
 
 pub const TD_PAYLOAD_EVENT_LOG_SIZE: u32 = 0x100000;
 pub const TD_PAYLOAD_MAILBOX_SIZE: u32 = 0x2000;
-pub const TD_PAYLOAD_IDT_SIZE: u32 = 0x2000;
 pub const TD_PAYLOAD_PAGE_TABLE_SIZE: u32 = 0x20000;
 pub const TD_PAYLOAD_ACPI_SIZE: u32 = 0x100000;
 pub const TD_PAYLOAD_SIZE: u32 = 0x2000000;
