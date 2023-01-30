@@ -21,7 +21,13 @@ use crate::Error;
 
 #[cfg(feature = "tdx")]
 pub mod dma;
+#[cfg(any(target_os = "none", target_os = "uefi"))]
 pub(crate) mod heap;
+#[cfg(not(any(target_os = "none", target_os = "uefi")))]
+pub(crate) mod heap {
+    // A null implementation used by test
+    pub fn init_heap(_heap_start: u64, _heap_size: usize) {}
+}
 pub mod layout;
 pub(crate) mod page_table;
 
