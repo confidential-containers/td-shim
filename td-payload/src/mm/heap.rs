@@ -4,7 +4,14 @@
 
 use core::panic::PanicInfo;
 use linked_list_allocator::LockedHeap;
+#[cfg(feature = "test_heap_size")]
+use td_benchmark::Alloc;
 
+#[cfg(feature = "test_heap_size")]
+#[global_allocator]
+static HEAP: td_benchmark::Alloc = td_benchmark::Alloc;
+
+#[cfg(not(feature = "test_heap_size"))]
 #[global_allocator]
 static HEAP: LockedHeap = LockedHeap::empty();
 
@@ -31,6 +38,9 @@ fn alloc_error(_info: core::alloc::Layout) -> ! {
 /// The initialization method for the global heap allocator.
 pub fn init_heap(heap_start: u64, heap_size: usize) {
     unsafe {
+        #[cfg(not(feature = "test_heap_size"))]
         HEAP.lock().init(heap_start as *mut u8, heap_size);
+        #[cfg(feature = "test_heap_size")]
+        td_benchmark::HeapProfiling::init(heap_start, heap_size);
     }
 }
