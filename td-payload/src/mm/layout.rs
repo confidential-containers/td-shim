@@ -5,7 +5,10 @@
 pub const DEFAULT_HEAP_SIZE: usize = 0x1000000;
 pub const DEFAULT_STACK_SIZE: usize = 0x800000;
 pub const DEFAULT_PAGE_TABLE_SIZE: usize = 0x800000;
+#[cfg(not(feature = "coverage"))]
 pub const DEFAULT_DMA_SIZE: usize = 0x100000;
+#[cfg(feature = "coverage")]
+pub const DEFAULT_DMA_SIZE: usize = 0x300000;
 #[cfg(feature = "cet-shstk")]
 pub const DEFAULT_SHADOW_STACK_SIZE: usize = 0x10000;
 
