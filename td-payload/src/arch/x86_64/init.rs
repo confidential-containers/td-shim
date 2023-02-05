@@ -68,17 +68,13 @@ pub fn init(layout: &RuntimeLayout, next: unsafe extern "C" fn()) -> ! {
     {
         let shadow_stack =
             get_usable(layout.shadow_stack_size).expect("Failed to allocate shadow stack");
-        cet::init_cet_shstk(shadow_stack, layout.shadow_stack_size);
+        if cet::init_cet_shstk(shadow_stack, layout.shadow_stack_size) {
+            unsafe { cet::enable_cet_shstk() }
+        }
     }
 
     #[cfg(feature = "cet-ibt")]
-    cet::init_cet_ibt();
-
-    // Safety: `init` will never return
-    #[cfg(any(feature = "cet-ibt", feature = "cet-shstk"))]
-    unsafe {
-        cet::enable_cet();
-    }
+    cet::enable_cet_ibt();
 
     jump_to_next(stack + layout.stack_size as u64, next as *const fn() as u64);
 }

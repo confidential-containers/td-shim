@@ -38,6 +38,8 @@ pub fn init_cet_shstk(shadow_stack_addr: u64, shadow_stack_size: usize) -> bool 
         return false;
     }
 
+    disable_cet();
+
     paging::set_wp(shadow_stack_addr, shadow_stack_size);
 
     let mut msr_cet = Msr::new(MSR_IA32_S_CET);
@@ -60,13 +62,26 @@ pub fn init_cet_shstk(shadow_stack_addr: u64, shadow_stack_size: usize) -> bool 
     true
 }
 
-pub fn init_cet_ibt() -> bool {
+/// Enable the CET shadow stack
+/// # Safety
+///
+/// This function must be called inside a function that will never return,
+/// otherwise Control Protection Exception will be triggered.
+#[inline(always)]
+pub unsafe fn enable_cet_shstk() {
+    enable_cet();
+    asm!("setssbsy");
+}
+
+pub fn enable_cet_ibt() -> bool {
     if !is_ibt_available() {
         return false;
     }
 
+    disable_cet();
     let mut msr_cet = Msr::new(MSR_IA32_S_CET);
     unsafe { msr_cet.write(msr_cet.read() | MSR_CET_IBT) };
+    enable_cet();
 
     true
 }
@@ -82,20 +97,31 @@ fn is_ibt_available() -> bool {
 }
 
 /// Enable the CET by setting the bit 23 of CR4
-/// # Safety
-///
-/// This function must be called inside a function that will never return,
-/// otherwise Control Protection Exception will be triggered.
+#[inline(always)]
+fn enable_cet() {
+    unsafe {
+        asm!(
+            "push rax",
+            "mov rax, cr4",
+            "bts eax, 23",
+            "mov cr4, rax",
+            "pop rax"
+        );
+    }
+}
+
+/// Enable the CET by setting the bit 23 of CR4
 #[inline]
-pub unsafe fn enable_cet() {
-    asm!(
-        "push rax",
-        "mov rax, cr4",
-        "bts eax, 23",
-        "mov cr4, rax",
-        "setssbsy",
-        "pop rax"
-    );
+fn disable_cet() {
+    unsafe {
+        asm!(
+            "push rax",
+            "mov rax, cr4",
+            "btr eax, 23",
+            "mov cr4, rax",
+            "pop rax"
+        );
+    }
 }
 
 //
