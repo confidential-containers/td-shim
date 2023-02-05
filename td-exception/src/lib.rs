@@ -4,7 +4,6 @@
 
 #![no_std]
 #![feature(naked_functions)]
-#![feature(asm_sym)]
 
 pub mod asm;
 pub mod idt;
