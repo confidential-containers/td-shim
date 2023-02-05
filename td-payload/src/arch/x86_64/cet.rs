@@ -93,7 +93,7 @@ fn is_shstk_available() -> bool {
 
 fn is_ibt_available() -> bool {
     let cpuid = unsafe { core::arch::x86_64::__cpuid_count(CPUID_EXTEND_FEATURES, 0) };
-    cpuid.ecx & CPUID_CET_IBT != 0
+    cpuid.edx & CPUID_CET_IBT != 0
 }
 
 /// Enable the CET by setting the bit 23 of CR4
