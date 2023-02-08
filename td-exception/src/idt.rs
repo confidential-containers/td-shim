@@ -100,8 +100,9 @@ impl Idt {
         current_idt[20].set_func(interrupt::virtualization as usize);
         #[cfg(not(feature = "tdx"))]
         current_idt[20].set_func(interrupt::default_exception as usize);
+        current_idt[21].set_func(interrupt::control_flow as usize);
         // reset exception reserved
-        for i in 21..32 {
+        for i in 22..32 {
             current_idt[i].set_func(interrupt::default_exception as usize);
         }
         // Setup reset potential interrupt handler.
