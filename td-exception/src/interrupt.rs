@@ -357,6 +357,12 @@ interrupt_no_error!(simd, stack, {
     deadloop();
 });
 
+interrupt_error!(control_flow, stack, {
+    log::info!("Control Flow Exception\n");
+    stack.dump();
+    deadloop();
+});
+
 #[cfg(feature = "tdx")]
 const EXIT_REASON_CPUID: u32 = 10;
 #[cfg(feature = "tdx")]
