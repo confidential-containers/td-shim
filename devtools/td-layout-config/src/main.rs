@@ -137,7 +137,6 @@ pub const TD_PAYLOAD_PAGE_TABLE_SIZE: u32 = {pt_size:#X};
 pub const TD_PAYLOAD_ACPI_SIZE: u32 = {acpi_size:#X};
 pub const TD_PAYLOAD_SIZE: u32 = {payload_size:#X};
 pub const TD_PAYLOAD_UNACCEPTED_MEMORY_BITMAP_SIZE: u32 = {unaccepted_memory_bitmap_size:#X};
-pub const TD_PAYLOAD_PARTIAL_ACCEPT_MEMORY_SIZE: u32 = {partial_accept_memory_size:#X};
 
 pub const TD_HOB_BASE: u64 = {td_hob_base:#X};
 pub const TD_HOB_SIZE: u64 = {td_hob_size:#X};
@@ -176,7 +175,6 @@ struct TdRuntimeLayoutConfig {
     mailbox_size: u32,
     page_table_size: u32,
     unaccepted_memory_bitmap_size: u32,
-    partial_accept_memory_size: u32,
     payload_size: u32,
     kernel_size: u32,
     kernel_param_size: u32,
@@ -268,7 +266,6 @@ impl TdLayout {
             payload_size = self.runtime.payload_size,
             unaccepted_memory_bitmap_base = self.runtime.unaccepted_memory_bitmap_base,
             unaccepted_memory_bitmap_size = self.runtime.unaccepted_memory_bitmap_size,
-            partial_accept_memory_size = self.runtime.partial_accept_memory_size,
             mailbox_base = self.runtime.mailbox_base,
             mailbox_size = self.runtime.mailbox_size,
             event_log_base = self.runtime.event_log_base,
@@ -404,7 +401,6 @@ struct TdLayoutRuntime {
     payload_size: u32,
     unaccepted_memory_bitmap_base: u32,
     unaccepted_memory_bitmap_size: u32,
-    partial_accept_memory_size: u32,
     event_log_base: u32,
     event_log_size: u32,
     acpi_base: u32,
@@ -439,7 +435,6 @@ impl TdLayoutRuntime {
             payload_size: config.runtime_layout.payload_size,
             unaccepted_memory_bitmap_base,
             unaccepted_memory_bitmap_size: config.runtime_layout.unaccepted_memory_bitmap_size,
-            partial_accept_memory_size: config.runtime_layout.partial_accept_memory_size,
             event_log_base,
             event_log_size: config.runtime_layout.event_log_size,
             acpi_base,
