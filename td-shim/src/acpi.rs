@@ -8,6 +8,12 @@ use zerocopy::{AsBytes, FromBytes};
 pub const ACPI_TABLES_MAX_NUM: usize = 20;
 pub const ACPI_RSDP_REVISION: u8 = 2;
 
+#[derive(Debug)]
+pub enum Error {
+    InvalidParameter,
+    TooManyAcpiTables,
+}
+
 pub fn calculate_checksum(data: &[u8]) -> u8 {
     (255 - data.iter().fold(0u8, |acc, x| acc.wrapping_add(*x))).wrapping_add(1)
 }
@@ -103,15 +109,18 @@ impl Xsdt {
         }
     }
 
-    pub fn add_table(&mut self, addr: u64) {
+    pub fn add_table(&mut self, addr: u64) -> Result<(), Error> {
         if self.header.length < size_of::<GenericSdtHeader>() as u32 {
-            return;
+            Err(Error::InvalidParameter)
         } else {
             let table_num =
                 (self.header.length as usize - size_of::<GenericSdtHeader>()) / size_of::<u64>();
             if table_num < ACPI_TABLES_MAX_NUM {
                 self.tables[table_num] = addr as u64;
                 self.header.length += size_of::<u64>() as u32;
+                Ok(())
+            } else {
+                Err(Error::TooManyAcpiTables)
             }
         }
     }

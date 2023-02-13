@@ -49,11 +49,13 @@ impl<'a> AcpiTables<'a> {
             // Update FADT checksum
             fadt[9] = 0;
             fadt[9] = calculate_checksum(fadt);
-            xsdt.add_table(self.offset_to_address(fadt_off));
+            xsdt.add_table(self.offset_to_address(fadt_off))
+                .expect("Unable to add table into XSDT");
         }
 
         for offset in &self.table_offset {
-            xsdt.add_table(self.offset_to_address(*offset));
+            xsdt.add_table(self.offset_to_address(*offset))
+                .expect("Unable to add table into XSDT");
         }
 
         let xsdt_addr = self.offset_to_address(self.size);
@@ -73,32 +75,28 @@ impl<'a> AcpiTables<'a> {
         // Also reserve space for Xsdt and Rsdp
         let total_size = self.size + table.len() + size_of::<Xsdt>() + size_of::<Rsdp>();
         if self.acpi_memory.len() < total_size {
-            log::error!(
+            panic!(
                 "ACPI content size exceeds limit 0x{:X}",
                 self.acpi_memory.len(),
             );
-            return;
         } else if table.len() < size_of::<GenericSdtHeader>() {
-            log::error!("ACPI table with length 0x{:X} is invalid", table.len());
-            return;
+            panic!("ACPI table with length 0x{:X} is invalid", table.len());
         }
 
         // Safe because we have checked buffer size.
         let header = GenericSdtHeader::read_from(&table[..size_of::<GenericSdtHeader>()]).unwrap();
         if header.length as usize > table.len() {
-            log::error!(
+            panic!(
                 "invalid ACPI table, header length {} is bigger than data length {}",
                 header.length as usize,
                 table.len()
             );
-            return;
         }
 
         if &header.signature == b"FACP" {
             // We will write to the `dsdt` fields at [40-44)
             if header.length < 44 {
-                log::error!("invalid ACPI FADT table");
-                return;
+                panic!("invalid ACPI FADT table");
             }
             self.fadt = Some((self.size, header.length as usize));
         } else if &header.signature == b"DSDT" {
