@@ -415,7 +415,10 @@ struct TdLayoutRuntime {
 
 impl TdLayoutRuntime {
     fn new_from_config(config: &TdLayoutConfig) -> Self {
-        let event_log_base = 0x80000000 - config.runtime_layout.event_log_size; // TODO: 0x80000000 is hardcoded LOW_MEM_TOP, to remove
+        // An example TOML used to demonstrate memory layout, it will not used by runtime.
+        const EXAMPLE_TOML: u32 = 0x80000000;
+
+        let event_log_base = EXAMPLE_TOML - config.runtime_layout.event_log_size;
         let mailbox_base = event_log_base - config.runtime_layout.mailbox_size;
         let pt_base = mailbox_base - config.runtime_layout.page_table_size;
         let payload_base = pt_base - config.runtime_layout.payload_size;
