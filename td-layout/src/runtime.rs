@@ -50,3 +50,17 @@ pub const PAYLOAD_SIZE: usize = 0x2000000; // 32 MB
 pub const PAYLOAD_PAGE_TABLE_SIZE: usize = 0x20000; // 128 KB
 pub const PAYLOAD_MAILBOX_SIZE: usize = 0x2000; // 8 KB
 pub const EVENT_LOG_SIZE: usize = 0x100000; // 1 MB
+
+pub const MEMORY_LAYOUT_CONFIG: &[(&'static str, usize, &'static str)] = &[
+    // (name of memory region, region size, region type)
+    ("Bootloader", 0x800000, "Memory"),
+    ("TdHob", 0x20000, "Memory"),
+    ("UnacceptedMemoryBitmap", 0x40000, "Memory"),
+    ("KernelParam", 0x1000, "Memory"),
+    ("Kernel", 0x8000000, "Memory"),
+    ("PayloadAcpi", 0x100000, "Acpi"),
+    ("Payload", 0x2000000, "Reserved"),
+    ("PayloadPageTable", 0x20000, "Reserved"),
+    ("PayloadMailbox", 0x2000, "Nvs"),
+    ("EventLog", 0x100000, "Nvs"),
+];
