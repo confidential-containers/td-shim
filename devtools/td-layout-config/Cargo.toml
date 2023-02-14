@@ -7,8 +7,14 @@ homepage = "https://github.com/confidential-containers"
 license = "BSD-2-Clause-Patent"
 edition = "2018"
 
+[[bin]]
+name = "td-layout-config"
+
 [dependencies]
-clap = { version = "3.0", features = ["cargo"] }
+clap = { version = "3.0", features = ["derive"] }
 json5 = "0.3.0"
+parse_int = "0.6.0"
 scroll = { version = "0.10", default-features = false, features = ["derive"]}
 serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tera = "1.17.1"
