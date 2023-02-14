@@ -7,15 +7,15 @@
 /*
 Mem Layout Example
 +----------------------------------------+ <- 0x80000000
-|          TD_PAYLOAD_EVENT_LOG          |   (0x100000) 1 MB
+|               EVENT_LOG                |   (0x100000) 1 MB
 +----------------------------------------+ <- 0x7FF00000
-|           TD_PAYLOAD_MAILBOX           |   (0x2000) 8 KB
+|            PAYLOAD_MAILBOX             |   (0x2000) 8 KB
 +----------------------------------------+ <- 0x7FEFE000
-|         TD_PAYLOAD_PAGE_TABLE          |   (0x20000) 128 KB
+|           PAYLOAD_PAGE_TABLE           |   (0x20000) 128 KB
 +----------------------------------------+ <- 0x7FEDE000
-|               TD_PAYLOAD               |   (0x2000000) 32 MB
+|                PAYLOAD                 |   (0x2000000) 32 MB
 +----------------------------------------+ <- 0x7DEDE000
-|            TD_PAYLOAD_ACPI             |   (0x100000) 1 MB
+|                  ACPI                  |   (0x100000) 1 MB
 +----------------------------------------+ <- 0x7DDDE000
 |                  FREE                  |   (0x7557D000) 1.83 GB
 +----------------------------------------+ <- 0x8861000
@@ -23,7 +23,7 @@ Mem Layout Example
 +----------------------------------------+ <- 0x861000
 |              KERNEL_PARAM              |   (0x1000) 4 KB
 +----------------------------------------+ <- 0x860000
-|  TD_PAYLOAD_UNACCEPTED_MEMORY_BITMAP   |   (0x40000) 256 KB
+|        UNACCEPTED_MEMORY_BITMAP        |   (0x40000) 256 KB
 +----------------------------------------+ <- 0x820000
 |                 TD_HOB                 |   (0x20000) 128 KB
 +----------------------------------------+ <- 0x800000
@@ -37,14 +37,16 @@ pub const BOOTLOADER_BASE: usize = 0x0;
 pub const BOOTLOADER_SIZE: usize = 0x800000; // 8 MB
 pub const TD_HOB_BASE: usize = 0x800000;
 pub const TD_HOB_SIZE: usize = 0x20000; // 128 KB
-pub const TD_PAYLOAD_UNACCEPTED_MEMORY_BITMAP_BASE: usize = 0x820000;
-pub const TD_PAYLOAD_UNACCEPTED_MEMORY_BITMAP_SIZE: usize = 0x40000; // 256 KB
+pub const UNACCEPTED_MEMORY_BITMAP_BASE: usize = 0x820000;
+pub const UNACCEPTED_MEMORY_BITMAP_SIZE: usize = 0x40000; // 256 KB
 pub const KERNEL_PARAM_BASE: usize = 0x860000;
 pub const KERNEL_PARAM_SIZE: usize = 0x1000; // 4 KB
 pub const KERNEL_BASE: usize = 0x861000;
 pub const KERNEL_SIZE: usize = 0x8000000; // 128 MB
-pub const TD_PAYLOAD_ACPI_SIZE: usize = 0x100000; // 1 MB
-pub const TD_PAYLOAD_SIZE: usize = 0x2000000; // 32 MB
-pub const TD_PAYLOAD_PAGE_TABLE_SIZE: usize = 0x20000; // 128 KB
-pub const TD_PAYLOAD_MAILBOX_SIZE: usize = 0x2000; // 8 KB
-pub const TD_PAYLOAD_EVENT_LOG_SIZE: usize = 0x100000; // 1 MB
+pub const FREE_BASE: usize = 0x8861000;
+pub const FREE_SIZE: usize = 0x7557D000; // 1.83 GB
+pub const ACPI_SIZE: usize = 0x100000; // 1 MB
+pub const PAYLOAD_SIZE: usize = 0x2000000; // 32 MB
+pub const PAYLOAD_PAGE_TABLE_SIZE: usize = 0x20000; // 128 KB
+pub const PAYLOAD_MAILBOX_SIZE: usize = 0x2000; // 8 KB
+pub const EVENT_LOG_SIZE: usize = 0x100000; // 1 MB

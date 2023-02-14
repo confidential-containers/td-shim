@@ -1,52 +1,52 @@
 {
     "memory_regions": [
         {
-            "name": "BOOTLOADER",
+            "name": "Bootloader",
             "size": "0x800000",
             "type": "Memory"
         },
         {
-            "name": "TD_HOB",
+            "name": "TdHob",
             "size": "0x20000",
             "type": "Memory"
         },
         {
-            "name": "TD_PAYLOAD_UNACCEPTED_MEMORY_BITMAP",
+            "name": "UnacceptedMemoryBitmap",
             "size": "0x40000",
             "type": "Memory"
         },
         {
-            "name": "KERNEL_PARAM",
+            "name": "KernelParam",
             "size": "0x1000",
             "type": "Memory"
         },
         {
-            "name": "KERNEL",
+            "name": "Kernel",
             "size": "0x8000000",
             "type": "Memory"
         },
         {
-            "name": "TD_PAYLOAD_EVENT_LOG",
+            "name": "EventLog",
             "size": "0x100000",
             "type": "Nvs"
         },
         {
-            "name": "TD_PAYLOAD_MAILBOX",
+            "name": "PayloadMailbox",
             "size": "0x2000",
             "type": "Nvs"
         },
         {
-            "name": "TD_PAYLOAD_PAGE_TABLE",
+            "name": "PayloadPageTable",
             "size": "0x20000",
             "type": "Reserved"
         },
         {
-            "name": "TD_PAYLOAD",
+            "name": "Payload",
             "size": "0x2000000",
             "type": "Reserved"
         },
         {
-            "name": "TD_PAYLOAD_ACPI",
+            "name": "Acpi",
             "size": "0x100000",
             "type": "Acpi"
         }

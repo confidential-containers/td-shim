@@ -290,7 +290,7 @@ pub fn relocate_mailbox(address: u32) -> Result<(), MailboxError> {
     // Safe because the relocated mailbox is statically reserved
     // in runtime memory layout
     let mut mailbox =
-        unsafe { get_dynamic_mem_slice_mut(SliceType::RelocatedMailbox, address as usize) };
+        unsafe { get_dynamic_mem_slice_mut(SliceType::PayloadMailbox, address as usize) };
 
     // Get the new AP function and its size
     let func_addr = ap_relocated_func_addr();

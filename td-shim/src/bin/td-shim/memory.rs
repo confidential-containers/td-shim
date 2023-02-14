@@ -6,8 +6,7 @@ use alloc::vec::Vec;
 use core::panic;
 use td_layout::build_time::{TD_SHIM_FIRMWARE_BASE, TD_SHIM_FIRMWARE_SIZE};
 use td_layout::runtime::{
-    self, KERNEL_BASE, KERNEL_SIZE, TD_PAYLOAD_EVENT_LOG_SIZE, TD_PAYLOAD_PAGE_TABLE_SIZE,
-    TD_PAYLOAD_SIZE,
+    self, EVENT_LOG_SIZE, KERNEL_BASE, KERNEL_SIZE, PAYLOAD_PAGE_TABLE_SIZE, PAYLOAD_SIZE,
 };
 use td_layout::{memslice, RuntimeMemoryLayout, MIN_MEMORY_SIZE};
 use td_shim::e820::{E820Entry, E820Type};
@@ -83,7 +82,7 @@ impl<'a> Memory<'a> {
         // Init frame allocator
         td_paging::init(
             self.layout.runtime_page_table_base,
-            TD_PAYLOAD_PAGE_TABLE_SIZE as usize,
+            PAYLOAD_PAGE_TABLE_SIZE as usize,
         );
 
         // Create mapping for 0 - base address of runtime layout region
@@ -145,22 +144,22 @@ impl<'a> Memory<'a> {
         table.convert_range(
             E820Type::Reserved,
             self.layout.runtime_page_table_base,
-            TD_PAYLOAD_PAGE_TABLE_SIZE as u64,
+            PAYLOAD_PAGE_TABLE_SIZE as u64,
         );
         table.convert_range(
             E820Type::Acpi,
             self.layout.runtime_acpi_base,
-            runtime::TD_PAYLOAD_ACPI_SIZE as u64,
+            runtime::ACPI_SIZE as u64,
         );
         table.convert_range(
             E820Type::Nvs,
             self.layout.runtime_event_log_base,
-            runtime::TD_PAYLOAD_EVENT_LOG_SIZE as u64,
+            runtime::EVENT_LOG_SIZE as u64,
         );
         table.convert_range(
             E820Type::Nvs,
             self.layout.runtime_mailbox_base as u64,
-            runtime::TD_PAYLOAD_MAILBOX_SIZE as u64,
+            runtime::PAYLOAD_MAILBOX_SIZE as u64,
         );
 
         table

@@ -230,7 +230,7 @@ fn boot_builtin_payload(
         .expect("Entry point not found!");
 
     // Set up NX (no-execute) protection for payload hob
-    mem.set_nx_bit(mem.layout.runtime_acpi_base, TD_PAYLOAD_ACPI_SIZE as u64);
+    mem.set_nx_bit(mem.layout.runtime_acpi_base, ACPI_SIZE as u64);
 
     // Prepare the HOB list to run the image
     payload_hob::build_payload_hob(acpi_tables, &mem).expect("Fail to create payload HOB");
@@ -282,7 +282,7 @@ pub fn switch_idt(mailbox_base: u64) {
     let idt_base = mailbox_base + IDT_OFFSET as u64;
     let idt_page = &mut unsafe {
         memslice::get_dynamic_mem_slice_mut(
-            memslice::SliceType::RelocatedMailbox,
+            memslice::SliceType::PayloadMailbox,
             mailbox_base as usize,
         )
     }[IDT_OFFSET..IDT_OFFSET + IDT_SIZE];
@@ -376,7 +376,7 @@ fn prepare_acpi_tables(
     let tdel = Ccel::new(
         CCEL_CC_TYPE_TDX,
         0,
-        TD_PAYLOAD_EVENT_LOG_SIZE as u64,
+        EVENT_LOG_SIZE as u64,
         layout.runtime_event_log_base as u64,
     );
 

@@ -8,7 +8,7 @@
 Image Layout
 {%-for i in image_regions%}
 {{true|format_layout_border}} <- {{i.region.start|format_hex}}
-|{{i.name | format_name}}|   ({{i.region.end - i.region.start|format_hex}}) {{i.region.end - i.region.start|filesizeformat}}
+|{{i.name_screaming_snake_case | format_name}}|   ({{i.region.end - i.region.start|format_hex}}) {{i.region.end - i.region.start|filesizeformat}}
 {%-endfor%}
 {{true|format_layout_border}} <- {{image_size|format_hex}}
 Image size: {{image_size|format_hex}} ({{image_size|filesizeformat}})
@@ -16,8 +16,8 @@ Image size: {{image_size|format_hex}} ({{image_size|filesizeformat}})
 
 // Image Layout Configuration
 {%for i in image_regions%}
-pub const TD_SHIM_{{i.name}}_OFFSET: u32 = {{i.region.start | format_hex }};
-pub const TD_SHIM_{{i.name}}_SIZE: u32 = {{i.region.end - i.region.start | format_hex }}; // {{i.region.end - i.region.start|filesizeformat}}
+pub const TD_SHIM_{{i.name_screaming_snake_case}}_OFFSET: u32 = {{i.region.start | format_hex }};
+pub const TD_SHIM_{{i.name_screaming_snake_case}}_SIZE: u32 = {{i.region.end - i.region.start | format_hex }}; // {{i.region.end - i.region.start|filesizeformat}}
 {%endfor%}
 // Offset when Loading into Memory
 pub const TD_SHIM_FIRMWARE_BASE: u32 = {{memory_offset | format_hex }};
@@ -30,5 +30,5 @@ pub const TD_SHIM_SEC_CORE_INFO_BASE: u32 = {{memory_offset + sec_info_offset | 
 
 // Base Address after Loaded into Memory
 {%-for i in image_regions%}
-pub const TD_SHIM_{{i.name}}_BASE: u32 = {{memory_offset + i.region.start | format_hex }};
+pub const TD_SHIM_{{i.name_screaming_snake_case}}_BASE: u32 = {{memory_offset + i.region.start | format_hex }};
 {%-endfor%}

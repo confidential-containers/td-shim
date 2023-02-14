@@ -4,21 +4,21 @@ use super::{layout::LayoutConfig, render};
 
 #[derive(Deserialize, Debug, PartialEq)]
 struct ImageConfig {
-    #[serde(rename = "CONFIG")]
+    #[serde(rename = "Config")]
     config: String,
-    #[serde(rename = "MAILBOX")]
+    #[serde(rename = "Mailbox")]
     mailbox: String,
-    #[serde(rename = "TEMP_STACK")]
+    #[serde(rename = "TempStack")]
     temp_stack: String,
-    #[serde(rename = "TEMP_HEAP")]
+    #[serde(rename = "TempHeap")]
     temp_heap: String,
-    #[serde(rename = "PAYLOAD")]
+    #[serde(rename = "Payload")]
     builtin_payload: Option<String>,
-    #[serde(rename = "METADATA")]
+    #[serde(rename = "Metadata")]
     metadata: String,
-    #[serde(rename = "IPL")]
+    #[serde(rename = "Ipl")]
     bootloader: String,
-    #[serde(rename = "RESET_VECTOR")]
+    #[serde(rename = "ResetVector")]
     reset_vector: String,
 }
 
@@ -28,33 +28,33 @@ pub fn parse_image(data: String) -> String {
 
     let mut image_layout = LayoutConfig::new(0, 0x100_0000);
     image_layout.reserve_low(
-        "CONFIG",
+        "Config",
         parse_int::parse::<u32>(&image_config.config).unwrap() as usize,
         "Reserved",
     );
     image_layout.reserve_low(
-        "MAILBOX",
+        "Mailbox",
         parse_int::parse::<u32>(&image_config.mailbox).unwrap() as usize,
         "Reserved",
     );
     image_layout.reserve_low(
-        "TEMP_STACK",
+        "TempStack",
         parse_int::parse::<u32>(&image_config.temp_stack).unwrap() as usize,
         "Reserved",
     );
     image_layout.reserve_low(
-        "TEMP_HEAP",
+        "TempHeap",
         parse_int::parse::<u32>(&image_config.temp_heap).unwrap() as usize,
         "Reserved",
     );
 
     image_layout.reserve_high(
-        "RESET_VECTOR",
+        "ResetVector",
         parse_int::parse::<u32>(&image_config.reset_vector).unwrap() as usize,
         "Reserved",
     );
     image_layout.reserve_high(
-        "IPL",
+        "Ipl",
         parse_int::parse::<u32>(&image_config.bootloader).unwrap() as usize,
         "Reserved",
     );

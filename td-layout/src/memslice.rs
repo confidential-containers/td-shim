@@ -7,9 +7,8 @@ use crate::build_time::{
     TD_SHIM_PAYLOAD_BASE, TD_SHIM_PAYLOAD_SIZE,
 };
 use crate::runtime::{
-    KERNEL_BASE, KERNEL_PARAM_BASE, KERNEL_PARAM_SIZE, KERNEL_SIZE, TD_HOB_BASE, TD_HOB_SIZE,
-    TD_PAYLOAD_ACPI_SIZE, TD_PAYLOAD_EVENT_LOG_SIZE, TD_PAYLOAD_MAILBOX_SIZE, TD_PAYLOAD_SIZE,
-    TD_PAYLOAD_UNACCEPTED_MEMORY_BITMAP_SIZE,
+    ACPI_SIZE, EVENT_LOG_SIZE, KERNEL_BASE, KERNEL_PARAM_BASE, KERNEL_PARAM_SIZE, KERNEL_SIZE,
+    PAYLOAD_MAILBOX_SIZE, PAYLOAD_SIZE, TD_HOB_BASE, TD_HOB_SIZE, UNACCEPTED_MEMORY_BITMAP_SIZE,
 };
 
 /// Type of build time and runtime memory regions.
@@ -30,14 +29,36 @@ pub enum SliceType {
     Payload,
     /// The `TD_HOB` region in runtime memory layout
     PayloadHob,
+    /// The 'Payload Page Table' region in runtime memory layout
+    PayloadPageTable,
     /// The 'Mailbox' region in runtime memory layout
-    RelocatedMailbox,
+    PayloadMailbox,
     /// The `TD_EVENT_LOG` region in runtime memory layout
     EventLog,
     /// The `ACPI` region in runtime memory layout
     Acpi,
     /// The 'UNACCEPTED_BITMAP' region in runtime memory layout
     UnacceptedMemoryBitmap,
+}
+
+impl SliceType {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            SliceType::Config => "Config",
+            SliceType::TdHob => "TdHob",
+            SliceType::ShimPayload => "ShimPayload",
+            SliceType::MailBox => "MailBox",
+            SliceType::Payload => "Payload",
+            SliceType::Kernel => "Kernel",
+            SliceType::KernelParameter => "KernelParameter",
+            SliceType::PayloadHob => "PayloadHob",
+            SliceType::PayloadPageTable => "PayloadPageTable",
+            SliceType::PayloadMailbox => "PayloadMailbox",
+            SliceType::EventLog => "EventLog",
+            SliceType::Acpi => "Acpi",
+            SliceType::UnacceptedMemoryBitmap => "UnacceptedMemoryBitmap",
+        }
+    }
 }
 
 /// Get an immutable reference to a region.
@@ -97,23 +118,23 @@ pub unsafe fn get_dynamic_mem_slice_mut<'a>(t: SliceType, base_address: usize) -
     match t {
         SliceType::EventLog => core::slice::from_raw_parts_mut(
             base_address as *const u8 as *mut u8,
-            TD_PAYLOAD_EVENT_LOG_SIZE as usize,
+            EVENT_LOG_SIZE as usize,
         ),
-        SliceType::RelocatedMailbox => core::slice::from_raw_parts_mut(
+        SliceType::PayloadMailbox => core::slice::from_raw_parts_mut(
             base_address as *const u8 as *mut u8,
-            TD_PAYLOAD_MAILBOX_SIZE as usize,
+            PAYLOAD_MAILBOX_SIZE as usize,
         ),
         SliceType::Acpi | SliceType::PayloadHob => core::slice::from_raw_parts_mut(
             base_address as *const u8 as *mut u8,
-            TD_PAYLOAD_ACPI_SIZE as usize,
+            ACPI_SIZE as usize,
         ),
         SliceType::UnacceptedMemoryBitmap => core::slice::from_raw_parts_mut(
             base_address as *const u8 as *mut u8,
-            TD_PAYLOAD_UNACCEPTED_MEMORY_BITMAP_SIZE as usize,
+            UNACCEPTED_MEMORY_BITMAP_SIZE as usize,
         ),
         SliceType::Payload => core::slice::from_raw_parts_mut(
             base_address as *const u8 as *mut u8,
-            TD_PAYLOAD_SIZE as usize,
+            PAYLOAD_SIZE as usize,
         ),
 
         _ => panic!("get_dynamic_mem_slice_mut: not support"),
@@ -153,7 +174,7 @@ mod test {
     #[should_panic(expected = "get_mem_slice: not support")]
     fn test_get_mem_slice_with_type_payload() {
         let payload = get_mem_slice(SliceType::Payload);
-        assert_eq!(payload.len(), TD_PAYLOAD_SIZE as usize);
+        assert_eq!(payload.len(), PAYLOAD_SIZE as usize);
     }
 
     #[test]
@@ -245,20 +266,20 @@ mod test {
     #[test]
     fn test_get_dynamic_mem_slice_mut_with_type_eventlog() {
         let eventlog = unsafe { get_dynamic_mem_slice_mut(SliceType::EventLog, TEST_BASE_ADDRESS) };
-        assert_eq!(eventlog.len(), TD_PAYLOAD_EVENT_LOG_SIZE as usize);
+        assert_eq!(eventlog.len(), EVENT_LOG_SIZE as usize);
     }
 
     #[test]
     fn test_get_dynamic_mem_slice_mut_with_type_relocatemailbox() {
         let relocatemailbox =
-            unsafe { get_dynamic_mem_slice_mut(SliceType::RelocatedMailbox, TEST_BASE_ADDRESS) };
-        assert_eq!(relocatemailbox.len(), TD_PAYLOAD_MAILBOX_SIZE as usize);
+            unsafe { get_dynamic_mem_slice_mut(SliceType::PayloadMailbox, TEST_BASE_ADDRESS) };
+        assert_eq!(relocatemailbox.len(), PAYLOAD_MAILBOX_SIZE as usize);
     }
 
     #[test]
     fn test_get_dynamic_mem_slice_mut_with_type_acpi() {
         let acpi = unsafe { get_dynamic_mem_slice_mut(SliceType::Acpi, TEST_BASE_ADDRESS) };
-        assert_eq!(acpi.len(), TD_PAYLOAD_ACPI_SIZE as usize);
+        assert_eq!(acpi.len(), ACPI_SIZE as usize);
     }
 
     #[test]
@@ -268,7 +289,7 @@ mod test {
         };
         assert_eq!(
             unacceptedmemorybitmap.len(),
-            TD_PAYLOAD_UNACCEPTED_MEMORY_BITMAP_SIZE as usize
+            UNACCEPTED_MEMORY_BITMAP_SIZE as usize
         );
     }
 
@@ -308,7 +329,7 @@ mod test {
     fn test_get_dynamic_mem_slice_mut_with_type_payload() {
         unsafe {
             let payload = get_dynamic_mem_slice_mut(SliceType::Payload, TEST_BASE_ADDRESS);
-            assert_eq!(payload.len(), TD_PAYLOAD_SIZE as usize);
+            assert_eq!(payload.len(), PAYLOAD_SIZE as usize);
         }
     }
 }
