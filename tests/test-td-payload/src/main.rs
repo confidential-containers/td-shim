@@ -131,7 +131,6 @@ pub extern "C" fn _start(hob: u64, _payload: u64) -> ! {
 #[cfg(not(test))]
 #[no_mangle]
 extern "C" fn main() -> ! {
-    use td_layout::runtime::*;
     use td_payload::hob::get_hob;
     use testmemmap::TestMemoryMap;
 
