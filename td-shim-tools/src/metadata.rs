@@ -103,13 +103,19 @@ fn basic_metadata_sections() -> MetadataSections {
     let mut metadata_sections = MetadataSections::new();
 
     // BFV
-    let bfv_offset = if cfg!(feature = "exec-payload-section") {
+    let bfv_offset = if cfg!(any(
+        feature = "exec-payload-section",
+        feature = "linux-payload"
+    )) {
         TD_SHIM_METADATA_OFFSET
     } else {
         TD_SHIM_PAYLOAD_OFFSET
     };
 
-    let bfv_data_size = if cfg!(feature = "exec-payload-section") {
+    let bfv_data_size = if cfg!(any(
+        feature = "exec-payload-section",
+        feature = "linux-payload"
+    )) {
         (TD_SHIM_METADATA_SIZE + TD_SHIM_IPL_SIZE + TD_SHIM_RESET_VECTOR_SIZE) as u64
     } else {
         (TD_SHIM_PAYLOAD_SIZE
@@ -118,12 +124,16 @@ fn basic_metadata_sections() -> MetadataSections {
             + TD_SHIM_RESET_VECTOR_SIZE) as u64
     };
 
-    let bfv_memory_address = if cfg!(feature = "exec-payload-section") {
+    let bfv_memory_address = if cfg!(any(
+        feature = "exec-payload-section",
+        feature = "linux-payload"
+    )) {
         TD_SHIM_METADATA_BASE
     } else {
         TD_SHIM_PAYLOAD_BASE
     };
 
+    // BFV
     metadata_sections.add(TdxMetadataSection {
         data_offset: bfv_offset,
         raw_data_size: bfv_data_size as u32,
@@ -163,16 +173,6 @@ fn basic_metadata_sections() -> MetadataSections {
         attributes: 0,
     });
 
-    // TD_HOB
-    metadata_sections.add(TdxMetadataSection {
-        data_offset: 0,
-        raw_data_size: 0,
-        memory_address: TD_HOB_BASE as u64,
-        memory_data_size: TD_HOB_SIZE as u64,
-        r#type: TDX_METADATA_SECTION_TYPE_TD_HOB,
-        attributes: 0,
-    });
-
     // MAILBOX
     metadata_sections.add(TdxMetadataSection {
         data_offset: 0,
@@ -190,22 +190,32 @@ fn basic_metadata_sections() -> MetadataSections {
 pub fn default_metadata_sections() -> MetadataSections {
     let mut metadata_sections = basic_metadata_sections();
 
-    // kernel image
+    // TD_HOB
     metadata_sections.add(TdxMetadataSection {
         data_offset: 0,
         raw_data_size: 0,
-        memory_address: KERNEL_BASE as u64,
-        memory_data_size: KERNEL_SIZE as u64,
+        memory_address: linux::TD_HOB_BASE as u64,
+        memory_data_size: linux::TD_HOB_SIZE as u64,
+        r#type: TDX_METADATA_SECTION_TYPE_TD_HOB,
+        attributes: 0,
+    });
+
+    // payload
+    metadata_sections.add(TdxMetadataSection {
+        data_offset: 0,
+        raw_data_size: 0,
+        memory_address: linux::PAYLOAD_BASE as u64,
+        memory_data_size: linux::PAYLOAD_SIZE as u64,
         r#type: TDX_METADATA_SECTION_TYPE_PAYLOAD,
         attributes: 0,
     });
 
-    // kernel parameters
+    // payload parameters
     metadata_sections.add(TdxMetadataSection {
         data_offset: 0,
         raw_data_size: 0,
-        memory_address: KERNEL_PARAM_BASE as u64,
-        memory_data_size: KERNEL_PARAM_SIZE as u64,
+        memory_address: linux::PAYLOAD_PARAMETER_BASE as u64,
+        memory_data_size: linux::PAYLOAD_PARAMETER_SIZE as u64,
         r#type: TDX_METADATA_SECTION_TYPE_PAYLOAD_PARAM,
         attributes: 0,
     });
@@ -216,6 +226,16 @@ pub fn default_metadata_sections() -> MetadataSections {
 #[cfg(not(feature = "boot-kernel"))]
 pub fn default_metadata_sections() -> MetadataSections {
     let mut metadata_sections = basic_metadata_sections();
+
+    // TD_HOB
+    metadata_sections.add(TdxMetadataSection {
+        data_offset: 0,
+        raw_data_size: 0,
+        memory_address: exec::TD_HOB_BASE as u64,
+        memory_data_size: exec::TD_HOB_SIZE as u64,
+        r#type: TDX_METADATA_SECTION_TYPE_TD_HOB,
+        attributes: 0,
+    });
 
     if cfg!(feature = "exec-payload-section") {
         // payload image

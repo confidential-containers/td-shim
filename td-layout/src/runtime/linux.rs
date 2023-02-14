@@ -13,15 +13,13 @@ Mem Layout Example
 +----------------------------------------+ <- 0x7FEFE000
 |           PAYLOAD_PAGE_TABLE           |   (0x20000) 128 KB
 +----------------------------------------+ <- 0x7FEDE000
-|                PAYLOAD                 |   (0x2000000) 32 MB
-+----------------------------------------+ <- 0x7DEDE000
 |                  ACPI                  |   (0x100000) 1 MB
-+----------------------------------------+ <- 0x7DDDE000
-|                  FREE                  |   (0x7557D000) 1.83 GB
++----------------------------------------+ <- 0x7FDDE000
+|                  FREE                  |   (0x7757D000) 1.86 GB
 +----------------------------------------+ <- 0x8861000
-|                 KERNEL                 |   (0x8000000) 128 MB
+|                PAYLOAD                 |   (0x8000000) 128 MB
 +----------------------------------------+ <- 0x861000
-|              KERNEL_PARAM              |   (0x1000) 4 KB
+|           PAYLOAD_PARAMETER            |   (0x1000) 4 KB
 +----------------------------------------+ <- 0x860000
 |        UNACCEPTED_MEMORY_BITMAP        |   (0x40000) 256 KB
 +----------------------------------------+ <- 0x820000
@@ -39,14 +37,13 @@ pub const TD_HOB_BASE: usize = 0x800000;
 pub const TD_HOB_SIZE: usize = 0x20000; // 128 KB
 pub const UNACCEPTED_MEMORY_BITMAP_BASE: usize = 0x820000;
 pub const UNACCEPTED_MEMORY_BITMAP_SIZE: usize = 0x40000; // 256 KB
-pub const KERNEL_PARAM_BASE: usize = 0x860000;
-pub const KERNEL_PARAM_SIZE: usize = 0x1000; // 4 KB
-pub const KERNEL_BASE: usize = 0x861000;
-pub const KERNEL_SIZE: usize = 0x8000000; // 128 MB
+pub const PAYLOAD_PARAMETER_BASE: usize = 0x860000;
+pub const PAYLOAD_PARAMETER_SIZE: usize = 0x1000; // 4 KB
+pub const PAYLOAD_BASE: usize = 0x861000;
+pub const PAYLOAD_SIZE: usize = 0x8000000; // 128 MB
 pub const FREE_BASE: usize = 0x8861000;
-pub const FREE_SIZE: usize = 0x7557D000; // 1.83 GB
+pub const FREE_SIZE: usize = 0x7757D000; // 1.86 GB
 pub const ACPI_SIZE: usize = 0x100000; // 1 MB
-pub const PAYLOAD_SIZE: usize = 0x2000000; // 32 MB
 pub const PAYLOAD_PAGE_TABLE_SIZE: usize = 0x20000; // 128 KB
 pub const PAYLOAD_MAILBOX_SIZE: usize = 0x2000; // 8 KB
 pub const EVENT_LOG_SIZE: usize = 0x100000; // 1 MB
@@ -56,10 +53,9 @@ pub const MEMORY_LAYOUT_CONFIG: &[(&'static str, usize, &'static str)] = &[
     ("Bootloader", 0x800000, "Memory"),
     ("TdHob", 0x20000, "Memory"),
     ("UnacceptedMemoryBitmap", 0x40000, "Memory"),
-    ("KernelParam", 0x1000, "Memory"),
-    ("Kernel", 0x8000000, "Memory"),
-    ("PayloadAcpi", 0x100000, "Acpi"),
-    ("Payload", 0x2000000, "Reserved"),
+    ("PayloadParameter", 0x1000, "Memory"),
+    ("Payload", 0x8000000, "Memory"),
+    ("Acpi", 0x100000, "Acpi"),
     ("PayloadPageTable", 0x20000, "Reserved"),
     ("PayloadMailbox", 0x2000, "Nvs"),
     ("EventLog", 0x100000, "Nvs"),
