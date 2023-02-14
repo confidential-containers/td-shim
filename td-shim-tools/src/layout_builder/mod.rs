@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
-pub mod parse_json;
-mod region;
+pub mod image;
+mod layout;
+pub mod memory;
 mod render;

@@ -8,10 +8,10 @@
 Memory Layout Example
 Top of Low Memory: {{tolm|format_hex}}
 {%- for m in memory_regions | reverse%}
-{{true|format_mem_layout_border}} <- {{m.region.end|format_hex}}
+{{true|format_layout_border}} <- {{m.region.end|format_hex}}
 |{{m.name | format_name}}|   ({{m.region.end - m.region.start|format_hex}}) {{m.region.end - m.region.start|filesizeformat}}
 {%- endfor %}
-{{true|format_mem_layout_border}} <- {{memory_regions_base|format_hex}}
+{{true|format_layout_border}} <- {{memory_regions_base|format_hex}}
 Total Usage: {{total_usage|format_hex}} ({{total_usage|filesizeformat}})
 */
 

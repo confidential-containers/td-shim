@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use super::{region::LayoutConfig, render};
+use super::{layout::LayoutConfig, render};
 
 #[derive(Deserialize, Debug, PartialEq)]
 struct Region {

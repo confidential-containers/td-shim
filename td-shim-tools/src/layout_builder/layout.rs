@@ -53,7 +53,7 @@ impl LayoutConfig {
     pub fn new(base: usize, top: usize) -> Self {
         Self {
             list: vec![LayoutEntry::new(
-                "Free".to_string(),
+                "FREE".to_string(),
                 base..top,
                 ENTRY_TYPE_FILTER.to_string(),
                 false,
