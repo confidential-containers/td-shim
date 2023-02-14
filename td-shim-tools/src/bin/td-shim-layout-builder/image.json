@@ -1,0 +1,10 @@
+{
+    "CONFIG": "0x040000",
+    "MAILBOX": "0x001000",
+    "TEMP_STACK": "0x020000",
+    "TEMP_HEAP": "0x020000",
+    "METADATA": "0x001000",
+    "PAYLOAD": "0xC2D000",
+    "IPL": "0x348000",
+    "RESET_VECTOR": "0x008000"
+}

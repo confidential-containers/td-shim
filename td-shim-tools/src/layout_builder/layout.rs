@@ -53,7 +53,7 @@ impl LayoutConfig {
     pub fn new(base: usize, top: usize) -> Self {
         Self {
             list: vec![LayoutEntry::new(
-                "Free".to_string(),
+                "FREE".to_string(),
                 base..top,
                 "Memory".to_string(),
                 false,

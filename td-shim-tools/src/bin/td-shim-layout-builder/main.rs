@@ -5,12 +5,14 @@
 use std::path::PathBuf;
 
 use clap::{Parser, ValueEnum};
-use td_shim_tools::layout_builder::parse_json;
+use td_shim_tools::layout_builder::{image, memory};
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 pub enum ConfigType {
     /// Memory layout config
     Memory,
+    /// Image layout config
+    Image,
 }
 
 #[derive(Parser)]
@@ -19,7 +21,7 @@ struct Cli {
     /// Memory config file pathname.
     config: String,
     /// Specify config file type, e.g. json, layout-config
-    #[clap(short = 't', long = "config_type", value_enum, default_value_t = ConfigType::Memory)]
+    #[clap(short = 't', long = "config_type", value_enum)]
     config_type: ConfigType,
     /// Memory base address.
     #[clap(short = 'b', long = "base", default_value_t = String::from("0x0"))]
@@ -41,7 +43,8 @@ fn main() {
     let output_file = cli.output.as_ref().map(|path| PathBuf::from(&path));
 
     match cli.config_type {
-        ConfigType::Memory => output(&cli, parse_json::parse_memory(config), output_file),
+        ConfigType::Memory => output(&cli, memory::parse_memory(config), output_file),
+        ConfigType::Image => output(&cli, image::parse_image(config), output_file),
     };
 }
 

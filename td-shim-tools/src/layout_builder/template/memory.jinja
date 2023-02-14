@@ -7,16 +7,16 @@
 /*
 Mem Layout Example
 {%- for m in memory_regions | reverse%}
-{{true|format_mem_layout_border}} <- {{m.region.end|format_hex}}
+{{true|format_layout_border}} <- {{m.region.end|format_hex}}
 |{{m.name | format_name}}|   ({{m.region.end - m.region.start|format_hex}}) {{m.region.end - m.region.start|filesizeformat}}
 {%- endfor %}
-{{true|format_mem_layout_border}} <- {{memory_regions_base|format_hex}}
+{{true|format_layout_border}} <- {{memory_regions_base|format_hex}}
 Total memory: {{total_memory_length|format_hex}} ({{total_memory_length|filesizeformat}})
 */
 
 // Runtime Layout Configuration
 {%- for m in memory_regions %}
-{%- if m.name != "Free" %}
+{%- if m.name != "FREE" %}
 {%- if m.tolm == false %}
 pub const {{m.name}}_BASE: usize = {{m.region.start | format_hex }};
 {%- endif %}
