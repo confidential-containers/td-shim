@@ -282,7 +282,7 @@ impl<'a> Memory<'a> {
 
     #[cfg(feature = "tdx")]
     fn accept_memory_resources(resources: &mut Vec<ResourceDescription>) {
-        use td_layout::runtime::TD_PAYLOAD_PARTIAL_ACCEPT_MEMORY_SIZE;
+        use td_layout::TD_PAYLOAD_PARTIAL_ACCEPT_MEMORY_SIZE;
         use td_uefi_pi::pi;
 
         // The physical address must not exceed the shared mask (the last bit of GPAW).

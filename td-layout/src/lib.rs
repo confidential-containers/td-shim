@@ -42,6 +42,8 @@ pub const MIN_MEMORY_SIZE: u64 = (TD_PAYLOAD_ACPI_SIZE
     + TD_PAYLOAD_EVENT_LOG_SIZE
     + TD_PAYLOAD_MAILBOX_SIZE) as u64;
 
+pub const TD_PAYLOAD_PARTIAL_ACCEPT_MEMORY_SIZE: u32 = 0x10000000;
+
 #[derive(Default)]
 pub struct RuntimeMemoryLayout {
     pub runtime_event_log_base: u64,
