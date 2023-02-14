@@ -22,7 +22,6 @@ use core::mem::size_of;
 
 use alloc::vec::Vec;
 use scroll::{Pread, Pwrite};
-use td_layout::RuntimeMemoryLayout;
 use td_payload as _;
 use td_payload::println;
 use td_shim::e820::{E820Entry, E820Type};
