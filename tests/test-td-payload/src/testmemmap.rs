@@ -13,6 +13,7 @@ use core::ffi::c_void;
 use core::mem::size_of;
 use serde::{Deserialize, Serialize};
 use td_layout::memslice;
+use td_payload::hob::get_hob;
 use td_shim::e820::{self, E820Entry, E820Type};
 use td_shim::TD_E820_TABLE_HOB_GUID;
 use td_uefi_pi::hob;
@@ -58,10 +59,7 @@ impl TestMemoryMap {
     fn parse_hob(&self, hob_address: usize) -> Option<Vec<E820Entry>> {
         let mut e820: Vec<e820::E820Entry> = Vec::new();
 
-        let hob_list = hob::check_hob_integrity(unsafe {
-            memslice::get_dynamic_mem_slice_mut(memslice::SliceType::PayloadHob, hob_address)
-        })
-        .expect("Integrity check failed: invalid HOB list");
+        let hob_list = get_hob().expect("Unable to get payload HOB list");
 
         let mut next_hob = hob_list;
         if let Some(hob) =

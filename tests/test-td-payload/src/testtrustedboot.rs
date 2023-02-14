@@ -12,6 +12,7 @@ use core::{convert::TryInto, ffi::c_void, mem::size_of};
 use ring::digest;
 use scroll::Pread;
 use td_layout::memslice;
+use td_payload::hob::get_hob;
 use td_shim::acpi::{Ccel, GenericSdtHeader};
 use td_shim::event_log::CCEL_CC_TYPE_TDX;
 use td_shim::TD_ACPI_TABLE_HOB_GUID;
@@ -66,10 +67,7 @@ impl TestTdTrustedBoot {
         let mut ccel = None;
 
         // Parse Hob to populate td_acpi_list
-        let hob_list = hob::check_hob_integrity(unsafe {
-            memslice::get_dynamic_mem_slice_mut(memslice::SliceType::PayloadHob, hob_address)
-        })
-        .expect("Integrity check failed: invalid HOB list");
+        let hob_list = get_hob().expect("Unable to get payload HOB list");
 
         let mut next_hob = hob_list;
         while let Some(hob) =
