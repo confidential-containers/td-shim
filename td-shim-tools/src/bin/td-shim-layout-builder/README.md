@@ -13,12 +13,12 @@ Build `cargo build -p td-shim-tools`
   ./target/debug/td-shim-layout-builder -h
   ```
 
-- Generate runtime.rs from default `devtools/td-layout-config/config.json` file
+- Generate memory layout source file from default `td-shim-tools/src/bin/td-shim-layout-builder/memory.json` file
   ```
-  ./target/debug/td-shim-layout-builder -p devtools/td-layout-config/config.json
+  ./target/debug/td-shim-layout-builder -p -t memory td-shim-tools/src/bin/td-shim-layout-builder/memory.json
   ```
 
-- Generate runtime.rs from `json` file
+- Generate image layout source file from default `td-shim-tools/src/bin/td-shim-layout-builder/image.json` file
   ```
-  ./target/debug/td-shim-layout-builder -p -t json td-shim-tools/src/bin/td-shim-layout-builder/runtime.json
+  ./target/debug/td-shim-layout-builder -p -t image td-shim-tools/src/bin/td-shim-layout-builder/image.json
   ```
