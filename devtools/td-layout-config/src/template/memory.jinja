@@ -26,3 +26,12 @@ pub const {{m.name}}_BASE: usize = {{m.region.start | format_hex }};
 pub const {{m.name}}_SIZE: usize = {{m.region.end - m.region.start | format_hex }}; // {{m.region.end - m.region.start|filesizeformat}}
 {%- endif %}
 {%- endfor %}
+
+pub const MEMORY_LAYOUT_CONFIG: &[(&'static str, usize, &'static str)] = &[
+    // (name of memory region, region size, region type)
+    {%- for m in memory_regions %}
+    {%- if m.entry_type != entry_type_filter %}
+    ("{{m.name}}", {{m.region.end - m.region.start | format_hex }}, "{{m.entry_type}}"),
+    {%- endif %}
+    {%- endfor %}
+];
