@@ -9,7 +9,7 @@ use core::arch::asm;
 use core::cmp::min;
 use core::ops::RangeInclusive;
 use td_exception::idt::DescriptorTablePointer;
-use td_layout::memslice::{get_dynamic_mem_slice_mut, get_mem_slice_mut, SliceType};
+use td_layout::memslice::{get_mem_slice_mut, SliceType};
 use tdx_tdcall::{self, tdx};
 
 use crate::asm::{ap_relocated_func_addr, ap_relocated_func_size};
@@ -282,22 +282,17 @@ pub fn accept_memory_resource_range(mut cpu_num: u32, address: u64, size: u64) {
     log::info!("mp_accept_memory_resource_range: done\n");
 }
 
-pub fn relocate_mailbox(address: u32) -> Result<(), MailboxError> {
+pub fn relocate_mailbox(new_mailbox: &mut [u8]) -> Result<(), MailboxError> {
     // Safety:
     // During this state, all the BSPs/APs are accessing the mailbox in shared immutable mode.
     let mut mail_box = unsafe { MailBox::new(get_mem_slice_mut(SliceType::MailBox)) };
-
-    // Safe because the relocated mailbox is statically reserved
-    // in runtime memory layout
-    let mut mailbox =
-        unsafe { get_dynamic_mem_slice_mut(SliceType::RelocatedMailbox, address as usize) };
 
     // Get the new AP function and its size
     let func_addr = ap_relocated_func_addr();
     let func_size = ap_relocated_func_size();
 
     // Ensure that the Mailbox memory can hold the AP loop function
-    if func_size as usize > mailbox.len() {
+    if func_size as usize > new_mailbox.len() {
         return Err(MailboxError::Relocation);
     }
 
@@ -309,12 +304,17 @@ pub fn relocate_mailbox(address: u32) -> Result<(), MailboxError> {
 
     // Copy AP function into Mailbox memory
     // The layout of Mailbox memory: |---Mailbox---|---Relocated function---|
-    mailbox[MAILBOX_SIZE..MAILBOX_SIZE + ap_func.len()].copy_from_slice(ap_func);
+    new_mailbox[MAILBOX_SIZE..MAILBOX_SIZE + ap_func.len()].copy_from_slice(ap_func);
+
+    let new_mailbox_address = new_mailbox.as_ptr() as u64;
+    if new_mailbox_address + MAILBOX_SIZE as u64 > u32::MAX as u64 {
+        return Err(MailboxError::Relocation);
+    }
 
     // Wakeup APs to complete the relocation of mailbox and AP function
-    mail_box.set_wakeup_vector(address + MAILBOX_SIZE as u32);
+    mail_box.set_wakeup_vector(new_mailbox_address as u32 + MAILBOX_SIZE as u32);
     // Put new mailbox base address to the first FW arg
-    mail_box.set_fw_arg(0, address as u64);
+    mail_box.set_fw_arg(0, new_mailbox_address);
 
     // Broadcast the wakeup command to all the APs
     mail_box.set_command(spec::MP_WAKEUP_COMMAND_WAKEUP);
