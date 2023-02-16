@@ -4,12 +4,10 @@
 
 use alloc::vec::Vec;
 use core::panic;
-use td_layout::build_time::{TD_SHIM_FIRMWARE_BASE, TD_SHIM_FIRMWARE_SIZE};
-use td_layout::runtime::{
-    self, EVENT_LOG_SIZE, KERNEL_BASE, KERNEL_SIZE, PAYLOAD_PAGE_TABLE_SIZE, PAYLOAD_SIZE,
-};
-use td_layout::{memslice, RuntimeMemoryLayout, MIN_MEMORY_SIZE};
+use td_layout::memslice::SliceType;
+use td_layout::{build_time::*, runtime::*, *};
 use td_shim::e820::{E820Entry, E820Type};
+use td_shim::{PayloadInfo, TdPayloadInfoHobType};
 use td_uefi_pi::hob;
 use td_uefi_pi::pi::hob::{
     ResourceDescription, RESOURCE_MEMORY_RESERVED, RESOURCE_MEMORY_UNACCEPTED,
@@ -31,39 +29,53 @@ const SIZE_2M: u64 = 0x200000;
 const RESERVED_MEMORY_SPACE_SIZE: u64 = 0x400_0000;
 
 pub struct Memory<'a> {
-    pub layout: RuntimeMemoryLayout,
+    layout: RuntimeMemoryLayout,
     pt: OffsetPageTable<'a>,
     pub regions: Vec<ResourceDescription>,
 }
 
 impl<'a> Memory<'a> {
-    pub fn new(resources: &[ResourceDescription]) -> Option<Self> {
+    pub fn new(
+        resources: &[ResourceDescription],
+        payload_info: Option<PayloadInfo>,
+    ) -> Option<Self> {
         // Init memory resources
         let regions = Self::init_memory_resources(resources);
+        let payload_type = payload_info
+            .map(|info| info.image_type.into())
+            .unwrap_or(TdPayloadInfoHobType::ExecutablePayload);
 
         // Look for the top region with appropriate size above the
         // low memory and below 4G.
-        let mut runtime_top = 0;
-        for entry in &regions {
-            let entry_top = entry.physical_start + entry.resource_length;
-            if entry.resource_type == RESOURCE_SYSTEM_MEMORY
-                && entry_top < MEMORY_4G
-                && entry.resource_length >= MIN_MEMORY_SIZE
-                && entry_top > runtime_top
-            {
-                runtime_top = entry_top;
-            }
-        }
-        // Create the runtime layout if a suitable memory region can be found
-        if runtime_top == 0 {
-            return None;
-        }
-        let layout = RuntimeMemoryLayout::new(runtime_top);
+        let mut tolm = regions
+            .iter()
+            .map(|entry| {
+                let entry_top = entry.physical_start + entry.resource_length;
+                if entry.resource_type == RESOURCE_SYSTEM_MEMORY && entry_top < MEMORY_4G {
+                    entry_top
+                } else {
+                    0
+                }
+            })
+            .max()?;
 
+        let layout_config = match payload_type {
+            TdPayloadInfoHobType::ExecutablePayload => runtime::exec::MEMORY_LAYOUT_CONFIG,
+            TdPayloadInfoHobType::BzImage | TdPayloadInfoHobType::RawVmLinux => {
+                runtime::linux::MEMORY_LAYOUT_CONFIG
+            }
+            TdPayloadInfoHobType::UnknownImage => return None,
+        };
+        let layout = RuntimeMemoryLayout::new(tolm as usize, layout_config)?;
+
+        let page_table_address = layout
+            .get_region(SliceType::PayloadPageTable)
+            .expect("Unable to get page table slice")
+            .base_address;
         // Create an offset page table instance to manage the paging
         let pt = unsafe {
             OffsetPageTable::new(
-                &mut *(layout.runtime_page_table_base as *mut PageTable),
+                &mut *(page_table_address as *mut PageTable),
                 VirtAddr::new(td_paging::PHYS_VIRT_OFFSET as u64),
             )
         };
@@ -80,9 +92,10 @@ impl<'a> Memory<'a> {
     // - Frame size for other memory region is 1G bytes.
     pub fn setup_paging(&mut self) {
         // Init frame allocator
+        let page_table_region = self.get_layout_region(SliceType::PayloadPageTable);
         td_paging::init(
-            self.layout.runtime_page_table_base,
-            PAYLOAD_PAGE_TABLE_SIZE as usize,
+            page_table_region.base_address as u64,
+            page_table_region.size,
         );
 
         // Create mapping for 0 - base address of runtime layout region
@@ -91,29 +104,9 @@ impl<'a> Memory<'a> {
             PhysAddr::new(0),
             VirtAddr::new(0),
             td_paging::PAGE_SIZE_DEFAULT as u64,
-            self.layout.runtime_memory_bottom,
+            MEMORY_4G,
         )
         .expect("Fail to map 0 to runtime memory bottom");
-
-        // Create mapping for runtime layout region
-        td_paging::create_mapping(
-            &mut self.pt,
-            PhysAddr::new(self.layout.runtime_memory_bottom),
-            VirtAddr::new(self.layout.runtime_memory_bottom),
-            td_paging::PAGE_SIZE_4K as u64,
-            self.layout.runtime_memory_top - self.layout.runtime_memory_bottom,
-        )
-        .expect("Fail to map runtime memory region");
-
-        // Create mapping from top of runtime layout region to 4G
-        td_paging::create_mapping(
-            &mut self.pt,
-            PhysAddr::new(self.layout.runtime_memory_top),
-            VirtAddr::new(self.layout.runtime_memory_top),
-            td_paging::PAGE_SIZE_DEFAULT as u64,
-            MEMORY_4G - self.layout.runtime_memory_top,
-        )
-        .expect("Fail to map runtime memory top to 4G");
 
         // Setup page table only for system memory resources higher than 4G
         for m in &self.regions {
@@ -132,7 +125,10 @@ impl<'a> Memory<'a> {
             }
         }
 
-        td_paging::cr3_write(self.layout.runtime_page_table_base);
+        td_paging::cr3_write(
+            self.get_layout_region(SliceType::PayloadPageTable)
+                .base_address as u64,
+        );
     }
 
     pub fn create_e820(&self) -> E820Table {
@@ -141,28 +137,38 @@ impl<'a> Memory<'a> {
             table.add_range(E820Type::Memory, r.physical_start, r.resource_length);
         }
 
-        table.convert_range(
-            E820Type::Reserved,
-            self.layout.runtime_page_table_base,
-            PAYLOAD_PAGE_TABLE_SIZE as u64,
-        );
-        table.convert_range(
-            E820Type::Acpi,
-            self.layout.runtime_acpi_base,
-            runtime::ACPI_SIZE as u64,
-        );
-        table.convert_range(
-            E820Type::Nvs,
-            self.layout.runtime_event_log_base,
-            runtime::EVENT_LOG_SIZE as u64,
-        );
-        table.convert_range(
-            E820Type::Nvs,
-            self.layout.runtime_mailbox_base as u64,
-            runtime::RELOCATED_MAILBOX_SIZE as u64,
-        );
+        for r in self.layout.regions() {
+            let e820_type: E820Type = r.r#type.into();
+            if e820_type != E820Type::Memory {
+                table.convert_range(r.r#type.into(), r.base_address as u64, r.size as u64);
+            }
+        }
 
         table
+    }
+
+    pub fn get_dynamic_mem_slice(&self, name: SliceType) -> &'static [u8] {
+        unsafe {
+            self.layout
+                .get_mem_slice(name)
+                .unwrap_or_else(|| panic!("Unable to get {} slice", name))
+        }
+    }
+
+    pub fn get_dynamic_mem_slice_mut(&self, name: SliceType) -> &'static mut [u8] {
+        // Safe because we are the only user in single-thread context.
+        unsafe {
+            self.layout
+                .get_mem_slice_mut(name)
+                .unwrap_or_else(|| panic!("Unable to get {} slice", name))
+        }
+    }
+
+    pub fn get_layout_region(&self, name: SliceType) -> LayoutRegion {
+        // Safe because we are the only user in single-thread context.
+        self.layout
+            .get_region(name)
+            .unwrap_or_else(|| panic!("Unable to get information about {} memory region", name))
     }
 
     fn init_memory_resources(resources: &[ResourceDescription]) -> Vec<ResourceDescription> {
@@ -233,18 +239,13 @@ impl<'a> Memory<'a> {
         false
     }
 
-    #[cfg(feature = "tdx")]
+    #[cfg(all(feature = "tdx"))]
     /// Build a 2M granularity bitmap for kernel to track the unaccepted memory
     pub fn build_unaccepted_memory_bitmap(&self) -> u64 {
         #[cfg(not(feature = "lazy-accept"))]
         return 0;
 
-        let bitmap = unsafe {
-            memslice::get_dynamic_mem_slice_mut(
-                memslice::SliceType::UnacceptedMemoryBitmap,
-                self.layout.runtime_unaccepted_bitmap_base as usize,
-            )
-        };
+        let bitmap = self.get_dynamic_mem_slice_mut(memslice::SliceType::UnacceptedMemoryBitmap);
 
         for region in self.regions.as_slice() {
             if region.resource_type == RESOURCE_MEMORY_UNACCEPTED {
@@ -276,12 +277,12 @@ impl<'a> Memory<'a> {
             }
         }
 
-        self.layout.runtime_unaccepted_bitmap_base
+        self.get_layout_region(SliceType::UnacceptedMemoryBitmap)
+            .base_address as u64
     }
 
     #[cfg(feature = "tdx")]
     fn accept_memory_resources(resources: &mut Vec<ResourceDescription>) {
-        #[cfg(feature = "lazy-accept")]
         use td_layout::TD_PAYLOAD_PARTIAL_ACCEPT_MEMORY_SIZE;
         use td_uefi_pi::pi;
 

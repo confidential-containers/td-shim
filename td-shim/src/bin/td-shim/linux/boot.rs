@@ -5,7 +5,6 @@
 use core::mem::size_of;
 use scroll::{Pread, Pwrite};
 use td_layout as layout;
-use td_layout::runtime::{KERNEL_PARAMETER_BASE, KERNEL_PARAMETER_SIZE};
 use td_shim::{e820::E820Entry, PayloadInfo, TdPayloadInfoHobType};
 use x86_64::{
     instructions::{segmentation::Segment, tables::lgdt},

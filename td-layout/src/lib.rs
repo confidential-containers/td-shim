@@ -18,159 +18,101 @@
 //!   programming world. This is also necessary to soundly do more elaborate tricks with data layout
 //!   such as reinterpreting values as a different type.
 
-use core::fmt;
+use memslice::SliceType;
 
 pub mod build_time;
 pub mod mailbox;
 pub mod memslice;
 pub mod runtime;
 
-use runtime::*;
-
-// Minimal memory size to build the runtime layout.
-#[cfg(feature = "boot-kernel")]
-pub const MIN_MEMORY_SIZE: u64 = (ACPI_SIZE
-    + UNACCEPTED_MEMORY_BITMAP_SIZE
-    + PAYLOAD_PAGE_TABLE_SIZE
-    + EVENT_LOG_SIZE
-    + RELOCATED_MAILBOX_SIZE) as u64;
-
-#[cfg(not(feature = "boot-kernel"))]
-pub const MIN_MEMORY_SIZE: u64 =
-    (ACPI_SIZE + PAYLOAD_SIZE + PAYLOAD_PAGE_TABLE_SIZE + EVENT_LOG_SIZE + RELOCATED_MAILBOX_SIZE)
-        as u64;
-
 pub const TD_PAYLOAD_PARTIAL_ACCEPT_MEMORY_SIZE: u32 = 0x10000000;
 
-#[derive(Default)]
+const MAX_RUNTIME_LAYOUT_REGION: usize = 32;
+
+pub type LayoutConfig = (&'static str, usize, &'static str);
+
+#[derive(Clone, Copy, Debug)]
+pub struct LayoutRegion {
+    pub name: &'static str,
+    pub base_address: usize,
+    pub size: usize,
+    pub r#type: &'static str,
+}
+
+impl Default for LayoutRegion {
+    fn default() -> Self {
+        Self {
+            name: "Unknown",
+            base_address: 0,
+            size: 0,
+            r#type: "Unknown",
+        }
+    }
+}
+
 pub struct RuntimeMemoryLayout {
-    pub runtime_event_log_base: u64,
-    pub runtime_page_table_base: u64,
-    pub runtime_acpi_base: u64,
-    pub runtime_mailbox_base: u64,
-    pub runtime_unaccepted_bitmap_base: u64,
-    pub runtime_payload_base: u64,
-    pub runtime_memory_bottom: u64,
-    pub runtime_memory_top: u64,
+    regions: [LayoutRegion; MAX_RUNTIME_LAYOUT_REGION],
+    used_num: usize,
 }
 
 impl RuntimeMemoryLayout {
-    pub fn new(memory_top: u64) -> Self {
-        // Align the base with 4KiB
-        let mut current_base = memory_top & !0xfff;
-
-        if current_base < MIN_MEMORY_SIZE {
-            panic!("memory_top 0x{:x} is too small", memory_top);
+    pub fn new(tolm: usize, config: &[LayoutConfig]) -> Option<Self> {
+        let total_size = config.iter().map(|item| item.1).sum();
+        if config.len() > MAX_RUNTIME_LAYOUT_REGION || tolm < total_size {
+            return None;
         }
 
-        current_base -= EVENT_LOG_SIZE as u64;
-        let runtime_event_log_base = current_base;
+        let mut regions = [LayoutRegion::default(); MAX_RUNTIME_LAYOUT_REGION];
+        let mut used_num = 0;
+        let mut bottom = 0;
+        let mut top = tolm;
+        for (idx, item) in config.iter().enumerate() {
+            regions[idx].name = item.0;
+            regions[idx].size = item.1;
+            regions[idx].r#type = item.2;
 
-        current_base -= RELOCATED_MAILBOX_SIZE as u64;
-        let runtime_mailbox_base = current_base;
+            if regions[idx].r#type == "Memory" {
+                regions[idx].base_address = bottom;
+                bottom += regions[idx].size;
+            } else {
+                regions[idx].base_address = top - regions[idx].size;
+                top = regions[idx].base_address;
+            }
 
-        current_base -= PAYLOAD_PAGE_TABLE_SIZE as u64;
-        let runtime_page_table_base = current_base;
-
-        // Payload memory does not need to be reserved for booting Linux Kernel
-        #[cfg(not(feature = "boot-kernel"))]
-        {
-            current_base -= PAYLOAD_SIZE as u64;
+            used_num += 1;
         }
-        let runtime_payload_base = current_base;
 
-        current_base -= ACPI_SIZE as u64;
-        let runtime_acpi_base = current_base;
+        Some(Self { regions, used_num })
+    }
 
-        #[cfg(feature = "boot-kernel")]
-        {
-            current_base -= UNACCEPTED_MEMORY_BITMAP_SIZE as u64;
+    pub fn regions(&self) -> &[LayoutRegion] {
+        &self.regions.as_slice()[..self.used_num]
+    }
+
+    pub fn get_region(&self, name: SliceType) -> Option<LayoutRegion> {
+        self.regions
+            .iter()
+            .find(|item| item.name == name.as_str())
+            .map(|region| *region)
+    }
+
+    pub unsafe fn get_mem_slice(&self, name: SliceType) -> Option<&'static [u8]> {
+        let region = self.get_region(name)?;
+        unsafe {
+            Some(core::slice::from_raw_parts(
+                region.base_address as *const u8,
+                region.size,
+            ))
         }
-        let runtime_unaccepted_bitmap_base = current_base;
+    }
 
-        RuntimeMemoryLayout {
-            runtime_event_log_base,
-            runtime_mailbox_base,
-            runtime_page_table_base,
-            runtime_acpi_base,
-            runtime_unaccepted_bitmap_base,
-            runtime_payload_base,
-            runtime_memory_bottom: current_base,
-            runtime_memory_top: memory_top,
+    pub unsafe fn get_mem_slice_mut(&self, name: SliceType) -> Option<&'static mut [u8]> {
+        let region = self.get_region(name)?;
+        unsafe {
+            Some(core::slice::from_raw_parts_mut(
+                region.base_address as *mut u8,
+                region.size,
+            ))
         }
-    }
-}
-
-impl fmt::Debug for RuntimeMemoryLayout {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("RuntimeMemoryLayout")
-            .field(
-                "runtime_mailbox_base",
-                &format_args!("0x{:x}", self.runtime_mailbox_base),
-            )
-            .field(
-                "runtime_event_log_base",
-                &format_args!("0x{:x}", self.runtime_event_log_base),
-            )
-            .field(
-                "runtime_page_table_base",
-                &format_args!("0x{:x}", self.runtime_page_table_base),
-            )
-            .field(
-                "runtime_acpi_base",
-                &format_args!("0x{:x}", self.runtime_acpi_base),
-            )
-            .finish()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    #[should_panic]
-    fn test_invalid_memory_top() {
-        RuntimeMemoryLayout::new(MIN_MEMORY_SIZE as u64 - 0x100000);
-    }
-
-    #[test]
-    fn test_runtime_memory_layout_new() {
-        let layout = RuntimeMemoryLayout::new(MIN_MEMORY_SIZE + 0x100);
-
-        assert_eq!(
-            layout.runtime_mailbox_base,
-            MIN_MEMORY_SIZE as u64 - (EVENT_LOG_SIZE + RELOCATED_MAILBOX_SIZE) as u64,
-        );
-
-        assert_eq!(
-            layout.runtime_event_log_base,
-            MIN_MEMORY_SIZE as u64 - EVENT_LOG_SIZE as u64,
-        );
-    }
-
-    #[test]
-    #[cfg(feature = "boot-kernel")]
-    fn test_runtime_memory_layout_boot_kernel() {
-        assert_eq!(MIN_MEMORY_SIZE, 0x262000);
-
-        let layout = RuntimeMemoryLayout::new(MIN_MEMORY_SIZE + 0x1000);
-
-        assert_eq!(layout.runtime_memory_bottom, 0x1000);
-    }
-
-    #[test]
-    #[cfg(not(feature = "boot-kernel"))]
-    fn test_runtime_memory_layout_boot_payload() {
-        assert_eq!(MIN_MEMORY_SIZE, 0x2222000);
-
-        let layout = RuntimeMemoryLayout::new(MIN_MEMORY_SIZE + 0x1000);
-
-        assert_eq!(layout.runtime_memory_bottom, 0x1000);
-    }
-
-    #[test]
-    fn test_runtime_memory_layout_default() {
-        let _ = RuntimeMemoryLayout::default();
     }
 }
