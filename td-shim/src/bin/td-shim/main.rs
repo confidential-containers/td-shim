@@ -15,6 +15,7 @@ use asm::{empty_exception_handler, empty_exception_handler_size};
 use core::ffi::c_void;
 use core::mem::size_of;
 use core::panic::PanicInfo;
+use memory::Memory;
 use td_exception::idt::{load_idtr, DescriptorTablePointer, Idt, IdtEntry};
 use td_shim::event_log::CCEL_CC_TYPE_TDX;
 use x86_64::registers::segmentation::{Segment, CS};
@@ -26,8 +27,7 @@ use zerocopy::{AsBytes, ByteSlice, FromBytes};
 
 use cc_measurement::{log::CcEventLogWriter, EV_EFI_HANDOFF_TABLES2, EV_PLATFORM_CONFIG_FLAGS};
 use td_layout::build_time::{self, *};
-use td_layout::memslice::{self, get_dynamic_mem_slice_mut, SliceType};
-use td_layout::runtime::{self, *};
+use td_layout::memslice::{self, SliceType};
 use td_layout::RuntimeMemoryLayout;
 use td_shim::acpi::{Ccel, GenericSdtHeader};
 use td_shim::event_log::{log_hob_list, log_payload_binary, log_payload_parameter};
@@ -108,21 +108,19 @@ pub extern "win64" fn _start(
         BootTimeDynamic::new(&static_info).expect("Fail to initialize dynamic information");
 
     // Initialize memory subsystem.
-    let mut mem = memory::Memory::new(&dynamic_info.memory)
+    let mut mem = memory::Memory::new(&dynamic_info.memory, dynamic_info.payload_info)
         .expect("Unable to find a piece of suitable memory for runtime");
     mem.setup_paging();
 
     // Relocate the page table that map all the physical memory
-    td::relocate_ap_page_table(mem.layout.runtime_page_table_base);
+    td::relocate_ap_page_table(
+        mem.get_layout_region(SliceType::PayloadPageTable)
+            .base_address as u64,
+    );
 
     // Set up the TD event log buffer.
     // Safe because it's used to initialize the EventLog subsystem which ensures safety.
-    let event_log_buf = unsafe {
-        memslice::get_dynamic_mem_slice_mut(
-            memslice::SliceType::EventLog,
-            mem.layout.runtime_event_log_base as usize,
-        )
-    };
+    let event_log_buf = mem.get_dynamic_mem_slice_mut(memslice::SliceType::EventLog);
     let mut td_event_log = CcEventLogWriter::new(event_log_buf, Box::new(td::extend_rtmr))
         .expect("Failed to create and initialize the event log");
 
@@ -133,7 +131,7 @@ pub extern "win64" fn _start(
 
     let num_vcpus = td::get_num_vcpus();
     //Create MADT and TDEL
-    let (madt, tdel) = prepare_acpi_tables(&mut dynamic_info.acpi_tables, &mem.layout, num_vcpus);
+    let (madt, tdel) = prepare_acpi_tables(&mut dynamic_info.acpi_tables, &mem, num_vcpus);
     dynamic_info.acpi_tables.push(madt.as_bytes());
     dynamic_info.acpi_tables.push(tdel.as_bytes());
 
@@ -170,24 +168,18 @@ fn boot_linux_kernel(
         _ => panic!("Unknown kernel image type {}!!!", kernel_info.image_type),
     };
 
-    let rsdp = install_acpi_tables(acpi_tables, &mem.layout);
+    let rsdp = install_acpi_tables(acpi_tables, mem.get_dynamic_mem_slice_mut(SliceType::Acpi));
     let e820_table = mem.create_e820();
     log::info!("e820 table: {:x?}\n", e820_table.as_slice());
     // Safe because we are handle off this buffer to linux kernel.
-    let payload = unsafe { memslice::get_mem_slice_mut(memslice::SliceType::Kernel) };
-    let payload_parameter =
-        unsafe { memslice::get_mem_slice(memslice::SliceType::KernelParameter) };
+    let payload = mem.get_dynamic_mem_slice_mut(SliceType::Payload);
+    let payload_parameter = mem.get_dynamic_mem_slice(SliceType::PayloadParameter);
 
     // Record the payload binary/paramater into event log.
     log_payload_binary(payload, event_log);
     log_payload_parameter(payload_parameter, event_log);
 
-    let mailbox = unsafe {
-        get_dynamic_mem_slice_mut(
-            SliceType::RelocatedMailbox,
-            mem.layout.runtime_mailbox_base as usize,
-        )
-    };
+    let mailbox = mem.get_dynamic_mem_slice_mut(SliceType::RelocatedMailbox);
 
     linux::boot::boot_kernel(
         payload,
@@ -227,18 +219,16 @@ fn boot_builtin_payload(
     // Create an EV_SEPARATOR event to mark the end of the td-shim events
     event_log.create_seperator();
 
-    // Safe because we are the only user in single-thread context.
-    let payload = unsafe {
-        memslice::get_dynamic_mem_slice_mut(
-            memslice::SliceType::Payload,
-            mem.layout.runtime_payload_base as usize,
-        )
-    };
+    let payload = mem.get_dynamic_mem_slice_mut(memslice::SliceType::Payload);
     let relocation_info = ipl::find_and_report_entry_point(mem, payload_bin, payload)
         .expect("Entry point not found!");
 
+    let payload_hob_region = mem.get_layout_region(SliceType::Acpi);
     // Set up NX (no-execute) protection for payload hob
-    mem.set_nx_bit(mem.layout.runtime_acpi_base, ACPI_SIZE as u64);
+    mem.set_nx_bit(
+        payload_hob_region.base_address as u64,
+        payload_hob_region.size as u64,
+    );
 
     // Prepare the HOB list to run the image
     payload_hob::build_payload_hob(acpi_tables, &mem).expect("Fail to create payload HOB");
@@ -249,12 +239,7 @@ fn boot_builtin_payload(
         relocation_info.entry_point as *const usize,
     );
 
-    let mailbox = unsafe {
-        get_dynamic_mem_slice_mut(
-            SliceType::RelocatedMailbox,
-            mem.layout.runtime_mailbox_base as usize,
-        )
-    };
+    let mailbox = mem.get_dynamic_mem_slice_mut(SliceType::RelocatedMailbox);
 
     // Relocate the Interrupt Descriptor Table before jump to payload
     switch_idt(mailbox);
@@ -270,8 +255,8 @@ fn boot_builtin_payload(
                 )
             };
             entry(
-                mem.layout.runtime_acpi_base,
-                mem.layout.runtime_payload_base,
+                payload_hob_region.base_address as u64,
+                payload.as_ptr() as u64,
             );
         }
         ExecutablePayloadType::PeCoff => {
@@ -281,8 +266,8 @@ fn boot_builtin_payload(
                 )
             };
             entry(
-                mem.layout.runtime_acpi_base,
-                mem.layout.runtime_payload_base,
+                payload_hob_region.base_address as u64,
+                payload.as_ptr() as u64,
             );
         }
     };
@@ -329,14 +314,7 @@ pub fn switch_idt(mailbox: &mut [u8]) {
 
 // Install ACPI tables into ACPI reclaimable memory for the virtual machine
 // and panics if error happens.
-fn install_acpi_tables(acpi_tables: &Vec<&[u8]>, layout: &RuntimeMemoryLayout) -> u64 {
-    // Safe because BSP is the only active vCPU so it's single-threaded context.
-    let acpi_slice = unsafe {
-        memslice::get_dynamic_mem_slice_mut(
-            memslice::SliceType::Acpi,
-            layout.runtime_acpi_base as usize,
-        )
-    };
+fn install_acpi_tables(acpi_tables: &Vec<&[u8]>, acpi_slice: &mut [u8]) -> u64 {
     let mut acpi = acpi::AcpiTables::new(acpi_slice, acpi_slice.as_ptr() as *const _ as u64);
 
     for &table in acpi_tables {
@@ -347,11 +325,7 @@ fn install_acpi_tables(acpi_tables: &Vec<&[u8]>, layout: &RuntimeMemoryLayout) -
 }
 
 // Prepare ACPI tables for payload and panic if error happens
-fn prepare_acpi_tables(
-    acpi_tables: &mut Vec<&[u8]>,
-    layout: &RuntimeMemoryLayout,
-    vcpus: u32,
-) -> (mp::Madt, Ccel) {
+fn prepare_acpi_tables(acpi_tables: &mut Vec<&[u8]>, mem: &Memory, vcpus: u32) -> (mp::Madt, Ccel) {
     let mut vmm_madt = None;
     let mut idx = 0;
     while idx < acpi_tables.len() {
@@ -375,19 +349,21 @@ fn prepare_acpi_tables(
         idx += 1;
     }
 
+    let mailbox_region = mem.get_layout_region(SliceType::RelocatedMailbox);
     let madt = if let Some(vmm_madt) = vmm_madt {
-        mp::create_madt(vmm_madt, layout.runtime_mailbox_base as u64)
+        mp::create_madt(vmm_madt, mailbox_region.base_address as u64)
             .expect("Failed to create ACPI MADT table")
     } else {
-        mp::create_madt_default(vcpus, layout.runtime_mailbox_base as u64)
+        mp::create_madt_default(vcpus, mailbox_region.base_address as u64)
             .expect("Failed to create ACPI MADT table")
     };
 
+    let event_log_region = mem.get_layout_region(SliceType::EventLog);
     let tdel = Ccel::new(
         CCEL_CC_TYPE_TDX,
         0,
-        EVENT_LOG_SIZE as u64,
-        layout.runtime_event_log_base as u64,
+        event_log_region.size as u64,
+        event_log_region.base_address as u64,
     );
 
     (madt, tdel)
