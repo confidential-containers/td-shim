@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
 use core::{fmt, fmt::Display};
+use inflector::cases::{pascalcase, screamingsnakecase};
 use serde::{Deserialize, Serialize};
 use std::ops::Range;
 
@@ -11,6 +12,7 @@ pub(crate) const ENTRY_TYPE_FILTER: &str = "FilterType";
 #[derive(Serialize, Deserialize, Clone)]
 pub struct LayoutEntry {
     name: String,
+    name_screaming_snake_case: String,
     region: Range<usize>,
     entry_type: String,
     tolm: bool,
@@ -18,8 +20,12 @@ pub struct LayoutEntry {
 
 impl LayoutEntry {
     pub fn new(name: String, region: Range<usize>, entry_type: String, tolm: bool) -> Self {
+        let name = pascalcase::to_pascal_case(&name);
+        let name_screaming_snake_case = screamingsnakecase::to_screaming_snake_case(&name);
+
         Self {
             name,
+            name_screaming_snake_case,
             region,
             entry_type,
             tolm,
@@ -74,7 +80,7 @@ impl LayoutConfig {
         self.list.insert(
             self.free_index,
             LayoutEntry::new(
-                name.to_string().to_ascii_uppercase(),
+                name.to_string(),
                 self.free_base()..self.free_base() + length,
                 entry_type.to_string(),
                 false,
@@ -94,7 +100,7 @@ impl LayoutConfig {
         self.list.insert(
             self.free_index + 1,
             LayoutEntry::new(
-                name.to_string().to_ascii_uppercase(),
+                name.to_string(),
                 new_free_top..new_free_top + length,
                 entry_type.to_string(),
                 true,
