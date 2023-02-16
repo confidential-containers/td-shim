@@ -1,0 +1,39 @@
+{
+    "memory_regions": [
+        {
+            "name": "Bootloader",
+            "size": "0x800000",
+            "type": "Memory"
+        },
+        {
+            "name": "TdHob",
+            "size": "0x20000",
+            "type": "Memory"
+        },
+        {
+            "name": "EventLog",
+            "size": "0x100000",
+            "type": "Nvs"
+        },
+        {
+            "name": "RelocatedMailbox",
+            "size": "0x2000",
+            "type": "Nvs"
+        },
+        {
+            "name": "PayloadPageTable",
+            "size": "0x20000",
+            "type": "Reserved"
+        },
+        {
+            "name": "Payload",
+            "size": "0x2000000",
+            "type": "Reserved"
+        },
+        {
+            "name": "Acpi",
+            "size": "0x100000",
+            "type": "Acpi"
+        }
+    ]
+}
