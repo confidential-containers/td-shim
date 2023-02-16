@@ -9,7 +9,7 @@ Memory Layout Example
 Top of Low Memory: {{tolm|format_hex}}
 {%- for m in memory_regions | reverse%}
 {{true|format_layout_border}} <- {{m.region.end|format_hex}}
-|{{m.name | format_name}}|   ({{m.region.end - m.region.start|format_hex}}) {{m.region.end - m.region.start|filesizeformat}}
+|{{m.name_screaming_snake_case | format_name}}|   ({{m.region.end - m.region.start|format_hex}}) {{m.region.end - m.region.start|filesizeformat}}
 {%- endfor %}
 {{true|format_layout_border}} <- {{memory_regions_base|format_hex}}
 Total Usage: {{total_usage|format_hex}} ({{total_usage|filesizeformat}})
@@ -21,9 +21,9 @@ pub const TOTAL_USAGE: usize = {{total_usage|format_hex}}; // ({{total_usage|fil
 {%- for m in memory_regions %}
 {%- if m.entry_type != entry_type_filter %}
 {%- if m.tolm == false %}
-pub const {{m.name}}_BASE: usize = {{m.region.start | format_hex }};
+pub const {{m.name_screaming_snake_case}}_BASE: usize = {{m.region.start | format_hex }};
 {%- endif %}
-pub const {{m.name}}_SIZE: usize = {{m.region.end - m.region.start | format_hex }}; // {{m.region.end - m.region.start|filesizeformat}}
+pub const {{m.name_screaming_snake_case}}_SIZE: usize = {{m.region.end - m.region.start | format_hex }}; // {{m.region.end - m.region.start|filesizeformat}}
 {%- endif %}
 {%- endfor %}
 
