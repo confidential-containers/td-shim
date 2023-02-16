@@ -4,7 +4,7 @@
 
 use zerocopy::{AsBytes, FromBytes};
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u32)]
 pub enum E820Type {
     Memory = 1,
@@ -16,6 +16,23 @@ pub enum E820Type {
     Pmem = 7,
     Unaccepted = 8,
     Unknown = 0xff,
+}
+
+impl From<&str> for E820Type {
+    fn from(str: &str) -> Self {
+        match str {
+            "Memory" => E820Type::Memory,
+            "Reserved" => E820Type::Reserved,
+            "Acpi" => E820Type::Acpi,
+            "Nvs" => E820Type::Nvs,
+            "Unusable" => E820Type::Unusable,
+            "Disabled" => E820Type::Disabled,
+            "Pmem" => E820Type::Pmem,
+            "Unaccepted" => E820Type::Unaccepted,
+            "Unknown" => E820Type::Unknown,
+            _ => E820Type::Unknown,
+        }
+    }
 }
 
 impl From<u32> for E820Type {
