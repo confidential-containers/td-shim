@@ -189,17 +189,17 @@ pub fn build_payload_hob(acpi_tables: &Vec<&[u8]>, memory: &Memory) -> Option<Pa
     e820.convert_range(
         E820Type::Reserved,
         memory.layout.runtime_page_table_base,
-        TD_PAYLOAD_PAGE_TABLE_SIZE as u64,
+        PAYLOAD_PAGE_TABLE_SIZE as u64,
     );
     e820.convert_range(
         E820Type::Reserved,
         memory.layout.runtime_payload_base,
-        TD_PAYLOAD_SIZE as u64,
+        PAYLOAD_SIZE as u64,
     );
     e820.convert_range(
         E820Type::Reserved,
         memory.layout.runtime_acpi_base,
-        TD_PAYLOAD_ACPI_SIZE as u64,
+        ACPI_SIZE as u64,
     );
 
     log::info!("e820 table: {:x?}\n", e820.as_slice());

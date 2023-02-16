@@ -29,18 +29,16 @@ use runtime::*;
 
 // Minimal memory size to build the runtime layout.
 #[cfg(feature = "boot-kernel")]
-pub const MIN_MEMORY_SIZE: u64 = (TD_PAYLOAD_ACPI_SIZE
-    + TD_PAYLOAD_UNACCEPTED_MEMORY_BITMAP_SIZE
-    + TD_PAYLOAD_PAGE_TABLE_SIZE
-    + TD_PAYLOAD_EVENT_LOG_SIZE
-    + TD_PAYLOAD_MAILBOX_SIZE) as u64;
+pub const MIN_MEMORY_SIZE: u64 = (ACPI_SIZE
+    + UNACCEPTED_MEMORY_BITMAP_SIZE
+    + PAYLOAD_PAGE_TABLE_SIZE
+    + EVENT_LOG_SIZE
+    + RELOCATED_MAILBOX_SIZE) as u64;
 
 #[cfg(not(feature = "boot-kernel"))]
-pub const MIN_MEMORY_SIZE: u64 = (TD_PAYLOAD_ACPI_SIZE
-    + TD_PAYLOAD_SIZE
-    + TD_PAYLOAD_PAGE_TABLE_SIZE
-    + TD_PAYLOAD_EVENT_LOG_SIZE
-    + TD_PAYLOAD_MAILBOX_SIZE) as u64;
+pub const MIN_MEMORY_SIZE: u64 =
+    (ACPI_SIZE + PAYLOAD_SIZE + PAYLOAD_PAGE_TABLE_SIZE + EVENT_LOG_SIZE + RELOCATED_MAILBOX_SIZE)
+        as u64;
 
 pub const TD_PAYLOAD_PARTIAL_ACCEPT_MEMORY_SIZE: u32 = 0x10000000;
 
@@ -65,28 +63,28 @@ impl RuntimeMemoryLayout {
             panic!("memory_top 0x{:x} is too small", memory_top);
         }
 
-        current_base -= TD_PAYLOAD_EVENT_LOG_SIZE as u64;
+        current_base -= EVENT_LOG_SIZE as u64;
         let runtime_event_log_base = current_base;
 
-        current_base -= TD_PAYLOAD_MAILBOX_SIZE as u64;
+        current_base -= RELOCATED_MAILBOX_SIZE as u64;
         let runtime_mailbox_base = current_base;
 
-        current_base -= TD_PAYLOAD_PAGE_TABLE_SIZE as u64;
+        current_base -= PAYLOAD_PAGE_TABLE_SIZE as u64;
         let runtime_page_table_base = current_base;
 
         // Payload memory does not need to be reserved for booting Linux Kernel
         #[cfg(not(feature = "boot-kernel"))]
         {
-            current_base -= TD_PAYLOAD_SIZE as u64;
+            current_base -= PAYLOAD_SIZE as u64;
         }
         let runtime_payload_base = current_base;
 
-        current_base -= TD_PAYLOAD_ACPI_SIZE as u64;
+        current_base -= ACPI_SIZE as u64;
         let runtime_acpi_base = current_base;
 
         #[cfg(feature = "boot-kernel")]
         {
-            current_base -= TD_PAYLOAD_UNACCEPTED_MEMORY_BITMAP_SIZE as u64;
+            current_base -= UNACCEPTED_MEMORY_BITMAP_SIZE as u64;
         }
         let runtime_unaccepted_bitmap_base = current_base;
 
@@ -142,12 +140,12 @@ mod tests {
 
         assert_eq!(
             layout.runtime_mailbox_base,
-            MIN_MEMORY_SIZE as u64 - (TD_PAYLOAD_EVENT_LOG_SIZE + TD_PAYLOAD_MAILBOX_SIZE) as u64,
+            MIN_MEMORY_SIZE as u64 - (EVENT_LOG_SIZE + RELOCATED_MAILBOX_SIZE) as u64,
         );
 
         assert_eq!(
             layout.runtime_event_log_base,
-            MIN_MEMORY_SIZE as u64 - TD_PAYLOAD_EVENT_LOG_SIZE as u64,
+            MIN_MEMORY_SIZE as u64 - EVENT_LOG_SIZE as u64,
         );
     }
 

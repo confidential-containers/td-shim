@@ -204,8 +204,8 @@ pub fn default_metadata_sections() -> MetadataSections {
     metadata_sections.add(TdxMetadataSection {
         data_offset: 0,
         raw_data_size: 0,
-        memory_address: KERNEL_PARAM_BASE as u64,
-        memory_data_size: KERNEL_PARAM_SIZE as u64,
+        memory_address: KERNEL_PARAMETER_BASE as u64,
+        memory_data_size: KERNEL_PARAMETER_SIZE as u64,
         r#type: TDX_METADATA_SECTION_TYPE_PAYLOAD_PARAM,
         attributes: 0,
     });
