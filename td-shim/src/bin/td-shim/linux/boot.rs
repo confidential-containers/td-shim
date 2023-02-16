@@ -60,7 +60,7 @@ pub fn boot_kernel(
     kernel: &[u8],
     rsdp_addr: u64,
     e820: &[E820Entry],
-    mailbox_base: u64,
+    mailbox: &mut [u8],
     info: &PayloadInfo,
     #[cfg(feature = "tdx")] unaccepted_bitmap: u64,
 ) -> Result<(), Error> {
@@ -110,10 +110,10 @@ pub fn boot_kernel(
     log::info!("Jump to kernel...\n");
 
     // Relocate the Interrupt Descriptor Table before jump to payload
-    switch_idt(mailbox_base);
+    switch_idt(mailbox);
 
     // Relocate Mailbox along side with the AP function
-    td::relocate_mailbox(mailbox_base as u32);
+    td::relocate_mailbox(mailbox);
 
     // Calling kernel 64bit entry follows sysv64 calling convention
     let entry64: extern "sysv64" fn(usize, usize) = unsafe { core::mem::transmute(entry64) };

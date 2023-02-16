@@ -182,11 +182,18 @@ fn boot_linux_kernel(
     log_payload_binary(payload, event_log);
     log_payload_parameter(payload_parameter, event_log);
 
+    let mailbox = unsafe {
+        get_dynamic_mem_slice_mut(
+            SliceType::RelocatedMailbox,
+            mem.layout.runtime_mailbox_base as usize,
+        )
+    };
+
     linux::boot::boot_kernel(
         payload,
         rsdp,
         e820_table.as_slice(),
-        mem.layout.runtime_mailbox_base,
+        mailbox,
         kernel_info,
         #[cfg(feature = "tdx")]
         mem.build_unaccepted_memory_bitmap(),
@@ -241,11 +248,18 @@ fn boot_builtin_payload(
         relocation_info.entry_point as *const usize,
     );
 
+    let mailbox = unsafe {
+        get_dynamic_mem_slice_mut(
+            SliceType::RelocatedMailbox,
+            mem.layout.runtime_mailbox_base as usize,
+        )
+    };
+
     // Relocate the Interrupt Descriptor Table before jump to payload
-    switch_idt(mem.layout.runtime_mailbox_base);
+    switch_idt(mailbox);
 
     // Relocate Mailbox along side with the AP function
-    td::relocate_mailbox(mem.layout.runtime_mailbox_base as u32);
+    td::relocate_mailbox(mailbox);
 
     match relocation_info.image_type {
         ExecutablePayloadType::Elf => {
@@ -274,18 +288,12 @@ fn boot_builtin_payload(
 }
 
 // Reuse mailbox for the IDT used before payload setup its own one.
-pub fn switch_idt(mailbox_base: u64) {
+pub fn switch_idt(mailbox: &mut [u8]) {
     // IDT offset inside the mailbox memory region.
     const IDT_OFFSET: usize = 0xC00;
     const IDT_SIZE: usize = 0x400;
 
-    let idt_base = mailbox_base + IDT_OFFSET as u64;
-    let idt_page = &mut unsafe {
-        memslice::get_dynamic_mem_slice_mut(
-            memslice::SliceType::RelocatedMailbox,
-            mailbox_base as usize,
-        )
-    }[IDT_OFFSET..IDT_OFFSET + IDT_SIZE];
+    let idt_page = &mut mailbox[IDT_OFFSET..IDT_OFFSET + IDT_SIZE];
 
     // Set IDT only for interrupt [0..32)
     let mut idt =
@@ -303,13 +311,14 @@ pub fn switch_idt(mailbox_base: u64) {
         core::slice::from_raw_parts(empty_exception_handler as u64 as *const u8, handler_size)
     });
 
+    let idt_base = idt_page.as_ptr() as usize;
     for entry in idt {
-        entry.set_func(idt_base as usize + handler_offset);
+        entry.set_func(idt_base + handler_offset);
     }
 
     let idt_ptr = DescriptorTablePointer {
         limit: size_of::<IdtEntry>() as u16 * 32,
-        base: VirtAddr::new(idt_base),
+        base: VirtAddr::new(idt_base as u64),
     };
     unsafe { load_idtr(&idt_ptr) };
 
