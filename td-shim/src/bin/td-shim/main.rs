@@ -191,6 +191,7 @@ fn boot_linux_kernel(
 
     linux::boot::boot_kernel(
         payload,
+        payload_parameter,
         rsdp,
         e820_table.as_slice(),
         mailbox,

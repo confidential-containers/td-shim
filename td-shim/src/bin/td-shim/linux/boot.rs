@@ -30,7 +30,7 @@ pub enum Error {
     UnknownImageType,
 }
 
-pub fn setup_header(kernel_image: &[u8]) -> Result<SetupHeader, Error> {
+pub fn setup_header(kernel_image: &[u8], kernel_parameter: &[u8]) -> Result<SetupHeader, Error> {
     let mut setup_header = SetupHeader::from_file(kernel_image);
 
     if setup_header.header != HDR_SIGNATURE {
@@ -51,13 +51,14 @@ pub fn setup_header(kernel_image: &[u8]) -> Result<SetupHeader, Error> {
 
     setup_header.type_of_loader = HDR_TYPE_LOADER;
     setup_header.code32_start = kernel_image.as_ptr() as u32 + setup_bytes;
-    setup_header.cmd_line_ptr = KERNEL_PARAMETER_BASE as u32;
+    setup_header.cmd_line_ptr = kernel_parameter.as_ptr() as u32;
 
     Ok(setup_header)
 }
 
 pub fn boot_kernel(
     kernel: &[u8],
+    kernel_parameter: &[u8],
     rsdp_addr: u64,
     e820: &[E820Entry],
     mailbox: &mut [u8],
@@ -76,7 +77,7 @@ pub fn boot_kernel(
     let image_type = TdPayloadInfoHobType::from(info.image_type);
     let entry64 = match image_type {
         TdPayloadInfoHobType::BzImage => {
-            params.hdr = setup_header(kernel)?;
+            params.hdr = setup_header(kernel, kernel_parameter)?;
             params.hdr.code32_start as u64 + 0x200
         }
         TdPayloadInfoHobType::RawVmLinux => {
@@ -84,8 +85,8 @@ pub fn boot_kernel(
             params.hdr.boot_flag = HDR_BOOT_FLAG;
             params.hdr.header = HDR_SIGNATURE;
             params.hdr.kernel_alignment = 0x0100_0000;
-            params.hdr.cmd_line_ptr = KERNEL_PARAMETER_BASE as u32;
-            params.hdr.cmdline_size = KERNEL_PARAMETER_SIZE as u32;
+            params.hdr.cmd_line_ptr = kernel_parameter.as_ptr() as u32;
+            params.hdr.cmdline_size = kernel_parameter.len() as u32;
             info.entry_point
         }
         _ => return Err(Error::UnknownImageType),
