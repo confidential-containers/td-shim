@@ -44,7 +44,7 @@ This repo includes a full `td-shim`, and sample `td-payload`. The consumer may c
 
 [rust-tdshim](../td-shim) is a core of td-shim. The entrypoint is `_start()` at [main](../td-shim/src/bin/td-shim/main.rs). It will initialize the td-shim and switch to td-payload at `switch_stack_call()` of [main](../td-shim/src/bin/td-shim/main.rs).
 
-The VMM may pass a TD Hand-Off Block (HOB) to the `td-shim` as parameter. The TD HOB is measured and event log is created at `create_td_event()` in [tcg.rs](../td-shim/src/tcg.rs).
+The VMM may pass a TD Hand-Off Block (HOB) to the `td-shim` as parameter. The TD HOB is measured and event log is created at `log_hob_list()` in [event_log.rs](../td-shim/src/event_log.rs).
 
 Data Execution Prevention (DEP) is setup at `find_and_report_entry_point()` in [ipl.rs](../td-shim/src/ipl.rs). The primitive `set_nx_bit()` and `set_write_protect()` are provided by [memory.rs](../td-shim/src/memory.rs).
 
