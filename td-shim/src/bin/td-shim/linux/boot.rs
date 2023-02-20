@@ -6,7 +6,7 @@ use core::mem::size_of;
 use scroll::{Pread, Pwrite};
 use td_layout as layout;
 use td_layout::runtime::{KERNEL_PARAM_BASE, KERNEL_PARAM_SIZE};
-use td_shim::{e820::E820Entry, PayloadInfo, TdKernelInfoHobType};
+use td_shim::{e820::E820Entry, PayloadInfo, TdPayloadInfoHobType};
 use x86_64::{
     instructions::{segmentation::Segment, tables::lgdt},
     registers::segmentation as seg,
@@ -73,13 +73,13 @@ pub fn boot_kernel(
         params.unaccepted_memory = unaccepted_bitmap;
     }
 
-    let image_type = TdKernelInfoHobType::from(info.image_type);
+    let image_type = TdPayloadInfoHobType::from(info.image_type);
     let entry64 = match image_type {
-        TdKernelInfoHobType::BzImage => {
+        TdPayloadInfoHobType::BzImage => {
             params.hdr = setup_header(kernel)?;
             params.hdr.code32_start as u64 + 0x200
         }
-        TdKernelInfoHobType::RawVmLinux => {
+        TdPayloadInfoHobType::RawVmLinux => {
             params.hdr.type_of_loader = HDR_TYPE_LOADER;
             params.hdr.boot_flag = HDR_BOOT_FLAG;
             params.hdr.header = HDR_SIGNATURE;

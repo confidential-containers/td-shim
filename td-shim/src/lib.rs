@@ -34,7 +34,7 @@ pub const TD_ACPI_TABLE_HOB_GUID: guid::Guid = guid::Guid::from_fields(
 // This GUID is used for TD Payload Info GUID Extension HOB
 // Please refer to:
 // https://github.com/confidential-containers/td-shim/blob/main/doc/tdshim_spec.md#td-payload-info-guid-extension-hob
-pub const TD_KERNEL_INFO_HOB_GUID: guid::Guid = guid::Guid::from_fields(
+pub const TD_PAYLOAD_INFO_HOB_GUID: guid::Guid = guid::Guid::from_fields(
     0xb96fa412,
     0x461f,
     0x4be3,
@@ -53,7 +53,7 @@ pub const TD_E820_TABLE_HOB_GUID: pi::guid::Guid = pi::guid::Guid::from_fields(
 
 #[repr(u32)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum TdKernelInfoHobType {
+pub enum TdPayloadInfoHobType {
     ///  Payload Binary is a PE/COFF or ELF executable image as payload.
     ///
     /// Entrypoint can be found by parsing the image header. This type image does not follow
@@ -75,19 +75,19 @@ pub enum TdKernelInfoHobType {
     UnknownImage = u32::MAX,
 }
 
-impl From<&TdKernelInfoHobType> for u32 {
-    fn from(v: &TdKernelInfoHobType) -> Self {
+impl From<&TdPayloadInfoHobType> for u32 {
+    fn from(v: &TdPayloadInfoHobType) -> Self {
         *v as u32
     }
 }
 
-impl From<u32> for TdKernelInfoHobType {
+impl From<u32> for TdPayloadInfoHobType {
     fn from(v: u32) -> Self {
         match v {
-            0 => TdKernelInfoHobType::ExecutablePayload,
-            1 => TdKernelInfoHobType::BzImage,
-            2 => TdKernelInfoHobType::RawVmLinux,
-            _ => TdKernelInfoHobType::UnknownImage,
+            0 => TdPayloadInfoHobType::ExecutablePayload,
+            1 => TdPayloadInfoHobType::BzImage,
+            2 => TdPayloadInfoHobType::RawVmLinux,
+            _ => TdPayloadInfoHobType::UnknownImage,
         }
     }
 }
@@ -119,19 +119,19 @@ mod test {
     use super::*;
 
     #[test]
-    fn test_tdkernel_info_hob_type() {
+    fn test_tdpayload_info_hob_type() {
         assert_eq!(
-            TdKernelInfoHobType::from(0),
-            TdKernelInfoHobType::ExecutablePayload
+            TdPayloadInfoHobType::from(0),
+            TdPayloadInfoHobType::ExecutablePayload
         );
-        assert_eq!(TdKernelInfoHobType::from(1), TdKernelInfoHobType::BzImage);
+        assert_eq!(TdPayloadInfoHobType::from(1), TdPayloadInfoHobType::BzImage);
         assert_eq!(
-            TdKernelInfoHobType::from(2),
-            TdKernelInfoHobType::RawVmLinux
+            TdPayloadInfoHobType::from(2),
+            TdPayloadInfoHobType::RawVmLinux
         );
         assert_eq!(
-            TdKernelInfoHobType::from(3),
-            TdKernelInfoHobType::UnknownImage
+            TdPayloadInfoHobType::from(3),
+            TdPayloadInfoHobType::UnknownImage
         );
     }
 
