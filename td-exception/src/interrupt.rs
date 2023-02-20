@@ -176,15 +176,15 @@ macro_rules! interrupt_common {
             }
 
             // Push scratch registers
-            asm!( concat!(
-                scratch_push!(),
-                preserved_push!(),
+            core::arch::asm!( concat!(
+                $crate::scratch_push!(),
+                $crate::preserved_push!(),
                 "
                 mov rcx, rsp
                 call {inner}
                 ",
-                preserved_pop!(),
-                scratch_pop!(),
+                $crate::preserved_pop!(),
+                $crate::scratch_pop!(),
                 $asm_epilogue
                 ),
                 inner = sym inner,
@@ -197,10 +197,10 @@ macro_rules! interrupt_common {
 #[macro_export]
 macro_rules! interrupt_no_error {
     ($name:ident, $stack: ident, $func:block) => {
-        interrupt_common!(
+        $crate::interrupt_common!(
             $name,
             $stack,
-            InterruptNoErrorStack,
+            $crate::interrupt::InterruptNoErrorStack,
             $func,
             "
             iretq
@@ -212,10 +212,10 @@ macro_rules! interrupt_no_error {
 #[macro_export]
 macro_rules! interrupt_error {
     ($name:ident, $stack: ident, $func:block) => {
-        interrupt_common!(
+        $crate::interrupt_common!(
             $name,
             $stack,
-            InterruptErrorStack,
+            $crate::interrupt::InterruptErrorStack,
             $func,
             "
             add rsp, 8

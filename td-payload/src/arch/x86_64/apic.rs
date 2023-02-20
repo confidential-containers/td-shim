@@ -2,9 +2,8 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
-pub use core::arch::asm;
-pub use td_exception::interrupt::*;
-pub use td_exception::*;
+pub use td_exception::interrupt::InterruptNoErrorStack;
+pub use td_exception::{preserved_pop, preserved_push, scratch_pop, scratch_push};
 
 // MSR registers
 pub const MSR_LVTT: u32 = 0x832;
@@ -65,21 +64,21 @@ macro_rules! interrupt_handler_template {
             /// # Safety
             ///
             /// Interrupt handler will handle the register reserve and restore
-            unsafe extern "win64" fn inner($stack: &mut InterruptNoErrorStack) {
+            unsafe extern "win64" fn inner($stack: &mut $crate::arch::apic::InterruptNoErrorStack) {
                 $func
             }
 
             // Push scratch registers
-            asm!( concat!(
-                scratch_push!(),
-                preserved_push!(),
+            core::arch::asm!( concat!(
+                $crate::arch::apic::scratch_push!(),
+                $crate::arch::apic::preserved_push!(),
                 "
                 mov rcx, rsp
                 call {inner}
                 ",
-                eoi!(),
-                preserved_pop!(),
-                scratch_pop!(),
+                $crate::eoi!(),
+                $crate::arch::apic::preserved_pop!(),
+                $crate::arch::apic::scratch_pop!(),
                 "
                 iretq
                 "
