@@ -26,14 +26,14 @@ use zerocopy::{AsBytes, ByteSlice, FromBytes};
 
 use cc_measurement::{log::CcEventLogWriter, EV_EFI_HANDOFF_TABLES2, EV_PLATFORM_CONFIG_FLAGS};
 use td_layout::build_time::{self, *};
-use td_layout::memslice;
+use td_layout::memslice::{self, get_dynamic_mem_slice_mut, SliceType};
 use td_layout::runtime::{self, *};
 use td_layout::RuntimeMemoryLayout;
 use td_shim::acpi::{Ccel, GenericSdtHeader};
 use td_shim::event_log::{log_hob_list, log_payload_binary, log_payload_parameter};
 use td_shim::{
-    speculation_barrier, PayloadInfo, TdKernelInfoHobType, TD_ACPI_TABLE_HOB_GUID,
-    TD_KERNEL_INFO_HOB_GUID,
+    speculation_barrier, PayloadInfo, TdPayloadInfoHobType, TD_ACPI_TABLE_HOB_GUID,
+    TD_PAYLOAD_INFO_HOB_GUID,
 };
 use td_uefi_pi::{fv, hob, pi};
 
@@ -163,10 +163,10 @@ fn boot_linux_kernel(
     // Create an EV_SEPARATOR event to mark the end of the td-shim events
     event_log.create_seperator();
 
-    let image_type = TdKernelInfoHobType::from(kernel_info.image_type);
+    let image_type = TdPayloadInfoHobType::from(kernel_info.image_type);
     match image_type {
-        TdKernelInfoHobType::ExecutablePayload => return,
-        TdKernelInfoHobType::BzImage | TdKernelInfoHobType::RawVmLinux => {}
+        TdPayloadInfoHobType::ExecutablePayload => return,
+        TdPayloadInfoHobType::BzImage | TdPayloadInfoHobType::RawVmLinux => {}
         _ => panic!("Unknown kernel image type {}!!!", kernel_info.image_type),
     };
 
