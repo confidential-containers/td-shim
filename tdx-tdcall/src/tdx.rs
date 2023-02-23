@@ -379,7 +379,7 @@ pub fn tdvmcall_setup_event_notify(vector: u64) -> Result<(), TdVmcallError> {
 ///
 /// * buffer: a piece of 4KB-aligned shared memory
 pub fn tdvmcall_get_quote(buffer: &mut [u8]) -> Result<(), TdVmcallError> {
-    let addr = buffer.as_mut_ptr() as u64;
+    let addr = buffer.as_mut_ptr() as u64 | *SHARED_MASK;
 
     let mut args = TdVmcallArgs {
         r11: TDVMCALL_GETQUOTE,
