@@ -225,13 +225,16 @@ impl FvHeaderByte {
 pub type PayloadFvHeaderByte = FvHeaderByte;
 pub type IplFvHeaderByte = FvHeaderByte;
 
-pub fn build_tdx_metadata(path: Option<&str>) -> io::Result<TdxMetadata> {
+pub fn build_tdx_metadata(
+    path: Option<&str>,
+    payload_type: PayloadType,
+) -> io::Result<TdxMetadata> {
     let sections = if let Some(path) = path {
         let metadata_config = fs::read(path)?;
         serde_json::from_slice::<MetadataSections>(metadata_config.as_slice())
             .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?
     } else {
-        default_metadata_sections()
+        default_metadata_sections(payload_type)
     };
 
     TdxMetadata::new(sections).ok_or(io::Error::new(
@@ -279,11 +282,36 @@ pub fn build_tdx_metadata_ptr() -> TdxMetadataPtr {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PayloadType {
+    Linux,
+    Executable,
+}
+
+impl Default for PayloadType {
+    fn default() -> Self {
+        Self::Linux
+    }
+}
+
+impl std::str::FromStr for PayloadType {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "linux" => Ok(PayloadType::Linux),
+            "executable" => Ok(PayloadType::Executable),
+            _ => return Err(format!("Invalid payload type: {}", s)),
+        }
+    }
+}
+
 /// TD shim linker to compose multiple components into the final shim binary.
 #[derive(Default)]
 pub struct TdShimLinker {
     payload_relocation: bool,
     output_file_name: Option<String>,
+    payload_type: PayloadType,
 }
 
 impl TdShimLinker {
@@ -296,6 +324,12 @@ impl TdShimLinker {
     /// Set file name for the generated shim binary.
     pub fn set_output_file(&mut self, name: String) -> &mut Self {
         self.output_file_name = Some(name);
+        self
+    }
+
+    /// Enable/disable relocation of shim payload.
+    pub fn set_payload_type(&mut self, payload_type: PayloadType) -> &mut Self {
+        self.payload_type = payload_type;
         self
     }
 
@@ -354,7 +388,7 @@ impl TdShimLinker {
             }
         }
 
-        let metadata = build_tdx_metadata(metadata_name)?;
+        let metadata = build_tdx_metadata(metadata_name, self.payload_type)?;
         let pos = TD_SHIM_METADATA_OFFSET as u64;
         output_file.seek_and_write(pos, &metadata.to_vec(), "metadata")?;
 

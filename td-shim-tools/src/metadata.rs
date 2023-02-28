@@ -16,6 +16,8 @@ use td_shim::metadata::{
 };
 use td_uefi_pi::pi::guid::Guid;
 
+use crate::linker::PayloadType;
+
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Deserialize)]
 pub struct TdxMetadataSection {
@@ -97,41 +99,35 @@ impl MetadataSections {
     }
 }
 
-fn basic_metadata_sections() -> MetadataSections {
+fn basic_metadata_sections(payload_type: PayloadType) -> MetadataSections {
     use td_shim::metadata::TDX_METADATA_ATTRIBUTES_EXTENDMR;
 
     let mut metadata_sections = MetadataSections::new();
 
     // BFV
-    let bfv_offset = if cfg!(any(
-        feature = "exec-payload-section",
-        feature = "boot-kernel"
-    )) {
-        TD_SHIM_METADATA_OFFSET
-    } else {
-        TD_SHIM_PAYLOAD_OFFSET
-    };
+    let bfv_offset =
+        if cfg!(any(feature = "exec-payload-section")) || payload_type == PayloadType::Linux {
+            TD_SHIM_METADATA_OFFSET
+        } else {
+            TD_SHIM_PAYLOAD_OFFSET
+        };
 
-    let bfv_data_size = if cfg!(any(
-        feature = "exec-payload-section",
-        feature = "boot-kernel"
-    )) {
-        (TD_SHIM_METADATA_SIZE + TD_SHIM_IPL_SIZE + TD_SHIM_RESET_VECTOR_SIZE) as u64
-    } else {
-        (TD_SHIM_PAYLOAD_SIZE
-            + TD_SHIM_METADATA_SIZE
-            + TD_SHIM_IPL_SIZE
-            + TD_SHIM_RESET_VECTOR_SIZE) as u64
-    };
+    let bfv_data_size =
+        if cfg!(any(feature = "exec-payload-section")) || payload_type == PayloadType::Linux {
+            (TD_SHIM_METADATA_SIZE + TD_SHIM_IPL_SIZE + TD_SHIM_RESET_VECTOR_SIZE) as u64
+        } else {
+            (TD_SHIM_PAYLOAD_SIZE
+                + TD_SHIM_METADATA_SIZE
+                + TD_SHIM_IPL_SIZE
+                + TD_SHIM_RESET_VECTOR_SIZE) as u64
+        };
 
-    let bfv_memory_address = if cfg!(any(
-        feature = "exec-payload-section",
-        feature = "boot-kernel"
-    )) {
-        TD_SHIM_METADATA_BASE
-    } else {
-        TD_SHIM_PAYLOAD_BASE
-    };
+    let bfv_memory_address =
+        if cfg!(any(feature = "exec-payload-section")) || payload_type == PayloadType::Linux {
+            TD_SHIM_METADATA_BASE
+        } else {
+            TD_SHIM_PAYLOAD_BASE
+        };
 
     metadata_sections.add(TdxMetadataSection {
         data_offset: bfv_offset,
@@ -185,67 +181,62 @@ fn basic_metadata_sections() -> MetadataSections {
     metadata_sections
 }
 
-#[cfg(feature = "boot-kernel")]
-pub fn default_metadata_sections() -> MetadataSections {
-    let mut metadata_sections = basic_metadata_sections();
+pub fn default_metadata_sections(payload_type: PayloadType) -> MetadataSections {
+    let mut metadata_sections = basic_metadata_sections(payload_type);
 
-    // TD_HOB
-    metadata_sections.add(TdxMetadataSection {
-        data_offset: 0,
-        raw_data_size: 0,
-        memory_address: linux::TD_HOB_BASE as u64,
-        memory_data_size: linux::TD_HOB_SIZE as u64,
-        r#type: TDX_METADATA_SECTION_TYPE_TD_HOB,
-        attributes: 0,
-    });
-
-    // kernel image
-    metadata_sections.add(TdxMetadataSection {
-        data_offset: 0,
-        raw_data_size: 0,
-        memory_address: linux::PAYLOAD_BASE as u64,
-        memory_data_size: linux::PAYLOAD_SIZE as u64,
-        r#type: TDX_METADATA_SECTION_TYPE_PAYLOAD,
-        attributes: 0,
-    });
-
-    // kernel parameters
-    metadata_sections.add(TdxMetadataSection {
-        data_offset: 0,
-        raw_data_size: 0,
-        memory_address: linux::PAYLOAD_PARAMETER_BASE as u64,
-        memory_data_size: linux::PAYLOAD_PARAMETER_SIZE as u64,
-        r#type: TDX_METADATA_SECTION_TYPE_PAYLOAD_PARAM,
-        attributes: 0,
-    });
-
-    metadata_sections
-}
-
-#[cfg(not(feature = "boot-kernel"))]
-pub fn default_metadata_sections() -> MetadataSections {
-    let mut metadata_sections = basic_metadata_sections();
-
-    // TD_HOB
-    metadata_sections.add(TdxMetadataSection {
-        data_offset: 0,
-        raw_data_size: 0,
-        memory_address: exec::TD_HOB_BASE as u64,
-        memory_data_size: exec::TD_HOB_SIZE as u64,
-        r#type: TDX_METADATA_SECTION_TYPE_TD_HOB,
-        attributes: 0,
-    });
-
-    if cfg!(feature = "exec-payload-section") {
-        // payload image
+    if payload_type == PayloadType::Linux {
+        // TD_HOB
         metadata_sections.add(TdxMetadataSection {
-            data_offset: TD_SHIM_PAYLOAD_OFFSET,
-            raw_data_size: TD_SHIM_PAYLOAD_SIZE,
-            memory_address: TD_SHIM_PAYLOAD_BASE as u64,
-            memory_data_size: TD_SHIM_PAYLOAD_SIZE as u64,
+            data_offset: 0,
+            raw_data_size: 0,
+            memory_address: linux::TD_HOB_BASE as u64,
+            memory_data_size: linux::TD_HOB_SIZE as u64,
+            r#type: TDX_METADATA_SECTION_TYPE_TD_HOB,
+            attributes: 0,
+        });
+
+        // kernel image
+        metadata_sections.add(TdxMetadataSection {
+            data_offset: 0,
+            raw_data_size: 0,
+            memory_address: linux::PAYLOAD_BASE as u64,
+            memory_data_size: linux::PAYLOAD_SIZE as u64,
             r#type: TDX_METADATA_SECTION_TYPE_PAYLOAD,
             attributes: 0,
         });
+
+        // kernel parameters
+        metadata_sections.add(TdxMetadataSection {
+            data_offset: 0,
+            raw_data_size: 0,
+            memory_address: linux::PAYLOAD_PARAMETER_BASE as u64,
+            memory_data_size: linux::PAYLOAD_PARAMETER_SIZE as u64,
+            r#type: TDX_METADATA_SECTION_TYPE_PAYLOAD_PARAM,
+            attributes: 0,
+        });
+    } else {
+        // TD_HOB
+        metadata_sections.add(TdxMetadataSection {
+            data_offset: 0,
+            raw_data_size: 0,
+            memory_address: exec::TD_HOB_BASE as u64,
+            memory_data_size: exec::TD_HOB_SIZE as u64,
+            r#type: TDX_METADATA_SECTION_TYPE_TD_HOB,
+            attributes: 0,
+        });
+
+        if cfg!(feature = "exec-payload-section") {
+            println!("default_metadata_sections_exec_payload");
+            // payload image
+            metadata_sections.add(TdxMetadataSection {
+                data_offset: TD_SHIM_PAYLOAD_OFFSET,
+                raw_data_size: TD_SHIM_PAYLOAD_SIZE,
+                memory_address: TD_SHIM_PAYLOAD_BASE as u64,
+                memory_data_size: TD_SHIM_PAYLOAD_SIZE as u64,
+                r#type: TDX_METADATA_SECTION_TYPE_PAYLOAD,
+                attributes: 0,
+            });
+        }
     }
 
     metadata_sections

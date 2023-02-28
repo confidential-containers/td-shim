@@ -9,9 +9,9 @@ extern crate clap;
 use std::io;
 use std::str::FromStr;
 
-use clap::ArgAction;
-use log::LevelFilter;
-use td_shim_tools::linker::TdShimLinker;
+use clap::{builder::PossibleValue, ArgAction};
+use log::{error, LevelFilter};
+use td_shim_tools::linker::{PayloadType, TdShimLinker};
 
 fn main() -> io::Result<()> {
     use env_logger::Env;
@@ -27,6 +27,18 @@ fn main() -> io::Result<()> {
         .arg(
             arg!(-p --payload "Payload binary file")
                 .required(false)
+                .action(ArgAction::Set),
+        )
+        .arg(
+            arg!(-t --"payload-type" "Type of payload to be launched by td-shim")
+                .required(false)
+                .value_parser([
+                    PossibleValue::new("linux")
+                        .help("Payload Binary is bzImage or vmlinux, follow Linux boot protocol"),
+                    PossibleValue::new("executable")
+                        .help("Payload Binary is a PE/COFF or ELF executable image as payload"),
+                ])
+                .default_value("linux")
                 .action(ArgAction::Set),
         )
         .arg(
@@ -63,6 +75,14 @@ fn main() -> io::Result<()> {
     if matches.get_flag("relocate-payload") {
         builder.set_payload_relocation(true);
     }
+
+    let payload_type = matches.get_one::<String>("payload-type").unwrap().as_str();
+    PayloadType::from_str(payload_type)
+        .map(|t| builder.set_payload_type(t))
+        .map_err(|_e| {
+            error!("Invalid payload type {}", payload_type);
+            io::Error::new(io::ErrorKind::Other, "Invalid payload type")
+        })?;
 
     // Safe to unwrap() because these are mandatory arguments.
     let reset_name = matches.get_one::<String>("reset_vector").unwrap().as_str();
