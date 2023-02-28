@@ -11,6 +11,8 @@ name: Build
 
 env:
   AS: nasm
+  AR_x86_64_unknown_linux_gnu: llvm-ar
+  CC_x86_64_unknown_linux_gnu: clang
   AR_x86_64_unknown_none: llvm-ar
   CC_x86_64_unknown_none: clang
   RUST_TOOLCHAIN: nightly-2022-11-15
@@ -80,7 +82,7 @@ jobs:
 
       - name: Build image without payload
         run: |
-          cargo run -p td-shim-tools --bin td-shim-ld --no-default-features --features=linker -- target/x86_64-unknown-none/release/ResetVector.bin target/x86_64-unknown-none/release/td-shim -o target/release/final.bin
+          cargo run -p td-shim-tools --bin td-shim-ld -- target/x86_64-unknown-none/release/ResetVector.bin target/x86_64-unknown-none/release/td-shim -o target/release/final.bin
       
       - name: Meta data check
         run: |
@@ -89,9 +91,9 @@ jobs:
       - name: Build Release Elf format payload
         run: |
           cargo xbuild -p td-payload --target x86_64-unknown-none --release --bin example --features=tdx,start,cet-shstk,stack-guard
-          cargo run -p td-shim-tools --no-default-features --features=linker --bin td-shim-ld -- target/x86_64-unknown-none/release/ResetVector.bin target/x86_64-unknown-none/release/td-shim -p target/x86_64-unknown-none/release/example -o target/release/final-elf.bin
+          cargo run -p td-shim-tools --bin td-shim-ld -- target/x86_64-unknown-none/release/ResetVector.bin target/x86_64-unknown-none/release/td-shim -t executable -p target/x86_64-unknown-none/release/example -o target/release/final-elf.bin
 
       - name: Build Debug Elf format payload
         run: |
           cargo xbuild -p td-payload --bin example --target x86_64-unknown-none --bin example --features=tdx,start,cet-shstk,stack-guard
-          cargo run -p td-shim-tools --no-default-features --features=linker --bin td-shim-ld -- target/x86_64-unknown-none/debug/ResetVector.bin target/x86_64-unknown-none/debug/td-shim -p target/x86_64-unknown-none/debug/example -o target/debug/final-elf.bin
+          cargo run -p td-shim-tools --bin td-shim-ld -- target/x86_64-unknown-none/debug/ResetVector.bin target/x86_64-unknown-none/debug/td-shim -t executable -p target/x86_64-unknown-none/debug/example -o target/debug/final-elf.bin
