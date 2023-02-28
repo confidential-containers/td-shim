@@ -32,9 +32,10 @@ final_elf() {
     cargo run -p td-shim-tools --bin td-shim-strip-info -- -n td-shim --target x86_64-unknown-none
     cargo run -p td-shim-tools --bin td-shim-strip-info -- -n example --target x86_64-unknown-none
 
-    cargo run -p td-shim-tools --features="linker" --no-default-features --bin td-shim-ld -- \
+    cargo run -p td-shim-tools --bin td-shim-ld -- \
         target/x86_64-unknown-none/release/ResetVector.bin \
         target/x86_64-unknown-none/release/td-shim \
+        -t executable \
         -p target/x86_64-unknown-none/release/example \
         -o target/release/final-elf.bin 
 }
@@ -50,9 +51,10 @@ final_elf_test() {
     cargo run -p td-shim-tools --bin td-shim-strip-info -- -n td-shim --target x86_64-unknown-none
     cargo run -p td-shim-tools --bin td-shim-strip-info -- -n test-td-payload --target x86_64-unknown-none
 
-    cargo run -p td-shim-tools --features="linker" --no-default-features --bin td-shim-ld -- \
+    cargo run -p td-shim-tools --bin td-shim-ld -- \
         target/x86_64-unknown-none/release/ResetVector.bin \
         target/x86_64-unknown-none/release/td-shim \
+        -t executable \
         -p target/x86_64-unknown-none/release/test-td-payload \
         -o target/release/final-elf-test.bin
 
@@ -76,9 +78,10 @@ final_elf_sb_test() {
     cargo run -p td-shim-tools --bin td-shim-sign-payload -- -A ECDSA_NIST_P384_SHA384 data/sample-keys/ecdsa-p384-private.pk8 target/x86_64-unknown-none/release/example 1 1 
 
     echo "Build final binary with unsigned td payload"
-    cargo run -p td-shim-tools --features="linker" --no-default-features --bin td-shim-ld -- \
+    cargo run -p td-shim-tools --bin td-shim-ld -- \
         target/x86_64-unknown-none/release/ResetVector.bin \
         target/x86_64-unknown-none/release/td-shim \
+        -t executable \
         -p target/x86_64-unknown-none/release/example \
         -o target/release/final-elf-unsigned.bin
     
@@ -89,9 +92,10 @@ final_elf_sb_test() {
         -o target/release/final-elf-sb-unsigned.bin
 
     echo "Build final binary with signed td payload and enroll uncorrect public key in CFV"
-    cargo run -p td-shim-tools --features="linker" --no-default-features --bin td-shim-ld -- \
+    cargo run -p td-shim-tools --bin td-shim-ld -- \
         target/x86_64-unknown-none/release/ResetVector.bin \
         target/x86_64-unknown-none/release/td-shim \
+        -t executable \
         -p target/x86_64-unknown-none/release/td-payload-signed \
         -o target/release/final-elf-signed.bin
     
