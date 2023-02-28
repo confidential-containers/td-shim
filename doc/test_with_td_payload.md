@@ -34,7 +34,7 @@ $ cd ..
 ### Generate final.bin
 ```
 $ cargo xbuild -p td-shim --target x86_64-unknown-none --release --features=main,tdx --no-default-features
-$ cargo run -p td-shim-tools --bin td-shim-ld --no-default-features --features=linker -- target/x86_64-unknown-none/release/ResetVector.bin target/x86_64-unknown-none/release/td-shim -p target/x86_64-unknown-uefi/release/test-td-payload.efi -o target/release/final-pe.bin
+$ cargo run -p td-shim-tools --bin td-shim-ld -- target/x86_64-unknown-none/release/ResetVector.bin target/x86_64-unknown-none/release/td-shim -t executable -p target/x86_64-unknown-uefi/release/test-td-payload.efi -o target/release/final-pe.bin
 ```
 
 ### Enroll json file in CFV

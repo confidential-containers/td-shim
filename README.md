@@ -110,7 +110,7 @@ cargo xbuild -p td-shim --target x86_64-unknown-none --release --features=main,t
 ### Build Elf format payload
 ```
 cargo xbuild -p td-payload --target x86_64-unknown-none --release --bin example --features=tdx,start,cet-shstk,stack-guard
-cargo run -p td-shim-tools --bin td-shim-ld --no-default-features --features=linker -- target/x86_64-unknown-none/release/ResetVector.bin target/x86_64-unknown-none/release/td-shim -p target/x86_64-unknown-none/release/example -o target/release/final-elf.bin
+cargo run -p td-shim-tools --bin td-shim-ld -- target/x86_64-unknown-none/release/ResetVector.bin target/x86_64-unknown-none/release/td-shim -t executable -p target/x86_64-unknown-none/release/example -o target/release/final-elf.bin
 ```
 
 ## Run
