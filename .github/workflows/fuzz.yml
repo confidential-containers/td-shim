@@ -11,8 +11,6 @@ name: Fuzzing Test
 
 env:
   AS: nasm
-  AR_x86_64_unknown_uefi: llvm-ar
-  CC_x86_64_unknown_uefi: clang
   AR_x86_64_unknown_none: llvm-ar
   CC_x86_64_unknown_none: clang
   RUST_TOOLCHAIN: nightly-2022-11-15

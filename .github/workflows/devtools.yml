@@ -11,8 +11,6 @@ name: Devtools
 
 env:
   AS: nasm
-  AR_x86_64_unknown_uefi: llvm-ar
-  CC_x86_64_unknown_uefi: clang
   STABLE_RUST_TOOLCHAIN: 1.66.0
   NIGHTLY_RUST_TOOLCHAIN: nightly-2022-11-15
   TOOLCHAIN_PROFILE: minimal
