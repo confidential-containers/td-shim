@@ -11,8 +11,6 @@ name: Integration Test on TDX Server
 
 env:
   AS: nasm
-  AR_x86_64_unknown_uefi: llvm-ar
-  CC_x86_64_unknown_uefi: clang
   RUST_TOOLCHAIN: nightly-2022-11-15
   TOOLCHAIN_PROFILE: minimal
 
@@ -63,17 +61,6 @@ jobs:
           bash sh_script/integration_tdx.sh -c 4 -m 8G -f target/release/final-boot-kernel.bin
           bash sh_script/integration_tdx.sh -c 8 -m 16G -f target/release/final-boot-kernel.bin
           bash sh_script/integration_tdx.sh -c 16 -m 32G -f target/release/final-boot-kernel.bin
-
-      - name: Build PE format payload with test TD payload
-        run: bash sh_script/build_final.sh pe_test
-      
-      - name: Run Tests - Run PE format test TD payload
-        run: | 
-          bash sh_script/integration_tdx.sh -c 1 -m 1G -f target/release/final-pe-test1.bin
-          bash sh_script/integration_tdx.sh -c 1 -m 2G -f target/release/final-pe-test2.bin
-          bash sh_script/integration_tdx.sh -c 2 -m 4G -f target/release/final-pe-test3.bin
-          bash sh_script/integration_tdx.sh -c 4 -m 8G -f target/release/final-pe-test4.bin
-          bash sh_script/integration_tdx.sh -c 8 -m 16G -f target/release/final-pe-test5.bin
       
       - name: Build ELF format payload with test TD payload
         run: bash sh_script/build_final.sh elf_test
@@ -85,15 +72,6 @@ jobs:
           bash sh_script/integration_tdx.sh -c 2 -m 4G -t elf -f target/release/final-elf-test3.bin
           bash sh_script/integration_tdx.sh -c 4 -m 8G -t elf -f target/release/final-elf-test4.bin
           bash sh_script/integration_tdx.sh -c 8 -m 16G -t elf -f target/release/final-elf-test5.bin
-      
-      - name: Build PE format payload for secure boot test
-        run: bash sh_script/build_final.sh pe_sb_test
-
-      - name: Run Tests - Run secure boot test with PE format payload
-        run: |
-          bash sh_script/integration_tdx.sh -f target/release/final-pe-sb-normal.bin
-          bash sh_script/integration_tdx.sh -f target/release/final-pe-sb-mismatch-pubkey.bin
-          bash sh_script/integration_tdx.sh -f target/release/final-pe-sb-unsigned.bin
       
       - name: Build ELF format payload for secure boot test
         run: bash sh_script/build_final.sh elf_sb_test

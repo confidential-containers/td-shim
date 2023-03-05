@@ -11,8 +11,6 @@ name: Build
 
 env:
   AS: nasm
-  AR_x86_64_unknown_uefi: llvm-ar
-  CC_x86_64_unknown_uefi: clang
   AR_x86_64_unknown_none: llvm-ar
   CC_x86_64_unknown_none: clang
   RUST_TOOLCHAIN: nightly-2022-11-15
@@ -87,16 +85,6 @@ jobs:
       - name: Meta data check
         run: |
           cargo run -p td-shim-tools --bin td-shim-checker  --no-default-features --features=loader -- target/release/final.bin
-
-      - name: Build Release PE format payload
-        run: |
-          cargo xbuild -p td-payload --target x86_64-unknown-uefi --release --bin example --features=tdx,start,cet-shstk,stack-guard
-          cargo run -p td-shim-tools --no-default-features --features=linker --bin td-shim-ld -- target/x86_64-unknown-none/release/ResetVector.bin target/x86_64-unknown-none/release/td-shim -p target/x86_64-unknown-uefi/release/example.efi -o target/release/final-pe.bin
-      
-      - name: Build Debug PE format payload
-        run: |
-          cargo xbuild -p td-payload --target x86_64-unknown-uefi --bin example --features=tdx,start,cet-shstk,stack-guard
-          cargo run -p td-shim-tools --no-default-features --features=linker --bin td-shim-ld -- target/x86_64-unknown-none/debug/ResetVector.bin target/x86_64-unknown-none/debug/td-shim -p target/x86_64-unknown-uefi/debug/example.efi -o target/debug/final-pe.bin
 
       - name: Build Release Elf format payload
         run: |
