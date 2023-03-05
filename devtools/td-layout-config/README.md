@@ -17,9 +17,14 @@ popd
   ./target/debug/td-layout-config -h
   ```
 
-- Generate memory layout source file from default `devtools/td-layout-config/config_memory.json` file
+- Generate memory layout source file for Linux payload from default `devtools/td-layout-config/config_memory_linux.json` file
   ```
-  ./target/debug/td-layout-config -t memory devtools/td-layout-config/config_memory.json -o td-layout/src/runtime.rs
+  ./target/debug/td-layout-config -t memory devtools/td-layout-config/config_memory_linux.json -o td-layout/src/runtime/linux.rs
+  ```
+
+- Generate memory layout source file for executable payload from default `devtools/td-layout-config/config_memory.json` file
+  ```
+  ./target/debug/td-layout-config -t memory devtools/td-layout-config/config_memory_exec.json -o td-layout/src/runtime/exec.rs
   ```
 
 - Generate image layout source file from default `devtools/td-layout-config/config_image.json` file
