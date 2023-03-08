@@ -5,6 +5,7 @@
 
 #[macro_use]
 extern crate clap;
+use clap::ArgAction;
 use log::{error, LevelFilter};
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -41,50 +42,44 @@ pub enum ConfigParseError {
 impl Config {
     pub fn new() -> Result<Self, ConfigParseError> {
         let matches = command!()
-            .arg(
-                arg!([tdshim] "shim binary file")
-                    .required(true)
-                    .allow_invalid_utf8(false),
-            )
+            .arg(arg!([tdshim] "shim binary file").required(true))
             .arg(
                 arg!(-k --key "public key file for enrollment")
                     .required(false)
-                    .takes_value(true)
-                    .allow_invalid_utf8(false),
+                    .action(ArgAction::Set),
             )
             .arg(
                 arg!(-H --hash "hash algorithm to compute digest")
                     .required(false)
-                    .takes_value(true)
-                    .default_value("SHA384"),
+                    .default_value("SHA384")
+                    .action(ArgAction::Set),
             )
             .arg(
                 arg!(-f --file "<Guid> <FilePath> Firmware file to be enrolled into CFV")
                     .required(false)
-                    .multiple_values(true)
-                    .multiple_occurrences(true)
-                    .takes_value(true)
-                    .allow_invalid_utf8(false),
+                    .num_args(..)
+                    .action(ArgAction::Set),
             )
             .arg(
                 arg!(-l --"log-level" "logging level: [off, error, warn, info, debug, trace]")
                     .required(false)
-                    .default_value("info"),
+                    .default_value("info")
+                    .action(ArgAction::Set),
             )
             .arg(
                 arg!(-o --output "output of the enrolled shim binary file")
                     .required(false)
-                    .takes_value(true)
-                    .allow_invalid_utf8(false),
+                    .value_parser(value_parser!(PathBuf))
+                    .action(ArgAction::Set),
             )
             .get_matches();
 
         // Safe to unwrap() because they are mandatory or have default values.
         //
         // rust-td binary file
-        let input = matches.value_of("tdshim").unwrap().to_string();
-        let output = match matches.value_of("output") {
-            Some(v) => Path::new(v).to_path_buf(),
+        let input = matches.get_one::<String>("tdshim").unwrap().clone();
+        let output = match matches.get_one::<PathBuf>("output") {
+            Some(v) => v.clone(),
             None => {
                 let p = Path::new(input.as_str())
                     .canonicalize()
@@ -92,23 +87,23 @@ impl Config {
                 p.parent().unwrap_or(Path::new("/")).join(TDSHIM_SB_NAME)
             }
         };
-        let hash_alg = String::from_str(matches.value_of("hash").unwrap()).unwrap();
-        let key = match matches.value_of("key") {
-            Some(v) => Some(v.to_string()),
+        let hash_alg = matches.get_one::<String>("hash").unwrap().clone();
+        let key = match matches.get_one::<String>("key") {
+            Some(v) => Some(v.clone()),
             None => None,
         };
 
-        let firmware_files = match matches.values_of("file") {
+        let firmware_files = match matches.get_many::<String>("file") {
             Some(inputs) => {
-                let inputs = inputs.collect::<Vec<&str>>();
+                let inputs = inputs.collect::<Vec<&String>>();
                 let mut firmware_files: Vec<(guid::Guid, String)> = Vec::new();
                 for i in 0..(inputs.len() / 2) {
                     firmware_files.push((
                         // Guid
-                        guid::Guid::from_str(inputs[i * 2])
+                        guid::Guid::from_str(inputs[i * 2].as_str())
                             .map_err(|_| ConfigParseError::InvlidGuid)?,
                         // File path
-                        inputs[i * 2 + 1].to_string(),
+                        inputs[i * 2 + 1].clone(),
                     ));
                 }
                 firmware_files
@@ -117,7 +112,7 @@ impl Config {
         };
 
         // Safe to unwrap() because they are mandatory or have default values.
-        let log_level = String::from_str(matches.value_of("log-level").unwrap())
+        let log_level = String::from_str(matches.get_one::<String>("log-level").unwrap())
             .map_err(|_| ConfigParseError::InvalidLogLevel)?;
 
         Ok(Self {

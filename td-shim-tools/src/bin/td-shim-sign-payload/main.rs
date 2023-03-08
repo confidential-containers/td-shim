@@ -5,9 +5,11 @@
 #[macro_use]
 extern crate clap;
 
+use std::path::PathBuf;
 use std::str::FromStr;
 use std::{env, io, path::Path};
 
+use clap::ArgAction;
 use env_logger::Env;
 use log::{error, trace, LevelFilter};
 use ring::signature::{EcdsaKeyPair, RsaKeyPair, ECDSA_P384_SHA384_FIXED_SIGNING};
@@ -28,53 +30,52 @@ fn main() -> io::Result<()> {
         .arg(
             arg!([key] "private key file to sign the payload")
                 .required(true)
-                .allow_invalid_utf8(false),
         )
         .arg(
             arg!([payload] "payload binary file")
                 .required(true)
-                .allow_invalid_utf8(false),
         )
         .arg(
             arg!([ver] "payload version number")
                 .required(true)
-                .allow_invalid_utf8(false),
+                .value_parser(value_parser!(u64)),
         )
         .arg(
             arg!([svn] "security version number")
                 .required(true)
-                .allow_invalid_utf8(false),
+                .value_parser(value_parser!(u64)),
         )
         .arg(
             arg!(-A --algorithm "message signing algorithm: ['RSAPSS_3072_SHA384', 'ECDSA_NIST_P384_SHA384']")
                 .required(false)
-                .takes_value(true)
-                .default_value("RSAPSS_3072_SHA384"),
+                .default_value("RSAPSS_3072_SHA384")
+                .action(ArgAction::Set),
         )
         .arg(
             arg!(-l --"log-level" "logging level: [off, error, warn, info, debug, trace]")
                 .required(false)
-                .default_value("info"),
+                .default_value("info")
+                .action(ArgAction::Set),
         )
         .arg(
             arg!(-o --output "output of the signature file")
                 .required(false)
-                .takes_value(true)
-                .allow_invalid_utf8(false),
+                .value_parser(value_parser!(PathBuf))
+                .action(ArgAction::Set),
         )
         .get_matches();
 
-    if let Ok(lvl) = LevelFilter::from_str(matches.value_of("log-level").unwrap()) {
+    if let Ok(lvl) = LevelFilter::from_str(matches.get_one::<String>("log-level").unwrap()) {
         log::set_max_level(lvl);
     }
 
-    let payload_file = matches.value_of("payload").unwrap();
-    let private_file = matches.value_of("key").unwrap();
-    let version = matches.value_of("ver").unwrap();
-    let svn = matches.value_of("svn").unwrap();
-    let algorithm = matches.value_of("algorithm").unwrap();
-    let output_file = match matches.value_of("output") {
-        Some(v) => Path::new(v).to_path_buf(),
+    let payload_file = matches.get_one::<String>("payload").unwrap().as_str();
+    let private_file = matches.get_one::<String>("key").unwrap().as_str();
+    let version = matches.get_one::<u64>("ver").unwrap().clone();
+    let svn = matches.get_one::<u64>("svn").unwrap().clone();
+    let algorithm = matches.get_one::<String>("algorithm").unwrap().as_str();
+    let output_file = match matches.get_one::<PathBuf>("output") {
+        Some(v) => v.clone(),
         None => {
             let p = Path::new(payload_file).canonicalize().map_err(|e| {
                 error!("Invalid payload file path {}: {}", payload_file, e);
@@ -85,15 +86,6 @@ fn main() -> io::Result<()> {
                 .join(SIGNED_TDPAYLOAD_NAME)
         }
     };
-
-    let version = u64::from_str_radix(version, 10).map_err(|_e| {
-        error!("Invalid payload version number {}", version);
-        io::Error::new(io::ErrorKind::Other, "Invalid payload version number")
-    })?;
-    let svn = u64::from_str_radix(svn, 10).map_err(|_e| {
-        error!("Invalid payload version number {}", version);
-        io::Error::new(io::ErrorKind::Other, "Invalid payload version number")
-    })?;
 
     trace!(
         "td-shim-sign-payload {} {} {} {} {}",

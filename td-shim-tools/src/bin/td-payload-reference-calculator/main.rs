@@ -6,7 +6,7 @@
 //! A simple tool to calculate td-payload and parameter's reference value due to given kernel
 
 use anyhow::*;
-use clap::{arg, command};
+use clap::{arg, command, ArgAction};
 use parse_int::parse;
 use sha2::Digest;
 use std::{convert::TryFrom, path::Path};
@@ -49,13 +49,13 @@ fn main() {
                 .arg(
                     arg!(-k --kernel "path to vmlinuz kernel")
                         .required(true)
-                        .takes_value(true)
-                        .allow_invalid_utf8(false),
+                        .action(ArgAction::Set),
                 )
                 .arg(
                     arg!(-s --"size" "KERNEL_SIZE of the target td-shim")
                         .required(false)
-                        .default_value(KERNEL_SIZE),
+                        .default_value(KERNEL_SIZE)
+                        .action(ArgAction::Set),
                 ),
         )
         .subcommand(
@@ -63,26 +63,26 @@ fn main() {
                 .arg(
                     arg!(-p --parameter "kernel parameter string")
                         .required(true)
-                        .takes_value(true)
-                        .allow_invalid_utf8(false),
+                        .action(ArgAction::Set),
                 )
                 .arg(
                     arg!(-s --"size" "KERNEL_PARAM_SIZE of the target td-shim")
                         .required(false)
-                        .default_value(KERNEL_PARAM_SIZE),
+                        .default_value(KERNEL_PARAM_SIZE)
+                        .action(ArgAction::Set),
                 ),
         )
         .get_matches();
 
     let res = match matches.subcommand() {
         Some(("kernel", args)) => {
-            let path = args.value_of("kernel").unwrap();
-            let siz = args.value_of("size").unwrap();
+            let path = args.get_one::<String>("kernel").unwrap();
+            let siz = args.get_one::<String>("size").unwrap();
             kernel(path, siz)
         }
         Some(("param", args)) => {
-            let parameter = args.value_of("parameter").unwrap();
-            let siz = args.value_of("size").unwrap();
+            let parameter = args.get_one::<String>("parameter").unwrap();
+            let siz = args.get_one::<String>("size").unwrap();
             param(parameter, siz)
         }
         Some((_, _)) => unreachable!(),

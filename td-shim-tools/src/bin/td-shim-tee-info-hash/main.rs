@@ -4,6 +4,7 @@
 
 #[macro_use]
 extern crate clap;
+use clap::ArgAction;
 use core::mem::size_of;
 use log::{error, LevelFilter};
 use serde_json;
@@ -41,32 +42,30 @@ impl Config {
             .arg(
                 arg!(-i --image "shim binary file")
                     .required(true)
-                    .takes_value(true)
-                    .allow_invalid_utf8(false),
+                    .action(ArgAction::Set),
             )
             .arg(
                 arg!(-m --manifest "td manifest")
                     .required(true)
-                    .takes_value(true)
-                    .allow_invalid_utf8(false),
+                    .action(ArgAction::Set),
             )
             .arg(
                 arg!(-o --"out_bin" "output tee info hash binary")
                     .required(false)
-                    .takes_value(true)
-                    .allow_invalid_utf8(false),
+                    .action(ArgAction::Set),
             )
             .arg(
                 arg!(-l --"log-level" "logging level: [off, error, warn, info, debug, trace]")
                     .required(false)
-                    .default_value("info"),
+                    .default_value("info")
+                    .action(ArgAction::Set),
             )
             .get_matches();
 
         // Safe to unwrap() because they are mandatory or have default values.
-        let image = matches.value_of("image").unwrap().to_string();
-        let output = match matches.value_of("out_bin") {
-            Some(v) => Path::new(v).to_path_buf(),
+        let image = matches.get_one::<String>("image").unwrap().clone();
+        let output = match matches.get_one::<PathBuf>("out_bin") {
+            Some(v) => v.clone(),
             None => {
                 let p = Path::new(&image)
                     .canonicalize()
@@ -74,9 +73,8 @@ impl Config {
                 p.parent().unwrap_or(Path::new("/")).join(TEE_INFO_HASH_BIN)
             }
         };
-        let manifest = matches.value_of("manifest").unwrap().to_string();
-        let log_level = String::from_str(matches.value_of("log-level").unwrap())
-            .map_err(|_| ConfigParseError::InvalidLogLevel)?;
+        let manifest = matches.get_one::<String>("manifest").unwrap().clone();
+        let log_level = matches.get_one::<String>("log-level").unwrap().clone();
 
         Ok(Self {
             manifest,
