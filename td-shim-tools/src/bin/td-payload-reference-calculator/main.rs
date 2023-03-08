@@ -9,7 +9,7 @@ use anyhow::*;
 use clap::{arg, command};
 use parse_int::parse;
 use sha2::Digest;
-use std::path::Path;
+use std::{convert::TryFrom, path::Path};
 
 pub const KERNEL_SIZE: &str = "0x2000000";
 pub const KERNEL_PARAM_SIZE: &str = "0x1000";
