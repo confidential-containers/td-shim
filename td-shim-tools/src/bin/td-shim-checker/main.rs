@@ -5,6 +5,7 @@
 
 #[macro_use]
 extern crate clap;
+use clap::ArgAction;
 use log::{error, LevelFilter};
 use std::str::FromStr;
 use std::vec::Vec;
@@ -28,26 +29,22 @@ pub enum ConfigParseError {
 impl Config {
     pub fn new() -> Result<Self, ConfigParseError> {
         let matches = command!()
-            .arg(
-                arg!([tdshim] "shim binary file")
-                    .required(true)
-                    .allow_invalid_utf8(false),
-            )
+            .arg(arg!([tdshim] "shim binary file").required(true))
             .arg(
                 arg!(-l --"log-level" "logging level: [off, error, warn, info, debug, trace]")
                     .required(false)
-                    .default_value("info"),
+                    .default_value("info")
+                    .action(ArgAction::Set),
             )
             .get_matches();
 
         // Safe to unwrap() because they are mandatory or have default values.
         //
         // rust-td binary file
-        let input = matches.value_of("tdshim").unwrap().to_string();
+        let input = matches.get_one::<String>("tdshim").unwrap().clone();
 
         // Safe to unwrap() because they are mandatory or have default values.
-        let log_level = String::from_str(matches.value_of("log-level").unwrap())
-            .map_err(|_| ConfigParseError::InvalidLogLevel)?;
+        let log_level = matches.get_one::<String>("log-level").unwrap().clone();
 
         Ok(Self { input, log_level })
     }
