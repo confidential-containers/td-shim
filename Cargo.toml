@@ -18,6 +18,7 @@ members = [
     "tests/test-td-exception",
     "tests/test-td-paging",
     "tests/test-td-payload",
+    "xtask",
 ]
 
 # the profile used for `cargo build`
