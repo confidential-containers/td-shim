@@ -95,19 +95,43 @@ Please follow [Secure Boot Guide](doc/secure_boot_guide.md)
 git submodule update --init --recursive
 ./sh_script/preparation.sh
 ```
+### Use xtask to build TdShim image
 
-### Build TdShim
+Build TdShim image to launch a payload support Linux Boot Protocol
+
+```
+cargo image --release
+
+```
+Build TdShim image to launch an executable payload
+
+```
+cargo image -t executable -p /path/to/payload_binary --release
+```
+
+Build TdShim image to launch the example payload
+
+```
+cargo image --example-payload --release
+```
+
+### Build TdShim manually
+
+Build TdShim to launch a payload support Linux Boot Protocol
+
 ```
 cargo xbuild -p td-shim --target x86_64-unknown-none --release --features=main,tdx
 cargo run -p td-shim-tools --bin td-shim-ld --features=linker -- target/x86_64-unknown-none/release/ResetVector.bin target/x86_64-unknown-none/release/td-shim -o target/release/final.bin
 ```
 
-### Build TdShim to launch a executable payload
+Build TdShim to launch a executable payload
+
 ```
 cargo xbuild -p td-shim --target x86_64-unknown-none --release --features=main,tdx --no-default-features
 ```
 
-### Build Elf format payload
+Build Elf format payload
+
 ```
 cargo xbuild -p td-payload --target x86_64-unknown-none --release --bin example --features=tdx,start,cet-shstk,stack-guard
 cargo run -p td-shim-tools --bin td-shim-ld -- target/x86_64-unknown-none/release/ResetVector.bin target/x86_64-unknown-none/release/td-shim -t executable -p target/x86_64-unknown-none/release/example -o target/release/final-elf.bin
