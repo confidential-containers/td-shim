@@ -18,7 +18,7 @@ pub const TD_REPORT_ADDITIONAL_DATA_SIZE: usize = 64;
 const TD_REPORT_BUFF_SIZE: usize = (TD_REPORT_SIZE * 2) + TD_REPORT_ADDITIONAL_DATA_SIZE;
 
 #[repr(C)]
-#[derive(Debug, Pread, Pwrite)]
+#[derive(Debug, Pread, Pwrite, Clone, Copy)]
 pub struct ReportType {
     /// Trusted Execution Environment (TEE) type
     /// 0x81 - TDX
@@ -31,7 +31,7 @@ pub struct ReportType {
 }
 
 #[repr(C)]
-#[derive(Debug, Pread, Pwrite)]
+#[derive(Debug, Pread, Pwrite, Clone, Copy)]
 pub struct ReportMac {
     /// Type header structure
     pub report_type: ReportType,
@@ -71,7 +71,7 @@ impl fmt::Display for ReportMac {
 }
 
 #[repr(C)]
-#[derive(Debug, Pread, Pwrite)]
+#[derive(Debug, Pread, Pwrite, Clone, Copy)]
 pub struct TeeTcbInfo {
     pub valid: [u8; 8],
     pub tee_tcb_svn: [u8; 16],
@@ -99,7 +99,7 @@ impl fmt::Display for TeeTcbInfo {
 /// Contains the measurements and initial configuration of the TD that
 /// The output of the TDG.MR.REPORT function
 #[repr(C)]
-#[derive(Debug, Pread, Pwrite)]
+#[derive(Debug, Pread, Pwrite, Clone, Copy)]
 pub struct TdInfo {
     /// TD's attributes
     pub attributes: [u8; 8],
