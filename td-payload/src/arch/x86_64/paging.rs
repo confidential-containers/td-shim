@@ -195,7 +195,7 @@ pub(crate) fn set_page_flags(pt: &mut OffsetPageTable, va: u64, size: usize, fla
                     }
                 }
             }
-            va = VirtAddr::new(va.as_u64() + frame.size())
+            va = VirtAddr::new(va.as_u64().checked_add(frame.size()).unwrap())
         } else {
             break;
         }
@@ -210,7 +210,7 @@ fn map_shared(pt: &mut OffsetPageTable, va: u64, size: usize, shared: bool) {
     while va.as_u64() < end {
         if let TranslateResult::Mapped { frame, .. } = pt.translate(va) {
             pt_set_shared_bit(pt, &Page::containing_address(va), shared);
-            va = VirtAddr::new(va.as_u64() + frame.size())
+            va = VirtAddr::new(va.as_u64().checked_add(frame.size()).unwrap())
         } else {
             break;
         }
