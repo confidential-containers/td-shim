@@ -10,9 +10,12 @@
 
 mod lib;
 mod testacpi;
+mod testcetibt;
+mod testcetshstk;
 mod testiorw32;
 mod testiorw8;
 mod testmemmap;
+mod teststackguard;
 mod testtdinfo;
 mod testtdreport;
 mod testtdve;
@@ -31,9 +34,12 @@ use td_layout::memslice;
 
 use crate::lib::{TestResult, TestSuite};
 use crate::testacpi::{TdAcpi, TestTdAcpi};
+use crate::testcetibt::TestCetIbt;
+use crate::testcetshstk::TestCetShstk;
 use crate::testiorw32::Tdiorw32;
 use crate::testiorw8::Tdiorw8;
 use crate::testmemmap::MemoryMap;
+use crate::teststackguard::TestStackGuard;
 use crate::testtdinfo::Tdinfo;
 use crate::testtdreport::Tdreport;
 use crate::testtdve::TdVE;
@@ -71,6 +77,9 @@ pub struct TestCases {
     pub tcs014: MemoryMap,
     pub tcs015: MemoryMap,
     pub tcs016: TdTrustedBoot,
+    pub tcs017: Option<TestStackGuard>,
+    pub tcs018: Option<TestCetShstk>,
+    pub tcs019: Option<TestCetIbt>,
 }
 
 pub const CFV_FFS_HEADER_TEST_CONFIG_GUID: Guid = Guid::from_fields(
@@ -134,6 +143,7 @@ extern "C" fn main() -> ! {
     use td_payload::hob::get_hob;
     use testmemmap::TestMemoryMap;
 
+    let _ = td_logger::init();
     let hob = get_hob().expect("Failed to get payload HOB").as_ptr() as u64;
 
     // create TestSuite to hold the test cases
@@ -237,6 +247,24 @@ extern "C" fn main() -> ! {
             case: tcs.tcs016,
         };
         ts.testsuite.push(Box::new(test_tboot));
+    }
+
+    if let Some(tcs017) = tcs.tcs017 {
+        if tcs017.run {
+            ts.testsuite.push(Box::new(tcs017));
+        }
+    }
+
+    if let Some(tcs018) = tcs.tcs018 {
+        if tcs018.run {
+            ts.testsuite.push(Box::new(tcs018));
+        }
+    }
+
+    if let Some(tcs019) = tcs.tcs019 {
+        if tcs019.run {
+            ts.testsuite.push(Box::new(tcs019));
+        }
     }
 
     // run the TestSuite which contains the test cases
