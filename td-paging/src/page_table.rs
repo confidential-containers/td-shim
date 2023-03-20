@@ -160,7 +160,7 @@ pub fn set_page_flags(pt: &mut OffsetPageTable, mut va: VirtAddr, mut size: i64,
         } else {
             break;
         }
-        size -= page_size as i64;
+        size = size.checked_sub(page_size as i64).unwrap();
         va += page_size;
     }
 }

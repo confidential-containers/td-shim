@@ -133,7 +133,12 @@ impl<'a> CcEventLogWriter<'a> {
         let mut data_offset = size_of::<CcEventHeader>();
         // Fill the event data into event log
         for &data in event_data {
-            self.write_data(data, event_offset + data_offset);
+            self.write_data(
+                data,
+                event_offset
+                    .checked_add(data_offset)
+                    .ok_or(CcEventLogError::OutOfResource)?,
+            );
             data_offset += data.len()
         }
 

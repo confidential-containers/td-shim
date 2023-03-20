@@ -25,7 +25,11 @@ pub fn register(vector: u8, func: unsafe extern "C" fn()) {
 pub unsafe fn idt_set_ist(vector: u8, index: u8) {
     let idtr = store_idtr();
     let idt_entries = read_idt(&idtr);
-    idt_entries[vector as usize].set_ist(index);
+    if usize::from(vector) < idt_entries.len() {
+        idt_entries[vector as usize].set_ist(index);
+    } else {
+        panic!("Set idt ist fail");
+    }
 
     load_idtr(&idtr)
 }
