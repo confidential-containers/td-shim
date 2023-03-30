@@ -88,6 +88,10 @@ jobs:
         run: |
           cargo run -p td-shim-tools --bin td-shim-checker  --no-default-features --features=loader -- target/release/final.bin
 
+      - name: Build debug image without payload
+        run: |
+          cargo image
+
       - name: Build Release Elf format payload
         run: |
           cargo image --example-payload --release
