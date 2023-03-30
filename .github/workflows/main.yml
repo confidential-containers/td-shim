@@ -80,6 +80,10 @@ jobs:
           command: xbuild
           args: -p td-shim --target x86_64-unknown-none --features=main,tdx --no-default-features
 
+      - name: Build td-shim-tools
+        run: |
+          cargo build -p td-shim-tools
+
       - name: Build image without payload
         run: |
           cargo image --release
