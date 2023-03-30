@@ -121,7 +121,9 @@ impl BuildArgs {
         .args(["--profile", self.profile()])
         .run()?;
 
-        Self::strip("td-shim")?;
+        if self.release {
+            Self::strip("td-shim")?;
+        }
 
         Ok((
             SHIM_OUTPUT
@@ -141,7 +143,9 @@ impl BuildArgs {
         .args(["--profile", self.profile()])
         .run()?;
 
-        Self::strip("example")?;
+        if self.release {
+            Self::strip("example")?;
+        }
 
         Ok(SHIM_OUTPUT.join(&self.profile_path()).join("example"))
     }
