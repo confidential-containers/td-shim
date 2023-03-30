@@ -18,6 +18,7 @@ use core::panic::PanicInfo;
 use memory::Memory;
 use td_exception::idt::{load_idtr, DescriptorTablePointer, Idt, IdtEntry};
 use td_shim::event_log::CCEL_CC_TYPE_TDX;
+use x86_64::instructions::hlt;
 use x86_64::registers::segmentation::{Segment, CS};
 use x86_64::VirtAddr;
 
@@ -57,7 +58,7 @@ mod td;
 #[allow(clippy::empty_loop)]
 fn panic(_info: &PanicInfo) -> ! {
     log::info!("panic ... {:?}\n", _info);
-    panic!("deadloop");
+    deadloop()
 }
 
 #[cfg(not(test))]
@@ -65,7 +66,12 @@ fn panic(_info: &PanicInfo) -> ! {
 #[allow(clippy::empty_loop)]
 fn alloc_error(_info: core::alloc::Layout) -> ! {
     log::info!("alloc_error ... {:?}\n", _info);
-    panic!("deadloop");
+    deadloop()
+}
+
+fn deadloop() -> ! {
+    hlt();
+    loop {}
 }
 
 /// Main entry point of the td-shim, and the bootstrap code should jump here.
