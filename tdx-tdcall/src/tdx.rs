@@ -411,8 +411,8 @@ pub fn tdvmcall_service(
     interrupt: u64,
     wait_time: u64,
 ) -> Result<(), TdVmcallError> {
-    let command = command.as_ptr() as u64;
-    let response = response.as_mut_ptr() as u64;
+    let command = command.as_ptr() as u64 | *SHARED_MASK;
+    let response = response.as_mut_ptr() as u64 | *SHARED_MASK;
 
     // Ensure the address is aligned to 4K bytes
     if (command & 0xfff) != 0 || (response & 0xfff) != 0 {
