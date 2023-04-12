@@ -81,7 +81,14 @@ const TDVMCALL_STATUS_SUCCESS: u64 = 0;
 // * R8-R9, R12-R15, RBX, RBP, RDI, RSI - Correspond to each TDG.VP.VMCALL sub-function.
 //
 pub fn td_vmcall(args: &mut TdVmcallArgs) -> u64 {
-    unsafe { asm::asm_td_vmcall(args as *mut TdVmcallArgs as *mut c_void) }
+    unsafe { asm::asm_td_vmcall(args as *mut TdVmcallArgs as *mut c_void, 0) }
+}
+
+// An extended public wrapper for use of asm_td_vmcall.
+//
+// `do_sti` is a flag used to determine whether to execute `sti` instruction before `tdcall`
+pub fn td_vmcall_ex(args: &mut TdVmcallArgs, do_sti: bool) -> u64 {
+    unsafe { asm::asm_td_vmcall(args as *mut TdVmcallArgs as *mut c_void, do_sti as u64) }
 }
 
 // Wrapper for use of asm_td_call, this function takes a mutable reference of a
