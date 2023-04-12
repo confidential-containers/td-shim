@@ -27,6 +27,9 @@ pub fn enable_apic_interrupt() {
 }
 
 pub fn enable_and_hlt() {
+    #[cfg(feature = "tdx")]
+    tdx_tdcall::tdx::tdvmcall_sti_halt();
+    #[cfg(not(feature = "tdx"))]
     x86_64::instructions::interrupts::enable_and_hlt()
 }
 
