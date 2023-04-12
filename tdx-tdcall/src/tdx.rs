@@ -90,6 +90,21 @@ pub fn tdvmcall_halt() {
     let _ = td_vmcall(&mut args);
 }
 
+/// Executing `hlt` instruction will cause a #VE to emulate the instruction. Safe halt operation
+/// `sti;hlt` which typically used for idle is not working in this case since `hlt` instruction
+/// must be the instruction next to `sti`. To use safe halt, `sti` must be executed just before
+/// `tdcall` instruction.
+pub fn tdvmcall_sti_halt() {
+    let mut args = TdVmcallArgs {
+        r11: TDVMCALL_HALT,
+        ..Default::default()
+    };
+
+    // Set the `do_sti` flag to execute `sti` before `tdcall` instruction
+    // Result is always `TDG.VP.VMCALL_SUCCESS`
+    let _ = td_vmcall_ex(&mut args, true);
+}
+
 /// Request the VMM perform single byte IO read operation
 ///
 /// Details can be found in TDX GHCI spec section 'TDG.VP.VMCALL<Instruction.IO>'

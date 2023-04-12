@@ -23,6 +23,7 @@
 
 # asm_td_vmcall -> u64 (
 #   args: *mut TdVmcallArgs,
+#   do_sti: u64,
 # )
 .global asm_td_vmcall
 asm_td_vmcall:
@@ -40,6 +41,8 @@ asm_td_vmcall:
 
         # Use RDI to save RCX value
         mov rdi, rcx
+        # Use RSI to save RDX value
+        mov rsi, rdx
 
         # Test if input pointer is valid
         test rdi, rdi
@@ -59,6 +62,12 @@ asm_td_vmcall:
         # Set exposed register mask
         mov ecx, TDVMCALL_EXPOSE_REGS_MASK
 
+        # Test if the `sti` is needed
+        test rsi, rsi
+        jz .Ldo_tdcall
+
+        sti
+.Ldo_tdcall:
         # TDCALL
        .byte 0x66,0x0f,0x01,0xcc
 
