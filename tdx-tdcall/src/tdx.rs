@@ -14,6 +14,7 @@
 use core::result::Result;
 use core::sync::atomic::{fence, Ordering};
 use lazy_static::lazy_static;
+use x86_64::registers::rflags::{self, RFlags};
 
 use crate::*;
 
@@ -78,8 +79,11 @@ lazy_static! {
 ///
 /// Details can be found in TDX GHCI spec section 'TDG.VP.VMCALL<Instruction.HLT>'
 pub fn tdvmcall_halt() {
+    let interrupt_blocked = !rflags::read().contains(RFlags::INTERRUPT_FLAG);
+
     let mut args = TdVmcallArgs {
         r11: TDVMCALL_HALT,
+        r12: interrupt_blocked as u64,
         ..Default::default()
     };
 
