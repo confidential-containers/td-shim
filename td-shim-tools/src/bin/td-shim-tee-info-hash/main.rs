@@ -52,6 +52,7 @@ impl Config {
             .arg(
                 arg!(-o --"out_bin" "output tee info hash binary")
                     .required(false)
+                    .value_parser(value_parser!(PathBuf))
                     .action(ArgAction::Set),
             )
             .arg(
