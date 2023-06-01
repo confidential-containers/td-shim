@@ -145,5 +145,12 @@ fn main() -> io::Result<()> {
         &config.output.display()
     );
 
+    println!(
+        "{}",
+        hash.iter()
+            .map(|byte| format!("{:02x}", byte))
+            .collect::<String>()
+    );
+
     Ok(())
 }
