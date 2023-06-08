@@ -31,3 +31,6 @@ lto = true
 [profile.release]
 panic = "abort"    # disable stack unwinding on panic
 lto = true         # Link-time optimization
+
+[patch.crates-io]
+ring = { path = "library/ring" }
