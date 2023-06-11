@@ -1,3 +1,7 @@
+// Copyright (c) 2022 Intel Corporation
+//
+// SPDX-License-Identifier: BSD-2-Clause-Patent
+
 use log::debug;
 use log::error;
 use scroll::Pread;
