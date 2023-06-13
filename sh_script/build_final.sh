@@ -77,5 +77,5 @@ case "${1:-}" in
     elf) final_elf ;;
     elf_test) final_elf_test ;;
     elf_sb_test) final_elf_sb_test ;;
-    *) final_boot_kernel && final_pe && final_elf && final_elf_test && final_elf_sb_test;; 
+    *) final_boot_kernel && final_elf && final_elf_test && final_elf_sb_test;; 
 esac
