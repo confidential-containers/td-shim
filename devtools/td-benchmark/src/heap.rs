@@ -49,7 +49,7 @@ impl HeapProfiling {
     /// * `heap_size` must be large enough to store the required metadata, otherwise this function will panic.
     ///
     /// # Heap allocator implementation is provided by  `linked_list_allocator` crate.
-    pub fn init(heap_start: usize, heap_size: usize) {
+    pub fn init(heap_start: u64, heap_size: usize) {
         let mut heap_info = HEAP_GLOBALS.lock();
         heap_info.init(heap_start, heap_size)
     }
@@ -92,7 +92,7 @@ impl AllocInfo {
     /// This function must be called at most once and must only be used on an
     /// empty heap.
     ///
-    pub fn init(&mut self, heap_start: usize, heap_size: usize) {
+    pub fn init(&mut self, heap_start: u64, heap_size: usize) {
         unsafe {
             self.inner.lock().init(heap_start as *mut u8, heap_size);
         }
