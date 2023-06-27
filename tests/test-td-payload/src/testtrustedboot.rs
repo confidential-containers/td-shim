@@ -158,7 +158,7 @@ impl TestCase for TestTdTrustedBoot {
     fn run(&mut self) {
         // Get rtmr values from tdreport
         let rtmr_tdreport = self.get_rtmr_from_tdreport();
-        log::info!("tdreport rtmr: {:#?}\n", rtmr_tdreport);
+        log::info!("tdreport rtmr: {:?}\n", rtmr_tdreport);
 
         // Get rtmr values from acpi table
         if let Some(ccel_table) = self.parse_hob(self.hob_address) {
@@ -170,7 +170,7 @@ impl TestCase for TestTdTrustedBoot {
                 return;
             }
             let rtmr_eventlog = self.get_rtmr_from_cceltable(ccel_table).unwrap();
-            log::info!("acpitable rtmr: {:#?}\n", rtmr_eventlog);
+            log::info!("acpitable rtmr: {:?}\n", rtmr_eventlog);
 
             // Compare rtmr values from tdreport and acpi table
             if rtmr_tdreport.rtmr0 != rtmr_eventlog.rtmr0

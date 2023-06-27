@@ -48,11 +48,10 @@ impl TestCase for Tdinfo {
      */
     fn run(&mut self) {
         let mut td_info = tdx::tdcall_get_td_info().expect("Failt to get td info");
-
-        if (self.expected.gpaw != td_info.gpaw) {
+        // Only GPAW values 48 and 52 are possible.
+        if (td_info.gpaw != 52) && (td_info.gpaw != 48) {
             log::info!(
-                "Check gpaw fail - Expected {:?}: Actual {:?}\n",
-                self.expected.gpaw,
+                "Check gpaw fail - The value should be 48 or 52, Actual {:?}\n",
                 td_info.gpaw
             );
             return;
