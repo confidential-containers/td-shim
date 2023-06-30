@@ -60,6 +60,7 @@ pub const TDX_METADATA_SECTION_TYPE_STRS: [&str; TDX_METADATA_SECTION_TYPE_MAX a
 
 /// Attribute flags for BFV.
 pub const TDX_METADATA_ATTRIBUTES_EXTENDMR: u32 = 0x00000001;
+pub const TDX_METADATA_ATTRIBUTES_PAGE_AUG: u32 = 0x00000002;
 
 #[repr(C)]
 #[derive(Debug, Pread, Pwrite)]
@@ -310,7 +311,7 @@ pub fn validate_sections(sections: &[TdxMetadataSection]) -> Result<(), TdxMetad
                 if section.raw_data_size != 0 || section.data_offset != 0 {
                     return Err(TdxMetadataError::InvalidSection);
                 }
-                if section.attributes != 0 {
+                if section.attributes != TDX_METADATA_ATTRIBUTES_PAGE_AUG {
                     return Err(TdxMetadataError::InvalidSection);
                 }
                 if !check_data_memory_fields(
@@ -651,6 +652,7 @@ mod tests {
         // test PERM MEM
         // no TD HOB  one PERM MEM
         sections[2].r#type = TDX_METADATA_SECTION_TYPE_PERM_MEM;
+        sections[2].attributes = TDX_METADATA_ATTRIBUTES_PAGE_AUG;
         assert!(validate_sections(&sections).is_ok());
         // raw_data_size != 0
         sections[2].raw_data_size = 1;
@@ -660,10 +662,12 @@ mod tests {
         sections[2].data_offset = 1;
         assert!(!validate_sections(&sections).is_ok());
         sections[2].data_offset = 0;
-        // section.attributes != 0
-        sections[2].attributes = 1;
-        assert!(!validate_sections(&sections).is_ok());
+        // section.attributes != 2
         sections[2].attributes = 0;
+        assert!(!validate_sections(&sections).is_ok());
+        sections[2].attributes = TDX_METADATA_ATTRIBUTES_EXTENDMR;
+        assert!(!validate_sections(&sections).is_ok());
+        sections[2].attributes = TDX_METADATA_ATTRIBUTES_PAGE_AUG;
         // memory_address is not 4K align
         sections[2].memory_address += 1;
         assert!(!validate_sections(&sections).is_ok());
@@ -674,8 +678,10 @@ mod tests {
         sections[3].r#type = TDX_METADATA_SECTION_TYPE_TEMP_MEM;
         // multiple PERM MEM
         sections[3].r#type = TDX_METADATA_SECTION_TYPE_PERM_MEM;
+        sections[3].attributes = TDX_METADATA_ATTRIBUTES_PAGE_AUG;
         assert!(validate_sections(&sections).is_ok());
         sections[3].r#type = TDX_METADATA_SECTION_TYPE_TEMP_MEM;
+        sections[3].attributes = 0;
 
         // test PAYLAOD
         // no PAYLOAD but has PAYLOAD_PARAM
