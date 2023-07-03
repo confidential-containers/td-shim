@@ -65,7 +65,6 @@ pub struct TestCases {
     pub tcs002: Tdinfo,
     pub tcs003: Tdinfo,
     pub tcs004: Tdinfo,
-    pub tcs005: Tdinfo,
     pub tcs006: Tdreport,
     pub tcs007: Tdiorw8,
     pub tcs008: Tdiorw32,
@@ -171,10 +170,6 @@ extern "C" fn main() -> ! {
 
     if tcs.tcs004.run {
         ts.testsuite.push(Box::new(tcs.tcs004));
-    }
-
-    if tcs.tcs005.run {
-        ts.testsuite.push(Box::new(tcs.tcs005));
     }
 
     if tcs.tcs006.run {

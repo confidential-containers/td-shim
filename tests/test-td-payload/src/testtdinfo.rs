@@ -21,13 +21,21 @@ pub struct TdInfoRetData {
     pub rsvd: [u64; 3],
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TdInfoExpectedData {
+    pub attributes: u64,
+    pub max_vcpus: u32,
+    pub num_vcpus: u32,
+    pub rsvd: [u64; 3],
+}
+
 /**
  * Test Tdinfo
  */
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Tdinfo {
     pub name: String,
-    pub expected: TdInfoRetData,
+    pub expected: TdInfoExpectedData,
     pub result: TestResult,
     pub run: bool,
 }

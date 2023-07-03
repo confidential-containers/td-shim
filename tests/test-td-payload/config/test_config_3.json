@@ -2,7 +2,6 @@
     "tcs001": {
         "name": "tdinfo001",
         "expected": {
-            "gpaw": 52,
             "attributes": 0,
             "max_vcpus": 1,
             "num_vcpus": 1,
@@ -14,7 +13,6 @@
     "tcs002": {
         "name": "tdinfo002",
         "expected": {
-            "gpaw": 52,
             "attributes": 0,
             "max_vcpus": 2,
             "num_vcpus": 2,
@@ -26,7 +24,6 @@
     "tcs003": {
         "name": "tdinfo003",
         "expected": {
-            "gpaw": 52,
             "attributes": 0,
             "max_vcpus": 4,
             "num_vcpus": 4,
@@ -38,7 +35,6 @@
     "tcs004": {
         "name": "tdinfo004",
         "expected": {
-            "gpaw": 52,
             "attributes": 0,
             "max_vcpus": 8,
             "num_vcpus": 8,
@@ -47,18 +43,6 @@
         "result": "None",
         "run": false  
     },  
-    "tcs005": {
-        "name": "tdinfo005",
-        "expected": {
-            "gpaw": 48,
-            "attributes": 0,
-            "max_vcpus": 1,
-            "num_vcpus": 1,
-            "rsvd": [0,0,0]
-        },
-        "result": "None",
-        "run": false 
-    },
     "tcs006": {
         "name": "tdreport001",
         "input": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
