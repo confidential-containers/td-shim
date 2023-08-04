@@ -35,8 +35,9 @@ simplified kernel.
 
 ## Documents
 
-* [Introduction (PDF)](doc/td-shim-introduction.pdf)
 * [TD-Shim specification](doc/tdshim_spec.md)
+
+* Introduction [PDF](doc/td-shim-introduction.pdf) and [conference talk](https://fosdem.org/2023/schedule/event/cc_online_rust/)
 
 ## Feature Introduction
 
