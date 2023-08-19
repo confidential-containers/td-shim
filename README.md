@@ -151,9 +151,6 @@ REF: https://github.com/tianocore/edk2-staging/tree/TDVF
 2.  run ```pre-commit install```
 3.  when you run ```git commit```, pre-commit will do check-code things.
 
-## Known limitation
-This package is only the sample code to show the concept. It does not have a full validation such as robustness functional test and fuzzing test. It does not meet the production quality yet. Any codes including the API definition, the library and the drivers are subject to change.
-
 
 ## License
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fconfidential-containers%2Ftd-shim.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fconfidential-containers%2Ftd-shim?ref=badge_large)
