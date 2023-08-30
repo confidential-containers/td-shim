@@ -351,6 +351,7 @@ impl Cpu {
 /// whose types are not included in this specification. Specifically, writers of executable content
 /// in the HOB producer phase can generate a GUID and name their own HOB entries using this
 /// module specific value.
+#[repr(C)]
 #[derive(Copy, Clone, Debug, Pread, Pwrite)]
 pub struct GuidExtension {
     pub header: Header,
