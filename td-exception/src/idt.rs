@@ -130,7 +130,7 @@ impl Idt {
 bitflags! {
     pub struct IdtFlags: u8 {
         const PRESENT = 1 << 7;
-        const RING_0 = 0 << 5;
+        // RING_0 is 0 << 5
         const RING_1 = 1 << 5;
         const RING_2 = 2 << 5;
         const RING_3 = 3 << 5;
@@ -178,7 +178,7 @@ impl IdtEntry {
 
     // A function to set the offset more easily
     pub fn set_func(&mut self, func: usize) {
-        self.set_flags(IdtFlags::PRESENT | IdtFlags::RING_0 | IdtFlags::INTERRUPT);
+        self.set_flags(IdtFlags::PRESENT | IdtFlags::INTERRUPT);
         self.set_offset(CS::get_reg().0, func as usize); // GDT_KERNEL_CODE 1u16
     }
 
