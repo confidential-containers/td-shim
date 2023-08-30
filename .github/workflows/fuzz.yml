@@ -13,7 +13,7 @@ env:
   AS: nasm
   AR_x86_64_unknown_none: llvm-ar
   CC_x86_64_unknown_none: clang
-  RUST_TOOLCHAIN: nightly-2022-11-15
+  RUST_TOOLCHAIN: nightly-2023-08-28
   TOOLCHAIN_PROFILE: minimal
 
 jobs:

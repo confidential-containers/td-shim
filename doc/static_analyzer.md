@@ -5,7 +5,7 @@
 rudra description:
  > Rudra is tied to a specific Rust compiler version, and it can only analyze projects that compiles with this version of the compiler. master branch uses nightly-2021-08-20 version of Rust right now. 
 
-**The current rust version is nightly-2022-11-15, so now rudra can not run.**
+**The current rust version is nightly-2023-08-28, so now rudra can not run.**
 
 
 [rudra](https://github.com/sslab-gatech/Rudra) is a tool for Rust Memory Safety & Undefined Behavior Detection.
