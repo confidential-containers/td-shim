@@ -14,11 +14,11 @@ American fuzzy lop (AFL) is a popular, effective, and modern fuzz testing tool. 
 
 Afl.rs works on x86-64 Linux and x86-64 macOS.
 
-`$ cargo install afl`
+`$ cargo install cargo-afl`
 
 ### Upgrading
 
-`$ cargo install --force afl`
+`$ cargo install --force cargo-afl`
 
 ## Provide starting inputs
 

@@ -50,7 +50,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: install
-          args: afl
+          args: cargo-afl
         if: runner.os == 'Linux'
       
       - name: Install Cargo-Fuzz (Linux)

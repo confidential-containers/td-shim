@@ -27,7 +27,7 @@ RUN cargo install cargo-xbuild
 # Install fuzzing tools
 # The rust version used now is nightly-2021-08-20, the latest cargo-fuzz needs to be upgraded to the rust version, and nightly-2021-08-20 can use cargo-fuzz 0.10.2 . 
 # For more information, please see doc/fuzzing.md.
-RUN cargo install afl
+RUN cargo install cargo-afl
 RUN cargo install cargo-fuzz --version 0.10.2
 
 # Install rudra
