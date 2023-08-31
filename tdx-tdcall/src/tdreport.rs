@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
+use core::alloc::Layout;
 use core::fmt;
 use core::mem::{size_of, zeroed};
 use core::ptr::{slice_from_raw_parts, slice_from_raw_parts_mut};
@@ -15,7 +16,7 @@ pub const TD_REPORT_SIZE: usize = 0x400;
 pub const TD_REPORT_ADDITIONAL_DATA_SIZE: usize = 64;
 
 // The buffer to td_report() must be aligned to TD_REPORT_SIZE.
-const TD_REPORT_BUFF_SIZE: usize = (TD_REPORT_SIZE * 2) + TD_REPORT_ADDITIONAL_DATA_SIZE;
+const TD_REPORT_BUFF_SIZE: usize = TD_REPORT_SIZE + TD_REPORT_ADDITIONAL_DATA_SIZE;
 
 #[repr(C)]
 #[derive(Debug, Pread, Pwrite, Clone, Copy)]
@@ -190,47 +191,54 @@ impl Default for TdxReport {
 
 /// Struct to fulfill the alignment requirement of buffer for td-report tdcall.
 struct TdxReportBuf {
-    buf: [u8; TD_REPORT_BUFF_SIZE],
-    start: usize,
-    offset: usize,
-    end: usize,
-    additional: usize,
+    start: u64,
 }
 
 impl TdxReportBuf {
     fn new() -> Self {
-        let mut buf = TdxReportBuf {
-            buf: [0u8; TD_REPORT_BUFF_SIZE],
-            start: 0,
-            offset: 0,
-            end: 0,
-            additional: 0,
-        };
-        buf.adjust();
-        buf
-    }
-
-    fn adjust(&mut self) {
-        self.start = self.buf.as_ptr() as *const u8 as usize;
-        self.offset = TD_REPORT_SIZE - (self.start & (TD_REPORT_SIZE - 1));
-        self.end = self.offset + TD_REPORT_SIZE;
-        self.additional = self.end + TD_REPORT_ADDITIONAL_DATA_SIZE;
+        // Safety: align is a power of two
+        let start = unsafe {
+            alloc::alloc::alloc_zeroed(Layout::from_size_align_unchecked(
+                TD_REPORT_BUFF_SIZE,
+                TD_REPORT_SIZE,
+            ))
+        } as u64;
+        Self { start }
     }
 
     fn report_buf_start(&mut self) -> u64 {
-        &mut self.buf[self.offset] as *mut u8 as u64
+        self.start
+    }
+
+    fn report_buf(&self) -> &[u8] {
+        unsafe { core::slice::from_raw_parts(self.start as *const u8, TD_REPORT_SIZE) }
     }
 
     fn additional_buf_mut(&mut self) -> &mut [u8] {
-        &mut self.buf[self.end..self.additional]
+        unsafe {
+            core::slice::from_raw_parts_mut(
+                (self.start + TD_REPORT_SIZE as u64) as *mut u8,
+                TD_REPORT_ADDITIONAL_DATA_SIZE,
+            )
+        }
     }
 
     fn to_owned(&self) -> TdxReport {
         let mut report: TdxReport = TdxReport::default();
+        report.as_bytes_mut().copy_from_slice(self.report_buf());
         report
-            .as_bytes_mut()
-            .copy_from_slice(&self.buf[self.offset..self.end]);
-        report
+    }
+}
+
+impl Drop for TdxReportBuf {
+    fn drop(&mut self) {
+        unsafe {
+            // Safety: align is a power of two
+            alloc::alloc::dealloc(
+                self.start as *mut u8,
+                Layout::from_size_align_unchecked(TD_REPORT_BUFF_SIZE, TD_REPORT_SIZE),
+            )
+        }
     }
 }
 
@@ -247,8 +255,6 @@ pub fn tdcall_report(
     additional_data: &[u8; TD_REPORT_ADDITIONAL_DATA_SIZE],
 ) -> Result<TdxReport, TdCallError> {
     let mut buff = TD_REPORT.lock();
-    // lazy_static!() moves the underlying object, so we need to repair the object here.
-    buff.adjust();
 
     let addr = buff.report_buf_start();
     buff.additional_buf_mut().copy_from_slice(additional_data);
@@ -285,18 +291,12 @@ mod tests {
         let additional = buf.additional_buf_mut().as_ptr() as u64;
         assert_eq!(buf.report_buf_start() + 0x400, additional);
 
-        TD_REPORT.lock().adjust();
         assert_eq!(TD_REPORT.lock().report_buf_start() & 0x3ff, 0);
     }
 
     #[test]
     fn test_to_owned() {
-        let mut buff = TdxReportBuf::new();
-        buff.start = buff.buf.as_ptr() as *const u8 as usize;
-        // If adjust does not work, the range end value may be out of bounds in to_owned
-        buff.offset = 0;
-        buff.end = TD_REPORT_BUFF_SIZE + 1;
-        buff.adjust();
+        let buff = TdxReportBuf::new();
 
         buff.to_owned();
     }
