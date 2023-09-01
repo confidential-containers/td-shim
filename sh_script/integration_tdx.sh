@@ -12,7 +12,7 @@ nohup_logfile="${temp_dir}/nohup.log"
 guest_image="/home/env/guest_img/td-guest.raw"
 kernel="/home/env/kernel_img/vmlinuz"
 cloud_hypervisor_tdx_path="/home/env/cloud-hypervisor/target/release/cloud-hypervisor"
-qemu_tdx_path="/usr/libexec/qemu-kvm"
+qemu_tdx_path="/usr/local/bin/qemu-system-x86_64"
 
 firmware=""
 type="pe"
@@ -112,12 +112,13 @@ check_result()  {
 
 launch_td_os() {
     echo "-- launch td os"
-    local time_out=60
+    local time_out=120
     local key_str1="login:"
     local key_str2="Guest initialized"
 
     nohup ${cloud_hypervisor_tdx_path} -v \
-                                       --tdx firmware=${firmware} \
+                                       --platform tdx=on \
+                                       --firmware ${firmware} \
                                        --memory size=${memory} \
                                        --cpus boot=${cpus} \
                                        --kernel ${kernel} \
@@ -138,17 +139,18 @@ launch_td_os() {
 
 launch_td_test_payload() {
     echo "-- launch td test payload"
-    local time_out=10
+    local time_out=120
     local key_str="0 failed"
 
     nohup ${qemu_tdx_path} -accel kvm \
         -name process=rust-td,debug-threads=on \
         -smp ${cpus},sockets=${cpus} \
         -object tdx-guest,id=tdx,debug=on \
-        -machine q35,kvm-type=tdx,pic=no,kernel_irqchip=split,confidential-guest-support=tdx \
+        -object memory-backend-memfd-private,id=ram1,size=${memory} \
+        -machine q35,memory-backend=ram1,kernel_irqchip=split,confidential-guest-support=tdx \
         -no-hpet \
         -cpu host,pmu=off,-kvm-steal-time \
-        -device loader,file=${firmware},id=fd0 \
+        -bios ${firmware} \
         -m ${memory} -nographic -vga none \
         -chardev stdio,id=mux,mux=on,signal=off \
         -device virtio-serial,romfile= \
@@ -169,17 +171,18 @@ launch_td_test_payload() {
 
 test_secure_boot() {
     echo "-- secure boot test"
-    local time_out=10
+    local time_out=120
     local key_str="Starting td-payload hob"
     
     nohup ${qemu_tdx_path} -accel kvm \
         -name process=rust-td,debug-threads=on \
         -smp ${cpus},sockets=${cpus} \
         -object tdx-guest,id=tdx,debug=on \
-        -machine q35,kvm-type=tdx,pic=no,kernel_irqchip=split,confidential-guest-support=tdx \
+        -object memory-backend-memfd-private,id=ram1,size=${memory} \
+        -machine q35,memory-backend=ram1,kernel_irqchip=split,confidential-guest-support=tdx \
         -no-hpet \
         -cpu host,pmu=off,-kvm-steal-time \
-        -device loader,file=${firmware},id=fd0 \
+        -bios ${firmware} \
         -m ${memory} -nographic -vga none \
         -chardev stdio,id=mux,mux=on,signal=off \
         -device virtio-serial,romfile= \
