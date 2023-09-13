@@ -138,6 +138,13 @@ cargo xbuild -p td-payload --target x86_64-unknown-none --release --bin example 
 cargo run -p td-shim-tools --bin td-shim-ld -- target/x86_64-unknown-none/release/ResetVector.bin target/x86_64-unknown-none/release/td-shim -t executable -p target/x86_64-unknown-none/release/example -o target/release/final-elf.bin
 ```
 
+To build the debug TdShim, please use `dev-opt` profile to build `td-shim` binary. For example:
+
+```
+cargo xbuild -p td-shim --target x86_64-unknown-none --profile dev-opt --features=main,tdx
+cargo run -p td-shim-tools --bin td-shim-ld --features=linker -- target/x86_64-unknown-none/dev-opt/ResetVector.bin target/x86_64-unknown-none/dev-opt/td-shim -o target/debug/final.bin
+```
+
 ## Run
 REF: https://github.com/tianocore/edk2-staging/tree/TDVF
 
