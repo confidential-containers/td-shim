@@ -14,6 +14,7 @@ const NUM_8259_IRQS: usize = 16;
 
 const ACPI_1_0_PROCESSOR_LOCAL_APIC: u8 = 0x00;
 const ACPI_MADT_MPWK_STRUCT_TYPE: u8 = 0x10;
+const ACPI_MADT_MPWK_MAILBOX_VERSION: u16 = 0x00;
 
 pub struct Madt {
     pub data: [u8; MADT_MAX_SIZE],
@@ -84,7 +85,7 @@ pub fn create_madt(vmm_madt: &[u8], mailbox_base: u64) -> Option<Madt> {
     let mpwk = MadtMpwkStruct {
         r#type: ACPI_MADT_MPWK_STRUCT_TYPE,
         length: size_of::<MadtMpwkStruct>() as u8,
-        mail_box_version: 1,
+        mail_box_version: ACPI_MADT_MPWK_MAILBOX_VERSION,
         reserved: 0,
         mail_box_address: mailbox_base,
     };
@@ -131,7 +132,7 @@ pub fn create_madt_default(cpu_num: u32, mailbox_base: u64) -> Option<Madt> {
     let mpwk = MadtMpwkStruct {
         r#type: ACPI_MADT_MPWK_STRUCT_TYPE,
         length: size_of::<MadtMpwkStruct>() as u8,
-        mail_box_version: 1,
+        mail_box_version: ACPI_MADT_MPWK_MAILBOX_VERSION,
         reserved: 0,
         mail_box_address: mailbox_base,
     };
