@@ -18,6 +18,7 @@ lazy_static! {
         Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
     static ref SHIM_OUTPUT: PathBuf = PROJECT_ROOT.join("target/x86_64-unknown-none/");
     static ref IMAGE_OUTPUT: PathBuf = PROJECT_ROOT.join("target/release/final.bin");
+    static ref IMAGE_OUTPUT_DEBUG: PathBuf = PROJECT_ROOT.join("target/debug/final.bin");
     static ref METADATA: PathBuf = PROJECT_ROOT.join("td-shim-tools/etc/metadata.json");
 }
 
@@ -227,7 +228,7 @@ impl BuildArgs {
         if self.release {
             "release"
         } else {
-            "dev"
+            "dev-opt"
         }
     }
 
@@ -235,7 +236,7 @@ impl BuildArgs {
         if self.release {
             "release"
         } else {
-            "debug"
+            "dev-opt"
         }
     }
 
@@ -255,7 +256,11 @@ impl BuildArgs {
     }
 
     fn output(&self) -> Result<PathBuf> {
-        let path = self.output.as_ref().unwrap_or(&IMAGE_OUTPUT);
+        let path = self.output.as_ref().unwrap_or(if self.release {
+            &IMAGE_OUTPUT
+        } else {
+            &IMAGE_OUTPUT_DEBUG
+        });
 
         // Get the absolute path of the target file
         let absolute = if path.is_absolute() {

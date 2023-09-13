@@ -21,8 +21,9 @@ members = [
     "xtask",
 ]
 
-# the profile used for `cargo build`
-[profile.dev]
+# the profile used for debug build of `td-shim` and `td-payload`
+[profile.dev-opt]
+inherits = "dev"
 panic = "abort" # disable stack unwinding on panic
 opt-level = "z"
 lto = true

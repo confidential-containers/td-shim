@@ -6,5 +6,5 @@ kbuild = "build --target x86_64-custom.json -Zbuild-std=core -Zbuild-std-feature
 kimage = "run --target x86_64-custom.json -Zbuild-std=core -Zbuild-std-features=compiler-builtins-mem -- --no-run"
 krun = "run --target x86_64-custom.json -Zbuild-std=core -Zbuild-std-features=compiler-builtins-mem"
 ktest = "xtest --target x86_64-custom.json"
-xtask = "run -p xtask --release --"
+xtask = "run -p xtask --"
 image = "xtask image"
