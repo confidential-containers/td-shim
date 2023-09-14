@@ -344,6 +344,7 @@ check_test_result() {
 }
 
 main() {
+    export AFL_NO_AFFINITY=1
     if [[ ! $PWD =~ td-shim$ ]]; then
         pushd ..
     fi
