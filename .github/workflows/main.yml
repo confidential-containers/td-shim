@@ -54,7 +54,7 @@ jobs:
           components: rust-src
 
       - name: Cache
-        uses: Swatinem/rust-cache@v1
+        uses: Swatinem/rust-cache@v2
 
       - name: Run cargo install cargo-xbuild
         uses: actions-rs/cargo@v1
