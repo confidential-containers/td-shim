@@ -57,7 +57,7 @@ jobs:
           submodules: recursive
 
       - name: Cache
-        uses: Swatinem/rust-cache@v1
+        uses: Swatinem/rust-cache@v2
 
       - name: Preparation work
         run: bash sh_script/preparation.sh
@@ -106,7 +106,7 @@ jobs:
           submodules: recursive
 
       - name: Cache
-        uses: Swatinem/rust-cache@v1
+        uses: Swatinem/rust-cache@v2
 
       - name: Preparation Work
         run: make preparation
