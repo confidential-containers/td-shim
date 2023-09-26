@@ -37,3 +37,5 @@ RUN set -eux; \
     git clone https://github.com/sslab-gatech/Rudra.git; \
     cd Rudra; \
     ./install-release.sh;
+
+RUN git clone https://github.com/confidential-containers/td-shim.git

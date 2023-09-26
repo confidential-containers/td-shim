@@ -152,6 +152,18 @@ REF: https://github.com/tianocore/edk2-staging/tree/TDVF
 ./launch-rust-td.sh
 ```
 
+## Reproducible Build
+Reproducible build of td-shim binary requires same system user and
+source code path (see https://github.com/confidential-containers/td-shim/issues/604).
+
+The [Dockerfile](./Dockerfile) is provided to build the docker image with
+the `td-shim` compilation environment for reproducible build. You can use
+the [docker.sh](./sh_script/docker.sh) to build and run the docker container:
+
+```
+./sh_script/docker.sh -f devtools/dev_container
+```
+
 ## Code Contributions
 
 1.  install [pre-commit](https://pre-commit.com/#install)
