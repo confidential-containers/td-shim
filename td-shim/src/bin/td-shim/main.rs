@@ -127,6 +127,8 @@ pub extern "win64" fn _start(
     // Set up the TD event log buffer.
     // Safe because it's used to initialize the EventLog subsystem which ensures safety.
     let event_log_buf = mem.get_dynamic_mem_slice_mut(memslice::SliceType::EventLog);
+    // Initialize event log memory with 0xff which help OS to know the last entry.
+    event_log_buf.fill(0xff);
     let mut td_event_log = CcEventLogWriter::new(event_log_buf, Box::new(td::extend_rtmr))
         .expect("Failed to create and initialize the event log");
 
