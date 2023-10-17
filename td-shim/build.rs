@@ -157,7 +157,7 @@ fn real_main() -> Result<()> {
 
     println!(
         "cargo:rerun-if-changed={}",
-        Path::new("ResetVector/ResetVector.asm").to_str().unwrap()
+        Path::new("ResetVector/ResetVector.nasm").to_str().unwrap()
     );
 
     let reset_vector_src_dir = get_cargo_manifest_dir().join("ResetVector");
