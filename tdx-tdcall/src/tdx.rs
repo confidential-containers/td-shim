@@ -282,32 +282,55 @@ pub fn tdvmcall_mmio_read<T: Clone + Copy + Sized>(address: usize) -> T {
 /// Details can be found in TDX GHCI spec section 'TDG.VP.VMCALL<MapGPA>'
 pub fn tdvmcall_mapgpa(shared: bool, paddr: u64, length: usize) -> Result<(), TdVmcallError> {
     let share_bit = *SHARED_MASK;
-    let paddr = if shared {
+    let mut map_start = if shared {
         paddr | share_bit
     } else {
         paddr & (!share_bit)
     };
+    let map_end = map_start
+        .checked_add(length as u64)
+        .ok_or(TdVmcallError::Other)?;
 
-    let mut args = TdVmcallArgs {
-        r11: TDVMCALL_MAPGPA,
-        r12: paddr,
-        r13: length as u64,
-        ..Default::default()
-    };
+    const MAX_RETRIES_PER_PAGE: usize = 3;
+    let mut retry_counter = 0;
 
-    let ret = td_vmcall(&mut args);
+    while retry_counter < MAX_RETRIES_PER_PAGE {
+        log::trace!(
+            "tdvmcall mapgpa - start: {:x}, length: {:x}\n",
+            map_start,
+            map_end - map_start,
+        );
+        let mut args = TdVmcallArgs {
+            r11: TDVMCALL_MAPGPA,
+            r12: map_start,
+            r13: map_end - map_start,
+            ..Default::default()
+        };
 
-    if ret != TDVMCALL_STATUS_SUCCESS {
-        return Err(ret.into());
+        let ret = td_vmcall(&mut args);
+        if ret == TDVMCALL_STATUS_SUCCESS {
+            return Ok(());
+        } else if ret != TDVMCALL_STATUS_RETRY {
+            return Err(ret.into());
+        }
+
+        let retry_addr = args.r11;
+        if retry_addr < map_start || retry_addr >= map_end {
+            return Err(TdVmcallError::Other);
+        }
+
+        // Increase the retry count for the current page
+        if retry_addr == map_start {
+            retry_counter += 1;
+            continue;
+        }
+
+        // Failed in a new address, update the `map_start` and reset counter
+        map_start = retry_addr;
+        retry_counter = 0;
     }
 
-    log::trace!(
-        "tdvmcall mapgpa - paddr: {:x}, length: {:x}\n",
-        paddr,
-        length
-    );
-
-    Ok(())
+    Err(TdVmcallError::Other)
 }
 
 /// Used to help perform RDMSR operation.
