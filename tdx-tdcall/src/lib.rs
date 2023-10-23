@@ -62,6 +62,7 @@ pub const TDCALL_STATUS_PAGE_SIZE_MISMATCH: u64 = 0xC0000B0B00000001;
 
 // TDVMCALL completion status code
 const TDVMCALL_STATUS_SUCCESS: u64 = 0;
+const TDVMCALL_STATUS_RETRY: u64 = 1;
 
 // A public wrapper for use of asm_td_vmcall, this function takes a mutable reference of a
 // TdcallArgs structure to ensure the input is valid
