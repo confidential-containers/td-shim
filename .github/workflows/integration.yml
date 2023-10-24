@@ -49,9 +49,6 @@ jobs:
           override: true
           components: rust-src, llvm-tools-preview
 
-      - name: Cache
-        uses: Swatinem/rust-cache@v2
-
       - name: Run cargo install cargo-xbuild
         uses: actions-rs/cargo@v1
         with:
