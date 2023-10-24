@@ -55,9 +55,6 @@ jobs:
           toolchain: ${{ env.NIGHTLY_RUST_TOOLCHAIN }}
           override: true
 
-      - name: Cache
-        uses: Swatinem/rust-cache@v2
-
       - name: Preparation work
         run: make preparation
 
