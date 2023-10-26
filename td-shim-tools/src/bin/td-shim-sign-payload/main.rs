@@ -12,7 +12,10 @@ use std::{env, io, path::Path};
 use clap::ArgAction;
 use env_logger::Env;
 use log::{error, trace, LevelFilter};
-use ring::signature::{EcdsaKeyPair, RsaKeyPair, ECDSA_P384_SHA384_FIXED_SIGNING};
+use ring::{
+    rand,
+    signature::{EcdsaKeyPair, RsaKeyPair, ECDSA_P384_SHA384_FIXED_SIGNING},
+};
 use td_layout::build_time::TD_SHIM_PAYLOAD_SIZE;
 use td_shim_tools::signer::{PayloadSigner, SigningAlgorithm};
 use td_shim_tools::{InputData, OutputFile};
@@ -107,12 +110,16 @@ fn main() -> io::Result<()> {
             SigningAlgorithm::Rsapss3072Sha384(rsa_key_pair)
         }
         "ECDSA_NIST_P384_SHA384" => {
-            let ecdsa_key_pair =
-                EcdsaKeyPair::from_pkcs8(&ECDSA_P384_SHA384_FIXED_SIGNING, private.as_bytes())
-                    .map_err(|e| {
-                        error!("Can not load DSA private key from {}: {}", private_file, e);
-                        io::Error::new(io::ErrorKind::Other, "Can not load DSA private key")
-                    })?;
+            let rng = rand::SystemRandom::new();
+            let ecdsa_key_pair = EcdsaKeyPair::from_pkcs8(
+                &ECDSA_P384_SHA384_FIXED_SIGNING,
+                private.as_bytes(),
+                &rng,
+            )
+            .map_err(|e| {
+                error!("Can not load DSA private key from {}: {}", private_file, e);
+                io::Error::new(io::ErrorKind::Other, "Can not load DSA private key")
+            })?;
             SigningAlgorithm::EcdsaNistP384Sha384(ecdsa_key_pair)
         }
         _ => {

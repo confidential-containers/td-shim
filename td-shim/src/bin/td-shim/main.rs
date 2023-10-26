@@ -428,3 +428,9 @@ fn secure_boot_verify_payload<'a>(
     return PayloadVerifier::get_payload_image(payload)
         .expect("Unable to get payload image from signed binary");
 }
+
+#[cfg(feature = "secure-boot")]
+#[no_mangle]
+extern "C" fn __assert_fail() {
+    panic!("__assert_fail");
+}

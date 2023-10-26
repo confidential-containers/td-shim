@@ -6,6 +6,7 @@ use std::io;
 use std::mem::size_of;
 use std::vec::Vec;
 
+use der::Decodable;
 use log::error;
 use ring::rand;
 use ring::signature::{EcdsaKeyPair, KeyPair, RsaKeyPair, RSA_PSS_SHA384};
@@ -13,6 +14,8 @@ use td_shim::secure_boot::{
     PayloadSignHeader, PAYLOAD_SIGN_ECDSA_NIST_P384_SHA384, PAYLOAD_SIGN_RSA_EXPONENT_SIZE,
     PAYLOAD_SIGN_RSA_PSS_3072_SHA384, SIGNED_PAYLOAD_FILE_HEADER_GUID,
 };
+
+use crate::public_key::RsaPublicKeyInfo;
 
 /// Type of public key.
 pub enum SigningAlgorithm {
@@ -52,14 +55,15 @@ impl<'a> PayloadSigner<'a> {
 
         match &self.algorithm {
             SigningAlgorithm::Rsapss3072Sha384(rsa_keypair) => {
-                let modulus = rsa_keypair
-                    .public_key()
-                    .modulus()
-                    .big_endian_without_leading_zero();
-                if rsa_keypair.public_modulus_len() != 384 {
+                let public = rsa_keypair.public().as_ref();
+                let public_der = RsaPublicKeyInfo::from_der(public).map_err(|_| {
+                    io::Error::new(io::ErrorKind::InvalidInput, "invalid RSA public key")
+                })?;
+                let modulus = public_der.modulus.as_bytes();
+                if rsa_keypair.public().modulus_len() != 384 {
                     error!(
                         "Invalid RSA public modulus length: {}",
-                        rsa_keypair.public_modulus_len()
+                        rsa_keypair.public().modulus_len()
                     );
                     return Err(io::Error::new(
                         io::ErrorKind::InvalidInput,
@@ -67,10 +71,7 @@ impl<'a> PayloadSigner<'a> {
                     ));
                 }
 
-                let exponent = rsa_keypair
-                    .public_key()
-                    .exponent()
-                    .big_endian_without_leading_zero();
+                let exponent = public_der.exponents.as_bytes();
                 if exponent.len() > PAYLOAD_SIGN_RSA_EXPONENT_SIZE {
                     error!(
                         "Invalid RSA exponent length: {}, max {}",
@@ -87,7 +88,7 @@ impl<'a> PayloadSigner<'a> {
                 exp_bytes[PAYLOAD_SIGN_RSA_EXPONENT_SIZE - exponent.len()..]
                     .copy_from_slice(exponent);
 
-                let mut signature: Vec<u8> = vec![0; rsa_keypair.public_modulus_len()];
+                let mut signature: Vec<u8> = vec![0; rsa_keypair.public().modulus_len()];
                 rsa_keypair
                     .sign(&RSA_PSS_SHA384, &rng, &self.signed_image, &mut signature)
                     .map_err(|e| {
