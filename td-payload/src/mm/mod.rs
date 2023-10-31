@@ -19,10 +19,10 @@ use zerocopy::FromBytes;
 
 use crate::Error;
 
-#[cfg(feature = "tdx")]
-pub mod dma;
 #[cfg(any(target_os = "none", target_os = "uefi"))]
 pub(crate) mod heap;
+#[cfg(feature = "tdx")]
+pub mod shared;
 #[cfg(not(any(target_os = "none", target_os = "uefi")))]
 pub(crate) mod heap {
     // A null implementation used by test

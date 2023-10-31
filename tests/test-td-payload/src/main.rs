@@ -128,7 +128,7 @@ pub extern "C" fn _start(hob: u64, _payload: u64) -> ! {
         heap_size: layout::DEFAULT_HEAP_SIZE,
         stack_size: layout::DEFAULT_STACK_SIZE,
         page_table_size: PAGE_TABLE_SIZE,
-        dma_size: layout::DEFAULT_DMA_SIZE,
+        shared_memory_size: layout::DEFAULT_SHARED_MEMORY_SIZE,
         shadow_stack_size: layout::DEFAULT_SHADOW_STACK_SIZE,
     };
 
@@ -274,13 +274,13 @@ extern "C" fn main() -> ! {
         ts.failed_cases
     );
 
-    // Need to set DEFAULT_DMA_SIZE to 0x200000 before build
+    // Need to set DEFAULT_SHARED_MEMORY_SIZE to 0x200000 before build
     #[cfg(all(feature = "coverage", feature = "tdx"))]
     {
         const MAX_COVERAGE_DATA_PAGE_COUNT: usize = 0x200;
-        let mut dma = td_payload::mm::dma::DmaMemory::new(MAX_COVERAGE_DATA_PAGE_COUNT)
-            .expect("New dma fail.");
-        let buffer = dma.as_mut_bytes();
+        let mut shared = td_payload::mm::shared::SharedMemory::new(MAX_COVERAGE_DATA_PAGE_COUNT)
+            .expect("New shared memory fail.");
+        let buffer = shared.as_mut_bytes();
         let coverage_len = minicov::get_coverage_data_size();
         assert!(coverage_len < MAX_COVERAGE_DATA_PAGE_COUNT * td_paging::PAGE_SIZE);
         minicov::capture_coverage_to_buffer(&mut buffer[0..coverage_len]);
