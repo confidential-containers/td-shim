@@ -7,8 +7,8 @@ use crate::{
     arch::{gdt, idt},
     hob::{self, get_hob},
     mm::{
-        dma::init_dma, get_usable, heap::init_heap, init_ram, layout::RuntimeLayout,
-        page_table::init_pt_frame_allocator,
+        get_usable, heap::init_heap, init_ram, layout::RuntimeLayout,
+        page_table::init_pt_frame_allocator, shared::init_shared_memory,
     },
 };
 
@@ -34,8 +34,8 @@ pub fn pre_init(hob: u64, layout: &RuntimeLayout) {
     let heap = get_usable(layout.heap_size).expect("Failed to allocate heap");
     init_heap(heap, layout.heap_size);
 
-    let dma = get_usable(layout.dma_size).expect("Failed to allocate dma");
-    init_dma(dma, layout.dma_size);
+    let shared = get_usable(layout.shared_memory_size).expect("Failed to allocate shared memory");
+    init_shared_memory(shared, layout.shared_memory_size);
 
     // Init Global Descriptor Table and Task State Segment
     gdt::init_gdt();

@@ -4,11 +4,11 @@
 
 pub mod apic;
 pub mod cet;
-#[cfg(feature = "tdx")]
-pub mod dma;
 pub mod gdt;
 pub mod guard_page;
 pub mod idt;
 pub mod init;
 pub mod paging;
 pub mod serial;
+#[cfg(feature = "tdx")]
+pub mod shared;
