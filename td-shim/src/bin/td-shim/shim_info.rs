@@ -24,6 +24,11 @@ pub struct BootTimeStatic {
     // If metadata contains one/more `PermMem` sections,
     // TD-Shim should ignore the memory information in TD HOB.
     metadata_has_perm: bool,
+
+    // If metadata contains `Payload` section and the attribute
+    // is `1` (PAGE.AUG), the payload is not extended into MRTD and will
+    // be measured into RTMR[1]
+    payload_extend_rtmr: bool,
 }
 
 impl BootTimeStatic {
@@ -76,11 +81,15 @@ impl BootTimeStatic {
         let mut offset = metadata_offset + TDX_METADATA_DESCRIPTOR_LEN;
         let mut sections = Vec::new();
         let mut metadata_has_perm = false;
+        let mut payload_extend_rtmr = false;
 
         for _ in 0..descriptor.number_of_section_entry {
             let section = firmware.pread::<TdxMetadataSection>(offset as usize).ok()?;
             if section.r#type == TDX_METADATA_SECTION_TYPE_PERM_MEM {
                 metadata_has_perm = true;
+            }
+            if section.r#type == TDX_METADATA_SECTION_TYPE_PAYLOAD && section.attributes == 0 {
+                payload_extend_rtmr = true;
             }
 
             sections.push(section);
@@ -96,11 +105,16 @@ impl BootTimeStatic {
         Some(Self {
             sections,
             metadata_has_perm,
+            payload_extend_rtmr,
         })
     }
 
     pub fn sections(&self) -> &[TdxMetadataSection] {
         self.sections.as_slice()
+    }
+
+    pub fn payload_extend_rtmr(&self) -> bool {
+        self.payload_extend_rtmr
     }
 }
 
