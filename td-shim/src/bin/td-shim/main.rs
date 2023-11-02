@@ -146,6 +146,7 @@ pub extern "win64" fn _start(
     // If the Payload Information GUID HOB is present, try to boot the Linux kernel.
     if let Some(payload_info) = dynamic_info.payload_info {
         boot_linux_kernel(
+            &static_info,
             &payload_info,
             &dynamic_info.acpi_tables,
             &mem,
@@ -154,12 +155,18 @@ pub extern "win64" fn _start(
         );
     }
 
-    boot_builtin_payload(&mut mem, &mut td_event_log, &dynamic_info.acpi_tables);
+    boot_builtin_payload(
+        &static_info,
+        &mut mem,
+        &mut td_event_log,
+        &dynamic_info.acpi_tables,
+    );
 
     panic!("payload entry() should not return here, deadloop!!!");
 }
 
 fn boot_linux_kernel(
+    static_info: &BootTimeStatic,
     kernel_info: &PayloadInfo,
     acpi_tables: &Vec<&[u8]>,
     mem: &memory::Memory,
@@ -184,7 +191,9 @@ fn boot_linux_kernel(
     let payload_parameter = mem.get_dynamic_mem_slice(SliceType::PayloadParameter);
 
     // Record the payload binary/paramater into event log.
-    log_payload_binary(payload, event_log);
+    if static_info.payload_extend_rtmr() {
+        log_payload_binary(payload, event_log);
+    }
     log_payload_parameter(payload_parameter, event_log);
 
     let mailbox = mem.get_dynamic_mem_slice_mut(SliceType::RelocatedMailbox);
@@ -203,6 +212,7 @@ fn boot_linux_kernel(
 }
 
 fn boot_builtin_payload(
+    static_info: &BootTimeStatic,
     mem: &mut memory::Memory,
     event_log: &mut CcEventLogWriter,
     acpi_tables: &Vec<&[u8]>,
@@ -222,7 +232,9 @@ fn boot_builtin_payload(
     }
 
     // Record the payload binary information into event log.
-    log_payload_binary(payload_bin, event_log);
+    if static_info.payload_extend_rtmr() {
+        log_payload_binary(payload_bin, event_log);
+    }
 
     // Create an EV_SEPARATOR event to mark the end of the td-shim events
     event_log.create_seperator();
