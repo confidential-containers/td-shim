@@ -335,7 +335,7 @@ pub fn validate_sections(sections: &[TdxMetadataSection]) -> Result<(), TdxMetad
                 if payload_cnt > 1 {
                     return Err(TdxMetadataError::InvalidSection);
                 }
-                if section.attributes != 0 {
+                if section.attributes & (!TDX_METADATA_ATTRIBUTES_EXTENDMR) != 0 {
                     return Err(TdxMetadataError::InvalidSection);
                 }
                 if !check_data_memory_fields(
@@ -692,8 +692,11 @@ mod tests {
         assert!(validate_sections(&sections).is_ok());
         sections[4].r#type = TDX_METADATA_SECTION_TYPE_PAYLOAD;
         sections[5].r#type = TDX_METADATA_SECTION_TYPE_PAYLOAD_PARAM;
-        // section.attributes != 0
+        // section.attributes == 1 means it is extended into MRTD
         sections[4].attributes = 1;
+        assert!(validate_sections(&sections).is_ok());
+        // section.attributes != 0 or 1
+        sections[4].attributes = 2;
         assert!(!validate_sections(&sections).is_ok());
         sections[4].attributes = 0;
         // raw_data_size == 0 but data_offset != 0
