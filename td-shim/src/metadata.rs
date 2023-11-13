@@ -45,8 +45,10 @@ pub const TDX_METADATA_SECTION_TYPE_PERM_MEM: u32 = 4;
 pub const TDX_METADATA_SECTION_TYPE_PAYLOAD: u32 = 5;
 /// Section type for kernel parameters.
 pub const TDX_METADATA_SECTION_TYPE_PAYLOAD_PARAM: u32 = 6;
+/// Section type for td info.
+pub const TDX_METADATA_SECTION_TYPE_TD_INFO: u32 = 7;
 /// Max Section type
-pub const TDX_METADATA_SECTION_TYPE_MAX: u32 = 7;
+pub const TDX_METADATA_SECTION_TYPE_MAX: u32 = 8;
 
 pub const TDX_METADATA_SECTION_TYPE_STRS: [&str; TDX_METADATA_SECTION_TYPE_MAX as usize] = [
     "BFV",
@@ -56,6 +58,7 @@ pub const TDX_METADATA_SECTION_TYPE_STRS: [&str; TDX_METADATA_SECTION_TYPE_MAX a
     "PermMem",
     "Payload",
     "PayloadParam",
+    "TdInfo",
 ];
 
 /// Attribute flags for BFV.
@@ -192,10 +195,15 @@ pub enum TdxMetadataError {
 
 pub fn validate_sections(sections: &[TdxMetadataSection]) -> Result<(), TdxMetadataError> {
     let mut bfv_cnt = 0;
+    let mut bfv_start = 0;
+    let mut bfv_end = 0;
     let mut hob_cnt = 0;
     let mut perm_mem_cnt = 0;
     let mut payload_cnt = 0;
     let mut payload_param_cnt = 0;
+    let mut td_info_cnt = 0;
+    let mut td_info_start = 0;
+    let mut td_info_end = 0;
     let check_data_memory_fields =
         |data_offset: u32, data_size: u32, memory_address: u64, memory_size: u64| -> bool {
             if data_size == 0 && data_offset != 0 {
@@ -231,6 +239,9 @@ pub fn validate_sections(sections: &[TdxMetadataSection]) -> Result<(), TdxMetad
                     section.memory_data_size,
                 ) {
                     return Err(TdxMetadataError::InvalidSection);
+                } else {
+                    bfv_start = section.data_offset;
+                    bfv_end = bfv_start + section.raw_data_size;
                 }
             }
 
@@ -371,6 +382,26 @@ pub fn validate_sections(sections: &[TdxMetadataSection]) -> Result<(), TdxMetad
                 }
             }
 
+            TDX_METADATA_SECTION_TYPE_TD_INFO => {
+                // A TD-Shim may have zero or one TdInfo. If present, it shall be included in BFV section.
+                if td_info_cnt == i32::MAX {
+                    return Err(TdxMetadataError::InvalidSection);
+                }
+                td_info_cnt += 1;
+                if td_info_cnt > 1 {
+                    return Err(TdxMetadataError::InvalidSection);
+                }
+                if section.attributes != 0 {
+                    return Err(TdxMetadataError::InvalidSection);
+                }
+                if section.raw_data_size == 0 {
+                    return Err(TdxMetadataError::InvalidSection);
+                } else {
+                    td_info_start = section.data_offset;
+                    td_info_end = td_info_start + section.raw_data_size;
+                }
+            }
+
             _ => {
                 return Err(TdxMetadataError::InvalidSection);
             }
@@ -389,6 +420,13 @@ pub fn validate_sections(sections: &[TdxMetadataSection]) -> Result<(), TdxMetad
     // PayloadParam is present only if the Payload is present.
     if payload_cnt == 0 && payload_param_cnt != 0 {
         return Err(TdxMetadataError::InvalidSection);
+    }
+
+    //TdInfo. If present, it shall be included in BFV section.
+    if td_info_cnt != 0 {
+        if td_info_start < bfv_start || td_info_start >= bfv_end || td_info_end > bfv_end {
+            return Err(TdxMetadataError::InvalidSection);
+        }
     }
 
     Ok(())
@@ -479,8 +517,9 @@ mod tests {
             TdxMetadataSection::get_type_name(6).unwrap(),
             "PayloadParam"
         );
+        assert_eq!(TdxMetadataSection::get_type_name(7).unwrap(), "TdInfo");
 
-        assert!(TdxMetadataSection::get_type_name(7).is_none())
+        assert!(TdxMetadataSection::get_type_name(8).is_none());
     }
 
     #[test]
@@ -490,7 +529,7 @@ mod tests {
         assert!(!validate_sections(&sections).is_ok());
 
         // init sections include all types
-        let mut sections: [TdxMetadataSection; 6] = [TdxMetadataSection::default(); 6];
+        let mut sections: [TdxMetadataSection; 7] = [TdxMetadataSection::default(); 7];
         // BFV
         sections[0] = TdxMetadataSection {
             data_offset: 0,
@@ -544,6 +583,15 @@ mod tests {
             memory_data_size: 0x100000,
             attributes: 0,
             r#type: TDX_METADATA_SECTION_TYPE_PAYLOAD_PARAM,
+        };
+        // TdInfo
+        sections[6] = TdxMetadataSection {
+            data_offset: 0,
+            raw_data_size: 0x1000,
+            memory_address: 0,
+            memory_data_size: 0,
+            attributes: 0,
+            r#type: TDX_METADATA_SECTION_TYPE_TD_INFO,
         };
 
         assert!(validate_sections(&sections).is_ok());

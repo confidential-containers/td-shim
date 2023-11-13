@@ -284,11 +284,8 @@ impl TdInfoStruct {
                 panic!("Memory address must be 4K aligned!\n");
             }
 
-            if sec.memory_data_size % PAGE_SIZE != 0
-                || sec.memory_data_size == 0
-                || sec.memory_data_size < sec.raw_data_size as u64
-            {
-                panic!("Memory data size must be 4K aligned and not less than raw data size and non zero!\n");
+            if sec.memory_data_size % PAGE_SIZE != 0 {
+                panic!("Memory data size must be 4K aligned!\n");
             }
 
             if sec.r#type >= TDX_METADATA_SECTION_TYPE_MAX {
