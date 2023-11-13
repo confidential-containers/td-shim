@@ -1,8 +1,8 @@
 # TD-SHIM specification
 
-version 0.5.1
+version 0.7
 
-Date: February 2022
+Date: November 2023
 
 ## Background
 
@@ -152,8 +152,8 @@ The TD Shim metadata can be located at (TD Shim end – 0x20) byte. It is a
 |:---------------------|:--------------|:----------------|:------------|:---------------------------------------|
 | DataOffset           | 0             | UINT32          | 4           | The offset to the raw section in the binary image. |
 | RawDataSize          | 4             | UINT32          | 4           | The size of the raw section in the image.<br/><br/>If it is zero, the VMM shall allocate zero memory from MemoryAddress to (MemoryAddress + MemoryDataSize).<br/><br/>If it is zero, then the DataOffset shall also be zero. |
-| MemoryAddress        | 8             | UINT64          | 8           | The guest physical address of the section loaded.<br/>It must be 4K aligned.|
-| MemoryDataSize       | 16            | UINT64          | 8           | The size of the section loaded.<br/>It must be 4K aligned.<br/>It must be non-zero value.<br/>It must be not less than RawDataSize.<br/><br/>If MemoryDataSize is greater than RawDataSize, the VMM shall fill zero up to the MemoryDataSize. |
+| MemoryAddress        | 8             | UINT64          | 8           | The guest physical address of the section loaded.<br/>It must be 4K aligned.<br/>Zero means no action for the VMM. |
+| MemoryDataSize       | 16            | UINT64          | 8           | The size of the section loaded.<br/>It must be 4K aligned.<br/>It must be non-zero value.<br/>It must be not less than RawDataSize.<br/><br/>If MemoryDataSize is greater than RawDataSize, the VMM shall fill zero up to the MemoryDataSize.<br/>Zero means no action for the VMM. |
 | Type                 | 24            | UINT32          | 4           | The type of the TDVF_SECTION. See table 1.1-4. |
 | Attributes           | 28            | UINT32          | 4           | The attribute of the section. See Table 1.1-3. |
 
@@ -176,7 +176,8 @@ The TD Shim metadata can be located at (TD Shim end – 0x20) byte. It is a
 | 4              | PermMem      | Unaccepted Memory | PAGE.AUG                | PAGE.ACCEPT    | N/A               |
 | 5              | Payload      | Private Memory    | PAGE.ADD + MR.EXTEND(o) | RTMR.EXTEND(o) | MRTD (or) RTMR[1] |
 | 6              | PayloadParam | Private Memory    | PAGE.ADD                | RTMR.EXTEND    | RTMR[1]           |
-| 7 ~ 0xFFFFFFFF | Reserved     | N/A               | N/A                     | N/A            | N/A               |
+| 7              | TD_INFO      | Private Memory    | N/A                     | N/A            | N/A               |
+| 8 ~ 0xFFFFFFFF | Reserved     | N/A               | N/A                     | N/A            | N/A               |
 
 Rules for the TDVF_SECTION:
  * A TD-Shim shall include at least one BFV and the reset vector shall be inside
@@ -198,6 +199,18 @@ Rules for the TDVF_SECTION:
    must be zero.
  * A TD-Shim may have zero or one PayloadParam.  PayloadParam is present only if
    the Payload is present.
+ * A TDVF may have zero or one TD_INFO section. If present, it shall be included
+   in BFV section. MemoryAddress and MemoryDataSize shall be zero. See Table 1.1-5.
+
+**Table 1.1-5 TD_INFO definition**
+
+| Field   | Offset (Byte) | Type   | Size (Byte) | Description                            |
+|:--------|:--------------|:-------|:------------|:---------------------------------------|
+| GUID    | 0             | GUID   | 16          | The GUID for the TD-SHIM. |
+| Length  | 16            | UINT32 | 4           | Length of the full structure, including the GUID. |
+| Version | 20            | UINT32 | 4           | The version of the TDVF. 0 means unsupported. |
+| SVN     | 24            | UINT32 | 4           | The Security Version Number of TDVF. It must be Monotonically increasing. 0 means unsupported. |
+| Data    | 28            | -      | N           | GUID specific data. |
 
 ### Metadata Reporting Use case
 
