@@ -328,6 +328,24 @@ impl TdInfoStruct {
         let hash = sha384hasher.finalize();
         self.mrtd.copy_from_slice(hash.as_slice());
     }
+
+    pub fn build_rtmr_with_seperator(&mut self, seperator: u32) {
+        let seperator = u32::to_le_bytes(seperator);
+
+        let mut sha384hasher = Sha384::new();
+        sha384hasher.update(seperator);
+        let hash = sha384hasher.finalize();
+
+        let mut concat_input = [0u8; SHA384_DIGEST_SIZE * 2];
+        concat_input[SHA384_DIGEST_SIZE..].copy_from_slice(hash.as_slice());
+
+        let mut sha384hasher = Sha384::new();
+        sha384hasher.update(concat_input);
+        let hash = sha384hasher.finalize();
+
+        self.rtmr0.copy_from_slice(hash.as_slice());
+        self.rtmr1.copy_from_slice(hash.as_slice());
+    }
 }
 
 fn fill_buffer128_with_mem_page_add(buf: &mut [u8; MRTD_EXTENSION_BUFFER_SIZE], gpa: u64) {

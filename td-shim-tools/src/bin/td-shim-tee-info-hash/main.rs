@@ -28,6 +28,8 @@ struct Config {
     pub output: PathBuf,
     // Log level
     pub log_level: String,
+    // Seperator for populating rtmr
+    pub seperator: u32,
 }
 
 #[derive(Debug)]
@@ -61,6 +63,12 @@ impl Config {
                     .default_value("info")
                     .action(ArgAction::Set),
             )
+            .arg(
+                arg!(-s --seperator "seperator format should be u32 type, like: 0")
+                    .required(true)
+                    .value_parser(value_parser!(u32))
+                    .action(ArgAction::Set),
+            )
             .get_matches();
 
         // Safe to unwrap() because they are mandatory or have default values.
@@ -76,12 +84,14 @@ impl Config {
         };
         let manifest = matches.get_one::<String>("manifest").unwrap().clone();
         let log_level = matches.get_one::<String>("log-level").unwrap().clone();
+        let seperator = matches.get_one::<u32>("seperator").unwrap().clone();
 
         Ok(Self {
             manifest,
             image,
             output,
             log_level,
+            seperator,
         })
     }
 }
@@ -124,6 +134,7 @@ fn main() -> io::Result<()> {
     };
 
     tee_info.build_mrtd(&mut image, image_size);
+    tee_info.build_rtmr_with_seperator(config.seperator);
     log::info!("{}", &tee_info);
 
     log::info!(
