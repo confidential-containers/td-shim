@@ -8,7 +8,7 @@ A json format td manifest file is required and includes informations: attributes
 
 ```
 USAGE:
-    td-shim-tee-info-hash [OPTIONS] --image <image> --manifest <manifest>
+    td-shim-tee-info-hash [OPTIONS] --image <image> --manifest <manifest> --seperator 0
 
 OPTIONS:
     -h, --help                     Print help information
@@ -18,9 +18,10 @@ OPTIONS:
     -m, --manifest <manifest>      td manifest
     -o, --out_bin <output>          output tee info hash binary
     -V, --version                  Print version information
+    -s, --seperator <u32>          The seperator to be extended into rtmr
 ```
 
 example:<br>
 ```
-cargo run -p td-shim-tools --bin td-shim-tee-info-hash --features tee -- --manifest <td_manifest> --image <td_shim_binary> --out_bin <tee_info_hash_bin>
+cargo run -p td-shim-tools --bin td-shim-tee-info-hash --features tee -- --manifest <td_manifest> --image <td_shim_binary> --out_bin <tee_info_hash_bin> --seperator 0
 ```
