@@ -1,5 +1,5 @@
 diff --git a/Cargo.toml b/Cargo.toml
-index 3378dc84b..f65fd70bd 100644
+index 2c8ba6964..209c3d4a1 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
 @@ -171,7 +171,7 @@ all-features = true
@@ -74,36 +74,3 @@ index f7b94108b..3bdc8cd29 100644
      let _ = c
          .arg("-o")
          .arg(out_file.to_str().expect("Invalid path"))
-diff --git a/src/rand.rs b/src/rand.rs
-index 78f4bdc3c..2d1028b84 100644
---- a/src/rand.rs
-+++ b/src/rand.rs
-@@ -148,6 +148,7 @@ impl crate::sealed::Sealed for SystemRandom {}
-             all(target_os = "unknown", feature = "wasm32_unknown_unknown_js")
-         )
-     ),
-+    all(target_arch = "x86_64", target_os = "none"),
- ))]
- impl sealed::SecureRandom for SystemRandom {
-     #[inline(always)]
-diff --git a/third_party/fiat/curve25519_64_adx.h b/third_party/fiat/curve25519_64_adx.h
-index 9dcbb69fa..0906fda81 100644
---- a/third_party/fiat/curve25519_64_adx.h
-+++ b/third_party/fiat/curve25519_64_adx.h
-@@ -1,7 +1,6 @@
- #include <stdbool.h>
- #include <stdint.h>
- #include <immintrin.h>
--#include <string.h>
- 
- typedef uint64_t fe4[4];
- typedef uint8_t fiat_uint1;
-@@ -469,7 +468,7 @@ __attribute__((target("adx,bmi2")))
- void x25519_scalar_mult_adx(uint8_t out[32], const uint8_t scalar[32],
-                             const uint8_t point[32]) {
-   uint8_t e[32];
--  memcpy(e, scalar, 32);
-+  OPENSSL_memcpy(e, scalar, 32);
-   e[0] &= 248;
-   e[31] &= 127;
-   e[31] |= 64;
