@@ -153,7 +153,7 @@ The TD Shim metadata can be located at (TD Shim end – 0x20) byte. It is a
 | DataOffset           | 0             | UINT32          | 4           | The offset to the raw section in the binary image. |
 | RawDataSize          | 4             | UINT32          | 4           | The size of the raw section in the image.<br/><br/>If it is zero, the VMM shall allocate zero memory from MemoryAddress to (MemoryAddress + MemoryDataSize).<br/><br/>If it is zero, then the DataOffset shall also be zero. |
 | MemoryAddress        | 8             | UINT64          | 8           | The guest physical address of the section loaded.<br/>It must be 4K aligned.<br/>Zero means no action for the VMM. |
-| MemoryDataSize       | 16            | UINT64          | 8           | The size of the section loaded.<br/>It must be 4K aligned.<br/>It must be non-zero value.<br/>It must be not less than RawDataSize.<br/><br/>If MemoryDataSize is greater than RawDataSize, the VMM shall fill zero up to the MemoryDataSize.<br/>Zero means no action for the VMM. |
+| MemoryDataSize       | 16            | UINT64          | 8           | The size of the section loaded.<br/>It must be 4K aligned.<br/>It must be not less than RawDataSize, if it is non-zero.<br/><br/>If MemoryDataSize is greater than RawDataSize, the VMM shall fill zero up to the MemoryDataSize.<br/>Zero means no action for the VMM. |
 | Type                 | 24            | UINT32          | 4           | The type of the TDVF_SECTION. See table 1.1-4. |
 | Attributes           | 28            | UINT32          | 4           | The attribute of the section. See Table 1.1-3. |
 
