@@ -150,7 +150,7 @@ impl<'a> BootTimeDynamic<'a> {
             // If `PermMem` exist in metadata, use the static memory information in
             // the metadata
             if static_info.metadata_has_perm {
-                dynamic_info.memory = Self::parse_metadata(static_info.sections());
+                dynamic_info.memory = Self::parse_metadata(static_info.sections())?;
             }
 
             Some(dynamic_info)
@@ -159,7 +159,7 @@ impl<'a> BootTimeDynamic<'a> {
             // memory information in the metadata
             Some(Self {
                 td_hob: None,
-                memory: Self::parse_metadata(static_info.sections()),
+                memory: Self::parse_metadata(static_info.sections())?,
                 payload_info: None,
                 payload_param: None,
                 acpi_tables: Vec::new(),
@@ -227,31 +227,128 @@ impl<'a> BootTimeDynamic<'a> {
         })
     }
 
-    fn parse_metadata(sections: &[TdxMetadataSection]) -> Vec<ResourceDescription> {
+    fn parse_metadata(sections: &[TdxMetadataSection]) -> Option<Vec<ResourceDescription>> {
         let mut memory = Vec::new();
         for section in sections {
-            let resource_type = if section.r#type == TDX_METADATA_SECTION_TYPE_PERM_MEM {
-                RESOURCE_MEMORY_UNACCEPTED
-            } else {
-                RESOURCE_SYSTEM_MEMORY
-            };
+            match section.r#type {
+                TDX_METADATA_SECTION_TYPE_BFV
+                | TDX_METADATA_SECTION_TYPE_CFV
+                | TDX_METADATA_SECTION_TYPE_TD_HOB
+                | TDX_METADATA_SECTION_TYPE_TEMP_MEM
+                | TDX_METADATA_SECTION_TYPE_PERM_MEM
+                | TDX_METADATA_SECTION_TYPE_PAYLOAD
+                | TDX_METADATA_SECTION_TYPE_PAYLOAD_PARAM => {
+                    let resource_type = if section.r#type == TDX_METADATA_SECTION_TYPE_PERM_MEM {
+                        RESOURCE_MEMORY_UNACCEPTED
+                    } else {
+                        RESOURCE_SYSTEM_MEMORY
+                    };
 
-            let resource = ResourceDescription {
-                header: Header {
-                    r#type: HOB_TYPE_RESOURCE_DESCRIPTOR,
-                    length: size_of::<ResourceDescription>() as u16,
-                    reserved: 0,
-                },
-                owner: [0u8; 16],
-                resource_type,
-                resource_attribute: 0,
-                physical_start: section.memory_address,
-                resource_length: section.memory_data_size,
-            };
+                    let resource = ResourceDescription {
+                        header: Header {
+                            r#type: HOB_TYPE_RESOURCE_DESCRIPTOR,
+                            length: size_of::<ResourceDescription>() as u16,
+                            reserved: 0,
+                        },
+                        owner: [0u8; 16],
+                        resource_type,
+                        resource_attribute: 0,
+                        physical_start: section.memory_address,
+                        resource_length: section.memory_data_size,
+                    };
 
-            memory.push(resource)
+                    memory.push(resource)
+                }
+                TDX_METADATA_SECTION_TYPE_TD_INFO => {
+                    // for TD_INFO type, the MemoryDataSize is zero, should not make it
+                    // into a ResourceDescription!
+                    continue;
+                }
+                _ => return None,
+            }
         }
 
-        memory
+        Some(memory)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_metadata() {
+        // Ensure the TD_INFO section is not parsed into a ResourceDescription.
+
+        // init sections include all types
+        let mut sections: [TdxMetadataSection; 7] = [TdxMetadataSection::default(); 7];
+        // BFV
+        sections[0] = TdxMetadataSection {
+            data_offset: 0,
+            raw_data_size: 0xf7e000,
+            memory_address: 0xff082000,
+            memory_data_size: 0xf7e000,
+            attributes: 1,
+            r#type: TDX_METADATA_SECTION_TYPE_BFV,
+        };
+        // CFV
+        sections[1] = TdxMetadataSection {
+            data_offset: 0,
+            raw_data_size: 0x40000,
+            memory_address: 0xff000000,
+            memory_data_size: 0x40000,
+            attributes: 0,
+            r#type: TDX_METADATA_SECTION_TYPE_CFV,
+        };
+        // TD HOB
+        sections[2] = TdxMetadataSection {
+            data_offset: 0,
+            raw_data_size: 0,
+            memory_address: 0x820000,
+            memory_data_size: 0x20000,
+            attributes: 0,
+            r#type: TDX_METADATA_SECTION_TYPE_TD_HOB,
+        };
+        // Temp memory
+        sections[3] = TdxMetadataSection {
+            data_offset: 0,
+            raw_data_size: 0,
+            memory_address: 0xFF040000,
+            memory_data_size: 0x1000,
+            attributes: 0,
+            r#type: TDX_METADATA_SECTION_TYPE_TEMP_MEM,
+        };
+        // Payload
+        sections[4] = TdxMetadataSection {
+            data_offset: 0,
+            raw_data_size: 0,
+            memory_address: 0x1200000,
+            memory_data_size: 0x8000000,
+            attributes: 0,
+            r#type: TDX_METADATA_SECTION_TYPE_PAYLOAD,
+        };
+        // PayloadParam
+        sections[5] = TdxMetadataSection {
+            data_offset: 0,
+            raw_data_size: 0,
+            memory_address: 0x1100000,
+            memory_data_size: 0x100000,
+            attributes: 0,
+            r#type: TDX_METADATA_SECTION_TYPE_PAYLOAD_PARAM,
+        };
+        // TdInfo
+        sections[6] = TdxMetadataSection {
+            data_offset: 0,
+            raw_data_size: 0x1000,
+            memory_address: 0,
+            memory_data_size: 0,
+            attributes: 0,
+            r#type: TDX_METADATA_SECTION_TYPE_TD_INFO,
+        };
+
+        let res = BootTimeDynamic::parse_metadata(&sections);
+
+        assert!(res.is_some());
+        assert_eq!(res.unwrap().len(), 6);
     }
 }
