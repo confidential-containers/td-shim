@@ -400,6 +400,11 @@ pub fn validate_sections(sections: &[TdxMetadataSection]) -> Result<(), TdxMetad
                     td_info_start = section.data_offset;
                     td_info_end = td_info_start + section.raw_data_size;
                 }
+
+                // MemoryAddress and MemoryDataSize shall be zero.
+                if section.memory_address != 0 || section.memory_data_size != 0 {
+                    return Err(TdxMetadataError::InvalidSection);
+                }
             }
 
             _ => {
