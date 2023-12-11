@@ -26,7 +26,7 @@ support. This allows guests to boot without firmware dependencies. Current
 VT-based container runtimes rely on VMMs that are capable of directly booting
 into the guest kernel without loading firmware.
 
-TD Shim is a simplified [TDX virtual firmware](doc/tdshim_spec#vfw) for the
+TD Shim is a simplified [TDX virtual firmware](doc/tdshim_spec.md#vfw) for the
 simplified kernel for TD container. This document describes a lightweight
 interface between the TD Shim and TD VMM and between the TD Shim and the
 simplified kernel.
