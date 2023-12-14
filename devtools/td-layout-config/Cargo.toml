@@ -11,7 +11,7 @@ edition = "2018"
 name = "td-layout-config"
 
 [dependencies]
-clap = { version = "3.0", features = ["derive"] }
+clap = { version = "4.0", features = ["derive"] }
 Inflector = "0.11.4"
 json5 = "0.3.0"
 parse_int = "0.6.0"
