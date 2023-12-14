@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use clap::{arg, command};
+use clap::{arg, command, ArgAction};
 use std::{
     io,
     path::{Path, PathBuf},
@@ -37,19 +37,19 @@ fn main() {
         .arg(
             arg!([kernel] "Path of kernel file be executed by the virtual machine")
                 .required(true)
-                .allow_invalid_utf8(false),
+                .action(ArgAction::Set),
         )
         .arg(
             arg!(
               --"no-run" "Dry-run mode, do not actually spawn the virtual machine"
             )
             .required(false)
-            .allow_invalid_utf8(false),
+            .action(ArgAction::SetTrue),
         )
         .get_matches();
 
     // Safe to unwrap because they are mandatory arguments.
-    let kernel = matches.value_of("kernel").unwrap();
+    let kernel = matches.get_one::<String>("kernel").unwrap();
     let kernel_binary_path = {
         let path = PathBuf::from(kernel);
         path.canonicalize().expect(&format!(
@@ -61,7 +61,7 @@ fn main() {
     let bios = create_disk_images(&kernel_binary_path);
 
     //let output = matches.value_of("no-run")
-    if matches.is_present("no-run") {
+    if matches.get_flag("no-run") {
         println!("Created disk image at `{}`", bios.display());
         return;
     }

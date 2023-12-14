@@ -30,7 +30,7 @@ struct Cli {
     #[clap(short = 'o', long = "output")]
     output: Option<String>,
     /// Output to stdout
-    #[clap(short = 'p', long = "print", parse(from_flag))]
+    #[clap(short = 'p', long = "print")]
     print_flag: bool,
 }
 
