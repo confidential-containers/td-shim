@@ -402,7 +402,7 @@ pub fn tdvmcall_cpuid(eax: u32, ecx: u32) -> CpuIdInfo {
 pub fn tdvmcall_setup_event_notify(vector: u64) -> Result<(), TdVmcallError> {
     let mut args = TdVmcallArgs {
         r11: TDVMCALL_SETUPEVENTNOTIFY,
-        r12: vector as u64,
+        r12: vector,
         ..Default::default()
     };
 

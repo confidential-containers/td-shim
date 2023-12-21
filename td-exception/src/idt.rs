@@ -102,12 +102,12 @@ impl Idt {
         current_idt[20].set_func(interrupt::default_exception as usize);
         current_idt[21].set_func(interrupt::control_flow as usize);
         // reset exception reserved
-        for i in 22..32 {
-            current_idt[i].set_func(interrupt::default_exception as usize);
+        for idt in current_idt.iter_mut().take(32).skip(22) {
+            idt.set_func(interrupt::default_exception as usize);
         }
         // Setup reset potential interrupt handler.
-        for i in 32..IDT_ENTRY_COUNT {
-            current_idt[i].set_func(interrupt::default_interrupt as usize);
+        for idt in current_idt.iter_mut().take(IDT_ENTRY_COUNT).skip(32) {
+            idt.set_func(interrupt::default_interrupt as usize);
         }
     }
 
@@ -179,7 +179,7 @@ impl IdtEntry {
     // A function to set the offset more easily
     pub fn set_func(&mut self, func: usize) {
         self.set_flags(IdtFlags::PRESENT | IdtFlags::INTERRUPT);
-        self.set_offset(CS::get_reg().0, func as usize); // GDT_KERNEL_CODE 1u16
+        self.set_offset(CS::get_reg().0, func); // GDT_KERNEL_CODE 1u16
     }
 
     pub fn set_ist(&mut self, index: u8) {

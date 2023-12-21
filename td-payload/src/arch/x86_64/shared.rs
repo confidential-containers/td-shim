@@ -23,7 +23,7 @@ pub fn encrypt(addr: u64, length: usize) {
     if tdx_tdcall::tdx::tdvmcall_mapgpa(false, addr, length).is_err() {
         panic!("Fail to map GPA to private memory with TDVMCALL");
     }
-    accept_memory(addr, length as usize);
+    accept_memory(addr, length);
 }
 
 fn accept_memory(addr: u64, length: usize) {

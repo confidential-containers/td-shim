@@ -191,7 +191,7 @@ pub fn relocate_with_per_section(
         .pwrite(new_image_base as u64, coff_optional_offset)
         .ok()?;
 
-    let sections = Sections::parse(sections_buffer, num_sections as usize)?;
+    let sections = Sections::parse(sections_buffer, num_sections)?;
     // Load the PE header into the destination memory
     for section in sections {
         let section_size = section.section_size() as usize;
@@ -200,8 +200,8 @@ pub fn relocate_with_per_section(
         let dst_start = section.virtual_address as usize;
         let dst_end = dst_start.checked_add(section_size)?;
 
-        image_buffer.len().checked_sub(src_end as usize)?;
-        loaded_buffer.len().checked_sub(dst_end as usize)?;
+        image_buffer.len().checked_sub(src_end)?;
+        loaded_buffer.len().checked_sub(dst_end)?;
         loaded_buffer[dst_start..dst_end].copy_from_slice(&image_buffer[src_start..src_end]);
         if section.virtual_size as usize > section_size {
             let fill_end = dst_start.checked_add(section.virtual_size as usize)?;
@@ -210,7 +210,7 @@ pub fn relocate_with_per_section(
         }
     }
 
-    let sections = Sections::parse(sections_buffer, num_sections as usize)?;
+    let sections = Sections::parse(sections_buffer, num_sections)?;
     for section in sections {
         if &section.name == b".reloc\0\0" && image_base != new_image_base as u64 {
             reloc_to_base(
@@ -218,7 +218,7 @@ pub fn relocate_with_per_section(
                 image_buffer,
                 &section,
                 image_base as usize,
-                new_image_base as usize,
+                new_image_base,
             )?;
         }
     }
@@ -435,7 +435,7 @@ impl<'a> Iterator for Relocations<'a> {
         bytes.len().checked_sub(block_size as usize)?;
         self.offset += block_size as usize;
 
-        let entries = &bytes[(core::mem::size_of::<u32>() * 2) as usize..block_size as usize];
+        let entries = &bytes[(core::mem::size_of::<u32>() * 2)..block_size as usize];
         Some(Relocation {
             page_rva,
             block_size,
@@ -466,10 +466,7 @@ fn reloc_to_base(
                         .checked_sub(image_base as u64)?
                         .checked_add(new_image_base as u64)?;
                     loaded_buffer
-                        .pwrite(
-                            value - image_base as u64 + new_image_base as u64,
-                            location as usize,
-                        )
+                        .pwrite(value - image_base as u64 + new_image_base as u64, location)
                         .ok()?;
                     log::trace!(
                         "reloc {:08x}:  {:012x} -> {:012x}",

@@ -171,7 +171,7 @@ impl TdxMetadataGuid {
     /// * `buffer` - A buffer contains TdxMetadata guid.
     pub fn from_bytes(buffer: &[u8; 16]) -> Option<TdxMetadataGuid> {
         let guid = Guid::from_bytes(buffer);
-        let metadata_guid = TdxMetadataGuid { guid: guid };
+        let metadata_guid = TdxMetadataGuid { guid };
         if metadata_guid.is_valid() {
             Some(metadata_guid)
         } else {
@@ -428,10 +428,10 @@ pub fn validate_sections(sections: &[TdxMetadataSection]) -> Result<(), TdxMetad
     }
 
     //TdInfo. If present, it shall be included in BFV section.
-    if td_info_cnt != 0 {
-        if td_info_start < bfv_start || td_info_start >= bfv_end || td_info_end > bfv_end {
-            return Err(TdxMetadataError::InvalidSection);
-        }
+    if td_info_cnt != 0
+        && (td_info_start < bfv_start || td_info_start >= bfv_end || td_info_end > bfv_end)
+    {
+        return Err(TdxMetadataError::InvalidSection);
     }
 
     Ok(())

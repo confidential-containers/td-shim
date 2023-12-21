@@ -268,8 +268,8 @@ impl FfsFileHeader {
     // Validate the checksum of the FfsFileHeader
     pub fn validate_checksum(&self) -> bool {
         let sum = sum8(self.as_bytes());
-        sum ^ ((EFI_FILE_HEADER_CONSTRUCTION | EFI_FILE_HEADER_VALID | EFI_FILE_DATA_VALID) as u8
-            + FFS_FIXED_CHECKSUM as u8)
+        sum ^ ((EFI_FILE_HEADER_CONSTRUCTION | EFI_FILE_HEADER_VALID | EFI_FILE_DATA_VALID)
+            + FFS_FIXED_CHECKSUM)
             == 0
     }
 }

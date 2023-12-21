@@ -81,9 +81,9 @@ pub fn relocate_elf_with_per_program_header(
     }
 
     Some((
-        elf.header.e_entry.checked_add(new_image_base as u64)? as u64,
-        bottom as u64,
-        top.checked_sub(bottom)? as u64,
+        elf.header.e_entry.checked_add(new_image_base as u64)?,
+        bottom,
+        top.checked_sub(bottom)?,
     ))
 }
 
@@ -108,9 +108,9 @@ pub fn parse_finit_array_section(loaded_image: &[u8]) -> Option<Range<usize>> {
 /// flag true align to low address else high address
 fn align_value(value: u64, align: u64, flag: bool) -> u64 {
     if flag {
-        value & ((!(align - 1)) as u64)
+        value & (!(align - 1))
     } else {
-        value - (value & (align - 1)) as u64 + align
+        value - (value & (align - 1)) + align
     }
 }
 

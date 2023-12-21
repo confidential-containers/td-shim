@@ -87,7 +87,7 @@ pub fn create_mapping_with_flags(
         || va.as_u64() & (ALIGN_4K - 1) != 0
         || sz & (ALIGN_4K - 1) != 0
         || ps.count_ones() != 1
-        || ps < ALIGN_4K as u64
+        || ps < ALIGN_4K
     {
         return Err(Error::InvalidArguments);
     }

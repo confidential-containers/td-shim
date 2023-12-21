@@ -239,7 +239,7 @@ impl<'a> Memory<'a> {
         false
     }
 
-    #[cfg(all(feature = "tdx"))]
+    #[cfg(feature = "tdx")]
     /// Build a 2M granularity bitmap for kernel to track the unaccepted memory
     pub fn build_unaccepted_memory_bitmap(&self) -> u64 {
         #[cfg(not(feature = "lazy-accept"))]
