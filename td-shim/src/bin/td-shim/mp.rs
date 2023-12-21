@@ -4,7 +4,7 @@
 
 use core::convert::TryInto;
 use core::mem::size_of;
-use zerocopy::{AsBytes, FromBytes};
+use zerocopy::{AsBytes, FromBytes, FromZeroes};
 
 use td_shim::acpi::{self, GenericSdtHeader};
 
@@ -49,7 +49,7 @@ impl Madt {
 }
 
 #[repr(packed)]
-#[derive(Default, AsBytes, FromBytes)]
+#[derive(Default, AsBytes, FromBytes, FromZeroes)]
 struct LocalApic {
     pub r#type: u8,
     pub length: u8,
@@ -59,7 +59,7 @@ struct LocalApic {
 }
 
 #[repr(packed)]
-#[derive(Default, AsBytes, FromBytes)]
+#[derive(Default, AsBytes, FromBytes, FromZeroes)]
 struct MadtMpwkStruct {
     r#type: u8,
     length: u8,
