@@ -116,7 +116,7 @@ impl Xsdt {
             let table_num =
                 (self.header.length as usize - size_of::<GenericSdtHeader>()) / size_of::<u64>();
             if table_num < ACPI_TABLES_MAX_NUM {
-                self.tables[table_num] = addr as u64;
+                self.tables[table_num] = addr;
                 self.header.length += size_of::<u64>() as u32;
                 Ok(())
             } else {

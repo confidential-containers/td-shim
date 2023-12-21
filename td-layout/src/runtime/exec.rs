@@ -40,7 +40,7 @@ pub const PAYLOAD_PAGE_TABLE_SIZE: usize = 0x20000; // 128 KB
 pub const RELOCATED_MAILBOX_SIZE: usize = 0x2000; // 8 KB
 pub const EVENT_LOG_SIZE: usize = 0x100000; // 1 MB
 
-pub const MEMORY_LAYOUT_CONFIG: &[(&'static str, usize, &'static str)] = &[
+pub const MEMORY_LAYOUT_CONFIG: &[(&str, usize, &str)] = &[
     // (name of memory region, region size, region type)
     ("Bootloader", 0x800000, "Memory"),
     ("TdHob", 0x20000, "Memory"),

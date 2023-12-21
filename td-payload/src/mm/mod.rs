@@ -73,7 +73,7 @@ pub fn get_usable(size: usize) -> Option<u64> {
 
         if entry.r#type == E820Type::Memory as u32 && entry.size >= size as u64 {
             entry.size -= size as u64;
-            return Some(entry.addr + entry.size as u64);
+            return Some(entry.addr + entry.size);
         }
     }
 

@@ -507,7 +507,7 @@ fn handle_tdx_ioexit(ve_info: &tdx::TdVeInfo, stack: &mut InterruptNoErrorStack)
     let io_read = |size, port| match size {
         1 => tdx::tdvmcall_io_read_8(port) as u32,
         2 => tdx::tdvmcall_io_read_16(port) as u32,
-        4 => tdx::tdvmcall_io_read_32(port) as u32,
+        4 => tdx::tdvmcall_io_read_32(port),
         _ => 0,
     };
 
@@ -515,7 +515,7 @@ fn handle_tdx_ioexit(ve_info: &tdx::TdVeInfo, stack: &mut InterruptNoErrorStack)
     let io_write = |size, port, data| match size {
         1 => tdx::tdvmcall_io_write_8(port, data as u8),
         2 => tdx::tdvmcall_io_write_16(port, data as u16),
-        4 => tdx::tdvmcall_io_write_32(port, data as u32),
+        4 => tdx::tdvmcall_io_write_32(port, data),
         _ => {}
     };
 
@@ -525,36 +525,30 @@ fn handle_tdx_ioexit(ve_info: &tdx::TdVeInfo, stack: &mut InterruptNoErrorStack)
             if read {
                 let val = io_read(size, port);
                 unsafe {
-                    let rsi = core::slice::from_raw_parts_mut(
-                        stack.scratch.rdi as *mut u8,
-                        size as usize,
-                    );
+                    let rsi = core::slice::from_raw_parts_mut(stack.scratch.rdi as *mut u8, size);
                     // Safety: size is smaller than 4
                     rsi.copy_from_slice(&u32::to_le_bytes(val)[..size])
                 }
-                stack.scratch.rdi += size as usize;
+                stack.scratch.rdi += size;
             } else {
                 let mut val = 0;
                 unsafe {
-                    let rsi =
-                        core::slice::from_raw_parts(stack.scratch.rsi as *mut u8, size as usize);
+                    let rsi = core::slice::from_raw_parts(stack.scratch.rsi as *mut u8, size);
                     for (idx, byte) in rsi.iter().enumerate() {
                         val |= (*byte as u32) << (idx * 8);
                     }
                 }
                 io_write(size, port, val);
-                stack.scratch.rsi += size as usize;
+                stack.scratch.rsi += size;
             }
             stack.scratch.rcx -= 1;
         }
+    } else if read {
+        // Write the IO read result to the low $size-bytes of rax
+        stack.scratch.rax = (stack.scratch.rax & !(2_usize.pow(size as u32 * 8) - 1))
+            | (io_read(size, port) as usize & (2_usize.pow(size as u32 * 8) - 1));
     } else {
-        if read {
-            // Write the IO read result to the low $size-bytes of rax
-            stack.scratch.rax = (stack.scratch.rax & !(2_usize.pow(size as u32 * 8) - 1))
-                | (io_read(size, port) as usize & (2_usize.pow(size as u32 * 8) - 1));
-        } else {
-            io_write(size, port, stack.scratch.rax as u32);
-        }
+        io_write(size, port, stack.scratch.rax as u32);
     }
 
     true

@@ -127,7 +127,7 @@ impl<'a> CcEventLogWriter<'a> {
 
         // Write the event header into event log memory and update the 'size' and 'last'
         let event_offset = self
-            .log_cc_event_header(mr_index, event_type, &sha384, event_data_size as u32)
+            .log_cc_event_header(mr_index, event_type, sha384, event_data_size as u32)
             .ok_or(CcEventLogError::OutOfResource)?;
 
         let mut data_offset = size_of::<CcEventHeader>();
@@ -242,10 +242,10 @@ impl<'a> Iterator for CcEvents<'a> {
         if end_of_event < self.bytes.len() {
             let event_data = &self.bytes[size_of::<CcEventHeader>()..end_of_event];
             self.bytes = &self.bytes[end_of_event..];
-            return Some((event_header, event_data));
+            Some((event_header, event_data))
         } else {
-            return None;
-        };
+            None
+        }
     }
 }
 
@@ -277,7 +277,7 @@ impl<'a> CcEventLogReader<'a> {
             specific_id_event,
         };
 
-        return Some(cc_event_log);
+        Some(cc_event_log)
     }
 
     pub fn query(&self, key: &[u8]) -> Option<CcEventHeader> {

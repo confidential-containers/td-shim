@@ -93,7 +93,7 @@ impl RuntimeMemoryLayout {
         self.regions
             .iter()
             .find(|item| item.name == name.as_str())
-            .map(|region| *region)
+            .copied()
     }
 
     pub unsafe fn get_mem_slice(&self, name: SliceType) -> Option<&'static [u8]> {

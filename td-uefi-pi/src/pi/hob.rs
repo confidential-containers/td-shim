@@ -150,7 +150,7 @@ impl MemoryAllocation {
     pub fn dump(&self) {
         log::info!(
             "MemoryAllocation type: 0x{:08x} base: 0x{:016x} length: 0x{:016x}\n",
-            self.alloc_descriptor.memory_type as u32,
+            self.alloc_descriptor.memory_type,
             self.alloc_descriptor.memory_base_address,
             self.alloc_descriptor.memory_length
         );
