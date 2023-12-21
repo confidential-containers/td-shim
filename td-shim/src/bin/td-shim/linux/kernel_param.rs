@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
 use core::mem::size_of;
-use zerocopy::{AsBytes, FromBytes};
+use zerocopy::{AsBytes, FromBytes, FromZeroes};
 
 use td_shim::e820::E820Entry;
 
@@ -18,7 +18,7 @@ pub const HDR_TYPE_LOADER: u8 = 0xff;
 pub const HDR_LOAD_HIGH: u8 = 0x01;
 pub const HDR_MIN_VERSION: u16 = 0x0200;
 
-#[derive(Clone, Copy, Default, Debug, AsBytes, FromBytes)]
+#[derive(Clone, Copy, Default, Debug, AsBytes, FromBytes, FromZeroes)]
 #[repr(C, packed)]
 pub struct SetupHeader {
     pub setup_sects: u8,

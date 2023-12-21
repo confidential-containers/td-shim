@@ -11,7 +11,7 @@ extern crate alloc;
 
 use alloc::{vec, vec::Vec};
 use core::mem::size_of;
-use zerocopy::{AsBytes, FromBytes};
+use zerocopy::{AsBytes, FromBytes, FromZeroes};
 
 pub const SHA384_DIGEST_SIZE: usize = 48;
 pub const TPML_ALG_SHA384: u16 = 0xc;
@@ -35,7 +35,7 @@ const VENDOR_INFO: &[u8; VENDOR_INFO_SIZE] = b"td-shim";
 /// Defined in TCG PC Client Platform Firmware Profile Specification:
 /// 'Table 20 TCG_EfiSpecIdEvent'
 #[repr(C, packed)]
-#[derive(AsBytes, FromBytes)]
+#[derive(AsBytes, FromBytes, FromZeroes)]
 pub struct TcgEfiSpecIdevent {
     pub signature: [u8; 16],
     pub platform_class: u32,
@@ -81,7 +81,7 @@ impl Default for TcgEfiSpecIdevent {
 }
 
 #[repr(C, packed)]
-#[derive(AsBytes, FromBytes)]
+#[derive(AsBytes, FromBytes, FromZeroes)]
 pub struct TcgEfiSpecIdEventAlgorithmSize {
     algorithm_id: u16,
     digest_size: u16,
@@ -121,7 +121,7 @@ impl UefiPlatformFirmwareBlob2 {
 }
 
 #[repr(C, packed)]
-#[derive(Default, FromBytes, AsBytes)]
+#[derive(Default, FromBytes, AsBytes, FromZeroes)]
 pub struct CcEventHeader {
     pub mr_index: u32,
     pub event_type: u32,
@@ -149,7 +149,7 @@ impl core::fmt::Display for CcEventHeader {
 }
 
 #[repr(C, packed)]
-#[derive(Default, FromBytes, AsBytes)]
+#[derive(Default, FromBytes, AsBytes, FromZeroes)]
 pub struct TpmlDigestValues {
     pub count: u32,
     pub digests: [TpmtHa; PCR_DIGEST_NUM],
@@ -171,14 +171,14 @@ impl core::fmt::Display for TpmlDigestValues {
 }
 
 #[repr(C, packed)]
-#[derive(Default, FromBytes, AsBytes)]
+#[derive(Default, FromBytes, AsBytes, FromZeroes)]
 pub struct TpmtHa {
     pub hash_alg: u16,
     pub digest: TpmuHa,
 }
 
 #[repr(C, packed)]
-#[derive(FromBytes, AsBytes)]
+#[derive(FromBytes, AsBytes, FromZeroes)]
 pub struct TpmuHa {
     pub sha384: [u8; SHA384_DIGEST_SIZE],
 }
@@ -192,7 +192,7 @@ impl Default for TpmuHa {
 }
 
 #[repr(C, packed)]
-#[derive(Default, FromBytes, AsBytes)]
+#[derive(Default, FromBytes, AsBytes, FromZeroes)]
 pub struct TcgPcrEventHeader {
     pub mr_index: u32,
     pub event_type: u32,

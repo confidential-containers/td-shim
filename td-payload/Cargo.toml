@@ -30,7 +30,7 @@ x86 = "0.47.0"
 x86_64 = "0.14"
 td-benchmark = { path = "../devtools/td-benchmark", optional = true }
 tdx-tdcall = { path = "../tdx-tdcall", optional = true }
-zerocopy = "0.6.0"
+zerocopy = { version = "0.7.31", features = ["derive"] }
 
 minicov = { version = "0.2", default-features = false, optional = true }
 
