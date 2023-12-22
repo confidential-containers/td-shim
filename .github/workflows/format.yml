@@ -35,11 +35,14 @@ jobs:
           override: true
           components: clippy
 
+      - name: Add target
+        run:  rustup target add x86_64-unknown-none
+          
       - name: Preparation Work
         run: make preparation
 
       - name: Run cargo clippy
-        run: cargo clippy -- -A clippy::redundant_field_names
+        run: cargo clippy --all-features --target=x86_64-unknown-none
 
   rustfmt:
     name: Format
