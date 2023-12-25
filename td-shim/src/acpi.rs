@@ -8,7 +8,7 @@ use zerocopy::{AsBytes, FromBytes, FromZeroes};
 pub const ACPI_TABLES_MAX_NUM: usize = 20;
 pub const ACPI_RSDP_REVISION: u8 = 2;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Error {
     InvalidParameter,
     TooManyAcpiTables,
@@ -210,19 +210,23 @@ mod tests {
         let mut xsdt = Xsdt::new();
         assert_eq!(xsdt.header.length as usize, size_of::<GenericSdtHeader>());
         for idx in 0..ACPI_TABLES_MAX_NUM {
-            xsdt.add_table(idx as u64);
+            assert!(!xsdt.add_table(idx as u64).is_err());
             assert_eq!(
                 xsdt.header.length as usize,
                 size_of::<GenericSdtHeader>() + (idx + 1) * 8
             );
         }
 
-        xsdt.add_table(100);
+        assert!(xsdt
+            .add_table(100)
+            .is_err_and(|e| e == Error::TooManyAcpiTables));
         assert_eq!(
             xsdt.header.length as usize,
             size_of::<GenericSdtHeader>() + ACPI_TABLES_MAX_NUM * 8
         );
-        xsdt.add_table(101);
+        assert!(xsdt
+            .add_table(101)
+            .is_err_and(|e| e == Error::TooManyAcpiTables));
         assert_eq!(
             xsdt.header.length as usize,
             size_of::<GenericSdtHeader>() + ACPI_TABLES_MAX_NUM * 8
