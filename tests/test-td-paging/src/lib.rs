@@ -8,7 +8,6 @@
 // Any function, const, or static can be annotated with `#[test_case]` causing it to be aggregated
 // (like #[test]) and be passed to the test runner determined by the `#![test_runner]` crate
 // attribute.
-#![feature(default_alloc_error_handler)]
 #![feature(custom_test_frameworks)]
 #![test_runner(test_runner)]
 // Reexport the test harness main function under a different symbol.
@@ -50,7 +49,6 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 
 #[cfg(test)]
 mod tests {
-    use td_layout::runtime;
     use td_paging::{reserve_page, PHYS_VIRT_OFFSET};
     use x86_64::{
         structures::paging::{OffsetPageTable, PageTable},
@@ -62,7 +60,7 @@ mod tests {
     /// Build page table to map guest physical addres range [0, system_memory_size), the top page table
     /// page will be hosted at guest physical address `page_table_memory_base`.
     pub fn setup_paging(page_table_memory_base: u64, system_memory_size: u64) {
-        let mut pt = unsafe {
+        let _pt = unsafe {
             OffsetPageTable::new(
                 &mut *(page_table_memory_base as *mut PageTable),
                 VirtAddr::new(PHYS_VIRT_OFFSET as u64),
@@ -99,10 +97,11 @@ mod tests {
 
     #[test_case]
     fn test_create_paging() {
-        td_paging::init(
+        assert!(!td_paging::init(
             TD_PAYLOAD_PAGE_TABLE_BASE,
             TD_PAYLOAD_PAGE_TABLE_SIZE as usize,
-        );
+        )
+        .is_err());
         setup_paging(
             TD_PAYLOAD_PAGE_TABLE_BASE + 0x1000,
             TD_PAYLOAD_PAGE_TABLE_BASE + TD_PAYLOAD_PAGE_TABLE_SIZE as u64,
