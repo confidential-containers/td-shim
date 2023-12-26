@@ -13,6 +13,7 @@
 // limitations under the License.
 // This function will cause page fault by memory protection.
 
+use core::arch::asm;
 use td_benchmark::StackProfiling;
 use td_payload::{mm::layout::DEFAULT_STACK_SIZE, println};
 
@@ -29,7 +30,7 @@ fn test_stack() {
     let b = vec![1u8, 2, 3, 4];
 }
 
-pub fn bench_stack(memory_layout: RuntimeMemoryLayout) {
+pub fn bench_stack() {
     StackProfiling::init(0x5a5a_5a5a_5a5a_5a5a, 0x20_0000);
     test_stack();
     let stack_usage = StackProfiling::stack_usage().unwrap();

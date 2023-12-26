@@ -49,7 +49,7 @@ pub extern "C" fn main() -> ! {
 
     #[cfg(feature = "benches")]
     {
-        stack::bench_stack(memory_layout);
+        stack::bench_stack();
     }
 
     #[cfg(feature = "tdx")]
