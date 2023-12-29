@@ -18,7 +18,7 @@ RUN apt-get update && \
 
 # Install rustup and a fixed version of Rust.
 RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain nightly-2023-08-28
-RUN rustup toolchain install 1.74.0
+RUN rustup toolchain install 1.75.0
 RUN rustup component add rust-src
 RUN rustup component add llvm-tools-preview
 COPY cargo_config /root/.cargo/config
