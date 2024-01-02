@@ -18,7 +18,7 @@ jobs:
   system_compile:
     name: Run TDX Integration Test
     runs-on: [self-hosted, tdx]
-    timeout-minutes: 30
+    timeout-minutes: 45
 
     steps:
       # Install first since it's needed to build NASM
@@ -34,12 +34,7 @@ jobs:
           submodules: recursive
 
       - name: Install toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: ${{ env.TOOLCHAIN_PROFILE }}
-          toolchain: ${{ env.RUST_TOOLCHAIN }}
-          override: true
-          components: rust-src, llvm-tools-preview
+        run: bash sh_script/update_toolchain.sh ${{ env.RUST_TOOLCHAIN }}
 
       - name: Run cargo install cargo-xbuild
         uses: actions-rs/cargo@v1
