@@ -11,7 +11,7 @@ name: Integration Test on TDX Server
 
 env:
   AS: nasm
-  RUST_TOOLCHAIN: nightly-2023-08-28
+  RUST_TOOLCHAIN: nightly-2023-12-31
   TOOLCHAIN_PROFILE: minimal
 
 jobs:

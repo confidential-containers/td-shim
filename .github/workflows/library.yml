@@ -12,7 +12,7 @@ name: Library Crates
 env:
   AS: nasm
   STABLE_RUST_TOOLCHAIN: 1.75.0
-  NIGHTLY_RUST_TOOLCHAIN: nightly-2023-08-28
+  NIGHTLY_RUST_TOOLCHAIN: nightly-2023-12-31
   TOOLCHAIN_PROFILE: minimal
 
 jobs:
