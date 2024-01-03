@@ -15,7 +15,7 @@ env:
   CC_x86_64_unknown_linux_gnu: clang
   AR_x86_64_unknown_none: llvm-ar
   CC_x86_64_unknown_none: clang
-  RUST_TOOLCHAIN: nightly-2023-08-28
+  RUST_TOOLCHAIN: nightly-2023-12-31
   TOOLCHAIN_PROFILE: minimal
 
 jobs:
