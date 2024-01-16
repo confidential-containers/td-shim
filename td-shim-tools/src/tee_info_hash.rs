@@ -14,7 +14,6 @@ use std::io::Read;
 use std::io::Seek;
 use std::io::SeekFrom;
 use std::mem::size_of;
-use td_layout::build_time::TD_SHIM_METADATA_SIZE;
 use td_shim::metadata::*;
 use zeroize::Zeroize;
 
@@ -243,11 +242,9 @@ impl TdInfoStruct {
             .seek(SeekFrom::Start(metadata_off as u64))
             .unwrap();
 
-        let mut metadata_buf = [0; TD_SHIM_METADATA_SIZE as usize];
-
-        raw_image_file.read_exact(&mut metadata_buf).unwrap();
-
-        let desc = &metadata_buf[size_of::<TdxMetadataGuid>()..];
+        let mut desc_buf = [0; size_of::<TdxMetadataGuid>() + size_of::<TdxMetadataDescriptor>()];
+        raw_image_file.read_exact(&mut desc_buf).unwrap();
+        let desc = &desc_buf[size_of::<TdxMetadataGuid>()..];
 
         // Signature	        0	CHAR8[4]	    4	'TDVF' signature
         // Length	            4	UINT32	        4	Size of the structure (d)
@@ -260,6 +257,15 @@ impl TdInfoStruct {
             println!("{:?}", descriptor);
             panic!("The descriptor is not valid!\n");
         }
+
+        raw_image_file
+            .seek(SeekFrom::Start(
+                metadata_off as u64 + size_of::<TdxMetadataGuid>() as u64,
+            ))
+            .unwrap();
+        let mut metadata_buf = vec![0; descriptor.length as usize];
+        raw_image_file.read_exact(&mut metadata_buf).unwrap();
+        let desc = &metadata_buf[0..];
 
         desc_offset += size_of::<TdxMetadataDescriptor>();
 
