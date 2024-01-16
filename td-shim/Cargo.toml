@@ -16,7 +16,7 @@ anyhow = "1.0.55"
 cc = "1.0"
 td-layout = { path = "../td-layout" }
 tdx-tdcall = { path = "../tdx-tdcall" }
-which = "4.2.4"
+which = "5.0.0"
 
 [dependencies]
 lazy_static = { version = "1.4.0", features = ["spin_no_std"] }
