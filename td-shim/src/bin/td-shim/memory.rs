@@ -346,7 +346,7 @@ impl<'a> Memory<'a> {
     pub fn set_shared_bit(&mut self, address: u64, size: u64) {
         let shared_page_flag = td::get_shared_page_mask();
         let mut flags = Flags::PRESENT | Flags::WRITABLE;
-        flags = unsafe { Flags::from_bits_unchecked(flags.bits() | shared_page_flag) };
+        flags = Flags::from_bits_retain(flags.bits() | shared_page_flag);
 
         td_paging::set_page_flags(&mut self.pt, VirtAddr::new(address), size as i64, flags);
     }
