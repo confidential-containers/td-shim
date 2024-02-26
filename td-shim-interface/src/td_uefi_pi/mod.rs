@@ -21,7 +21,6 @@
 //!
 //! Constants and data structures defined by [UEFI PI Spec] are hosted by [crate::pi], functions
 //! to access them are hosted by [crate::fv] and [crate::hob].
-#![no_std]
 
 pub mod fv;
 pub mod hob;

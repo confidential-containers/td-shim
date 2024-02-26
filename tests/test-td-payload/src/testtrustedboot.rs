@@ -12,10 +12,10 @@ use core::{convert::TryInto, ffi::c_void, mem::size_of};
 use ring::digest;
 use scroll::Pread;
 use td_payload::hob::get_hob;
-use td_shim::acpi::{Ccel, GenericSdtHeader};
 use td_shim::event_log::CCEL_CC_TYPE_TDX;
 use td_shim::TD_ACPI_TABLE_HOB_GUID;
-use td_uefi_pi::hob;
+use td_shim_interface::acpi::{Ccel, GenericSdtHeader};
+use td_shim_interface::td_uefi_pi::hob;
 use tdx_tdcall::tdreport;
 use zerocopy::{AsBytes, FromBytes};
 

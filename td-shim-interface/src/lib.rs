@@ -6,18 +6,11 @@
 
 use scroll::{Pread, Pwrite};
 
-use td_shim_interface::td_uefi_pi::pi::{self, guid};
+pub mod acpi;
+pub mod metadata;
+pub mod td_uefi_pi;
 
-pub mod e820;
-pub mod event_log;
-pub mod fv;
-pub mod reset_vector;
-
-#[cfg(feature = "secure-boot")]
-pub mod secure_boot;
-
-#[cfg(feature = "fuzz")]
-pub mod secure_boot;
+use td_uefi_pi::pi::{self, guid};
 
 // This GUID is used for ACPI GUID Extension HOB
 // Please refer to:

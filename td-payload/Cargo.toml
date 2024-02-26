@@ -23,7 +23,7 @@ serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
 spin = "0.9"
 td-logger =  { path = "../td-logger" }
 td-shim = { path = "../td-shim", default-features = false }
-td-uefi-pi =  { path = "../td-uefi-pi" }
+td-shim-interface =  { path = "../td-shim-interface" }
 td-exception =  { path = "../td-exception" }
 td-paging =  { path = "../td-paging" }
 x86 = "0.47.0"

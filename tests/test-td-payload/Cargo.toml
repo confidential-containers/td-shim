@@ -13,7 +13,7 @@ r-efi = "3.2.0"
 linked_list_allocator = "0.10.4"
 log = "0.4.13"
 cc-measurement = { path = "../../cc-measurement" }
-td-uefi-pi =  { path = "../../td-uefi-pi" }
+td-shim-interface =  { path = "../../td-shim-interface" }
 tdx-tdcall = { path = "../../tdx-tdcall" , optional = true }
 td-logger =  { path = "../../td-logger" }
 td-layout = { path = "../../td-layout" }

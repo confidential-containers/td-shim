@@ -23,7 +23,7 @@ lazy_static = { version = "1.4.0", features = ["spin_no_std"] }
 r-efi = "3.2.0"
 scroll = { version = "0.10", default-features = false, features = ["derive"] }
 td-layout = { path = "../td-layout" }
-td-uefi-pi =  { path = "../td-uefi-pi" }
+td-shim-interface =  { path = "../td-shim-interface" }
 cc-measurement = { path = "../cc-measurement" }
 zerocopy = { version = "0.7.31", features = ["derive"] }
 

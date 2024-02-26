@@ -9,14 +9,14 @@ use log::error;
 use scroll::{Pread, Pwrite};
 use td_layout::build_time::{TD_SHIM_FIRMWARE_BASE, TD_SHIM_FIRMWARE_SIZE};
 use td_layout::memslice;
-use td_shim::metadata::*;
 use td_shim::speculation_barrier;
 use td_shim::{
     PayloadInfo, TdPayloadInfoHobType, TD_ACPI_TABLE_HOB_GUID, TD_PAYLOAD_INFO_HOB_GUID,
 };
-use td_uefi_pi::pi::guid::Guid;
-use td_uefi_pi::pi::hob::*;
-use td_uefi_pi::{fv, hob, pi};
+use td_shim_interface::metadata::*;
+use td_shim_interface::td_uefi_pi::pi::guid::Guid;
+use td_shim_interface::td_uefi_pi::pi::hob::*;
+use td_shim_interface::td_uefi_pi::{fv, hob, pi};
 
 pub struct BootTimeStatic {
     sections: Vec<TdxMetadataSection>,

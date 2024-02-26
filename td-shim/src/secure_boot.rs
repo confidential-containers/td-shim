@@ -21,7 +21,7 @@ use ring::{
     signature::{self, UnparsedPublicKey, VerificationAlgorithm},
 };
 use scroll::{Pread, Pwrite};
-use td_uefi_pi::{fv, pi};
+use td_shim_interface::td_uefi_pi::{fv, pi};
 
 /// GUID for secure boot trust anchor in the Configuration Firmware Volume (CFV).
 pub const CFV_FFS_HEADER_TRUST_ANCHOR_GUID: Guid = Guid::from_fields(

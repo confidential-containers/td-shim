@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use td_payload::hob::get_hob;
 use td_shim::e820::{self, E820Entry, E820Type};
 use td_shim::TD_E820_TABLE_HOB_GUID;
-use td_uefi_pi::hob;
+use td_shim_interface::td_uefi_pi::hob;
 use zerocopy::{AsBytes, FromBytes};
 
 #[derive(Debug, Serialize, Deserialize)]

@@ -42,7 +42,7 @@ regex = "1"
 scroll = { version = "0.10", default-features = false, features = ["derive"]}
 td-layout = { path = "../td-layout" }
 td-shim = { path = "../td-shim", default-features = false }
-td-uefi-pi =  { path = "../td-uefi-pi" }
+td-shim-interface =  { path = "../td-shim-interface" }
 cfg-if = "1.0"
 
 anyhow = { version = "1.0.68", optional = true }

@@ -11,7 +11,7 @@ use td_shim::{
     e820::{E820Entry, E820Type},
     TD_E820_TABLE_HOB_GUID,
 };
-use td_uefi_pi::{
+use td_shim_interface::td_uefi_pi::{
     hob as hob_lib,
     pi::hob::{GuidExtension, Header, HOB_TYPE_END_OF_HOB_LIST, HOB_TYPE_GUID_EXTENSION},
 };

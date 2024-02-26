@@ -5,7 +5,7 @@
 use core::mem::size_of;
 use scroll::Pread;
 use spin::Once;
-use td_uefi_pi::{
+use td_shim_interface::td_uefi_pi::{
     hob::check_hob_integrity,
     pi::hob::{HandoffInfoTable, HOB_TYPE_HANDOFF},
 };

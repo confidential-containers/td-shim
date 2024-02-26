@@ -19,6 +19,7 @@ members = [
     "tests/test-td-paging",
     "tests/test-td-payload",
     "xtask",
+    "td-shim-interface",
 ]
 
 # the profile used for debug build of `td-shim` and `td-payload`

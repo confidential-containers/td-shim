@@ -6,7 +6,7 @@
 use core::mem::size_of;
 use r_efi::efi::Guid;
 use std::vec::Vec;
-use td_uefi_pi::{fv, hob, pi};
+use td_shim_interface::td_uefi_pi::{fv, hob, pi};
 
 const EFI_END_OF_HOB_LIST_OFFSET: usize = 48;
 

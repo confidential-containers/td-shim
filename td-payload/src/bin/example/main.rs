@@ -26,8 +26,8 @@ use td_payload as _;
 use td_payload::println;
 use td_shim::e820::{E820Entry, E820Type};
 use td_shim::{TD_ACPI_TABLE_HOB_GUID, TD_E820_TABLE_HOB_GUID};
-use td_uefi_pi::hob;
-use td_uefi_pi::pi;
+use td_shim_interface::td_uefi_pi::hob;
+use td_shim_interface::td_uefi_pi::pi;
 use zerocopy::FromBytes;
 
 #[macro_use]

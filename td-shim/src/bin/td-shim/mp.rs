@@ -6,7 +6,7 @@ use core::convert::TryInto;
 use core::mem::size_of;
 use zerocopy::{AsBytes, FromBytes, FromZeroes};
 
-use td_shim::acpi::{self, GenericSdtHeader};
+use td_shim_interface::acpi::{self, GenericSdtHeader};
 
 // 255 vCPUs needs 2278 bytes, refer to create_madt().
 const MADT_MAX_SIZE: usize = 0xc00;
