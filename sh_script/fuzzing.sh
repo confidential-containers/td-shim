@@ -8,7 +8,7 @@ readonly script_name=${0##*/}
 
 fuzz_folder=(
     "td-loader"
-    "td-uefi-pi"
+    "td-shim-interface/src"
     "td-shim"
 )
 

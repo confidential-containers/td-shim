@@ -5,7 +5,7 @@
 use core::convert::TryInto;
 use log::error;
 use scroll::Pread;
-use td_shim::metadata::{
+use td_shim_interface::metadata::{
     self, TdxMetadataDescriptor, TdxMetadataGuid, TdxMetadataSection, TDX_METADATA_DESCRIPTOR_LEN,
     TDX_METADATA_GUID_LEN, TDX_METADATA_OFFSET, TDX_METADATA_SECTION_LEN,
 };

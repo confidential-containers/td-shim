@@ -12,9 +12,9 @@ use core::ffi::c_void;
 use core::mem::size_of;
 use serde::{Deserialize, Serialize};
 use td_payload::hob::get_hob;
-use td_shim::acpi::GenericSdtHeader;
 use td_shim::TD_ACPI_TABLE_HOB_GUID;
-use td_uefi_pi::hob;
+use td_shim_interface::acpi::GenericSdtHeader;
+use td_shim_interface::td_uefi_pi::hob;
 use zerocopy::{AsBytes, FromBytes};
 
 #[derive(Debug, Serialize, Deserialize)]

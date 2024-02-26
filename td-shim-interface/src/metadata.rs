@@ -4,10 +4,10 @@
 
 extern crate alloc;
 
+use crate::td_uefi_pi::pi::guid::Guid;
 use alloc::string::String;
 use core::{ptr::slice_from_raw_parts, str::FromStr};
 use scroll::{Pread, Pwrite};
-use td_uefi_pi::pi::guid::Guid;
 
 /// TDX Metadata GUID defined in td-shim specification
 pub const TDX_METADATA_GUID_STR: &str = "E9EAF9F3-168E-44D5-A8EB-7F4D8738F6AE";

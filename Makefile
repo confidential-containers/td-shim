@@ -11,7 +11,7 @@ else
 	export BUILD_TYPE_FLAG=
 endif
 
-GENERIC_LIB_CRATES = td-layout td-logger td-uefi-pi td-loader cc-measurement
+GENERIC_LIB_CRATES = td-layout td-logger td-shim-interface td-loader cc-measurement
 NIGHTLY_LIB_CRATES = td-exception td-paging tdx-tdcall
 SHIM_CRATES = td-shim td-payload
 TEST_CRATES = test-td-exception test-td-paging

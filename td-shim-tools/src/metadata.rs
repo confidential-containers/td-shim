@@ -7,14 +7,14 @@ use serde::{de, Deserialize};
 use std::{mem::size_of, vec::Vec};
 use td_layout::build_time::*;
 use td_layout::runtime::*;
-use td_shim::metadata::{
+use td_shim_interface::metadata::{
     TdxMetadataDescriptor, TDX_METADATA_GUID, TDX_METADATA_SECTION_TYPE_BFV,
     TDX_METADATA_SECTION_TYPE_CFV, TDX_METADATA_SECTION_TYPE_PAYLOAD,
     TDX_METADATA_SECTION_TYPE_PAYLOAD_PARAM, TDX_METADATA_SECTION_TYPE_PERM_MEM,
     TDX_METADATA_SECTION_TYPE_TD_HOB, TDX_METADATA_SECTION_TYPE_TD_INFO,
     TDX_METADATA_SECTION_TYPE_TEMP_MEM, TDX_METADATA_SIGNATURE, TDX_METADATA_VERSION,
 };
-use td_uefi_pi::pi::guid::Guid;
+use td_shim_interface::td_uefi_pi::pi::guid::Guid;
 
 use crate::linker::PayloadType;
 
@@ -101,7 +101,7 @@ impl MetadataSections {
 }
 
 fn basic_metadata_sections(payload_type: PayloadType) -> MetadataSections {
-    use td_shim::metadata::TDX_METADATA_ATTRIBUTES_EXTENDMR;
+    use td_shim_interface::metadata::TDX_METADATA_ATTRIBUTES_EXTENDMR;
 
     let mut metadata_sections = MetadataSections::new();
 

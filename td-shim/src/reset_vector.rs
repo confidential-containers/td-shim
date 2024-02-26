@@ -8,7 +8,9 @@ use core::ptr::slice_from_raw_parts;
 use r_efi::efi::Guid;
 use scroll::{Pread, Pwrite};
 use td_layout::build_time::TD_SHIM_RESET_VECTOR_SIZE;
-use td_uefi_pi::pi::fv::{CommonSectionHeader, FfsFileHeader, FV_FILETYPE_RAW, SECTION_RAW};
+use td_shim_interface::td_uefi_pi::pi::fv::{
+    CommonSectionHeader, FfsFileHeader, FV_FILETYPE_RAW, SECTION_RAW,
+};
 
 use crate::write_u24;
 

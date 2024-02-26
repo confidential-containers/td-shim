@@ -8,7 +8,7 @@ use core::ptr::slice_from_raw_parts;
 
 use r_efi::efi::Guid;
 use scroll::{Pread, Pwrite};
-use td_uefi_pi::pi::fv::{
+use td_shim_interface::td_uefi_pi::pi::fv::{
     Checksum, CommonSectionHeader, FfsFileHeader, FirmwareVolumeExtHeader, FirmwareVolumeHeader,
     FvBlockMap, FIRMWARE_FILE_SYSTEM2_GUID, FVH_SIGNATURE, FV_FILETYPE_FFS_PAD,
 };

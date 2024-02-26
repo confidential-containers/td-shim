@@ -12,7 +12,7 @@ edition = "2018"
 [dependencies]
 scroll = { version = "0.10", default-features = false, features = ["derive"]}
 log = "0.4.13"
-td-uefi-pi =  { path = "../td-uefi-pi" }
+td-shim-interface =  { path = "../td-shim-interface" }
 
 [dev-dependencies]
 memoffset = "0.6"

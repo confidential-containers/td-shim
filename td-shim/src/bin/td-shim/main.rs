@@ -30,13 +30,13 @@ use cc_measurement::{log::CcEventLogWriter, EV_EFI_HANDOFF_TABLES2, EV_PLATFORM_
 use td_layout::build_time::{self, *};
 use td_layout::memslice::{self, SliceType};
 use td_layout::RuntimeMemoryLayout;
-use td_shim::acpi::{Ccel, GenericSdtHeader};
 use td_shim::event_log::{log_hob_list, log_payload_binary, log_payload_parameter};
 use td_shim::{
     speculation_barrier, PayloadInfo, TdPayloadInfoHobType, TD_ACPI_TABLE_HOB_GUID,
     TD_PAYLOAD_INFO_HOB_GUID,
 };
-use td_uefi_pi::{fv, hob, pi};
+use td_shim_interface::acpi::{Ccel, GenericSdtHeader};
+use td_shim_interface::td_uefi_pi::{fv, hob, pi};
 
 use crate::ipl::ExecutablePayloadType;
 use crate::shim_info::{BootTimeDynamic, BootTimeStatic};

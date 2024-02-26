@@ -8,8 +8,8 @@ use td_layout::memslice::SliceType;
 use td_layout::{build_time::*, runtime::*, *};
 use td_shim::e820::{E820Entry, E820Type};
 use td_shim::{PayloadInfo, TdPayloadInfoHobType};
-use td_uefi_pi::hob;
-use td_uefi_pi::pi::hob::{
+use td_shim_interface::td_uefi_pi::hob;
+use td_shim_interface::td_uefi_pi::pi::hob::{
     ResourceDescription, RESOURCE_MEMORY_RESERVED, RESOURCE_MEMORY_UNACCEPTED,
     RESOURCE_SYSTEM_MEMORY,
 };
@@ -284,7 +284,7 @@ impl<'a> Memory<'a> {
     #[cfg(feature = "tdx")]
     fn accept_memory_resources(resources: &mut Vec<ResourceDescription>) {
         use td_layout::TD_PAYLOAD_PARTIAL_ACCEPT_MEMORY_SIZE;
-        use td_uefi_pi::pi;
+        use td_shim_interface::td_uefi_pi::pi;
 
         // The physical address must not exceed the shared mask (the last bit of GPAW).
         let (index, max_phys_addr) = resources

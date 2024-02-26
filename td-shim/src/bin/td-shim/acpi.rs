@@ -5,7 +5,7 @@
 extern crate alloc;
 
 use alloc::vec::Vec;
-use td_shim::acpi::{calculate_checksum, Rsdp, Xsdt};
+use td_shim_interface::acpi::{calculate_checksum, Rsdp, Xsdt};
 
 use super::*;
 

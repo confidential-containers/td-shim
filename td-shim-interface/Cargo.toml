@@ -1,0 +1,18 @@
+[package]
+name = "td-shim-interface"
+version = "0.1.0"
+license = "BSD-2-Clause-Patent"
+description = "TD-shim metadata data structures and related functions. UEFI Platform Initializaiton data structures and accessors"
+
+edition = "2018"
+homepage = "https://github.com/confidential-containers/td-shim"
+repository = "https://github.com/confidential-containers/td-shim"
+readme = "README.md"
+keywords = ["td-shim", "TDX", "intel"]
+
+[dependencies]
+r-efi = "3.2.0"
+scroll = { version = "0.10", default-features = false, features = ["derive"] }
+zerocopy = { version = "0.7.31", features = ["derive"] }
+
+log = "0.4.13"

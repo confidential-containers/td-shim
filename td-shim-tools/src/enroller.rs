@@ -18,7 +18,7 @@ use td_shim::secure_boot::{
     PUBKEY_FILE_STRUCT_VERSION_V1, PUBKEY_HASH_ALGORITHM_SHA384,
 };
 use td_shim::write_u24;
-use td_uefi_pi::pi::fv::{
+use td_shim_interface::td_uefi_pi::pi::fv::{
     FIRMWARE_FILE_SYSTEM3_GUID, FVH_REVISION, FVH_SIGNATURE, FV_FILETYPE_RAW,
 };
 
@@ -298,7 +298,7 @@ mod test {
     use std::str::FromStr;
 
     use super::*;
-    use td_uefi_pi::pi::guid;
+    use td_shim_interface::td_uefi_pi::pi::guid;
 
     fn read_u24(data: &[u8]) -> u32 {
         let mut num = data[0] as u32;
