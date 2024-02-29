@@ -2,13 +2,9 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
-use log::debug;
+use core::convert::TryInto;
 use log::error;
 use scroll::Pread;
-use std::fs;
-use std::io;
-use std::io::Read;
-use std::io::Seek;
 use td_shim::metadata::{
     self, TdxMetadataDescriptor, TdxMetadataGuid, TdxMetadataSection, TDX_METADATA_DESCRIPTOR_LEN,
     TDX_METADATA_GUID_LEN, TDX_METADATA_OFFSET, TDX_METADATA_SECTION_LEN,
@@ -16,55 +12,22 @@ use td_shim::metadata::{
 
 pub struct TdShimLoader;
 
-fn read_from_file(file: &mut std::fs::File, pos: u64, buffer: &mut [u8]) -> io::Result<()> {
-    debug!("Read at pos={0:X}, len={1:X}", pos, buffer.len());
-    let _pos = std::io::SeekFrom::Start(pos);
-    file.seek(_pos)?;
-    file.read_exact(buffer)?;
-    debug!("{:X?}", buffer);
-    Ok(())
-}
-
 impl TdShimLoader {
     /// generate TdxMetadata elements tupple from input file
     ///
     /// # Arguments
     ///
     /// * `filename` - The td-shim binary which contains TdxMetadata
-    pub fn parse(filename: &String) -> Option<(TdxMetadataDescriptor, Vec<TdxMetadataSection>)> {
-        // first we open the input file and get its size
-        let f = fs::File::open(filename);
-        if f.is_err() {
-            error!("Problem opening the file");
-            return None;
-        }
-
-        let mut file = f.unwrap();
-
-        let file_metadata = fs::metadata(filename);
-        if file_metadata.is_err() {
-            error!("Problem read file meatadata");
-            return None;
-        }
-
-        let file_metadata = file_metadata.unwrap();
-        let file_size = file_metadata.len();
-
+    pub fn parse(binary_file: Vec<u8>) -> Option<(TdxMetadataDescriptor, Vec<TdxMetadataSection>)> {
+        let file_size = binary_file.len();
         // Then read 4 bytes at the pos of [file_len - 0x20]
         // This is the offset of TdxMetadata
-        let mut buffer: [u8; 4] = [0; 4];
-        if read_from_file(
-            &mut file,
-            file_size - TDX_METADATA_OFFSET as u64,
-            &mut buffer,
-        )
-        .is_err()
-        {
-            error!("Failed to read metadata offset");
-            return None;
-        }
-
-        let mut metadata_offset = u32::from_le_bytes(buffer);
+        let metadata_offset_addr = file_size - TDX_METADATA_OFFSET as usize;
+        let buffer = &binary_file[metadata_offset_addr..metadata_offset_addr + 4];
+        let mut metadata_offset = ((buffer[3] as u32) << 24)
+            | ((buffer[2] as u32) << 16)
+            | ((buffer[1] as u32) << 8)
+            | (buffer[0] as u32);
         if metadata_offset > file_size as u32 - TDX_METADATA_OFFSET - TDX_METADATA_DESCRIPTOR_LEN {
             error!("The metadata offset is invalid. {}", metadata_offset);
             error!("{:X?}", buffer);
@@ -73,12 +36,11 @@ impl TdShimLoader {
 
         // Then read the guid
         metadata_offset -= TDX_METADATA_GUID_LEN;
-        let mut buffer: [u8; TDX_METADATA_GUID_LEN as usize] = [0; TDX_METADATA_GUID_LEN as usize];
-        if read_from_file(&mut file, metadata_offset as u64, &mut buffer).is_err() {
-            error!("Failed to read metadata guid from file");
-            return None;
-        }
-        let metadata_guid = TdxMetadataGuid::from_bytes(&buffer);
+        let buffer = &binary_file
+            [metadata_offset as usize..(metadata_offset + TDX_METADATA_GUID_LEN) as usize]
+            .try_into()
+            .unwrap();
+        let metadata_guid = TdxMetadataGuid::from_bytes(buffer);
         if metadata_guid.is_none() {
             error!("Invalid TdxMetadataGuid");
             error!("{:X?}", &buffer);
@@ -86,13 +48,9 @@ impl TdShimLoader {
         }
 
         // Then the descriptor
-        let mut buffer: [u8; TDX_METADATA_DESCRIPTOR_LEN as usize] =
-            [0; TDX_METADATA_DESCRIPTOR_LEN as usize];
         metadata_offset += TDX_METADATA_GUID_LEN;
-        if read_from_file(&mut file, metadata_offset as u64, &mut buffer).is_err() {
-            error!("Failed to read metadata descriptor from file");
-            return None;
-        }
+        let buffer = &binary_file
+            [metadata_offset as usize..(metadata_offset + TDX_METADATA_DESCRIPTOR_LEN) as usize];
         let metadata_descriptor: TdxMetadataDescriptor =
             buffer.pread::<TdxMetadataDescriptor>(0).unwrap();
         if !metadata_descriptor.is_valid() {
@@ -117,12 +75,8 @@ impl TdShimLoader {
         metadata_offset += TDX_METADATA_DESCRIPTOR_LEN;
 
         loop {
-            let mut buffer: [u8; TDX_METADATA_SECTION_LEN as usize] =
-                [0; TDX_METADATA_SECTION_LEN as usize];
-            if read_from_file(&mut file, metadata_offset as u64, &mut buffer).is_err() {
-                error!("Failed to read section[{}] from file", i);
-                return None;
-            }
+            let buffer = &binary_file
+                [metadata_offset as usize..(metadata_offset + TDX_METADATA_SECTION_LEN) as usize];
 
             let section = buffer.pread::<TdxMetadataSection>(0).unwrap();
             metadata_sections.push(section);
