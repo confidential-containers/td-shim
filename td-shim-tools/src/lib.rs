@@ -27,6 +27,9 @@ pub mod signer;
 #[cfg(feature = "loader")]
 pub mod loader;
 
+#[cfg(feature = "read_file")]
+pub mod read_file;
+
 #[cfg(feature = "tee")]
 pub mod tee_info_hash;
 
