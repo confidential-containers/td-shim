@@ -11,6 +11,10 @@ use crate::arch::shared::decrypt;
 static SHARED_MEMORY_ALLOCATOR: LockedHeap = LockedHeap::empty();
 
 pub fn init_shared_memory(start: u64, size: usize) {
+    if size % SIZE_4K != 0 {
+        panic!("Failed to initialize shared memory: size needs to be aligned with 0x1000");
+    }
+
     // Set the shared memory region to be shared
     decrypt(start, size);
     // Initialize the shared memory allocator
