@@ -6,13 +6,11 @@ use core::{alloc::Layout, ptr::NonNull};
 use linked_list_allocator::LockedHeap;
 
 use super::SIZE_4K;
-use crate::arch::shared::decrypt;
+use crate::arch::shared::{decrypt, encrypt};
 
 static SHARED_MEMORY_ALLOCATOR: LockedHeap = LockedHeap::empty();
 
 pub fn init_shared_memory(start: u64, size: usize) {
-    // Set the shared memory region to be shared
-    decrypt(start, size);
     // Initialize the shared memory allocator
     unsafe {
         SHARED_MEMORY_ALLOCATOR.lock().init(start as *mut u8, size);
@@ -45,6 +43,8 @@ impl SharedMemory {
 
 impl Drop for SharedMemory {
     fn drop(&mut self) {
+        // Set the shared memory region to be private before it is freed
+        encrypt(self.addr as u64, self.size);
         unsafe { free_shared_pages(self.addr, self.size / SIZE_4K) }
     }
 }
@@ -61,6 +61,9 @@ pub unsafe fn alloc_shared_pages(num: usize) -> Option<usize> {
         .ok()?;
 
     core::slice::from_raw_parts_mut(addr as *mut u8, size).fill(0);
+
+    // Set the shared memory region to be shared
+    decrypt(addr as u64, size);
 
     Some(addr)
 }
