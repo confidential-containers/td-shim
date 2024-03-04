@@ -1,14 +1,16 @@
 // Copyright (c) 2022 Intel Corporation
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
+extern crate alloc;
 
-use core::convert::TryInto;
-use log::error;
-use scroll::Pread;
-use td_shim_interface::metadata::{
+use crate::metadata::{
     self, TdxMetadataDescriptor, TdxMetadataGuid, TdxMetadataSection, TDX_METADATA_DESCRIPTOR_LEN,
     TDX_METADATA_GUID_LEN, TDX_METADATA_OFFSET, TDX_METADATA_SECTION_LEN,
 };
+use alloc::vec::Vec;
+use core::convert::TryInto;
+use log::error;
+use scroll::Pread;
 
 pub struct TdShimLoader;
 
@@ -18,7 +20,7 @@ impl TdShimLoader {
     /// # Arguments
     ///
     /// * `filename` - The td-shim binary which contains TdxMetadata
-    pub fn parse(binary_file: Vec<u8>) -> Option<(TdxMetadataDescriptor, Vec<TdxMetadataSection>)> {
+    pub fn parse(binary_file: &[u8]) -> Option<(TdxMetadataDescriptor, Vec<TdxMetadataSection>)> {
         let file_size = binary_file.len();
         // Then read 4 bytes at the pos of [file_len - 0x20]
         // This is the offset of TdxMetadata
