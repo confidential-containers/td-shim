@@ -7,6 +7,7 @@
 use scroll::{Pread, Pwrite};
 
 pub mod acpi;
+pub mod loader;
 pub mod metadata;
 pub mod td_uefi_pi;
 

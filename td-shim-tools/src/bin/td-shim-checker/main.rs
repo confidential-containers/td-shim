@@ -10,8 +10,8 @@ use log::{error, LevelFilter};
 use std::str::FromStr;
 use std::vec::Vec;
 use std::{env, io};
+use td_shim_interface::loader::TdShimLoader;
 use td_shim_interface::metadata::{TdxMetadataDescriptor, TdxMetadataSection};
-use td_shim_tools::loader::TdShimLoader;
 use td_shim_tools::read_file::read_from_binary_file;
 
 struct Config {
@@ -104,7 +104,7 @@ fn main() -> io::Result<()> {
     );
 
     let tdx_file_buff = read_from_binary_file(&config.input).unwrap();
-    let tdx_metadata = TdShimLoader::parse(tdx_file_buff);
+    let tdx_metadata = TdShimLoader::parse(&tdx_file_buff);
     if tdx_metadata.is_none() {
         println!(
             "Failed to parse td-shim binary [{}] to get TdxMetadata",

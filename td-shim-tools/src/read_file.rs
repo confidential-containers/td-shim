@@ -7,7 +7,7 @@ use log::debug;
 use std::fs;
 use std::io::Read;
 use std::io::Seek;
-use td_shim::metadata::TDX_METADATA_OFFSET;
+use td_shim_interface::metadata::TDX_METADATA_OFFSET;
 
 fn read_from_file(file: &mut std::fs::File, pos: u64, buffer: &mut [u8]) -> Result<()> {
     debug!("Read at pos={0:X}, len={1:X}", pos, buffer.len());

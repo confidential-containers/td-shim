@@ -87,7 +87,7 @@ jobs:
       
       - name: Meta data check
         run: |
-          cargo run -p td-shim-tools --bin td-shim-checker  --no-default-features --features=loader,read_file -- target/release/final.bin
+          cargo run -p td-shim-tools --bin td-shim-checker  --no-default-features --features=loader -- target/release/final.bin
 
       - name: Build debug image without payload
         run: |
