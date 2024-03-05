@@ -4,38 +4,55 @@
 
 use core::{alloc::Layout, ptr::NonNull};
 use linked_list_allocator::LockedHeap;
+use spin::Once;
 
 use super::SIZE_4K;
 use crate::arch::shared::decrypt;
 
 static SHARED_MEMORY_ALLOCATOR: LockedHeap = LockedHeap::empty();
+static SHADOW_OFFSET: Once<usize> = Once::new();
 
 pub fn init_shared_memory(start: u64, size: usize) {
     if size % SIZE_4K != 0 {
         panic!("Failed to initialize shared memory: size needs to be aligned with 0x1000");
     }
+    let shared_size = size / 2;
 
     // Set the shared memory region to be shared
-    decrypt(start, size);
+    decrypt(start, shared_size);
     // Initialize the shared memory allocator
     unsafe {
-        SHARED_MEMORY_ALLOCATOR.lock().init(start as *mut u8, size);
+        SHARED_MEMORY_ALLOCATOR
+            .lock()
+            .init(start as *mut u8, shared_size);
     }
+    SHADOW_OFFSET.call_once(|| shared_size);
 }
 
 pub struct SharedMemory {
     addr: usize,
+    shadow_addr: usize,
     size: usize,
 }
 
 impl SharedMemory {
     pub fn new(num_page: usize) -> Option<Self> {
         let addr = unsafe { alloc_shared_pages(num_page)? };
+        let shadow_addr = alloc_private_shadow_pages(addr)?;
 
         Some(Self {
             addr,
+            shadow_addr,
             size: num_page * SIZE_4K,
         })
+    }
+
+    pub fn copy_to_private_shadow(&mut self) -> &[u8] {
+        let shadow =
+            unsafe { core::slice::from_raw_parts_mut(self.shadow_addr as *mut u8, self.size) };
+        shadow.copy_from_slice(self.as_bytes());
+
+        shadow
     }
 
     pub fn as_bytes(&self) -> &[u8] {
@@ -90,4 +107,8 @@ pub unsafe fn free_shared_pages(addr: usize, num: usize) {
 /// The caller needs to ensure the correctness of the addr
 pub unsafe fn free_shared_page(addr: usize) {
     free_shared_pages(addr, 1)
+}
+
+fn alloc_private_shadow_pages(shared_addr: usize) -> Option<usize> {
+    Some(shared_addr + SHADOW_OFFSET.get()?)
 }
