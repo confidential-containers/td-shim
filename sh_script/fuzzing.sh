@@ -81,6 +81,9 @@ search_test_case() {
 	for path in ${fuzz_folder[@]};do
 		pushd $path
 		fuzz_list=$(cargo fuzz list)
+        if [ $? != "0" ]; then
+            exit 1
+        fi
 		for fuzz in $fuzz_list;do
 			if [ "$fuzz" != "$test_case" ];then
 				continue
@@ -104,6 +107,9 @@ check_build() {
     for path in ${fuzz_folder[@]};do
         pushd $path
         fuzz_list=$(cargo fuzz list)
+        if [ $? != "0" ]; then
+            exit 1
+        fi
         for fuzz in ${fuzz_list[@]};do
             test_case=$fuzz
             echo "## Build test case $test_case in $path"
@@ -125,6 +131,9 @@ run_single_case() {
         temp_sw='NO'
         pushd $path
         fuzz_list=$(cargo fuzz list)
+        if [ $? != "0" ]; then
+            exit 1
+        fi
         for fuzz in ${fuzz_list[@]};do
             if [ "$fuzz" == "$test_case" ];then
                 temp_sw="YES"
@@ -221,6 +230,9 @@ run_all_case(){
         for path in ${fuzz_folder[@]}; do
             pushd $path
             fuzz_list=$(cargo fuzz list)
+            if [ $? != "0" ]; then
+                exit 1
+            fi
             for fuzz in $fuzz_list; do
                 if [[ $fuzz =~ "afl" ]]; then
                     continue
@@ -252,6 +264,9 @@ run_all_case(){
         for path in ${fuzz_folder[@]};do
             pushd $path
             fuzz_list=$(cargo fuzz list)
+            if [ $? != "0" ]; then
+                exit 1
+            fi
             for fuzz in $fuzz_list;do
                 if [[ "$fuzz" =~ "afl" ]];then
                     if [ "${collect_coverage}" == "YES" ]; then
@@ -299,6 +314,9 @@ check_test_result() {
         for path in ${fuzz_folder[@]}; do
             pushd $path
             fuzz_list=$(cargo fuzz list)
+            if [ $? != "0" ]; then
+                exit 1
+            fi
             for fuzz in $fuzz_list; do
                 if [[ $fuzz =~ "afl" ]]; then
                     continue
@@ -319,6 +337,9 @@ check_test_result() {
         for path in ${fuzz_folder[@]};do
             pushd $path
             fuzz_list=$(cargo fuzz list)
+            if [ $? != "0" ]; then
+                exit 1
+            fi
             for fuzz in $fuzz_list;do
                 if [[ "$fuzz" =~ "afl" ]];then
 					queue_seed_num=`ls -A fuzz/artifacts/$fuzz/default/queue | wc -l`
