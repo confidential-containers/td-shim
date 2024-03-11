@@ -481,7 +481,7 @@ mod tests {
     #[test]
     fn test_check_hob_integrity() {
         const EFI_END_OF_HOB_LIST_OFFSET: usize = 48;
-        let hob = &include_bytes!("../fuzz/seeds/hob_parser/hob_buffer")[..];
+        let hob = &include_bytes!("../../fuzz/seeds/hob_parser/hob_buffer")[..];
         let mut test_hob = hob.to_vec();
         let ptr = test_hob.as_ptr() as u64;
         if test_hob.len() >= size_of::<HandoffInfoTable>() {
@@ -495,14 +495,14 @@ mod tests {
 
     #[test]
     fn test_get_total_memory_top() {
-        let hob = &include_bytes!("../fuzz/seeds/hob_parser/hob_buffer")[..];
+        let hob = &include_bytes!("../../fuzz/seeds/hob_parser/hob_buffer")[..];
 
         assert!(get_total_memory_top(hob).is_some());
     }
 
     #[test]
     fn test_seek_to_next_hob() {
-        let hob = &include_bytes!("../fuzz/seeds/hob_parser/hob_buffer")[..];
+        let hob = &include_bytes!("../../fuzz/seeds/hob_parser/hob_buffer")[..];
 
         assert!(seek_to_next_hob(hob).is_some());
     }
