@@ -25,7 +25,7 @@ paths=(
     "td-paging"
     "td-payload"
     "td-shim"
-    "td-shim-interface/src"
+    "td-shim-interface"
     "td-shim-tools"
     "tdx-tdcall"
 )

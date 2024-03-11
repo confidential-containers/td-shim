@@ -8,7 +8,7 @@ readonly script_name=${0##*/}
 
 fuzz_folder=(
     "td-loader"
-    "td-shim-interface/src"
+    "td-shim-interface"
     "td-shim"
 )
 
