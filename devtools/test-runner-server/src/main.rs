@@ -13,8 +13,9 @@
 // limitations under the License.
 
 use clap::{arg, command, ArgAction};
+use serde_json;
 use std::{
-    io,
+    env, io,
     path::{Path, PathBuf},
     process::{Command, ExitStatus},
     time::Duration,
@@ -96,8 +97,8 @@ fn run_test_command(mut cmd: Command) -> ExitStatus {
 }
 
 fn create_disk_images(kernel_binary_path: &Path) -> PathBuf {
-    let bootloader_manifest_path = bootloader_locator::locate_bootloader("bootloader").unwrap();
-    let kernel_manifest_path = locate_cargo_manifest::locate_manifest().unwrap();
+    let bootloader_manifest_path = locate_bootloader("bootloader").unwrap();
+    let kernel_manifest_path = locate_manifest().unwrap();
 
     let mut build_cmd = Command::new(env!("CARGO"));
     build_cmd.current_dir(bootloader_manifest_path.parent().unwrap());
@@ -130,4 +131,92 @@ fn create_disk_images(kernel_binary_path: &Path) -> PathBuf {
         );
     }
     disk_image
+}
+
+fn locate_manifest() -> Result<PathBuf, LocateError> {
+    let cargo = env::var("CARGO").unwrap_or("cargo".to_owned());
+    let output = Command::new(cargo).arg("locate-project").output().unwrap();
+    if !output.status.success() {
+        return Err(LocateError::CargoExecution {
+            stderr: output.stderr,
+        });
+    }
+
+    let output = String::from_utf8(output.stdout).unwrap();
+    let parsed: serde_json::Value =
+        serde_json::from_str(&output).expect("JSON was not well-formatted");
+    let root = parsed["root"].as_str().ok_or(LocateError::NoRoot)?;
+    Ok(PathBuf::from(root))
+}
+
+fn locate_bootloader(dependency_name: &str) -> Result<PathBuf, LocateError> {
+    let metadata = metadata().unwrap();
+
+    let root = metadata["resolve"]["root"]
+        .as_str()
+        .ok_or(LocateError::MetadataInvalid)?;
+
+    let root_resolve = metadata["resolve"]["nodes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|r| r["id"] == root)
+        .ok_or(LocateError::MetadataInvalid)?;
+
+    let dependency = root_resolve["deps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|d| d["name"] == dependency_name)
+        .ok_or(LocateError::DependencyNotFound)?;
+    let dependency_id = dependency["pkg"]
+        .as_str()
+        .ok_or(LocateError::MetadataInvalid)?;
+
+    let dependency_package = metadata["packages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|p| p["id"] == dependency_id)
+        .ok_or(LocateError::MetadataInvalid)?;
+    let dependency_manifest = dependency_package["manifest_path"]
+        .as_str()
+        .ok_or(LocateError::MetadataInvalid)?;
+
+    Ok(dependency_manifest.into())
+}
+
+fn metadata() -> Result<serde_json::Value, LocateError> {
+    let mut cmd = Command::new(env!("CARGO"));
+    cmd.arg("metadata");
+    cmd.arg("--format-version").arg("1");
+    let output = cmd.output().unwrap();
+
+    if !output.status.success() {
+        return Err(LocateError::CargoExecution {
+            stderr: output.stderr,
+        });
+    }
+
+    let output = String::from_utf8(output.stdout).unwrap();
+    let parsed: serde_json::Value =
+        serde_json::from_str(&output).expect("JSON was not well-formatted");
+
+    Ok(parsed)
+}
+
+// Errors that can occur while retrieving the cargo manifest path.
+#[derive(Debug)]
+enum LocateError {
+    // The command `cargo locate-project` did not exit successfully.
+    CargoExecution {
+        // The standard error output of `cargo locate-project`.
+        stderr: Vec<u8>,
+    },
+    // The JSON output of `cargo locate-project` did not contain the expected "root" string.
+    NoRoot,
+    // The project metadata returned from `cargo metadata` was not valid.
+    MetadataInvalid,
+    // No dependency with the given name found in the project metadata.
+    DependencyNotFound,
 }
