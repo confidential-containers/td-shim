@@ -672,6 +672,25 @@ pub fn tdcall_servtd_wr(
     Ok(result)
 }
 
+/// Used to read a TDX Module global-scope metadata field.
+///
+/// Details can be found in TDX Module v1.5 ABI spec section 'TDG.SYS.RD Leaf'.
+pub fn tdcall_sys_rd(field_identifier: u64) -> core::result::Result<(u64, u64), TdCallError> {
+    let mut args = TdcallArgs {
+        rax: TDCALL_SYS_RD,
+        rdx: field_identifier,
+        ..Default::default()
+    };
+
+    let ret = td_call(&mut args);
+
+    if ret != TDCALL_STATUS_SUCCESS {
+        return Err(ret.into());
+    }
+
+    Ok((args.rdx, args.r8))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
