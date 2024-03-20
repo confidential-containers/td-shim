@@ -11,6 +11,11 @@
             "type": "Memory"
         },
         {
+            "name": "PayloadImage",
+            "size": "0xC2D000",
+            "type": "Memory"
+        },
+        {
             "name": "EventLog",
             "size": "0x100000",
             "type": "Nvs"
