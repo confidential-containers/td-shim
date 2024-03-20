@@ -22,7 +22,9 @@ use td_shim::fv::{
 };
 use td_shim::reset_vector::{ResetVectorHeader, ResetVectorParams};
 use td_shim::write_u24;
-use td_shim_interface::metadata::{TdxMetadataGuid, TdxMetadataPtr};
+use td_shim_interface::metadata::{
+    TdxMetadataGuid, TdxMetadataPtr, OVMF_TABLE_FOOTER_GUID, OVMF_TABLE_TDX_METADATA_GUID,
+};
 use td_shim_interface::td_uefi_pi::pi::fv::{
     FfsFileHeader, FV_FILETYPE_SECURITY_CORE, SECTION_PE32,
 };
@@ -35,24 +37,6 @@ pub const MAX_IPL_CONTENT_SIZE: usize =
 pub const MAX_PAYLOAD_CONTENT_SIZE: usize =
     TD_SHIM_PAYLOAD_SIZE as usize - size_of::<FvHeaderByte>();
 pub const MAX_METADATA_CONFIG_SIZE: usize = 1024 * 1024;
-
-pub const OVMF_TABLE_FOOTER_GUID: Guid = Guid::from_fields(
-    0x96b582de,
-    0x1fb2,
-    0x45f7,
-    0xba,
-    0xea,
-    &[0xa3, 0x66, 0xc5, 0x5a, 0x08, 0x2d],
-);
-
-pub const OVMF_TABLE_TDX_METADATA_GUID: Guid = Guid::from_fields(
-    0xe47a6535,
-    0x984a,
-    0x4798,
-    0x86,
-    0x5e,
-    &[0x46, 0x85, 0xa7, 0xbf, 0x8e, 0xc2],
-);
 
 #[repr(C, align(4))]
 pub struct FvHeaderByte {
