@@ -218,7 +218,7 @@ fn boot_builtin_payload(
     acpi_tables: &Vec<&[u8]>,
 ) {
     // Get and parse image file from the payload firmware volume.
-    let mut payload_bin = memslice::get_mem_slice(memslice::SliceType::ShimPayload);
+    let mut payload_bin = mem.get_dynamic_mem_slice(SliceType::ShimPayload);
 
     #[cfg(feature = "secure-boot")]
     {

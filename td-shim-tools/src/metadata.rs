@@ -6,13 +6,15 @@ use serde::de::Error;
 use serde::{de, Deserialize};
 use std::{mem::size_of, vec::Vec};
 use td_layout::build_time::*;
+use td_layout::runtime::exec::{PAYLOAD_IMAGE_BASE, PAYLOAD_IMAGE_SIZE};
 use td_layout::runtime::*;
 use td_shim_interface::metadata::{
-    TdxMetadataDescriptor, TDX_METADATA_GUID, TDX_METADATA_SECTION_TYPE_BFV,
-    TDX_METADATA_SECTION_TYPE_CFV, TDX_METADATA_SECTION_TYPE_PAYLOAD,
-    TDX_METADATA_SECTION_TYPE_PAYLOAD_PARAM, TDX_METADATA_SECTION_TYPE_PERM_MEM,
-    TDX_METADATA_SECTION_TYPE_TD_HOB, TDX_METADATA_SECTION_TYPE_TD_INFO,
-    TDX_METADATA_SECTION_TYPE_TEMP_MEM, TDX_METADATA_SIGNATURE, TDX_METADATA_VERSION,
+    TdxMetadataDescriptor, TDX_METADATA_ATTRIBUTES_EXTENDMR, TDX_METADATA_GUID,
+    TDX_METADATA_SECTION_TYPE_BFV, TDX_METADATA_SECTION_TYPE_CFV,
+    TDX_METADATA_SECTION_TYPE_PAYLOAD, TDX_METADATA_SECTION_TYPE_PAYLOAD_PARAM,
+    TDX_METADATA_SECTION_TYPE_PERM_MEM, TDX_METADATA_SECTION_TYPE_TD_HOB,
+    TDX_METADATA_SECTION_TYPE_TD_INFO, TDX_METADATA_SECTION_TYPE_TEMP_MEM, TDX_METADATA_SIGNATURE,
+    TDX_METADATA_VERSION,
 };
 use td_shim_interface::td_uefi_pi::pi::guid::Guid;
 
@@ -100,35 +102,14 @@ impl MetadataSections {
     }
 }
 
-fn basic_metadata_sections(payload_type: PayloadType) -> MetadataSections {
-    use td_shim_interface::metadata::TDX_METADATA_ATTRIBUTES_EXTENDMR;
-
+fn basic_metadata_sections() -> MetadataSections {
     let mut metadata_sections = MetadataSections::new();
 
-    // BFV
-    let bfv_offset =
-        if cfg!(any(feature = "exec-payload-section")) || payload_type == PayloadType::Linux {
-            TD_SHIM_METADATA_OFFSET
-        } else {
-            TD_SHIM_PAYLOAD_OFFSET
-        };
-
+    // BFV (Reset Vector, IPL and Metadata)
+    let bfv_offset = TD_SHIM_METADATA_OFFSET;
     let bfv_data_size =
-        if cfg!(any(feature = "exec-payload-section")) || payload_type == PayloadType::Linux {
-            (TD_SHIM_METADATA_SIZE + TD_SHIM_IPL_SIZE + TD_SHIM_RESET_VECTOR_SIZE) as u64
-        } else {
-            (TD_SHIM_PAYLOAD_SIZE
-                + TD_SHIM_METADATA_SIZE
-                + TD_SHIM_IPL_SIZE
-                + TD_SHIM_RESET_VECTOR_SIZE) as u64
-        };
-
-    let bfv_memory_address =
-        if cfg!(any(feature = "exec-payload-section")) || payload_type == PayloadType::Linux {
-            TD_SHIM_METADATA_BASE
-        } else {
-            TD_SHIM_PAYLOAD_BASE
-        };
+        (TD_SHIM_METADATA_SIZE + TD_SHIM_IPL_SIZE + TD_SHIM_RESET_VECTOR_SIZE) as u64;
+    let bfv_memory_address = TD_SHIM_METADATA_BASE;
 
     metadata_sections.add(TdxMetadataSection {
         data_offset: bfv_offset,
@@ -183,7 +164,7 @@ fn basic_metadata_sections(payload_type: PayloadType) -> MetadataSections {
 }
 
 pub fn default_metadata_sections(payload_type: PayloadType) -> MetadataSections {
-    let mut metadata_sections = basic_metadata_sections(payload_type);
+    let mut metadata_sections = basic_metadata_sections();
 
     if payload_type == PayloadType::Linux {
         // TD_HOB
@@ -226,18 +207,21 @@ pub fn default_metadata_sections(payload_type: PayloadType) -> MetadataSections 
             attributes: 0,
         });
 
-        if cfg!(feature = "exec-payload-section") {
-            println!("default_metadata_sections_exec_payload");
-            // payload image
-            metadata_sections.add(TdxMetadataSection {
-                data_offset: TD_SHIM_PAYLOAD_OFFSET,
-                raw_data_size: TD_SHIM_PAYLOAD_SIZE,
-                memory_address: TD_SHIM_PAYLOAD_BASE as u64,
-                memory_data_size: TD_SHIM_PAYLOAD_SIZE as u64,
-                r#type: TDX_METADATA_SECTION_TYPE_PAYLOAD,
-                attributes: 0,
-            });
-        }
+        // payload image
+        metadata_sections.add(TdxMetadataSection {
+            data_offset: TD_SHIM_PAYLOAD_OFFSET,
+            raw_data_size: PAYLOAD_IMAGE_SIZE as u32,
+            memory_address: PAYLOAD_IMAGE_BASE as u64,
+            memory_data_size: PAYLOAD_IMAGE_SIZE as u64,
+            #[cfg(feature = "exec-payload-section")]
+            r#type: TDX_METADATA_SECTION_TYPE_PAYLOAD,
+            #[cfg(not(feature = "exec-payload-section"))]
+            r#type: TDX_METADATA_SECTION_TYPE_BFV,
+            #[cfg(feature = "exec-payload-section")]
+            attributes: 0,
+            #[cfg(not(feature = "exec-payload-section"))]
+            attributes: TDX_METADATA_ATTRIBUTES_EXTENDMR,
+        });
     }
 
     metadata_sections

@@ -10,11 +10,12 @@ use log::trace;
 use r_efi::base::Guid;
 use scroll::Pwrite;
 use td_layout::build_time::{
-    TD_SHIM_FIRMWARE_BASE, TD_SHIM_FIRMWARE_SIZE, TD_SHIM_IPL_OFFSET, TD_SHIM_IPL_SIZE,
-    TD_SHIM_MAILBOX_OFFSET, TD_SHIM_METADATA_OFFSET, TD_SHIM_PAYLOAD_BASE, TD_SHIM_PAYLOAD_OFFSET,
-    TD_SHIM_PAYLOAD_SIZE, TD_SHIM_RESET_VECTOR_SIZE, TD_SHIM_SEC_CORE_INFO_OFFSET,
+    TD_SHIM_IMAGE_SIZE, TD_SHIM_IPL_BASE, TD_SHIM_IPL_OFFSET, TD_SHIM_IPL_SIZE,
+    TD_SHIM_MAILBOX_OFFSET, TD_SHIM_METADATA_OFFSET, TD_SHIM_PAYLOAD_OFFSET, TD_SHIM_PAYLOAD_SIZE,
+    TD_SHIM_RESET_VECTOR_OFFSET, TD_SHIM_RESET_VECTOR_SIZE, TD_SHIM_SEC_CORE_INFO_OFFSET,
 };
 use td_layout::mailbox::TdxMpWakeupMailbox;
+use td_layout::runtime::exec::PAYLOAD_IMAGE_BASE;
 use td_loader::{elf, pe};
 use td_shim::fv::{
     FvFfsFileHeader, FvFfsSectionHeader, FvHeader, IplFvFfsHeader, IplFvFfsSectionHeader,
@@ -156,7 +157,7 @@ pub fn build_ovmf_guid_table() -> Vec<u8> {
     let mut table = Vec::new();
 
     let metadata_offset =
-        TD_SHIM_FIRMWARE_SIZE - (TD_SHIM_METADATA_OFFSET + size_of::<TdxMetadataGuid>() as u32);
+        TD_SHIM_IMAGE_SIZE - (TD_SHIM_METADATA_OFFSET + size_of::<TdxMetadataGuid>() as u32);
     let metadata_block_size = size_of::<u32>() + size_of::<u16>() + size_of::<Guid>();
 
     // The data layout of the entry is:
@@ -279,7 +280,7 @@ impl TdShimLinker {
                 let reloc = pe::relocate(
                     &payload_bin.data,
                     &mut payload_reloc_buf,
-                    TD_SHIM_PAYLOAD_BASE as usize,
+                    PAYLOAD_IMAGE_BASE as usize,
                 )
                 .ok_or_else(|| {
                     io::Error::new(io::ErrorKind::Other, "Can not relocate payload content")
@@ -320,21 +321,28 @@ impl TdShimLinker {
             0x100000
         );
         let entry_point = (reloc.0 - 0x100000) as u32;
-        let current_pos = output_file.current_pos()?;
         let reset_vector_info = ResetVectorParams {
             entry_point,
-            img_base: TD_SHIM_FIRMWARE_BASE + current_pos as u32,
+            img_base: TD_SHIM_IPL_BASE + size_of::<IplFvHeaderByte>() as u32,
             img_size: ipl_bin.data.len() as u32,
         };
 
         output_file.write(&ipl_reloc_buf, "internal payload content")?;
 
         let reset_vector_header = ResetVectorHeader::build_tdx_reset_vector_header();
-        output_file.write(reset_vector_header.as_bytes(), "reset vector header")?;
-        output_file.write(&reset_vector_bin.data, "reset vector content")?;
+        output_file.seek_and_write(
+            TD_SHIM_RESET_VECTOR_OFFSET as u64 - size_of::<ResetVectorHeader>() as u64,
+            reset_vector_header.as_bytes(),
+            "reset vector header",
+        )?;
+        output_file.seek_and_write(
+            TD_SHIM_RESET_VECTOR_OFFSET as u64,
+            &reset_vector_bin.data,
+            "reset vector content",
+        )?;
 
         let current_pos = output_file.current_pos()?;
-        assert_eq!(current_pos, TD_SHIM_FIRMWARE_SIZE as u64);
+        assert_eq!(current_pos, TD_SHIM_IMAGE_SIZE as u64);
 
         // Overwrite the ResetVectorParams and TdxMetadataPtr.
         let pos = TD_SHIM_SEC_CORE_INFO_OFFSET as u64;
@@ -344,7 +352,7 @@ impl TdShimLinker {
         let ovmf_guid_table = build_ovmf_guid_table();
         assert_eq!(
             ovmf_guid_table.len(),
-            (TD_SHIM_FIRMWARE_SIZE - TD_SHIM_SEC_CORE_INFO_OFFSET) as usize
+            (TD_SHIM_IMAGE_SIZE - TD_SHIM_SEC_CORE_INFO_OFFSET) as usize
                 - size_of::<ResetVectorParams>()
                 - 0x20
         );

@@ -11,7 +11,7 @@
             "type": "Memory"
         },
         {
-            "name": "PayloadImage",
+            "name": "ShimPayload",
             "size": "0xC2D000",
             "type": "Memory"
         },
