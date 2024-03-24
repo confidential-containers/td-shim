@@ -12,7 +12,7 @@ pub enum SliceType {
     Config,
     /// The `TD_HOB` region in image file
     TdHob,
-    /// The `Payload and Metadata` region in image file
+    /// The `Payload Image` region in runtime memory layout
     ShimPayload,
     /// The `TD_MAILBOX` region in image file
     MailBox,
@@ -69,10 +69,6 @@ pub fn get_mem_slice<'a>(t: SliceType) -> &'a [u8] {
                 TD_SHIM_CONFIG_BASE as *const u8,
                 TD_SHIM_CONFIG_SIZE as usize,
             ),
-            SliceType::ShimPayload => core::slice::from_raw_parts(
-                TD_SHIM_PAYLOAD_BASE as *const u8,
-                TD_SHIM_PAYLOAD_SIZE as usize,
-            ),
             SliceType::MailBox => core::slice::from_raw_parts(
                 TD_SHIM_MAILBOX_BASE as *const u8,
                 TD_SHIM_MAILBOX_SIZE as usize,
@@ -94,7 +90,7 @@ pub unsafe fn get_mem_slice_mut<'a>(t: SliceType) -> &'a mut [u8] {
             TD_SHIM_MAILBOX_BASE as *const u8 as *mut u8,
             TD_SHIM_MAILBOX_SIZE as usize,
         ),
-        SliceType::Config | SliceType::ShimPayload => {
+        SliceType::Config => {
             panic!("get_mem_slice_mut: read only")
         }
         _ => panic!("get_mem_slice_mut: not support"),
@@ -109,12 +105,6 @@ mod test {
     fn test_get_mem_slice_with_type_config() {
         let config = get_mem_slice(SliceType::Config);
         assert_eq!(config.len(), TD_SHIM_CONFIG_SIZE as usize);
-    }
-
-    #[test]
-    fn test_get_mem_slice_with_type_builtin_payload() {
-        let payload = get_mem_slice(SliceType::ShimPayload);
-        assert_eq!(payload.len(), TD_SHIM_PAYLOAD_SIZE as usize);
     }
 
     #[test]
@@ -151,14 +141,6 @@ mod test {
     fn test_get_mem_slice_mut_with_type_mailbox() {
         let mailbox = unsafe { get_mem_slice_mut(SliceType::MailBox) };
         assert_eq!(mailbox.len(), TD_SHIM_MAILBOX_SIZE as usize);
-    }
-
-    #[test]
-    #[should_panic(expected = "get_mem_slice_mut: read only")]
-    fn test_get_mem_slice_mut_with_type_builtin_payload() {
-        unsafe {
-            get_mem_slice_mut(SliceType::ShimPayload);
-        }
     }
 
     #[test]

@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
 use alloc::vec::Vec;
+use core::convert::TryInto;
 use core::mem::size_of;
 use core::str::FromStr;
 use log::error;
@@ -35,21 +36,22 @@ impl BootTimeStatic {
     // Validate the metadata and get the basic infomation from
     // it if any
     pub fn new() -> Option<Self> {
-        let metadata_offset = unsafe { *((u32::MAX - TDX_METADATA_OFFSET + 1) as *const u32) };
-        if metadata_offset >= TD_SHIM_FIRMWARE_SIZE
-            || metadata_offset < size_of::<Guid>() as u32
-            || metadata_offset > TD_SHIM_FIRMWARE_SIZE - size_of::<TdxMetadataDescriptor>() as u32
-        {
-            error!("Invalid TDX Metadata offset\n");
-            return None;
-        }
-
         let firmware = unsafe {
             core::slice::from_raw_parts(
                 TD_SHIM_FIRMWARE_BASE as *const u8,
                 TD_SHIM_FIRMWARE_SIZE as usize,
             )
         };
+
+        let metadata_offset =
+            TD_SHIM_FIRMWARE_SIZE - BootTimeStatic::get_metadata_offset(firmware)?;
+        if metadata_offset >= TD_SHIM_FIRMWARE_SIZE
+            || metadata_offset < size_of::<Guid>() as u32
+            || metadata_offset > TD_SHIM_FIRMWARE_SIZE - size_of::<TdxMetadataDescriptor>() as u32
+        {
+            error!("Invalid TDX Metadata offset: {:x?}\n", metadata_offset);
+            return None;
+        }
 
         // Validate TDX Metadata GUID
         let offset = metadata_offset as usize - size_of::<Guid>();
@@ -107,6 +109,60 @@ impl BootTimeStatic {
             metadata_has_perm,
             payload_extend_rtmr,
         })
+    }
+
+    // Returns the backward offset of metadata in the ROM space
+    fn get_metadata_offset(firmware: &[u8]) -> Option<u32> {
+        let foot_guid_offset = (TD_SHIM_FIRMWARE_SIZE - OVMF_TABLE_FOOTER_GUID_OFFSET) as usize;
+        let foot_guid = &firmware[foot_guid_offset..foot_guid_offset + size_of::<Guid>()];
+
+        if foot_guid != OVMF_TABLE_FOOTER_GUID.as_bytes() {
+            return None;
+        }
+
+        let mut ovmf_table_size = u16::from_le_bytes(
+            firmware[foot_guid_offset - size_of::<u16>()..foot_guid_offset]
+                .try_into()
+                .unwrap(),
+        );
+        // OVMF table size contains the size of footer.
+        let ovmf_table_end = foot_guid_offset + size_of::<Guid>() - ovmf_table_size as usize;
+
+        let block_header_size = size_of::<Guid>() + size_of::<u16>();
+        let mut offset = foot_guid_offset - size_of::<u16>();
+        while offset - ovmf_table_end > block_header_size {
+            let block_guid = &firmware[offset - size_of::<Guid>()..offset];
+            offset -= size_of::<Guid>();
+
+            let block_size = u16::from_le_bytes(
+                firmware[offset - size_of::<u16>()..offset]
+                    .try_into()
+                    .unwrap(),
+            ) as usize;
+            offset -= size_of::<u16>();
+
+            let data_size = block_size - block_header_size;
+            if offset - ovmf_table_end < data_size {
+                return None;
+            }
+            if block_guid == OVMF_TABLE_TDX_METADATA_GUID.as_bytes() {
+                if data_size != size_of::<u32>() {
+                    return None;
+                } else {
+                    let metadata_offset = u32::from_le_bytes(
+                        firmware[offset - data_size..offset].try_into().unwrap(),
+                    );
+                    if metadata_offset > TD_SHIM_FIRMWARE_SIZE {
+                        return None;
+                    } else {
+                        return Some(metadata_offset);
+                    }
+                }
+            }
+            offset -= data_size;
+        }
+
+        None
     }
 
     pub fn sections(&self) -> &[TdxMetadataSection] {

@@ -18,6 +18,21 @@ pub const TDX_METADATA_GUID: Guid = Guid::from_fields(
     [0xA8, 0xEB, 0x7F, 0x4D, 0x87, 0x38, 0xF6, 0xAE],
 );
 
+pub const OVMF_TABLE_FOOTER_GUID_OFFSET: u32 = 0x30;
+pub const OVMF_TABLE_FOOTER_GUID: Guid = Guid::from_fields(
+    0x96b582de,
+    0x1fb2,
+    0x45f7,
+    [0xba, 0xea, 0xa3, 0x66, 0xc5, 0x5a, 0x08, 0x2d],
+);
+
+pub const OVMF_TABLE_TDX_METADATA_GUID: Guid = Guid::from_fields(
+    0xe47a6535,
+    0x984a,
+    0x4798,
+    [0x86, 0x5e, 0x46, 0x85, 0xa7, 0xbf, 0x8e, 0xc2],
+);
+
 /// 'TDVF' signature
 pub const TDX_METADATA_SIGNATURE: u32 = 0x46564454;
 /// Version of the `TdxMetadataDescriptor` structure. It must be 1.
