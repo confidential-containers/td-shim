@@ -19,12 +19,7 @@ pub const KERNEL_PARAM_SIZE: &str = "0x1000";
 // size of PE signature is 4: "PE\0\0"
 const IMAGE_PE_OFFSET: usize = 0x003c;
 const PE_SIGNATURE_SIZE: u32 = 4;
-const IMGAE_BEGIN_CHECKSUM_ADDR: usize = 0x0000;
-const IMGAE_BEGIN_CHECKSUM_SIZE: usize = 0x00da;
-const IMGAE_CERT_TABLE_ADDR: usize = 0x00de;
-const IMGAE_CERT_TABLE_SIZE: usize = 0x004c;
-const IMGAE_HEADERS_ADDR: usize = 0x0132;
-const IMGAE_HEADERS_SIZE: usize = 0x00ce;
+const IMGAE_BEGIN_ADDR: usize = 0x0000;
 
 // Refer to https://www.kernel.org/doc/html/latest/arch/x86/boot.html#details-of-header-fields
 // Protocol version addr: 0x206, size: 2
@@ -38,8 +33,7 @@ fn kernel(path: &str, size: &str) -> Result<String> {
         bail!("File size should be less than `kernel-size`");
     }
     let buf = std::fs::read(path)?;
-    let protocol = ((buf[IMAGE_PROTOCOL_ADDR as usize + 1] as u16) << 8)
-        | buf[IMAGE_PROTOCOL_ADDR as usize] as u16;
+    let protocol = ((buf[IMAGE_PROTOCOL_ADDR + 1] as u16) << 8) | buf[IMAGE_PROTOCOL_ADDR] as u16;
     if protocol < 0x206 {
         bail!("Protocol version should be 2.06+");
     }
@@ -60,8 +54,7 @@ fn qemu(path: &str, size: &str) -> Result<String> {
         bail!("File size should be less than `kernel-size`");
     }
     let buf = std::fs::read(path)?;
-    let protocol = ((buf[IMAGE_PROTOCOL_ADDR as usize + 1] as u16) << 8)
-        | buf[IMAGE_PROTOCOL_ADDR as usize] as u16;
+    let protocol = ((buf[IMAGE_PROTOCOL_ADDR + 1] as u16) << 8) | buf[IMAGE_PROTOCOL_ADDR] as u16;
     if protocol < 0x206 {
         bail!("Protocol version should be 2.06+");
     }
@@ -101,22 +94,14 @@ fn qemu_patch(mut buf: Vec<u8>) -> Result<String> {
 }
 
 fn get_image_regions(buf: &[u8]) -> (usize, Vec<usize>, Vec<usize>) {
-    // These 3 regions are known.
+    // Region 1~3 regions are known.
     let mut number_of_region_entry = 3;
-    let mut regions_base = vec![
-        IMGAE_BEGIN_CHECKSUM_ADDR,
-        IMGAE_CERT_TABLE_ADDR,
-        IMGAE_HEADERS_ADDR,
-    ];
-    let mut regions_size = vec![
-        IMGAE_BEGIN_CHECKSUM_SIZE,
-        IMGAE_CERT_TABLE_SIZE,
-        IMGAE_HEADERS_SIZE,
-    ];
+    let mut regions_base = Vec::new();
+    let mut regions_size = Vec::new();
 
     // Refer to https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#coff-file-header-object-and-image,
     // After the signature of an image file is COFF File Header, size is 20 bytes.
-    // the NumberOfSections' offset is 2 and size is 2 bytes.
+    // NumberOfSections       Offset: 2    Size: 2
     let size_of_coff_file_header: u32 = 20;
 
     let coff_file_header_offset = ((buf[IMAGE_PE_OFFSET + 3] as u32) << 24)
@@ -128,9 +113,41 @@ fn get_image_regions(buf: &[u8]) -> (usize, Vec<usize>, Vec<usize>) {
         | buf[coff_file_header_offset as usize + 2] as u16;
     number_of_region_entry += number_of_pecoff_entry as usize;
 
-    // the SizeOfOptionalHeader's offset is 16 and size is 2 bytes
+    // SizeOfOptionalHeader   Offset: 16    Size: 2
     let size_of_optional_header = ((buf[coff_file_header_offset as usize + 17] as u16) << 8)
         | buf[coff_file_header_offset as usize + 16] as u16;
+
+    let optional_header_addr: usize = (coff_file_header_offset + size_of_coff_file_header) as usize;
+
+    // Refer to https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#optional-header-standard-fields-image-only
+    // Only support PE32+
+    // SizeOfHeaders   Offset: 60      Size: 4
+    // CheckSum        Offset: 64      Size: 4
+    // Cert table      Offset: 144     Size: 8
+
+    let optional_size_of_headers_offset: usize = 0x003c;
+    let optional_checksum_offset: usize = 0x0040;
+    let optional_cert_table_offset: usize = 0x0090;
+
+    let size_of_headers =
+        ((buf[optional_header_addr + optional_size_of_headers_offset + 3] as u32) << 24)
+            | ((buf[optional_header_addr + optional_size_of_headers_offset + 2] as u32) << 16)
+            | ((buf[optional_header_addr + optional_size_of_headers_offset + 1] as u32) << 8)
+            | buf[optional_header_addr + optional_size_of_headers_offset] as u32;
+
+    // Region 1: from file begin to CheckSum
+    regions_base.push(IMGAE_BEGIN_ADDR);
+    regions_size.push(optional_header_addr + optional_checksum_offset - IMGAE_BEGIN_ADDR);
+
+    // Region 2: from CheckSum end to certificate table entry
+    regions_base.push(optional_header_addr + optional_checksum_offset + 4);
+    regions_size.push(optional_cert_table_offset - (optional_checksum_offset + 4));
+
+    // Region 3: from cert table end to Header end
+    regions_base.push(optional_header_addr + optional_cert_table_offset + 8);
+    regions_size.push(
+        size_of_headers as usize - (optional_header_addr + optional_cert_table_offset + 8) as usize,
+    );
 
     // Refer to https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#section-table-section-headers
     // Size Of each Section is 40 bytes
