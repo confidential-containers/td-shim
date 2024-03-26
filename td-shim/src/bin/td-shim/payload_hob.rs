@@ -170,7 +170,6 @@ pub fn build_payload_hob(acpi_tables: &Vec<&[u8]>, memory: &Memory) -> Option<Pa
         PayloadHob::new(memory.get_dynamic_mem_slice_mut(memslice::SliceType::Acpi))?;
 
     payload_hob.add_cpu(memory::cpu_get_memory_space_size(), 16);
-    payload_hob.add_fv(TD_SHIM_PAYLOAD_BASE as u64, TD_SHIM_PAYLOAD_SIZE as u64);
 
     for &table in acpi_tables {
         payload_hob

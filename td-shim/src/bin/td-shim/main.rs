@@ -218,13 +218,7 @@ fn boot_builtin_payload(
     acpi_tables: &Vec<&[u8]>,
 ) {
     // Get and parse image file from the payload firmware volume.
-    let fv_buffer = memslice::get_mem_slice(memslice::SliceType::ShimPayload);
-    let mut payload_bin = fv::get_image_from_fv(
-        fv_buffer,
-        pi::fv::FV_FILETYPE_DXE_CORE,
-        pi::fv::SECTION_PE32,
-    )
-    .expect("Failed to get image file from Firmware Volume");
+    let mut payload_bin = memslice::get_mem_slice(memslice::SliceType::ShimPayload);
 
     #[cfg(feature = "secure-boot")]
     {
