@@ -8,6 +8,7 @@ use core::mem::size_of;
 use r_efi::efi;
 use scroll::Pwrite;
 use td_layout::build_time::*;
+use td_layout::runtime::exec::{SHIM_PAYLOAD_BASE, SHIM_PAYLOAD_SIZE};
 use td_layout::runtime::*;
 use td_shim::e820::E820Type;
 use td_shim::{TD_ACPI_TABLE_HOB_GUID, TD_E820_TABLE_HOB_GUID};
@@ -170,7 +171,7 @@ pub fn build_payload_hob(acpi_tables: &Vec<&[u8]>, memory: &Memory) -> Option<Pa
         PayloadHob::new(memory.get_dynamic_mem_slice_mut(memslice::SliceType::Acpi))?;
 
     payload_hob.add_cpu(memory::cpu_get_memory_space_size(), 16);
-    payload_hob.add_fv(TD_SHIM_PAYLOAD_BASE as u64, TD_SHIM_PAYLOAD_SIZE as u64);
+    payload_hob.add_fv(SHIM_PAYLOAD_BASE as u64, SHIM_PAYLOAD_SIZE as u64);
 
     for &table in acpi_tables {
         payload_hob

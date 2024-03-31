@@ -6,6 +6,7 @@ use serde::de::Error;
 use serde::{de, Deserialize};
 use std::{mem::size_of, vec::Vec};
 use td_layout::build_time::*;
+use td_layout::runtime::exec::SHIM_PAYLOAD_BASE;
 use td_layout::runtime::*;
 use td_shim_interface::metadata::{
     TdxMetadataDescriptor, TDX_METADATA_ATTRIBUTES_EXTENDMR, TDX_METADATA_GUID,
@@ -210,7 +211,7 @@ pub fn default_metadata_sections(payload_type: PayloadType) -> MetadataSections 
         metadata_sections.add(TdxMetadataSection {
             data_offset: TD_SHIM_PAYLOAD_OFFSET,
             raw_data_size: TD_SHIM_PAYLOAD_SIZE as u32,
-            memory_address: TD_SHIM_PAYLOAD_BASE as u64,
+            memory_address: SHIM_PAYLOAD_BASE as u64,
             memory_data_size: TD_SHIM_PAYLOAD_SIZE as u64,
             #[cfg(feature = "exec-payload-section")]
             r#type: TDX_METADATA_SECTION_TYPE_PAYLOAD,
