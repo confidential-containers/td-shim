@@ -2,7 +2,7 @@ use serde::Deserialize;
 
 use super::{layout::LayoutConfig, render};
 
-const FIRMWARE_ROM_BASE: usize = 0xFF00_0000;
+const FIRMWARE_ROM_TOP: usize = 0x1_0000_0000;
 const FIRMWARE_ROM_SIZE: usize = 0x100_0000;
 
 #[derive(Deserialize, Debug, PartialEq)]
@@ -75,16 +75,13 @@ pub fn parse_image(data: String) -> String {
 
     // Build ROM layout at memory space: 0xFF00_0000 - 0xFFFF_FFFF
     // Payload image is not loaded into ROM space.
-    let mut rom_layout =
-        LayoutConfig::new(FIRMWARE_ROM_BASE, FIRMWARE_ROM_BASE + FIRMWARE_ROM_SIZE);
+    let rom_size = image_size - payload_size;
+    let mut rom_layout = LayoutConfig::new(FIRMWARE_ROM_TOP - rom_size, FIRMWARE_ROM_TOP);
 
     if image_size > FIRMWARE_ROM_SIZE {
         panic!("Image size exceeds the maximum ROM space");
     }
 
-    if payload_size != 0 {
-        image_layout.reserve_low("Payload", payload_size, "Rom")
-    }
     rom_layout.reserve_low("Config", config_size, "Rom");
     rom_layout.reserve_low("Mailbox", mailbox_size, "Rom");
     rom_layout.reserve_low("TempStack", temp_stack_size, "Rom");
