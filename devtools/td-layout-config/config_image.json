@@ -5,6 +5,6 @@
     "TempStack": "0x020000",
     "TempHeap": "0x020000",
     "Metadata": "0x001000",
-    "Ipl": "0x348000",
+    "Ipl": "0x349000",
     "ResetVector": "0x008000"
 }
