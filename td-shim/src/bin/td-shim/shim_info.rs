@@ -7,7 +7,7 @@ use core::mem::size_of;
 use core::str::FromStr;
 use log::error;
 use scroll::{Pread, Pwrite};
-use td_layout::build_time::{TD_SHIM_FIRMWARE_BASE, TD_SHIM_FIRMWARE_SIZE};
+use td_layout::build_time::{TD_SHIM_FIRMWARE_BASE, TD_SHIM_FIRMWARE_SIZE, TD_SHIM_PAYLOAD_SIZE};
 use td_layout::memslice;
 use td_shim::speculation_barrier;
 use td_shim::{
@@ -35,7 +35,8 @@ impl BootTimeStatic {
     // Validate the metadata and get the basic infomation from
     // it if any
     pub fn new() -> Option<Self> {
-        let metadata_offset = unsafe { *((u32::MAX - TDX_METADATA_OFFSET + 1) as *const u32) };
+        let metadata_offset =
+            unsafe { *((u32::MAX - TDX_METADATA_OFFSET + 1) as *const u32) } - TD_SHIM_PAYLOAD_SIZE;
         if metadata_offset >= TD_SHIM_FIRMWARE_SIZE
             || metadata_offset < size_of::<Guid>() as u32
             || metadata_offset > TD_SHIM_FIRMWARE_SIZE - size_of::<TdxMetadataDescriptor>() as u32
