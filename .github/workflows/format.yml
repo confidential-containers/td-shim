@@ -19,7 +19,7 @@ jobs:
 
       # Install first since it's needed to build NASM
       - name: Install LLVM and Clang
-        uses: KyleMayes/install-llvm-action@v1
+        uses: KyleMayes/install-llvm-action@v2
         with:
           version: "10.0"
           directory: ${{ runner.temp }}/llvm
@@ -51,7 +51,7 @@ jobs:
 
       # Install first since it's needed to build NASM
       - name: Install LLVM and Clang
-        uses: KyleMayes/install-llvm-action@v1
+        uses: KyleMayes/install-llvm-action@v2
         with:
           version: "10.0"
           directory: ${{ runner.temp }}/llvm
