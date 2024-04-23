@@ -3,9 +3,9 @@
 
 ## Documents
 
-* [TD-Shim specification](doc/tdshim_spec.md)
+* [TD-Shim specification](https://github.com/confidential-containers/td-shim/tree/main/doc/tdshim_spec.md)
 
-* Introduction [PDF](doc/td-shim-introduction.pdf) and [conference talk](https://fosdem.org/2023/schedule/event/cc_online_rust/)
+* Introduction [PDF](https://github.com/confidential-containers/td-shim/tree/main/doc/td-shim-introduction.pdf) and [conference talk](https://fosdem.org/2023/schedule/event/cc_online_rust/)
 
 ## Introduction
 
@@ -22,13 +22,13 @@ use td_shim_interface::td_uefi_pi::{hob, pi, pi::guid}
 
 This is a Shim Firmware to support [Intel TDX](https://software.intel.com/content/www/us/en/develop/articles/intel-trust-domain-extensions.html).
 
-The API specification is at [td-shim specification](doc/tdshim_spec.md).
+The API specification is at [td-shim specification](https://github.com/confidential-containers/td-shim/tree/main/doc/tdshim_spec.md).
 
-The secure boot specification for td-shim is at [secure boot specification](doc/secure_boot.md)
+The secure boot specification for td-shim is at [secure boot specification](https://github.com/confidential-containers/td-shim/tree/main/doc/secure_boot.md)
 
-The design is at [td-shim design](doc/design.md).
+The design is at [td-shim design](https://github.com/confidential-containers/td-shim/tree/main/doc/design.md).
 
-The threat model analysis is at [td-shim threat model](doc/threat_model.md).
+The threat model analysis is at [td-shim threat model](https://github.com/confidential-containers/td-shim/tree/main/doc/threat_model.md).
 
 
 ## License
