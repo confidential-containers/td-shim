@@ -1,6 +1,6 @@
 [package]
 name = "td-shim-interface"
-version = "0.1.0"
+version = "0.1.1"
 license = "BSD-2-Clause-Patent"
 description = "TD-shim metadata data structures and related functions. UEFI Platform Initializaiton data structures and accessors"
 
