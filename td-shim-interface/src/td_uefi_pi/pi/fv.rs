@@ -30,7 +30,6 @@
 //! Firmware file sections are separate discrete “parts” within certain file types.
 use core::mem::size_of;
 use core::ptr::slice_from_raw_parts;
-use r_efi::efi::Guid;
 use scroll::{Pread, Pwrite};
 
 pub type FvbAttributes2 = u32;
@@ -267,10 +266,7 @@ impl FfsFileHeader {
 
     // Validate the checksum of the FfsFileHeader
     pub fn validate_checksum(&self) -> bool {
-        let sum = sum8(self.as_bytes());
-        sum ^ ((EFI_FILE_HEADER_CONSTRUCTION | EFI_FILE_HEADER_VALID | EFI_FILE_DATA_VALID)
-            + FFS_FIXED_CHECKSUM)
-            == 0
+        ffs_header_validate_checksum(self.as_bytes())
     }
 }
 
@@ -284,10 +280,10 @@ impl FfsFileHeader {
 /// Type field in the header, either EFI_FFS_FILE_HEADER or EFI_FFS_FILE_HEADER2.
 /// If the file length is bigger than 16MB, EFI_FFS_FILE_HEADER2 must be used.
 #[repr(C)]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Pread, Pwrite, Default)]
 pub struct FfsFileHeader2 {
-    pub name: Guid,
-    pub integrity_check: u16,
+    pub name: [u8; 16], // Guid,
+    pub integrity_check: Checksum,
     pub r#type: FvFileType,
     pub attributes: FfsFileAttributes,
     pub size: [u8; 3],
@@ -296,9 +292,33 @@ pub struct FfsFileHeader2 {
 }
 
 impl FfsFileHeader2 {
+    // Calculate and update the checksum of the FfsFileHeader
+    pub fn update_checksum(&mut self) {
+        // Clear the existing one before we calculate the checksum
+        self.integrity_check.header = 0;
+        self.integrity_check.file = 0;
+        self.state = 0;
+        self.integrity_check.header = (u8::MAX - sum8(self.as_bytes())).wrapping_add(1);
+
+        self.integrity_check.file = FFS_FIXED_CHECKSUM;
+        self.state = EFI_FILE_HEADER_CONSTRUCTION | EFI_FILE_HEADER_VALID | EFI_FILE_DATA_VALID;
+    }
+
     pub fn as_bytes(&self) -> &[u8] {
         unsafe { &*slice_from_raw_parts(self as *const Self as *const u8, size_of::<Self>()) }
     }
+
+    // Validate the checksum of the FfsFileHeader
+    pub fn validate_checksum(&self) -> bool {
+        ffs_header_validate_checksum(self.as_bytes())
+    }
+}
+
+fn ffs_header_validate_checksum(bytes: &[u8]) -> bool {
+    let sum = sum8(bytes);
+    sum ^ ((EFI_FILE_HEADER_CONSTRUCTION | EFI_FILE_HEADER_VALID | EFI_FILE_DATA_VALID)
+        + FFS_FIXED_CHECKSUM)
+        == 0
 }
 
 /// Firmware File Section Types defined in [UEFI-PI], section 2.1.5.1
@@ -339,7 +359,7 @@ impl CommonSectionHeader {
 
 /// Section Header 2 for files larger than 16Mb, define in [UEFI-PI Spec] section 2.2.4
 #[repr(C)]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Pread, Pwrite, Default)]
 pub struct CommonSectionHeader2 {
     pub size: [u8; 3],
     pub r#type: SectionType,
@@ -385,21 +405,16 @@ mod tests {
 
         header.update_checksum();
         assert_eq!(header.integrity_check.header, 0x10);
-        assert!(header.validate_checksum());
+        assert!(ffs_header_validate_checksum(header.as_bytes()));
 
-        header.name = *Guid::from_fields(
-            0x00000001,
-            0x0000,
-            0x0000,
-            0x00,
-            0x00,
-            &[0x02, 0x00, 0x00, 0x00, 0x00, 0x01],
-        )
-        .as_bytes();
-        assert!(!header.validate_checksum());
+        header.name = [
+            0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00,
+            0x00, 0x01,
+        ];
+        assert!(!ffs_header_validate_checksum(header.as_bytes()));
         header.update_checksum();
         assert_eq!(header.integrity_check.header, 0xC);
-        assert!(header.validate_checksum());
+        assert!(ffs_header_validate_checksum(header.as_bytes()));
     }
 
     #[test]
