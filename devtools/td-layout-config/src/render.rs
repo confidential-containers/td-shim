@@ -9,7 +9,7 @@ use tera::{Context, Result, Tera};
 use super::layout::{LayoutConfig, ENTRY_TYPE_FILTER};
 
 /// Render image layout file.
-pub fn render_image(image_layout: &LayoutConfig) -> Result<String> {
+pub fn render_image(image_layout: &LayoutConfig, rom_layout: &LayoutConfig) -> Result<String> {
     let mut tera = Tera::default();
     tera.register_filter("format_hex", format_hex);
     tera.register_filter("format_name", format_name);
@@ -19,8 +19,12 @@ pub fn render_image(image_layout: &LayoutConfig) -> Result<String> {
     let mut context = Context::new();
     context.insert("image_regions", image_layout.get_regions());
     context.insert("image_size", &image_layout.get_top());
+    context.insert("rom_regions", &rom_layout.get_regions());
+    context.insert("rom_size", &(rom_layout.get_top() - rom_layout.get_base()));
+    context.insert("rom_base", &rom_layout.get_base());
     // Image size - metadata pointer offset(0x20) - OVMF GUID table size(0x28) - SEC Core information size(0xC).
     context.insert("sec_info_offset", &(image_layout.get_top() - 0x54));
+    context.insert("sec_info_base", &(rom_layout.get_top() - 0x54));
     context.insert(
         "memory_offset",
         &(u32::MAX as usize + 1 - &image_layout.get_top()),

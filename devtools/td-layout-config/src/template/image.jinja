@@ -15,20 +15,19 @@ Image size: {{image_size|format_hex}} ({{image_size|filesizeformat}})
 */
 
 // Image Layout Configuration
+pub const TD_SHIM_FIRMWARE_SIZE: u32 = {{image_size | format_hex }};
 {%for i in image_regions%}
 pub const TD_SHIM_{{i.name_screaming_snake_case}}_OFFSET: u32 = {{i.region.start | format_hex }};
 pub const TD_SHIM_{{i.name_screaming_snake_case}}_SIZE: u32 = {{i.region.end - i.region.start | format_hex }}; // {{i.region.end - i.region.start|filesizeformat}}
 {%endfor%}
-// Offset when Loading into Memory
-pub const TD_SHIM_FIRMWARE_BASE: u32 = {{memory_offset | format_hex }};
-pub const TD_SHIM_FIRMWARE_SIZE: u32 = {{image_size | format_hex }};
-
 // TD_SHIM_SEC_INFO_OFFSET equals to firmware size - metadata pointer offset -
 // OVMF GUID table size - SEC Core information size.
 pub const TD_SHIM_SEC_CORE_INFO_OFFSET: u32 = {{sec_info_offset | format_hex }};
-pub const TD_SHIM_SEC_CORE_INFO_BASE: u32 = {{memory_offset + sec_info_offset | format_hex }};
+pub const TD_SHIM_SEC_CORE_INFO_BASE: u32 = {{sec_info_base | format_hex }};
 
-// Base Address after Loaded into Memory
-{%-for i in image_regions%}
-pub const TD_SHIM_{{i.name_screaming_snake_case}}_BASE: u32 = {{memory_offset + i.region.start | format_hex }};
+// Rom Configuration
+
+pub const TD_SHIM_FIRMWARE_BASE: u32 = {{rom_base | format_hex }};
+{%-for i in rom_regions%}
+pub const TD_SHIM_{{i.name_screaming_snake_case}}_BASE: u32 = {{i.region.start | format_hex }};
 {%-endfor%}
