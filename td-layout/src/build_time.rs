@@ -7,6 +7,8 @@
 /*
 Image Layout
 +----------------------------------------+ <- 0x0
+|             LARGE_PAYLOAD              |   (0x0) 0 B
++----------------------------------------+ <- 0x0
 |                 CONFIG                 |   (0x40000) 256 kB
 +----------------------------------------+ <- 0x40000
 |                MAILBOX                 |   (0x1000) 4 kB
@@ -29,6 +31,10 @@ Image size: 0x1000000 (16 MB)
 */
 
 // Image Layout Configuration
+pub const TD_SHIM_FIRMWARE_SIZE: u32 = 0x1000000;
+
+pub const TD_SHIM_LARGE_PAYLOAD_OFFSET: u32 = 0x0;
+pub const TD_SHIM_LARGE_PAYLOAD_SIZE: u32 = 0x0; // 0 B
 
 pub const TD_SHIM_CONFIG_OFFSET: u32 = 0x0;
 pub const TD_SHIM_CONFIG_SIZE: u32 = 0x40000; // 256 kB
@@ -57,16 +63,14 @@ pub const TD_SHIM_IPL_SIZE: u32 = 0x349000; // 3.29 MB
 pub const TD_SHIM_RESET_VECTOR_OFFSET: u32 = 0xFF8000;
 pub const TD_SHIM_RESET_VECTOR_SIZE: u32 = 0x8000; // 32 kB
 
-// Offset when Loading into Memory
-pub const TD_SHIM_FIRMWARE_BASE: u32 = 0xFF000000;
-pub const TD_SHIM_FIRMWARE_SIZE: u32 = 0x1000000;
-
 // TD_SHIM_SEC_INFO_OFFSET equals to firmware size - metadata pointer offset -
 // OVMF GUID table size - SEC Core information size.
 pub const TD_SHIM_SEC_CORE_INFO_OFFSET: u32 = 0xFFFFAC;
 pub const TD_SHIM_SEC_CORE_INFO_BASE: u32 = 0xFFFFFFAC;
 
-// Base Address after Loaded into Memory
+// Rom Configuration
+
+pub const TD_SHIM_FIRMWARE_BASE: u32 = 0xFF000000;
 pub const TD_SHIM_CONFIG_BASE: u32 = 0xFF000000;
 pub const TD_SHIM_MAILBOX_BASE: u32 = 0xFF040000;
 pub const TD_SHIM_TEMP_STACK_BASE: u32 = 0xFF041000;
