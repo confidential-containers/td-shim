@@ -58,10 +58,10 @@ pub fn get_image_from_fv(
 
     let files = Files::parse(fv_data, fv_header.header_length as usize)?;
     for (file_header, file_data) in files {
-        if !validate_ffs_file_header(file_header) {
+        if !file_header.validate() {
             return None;
         }
-        if file_header.r#type == fv_file_type {
+        if file_header.r#type() == fv_file_type {
             return get_image_from_sections(file_data, section_type);
         }
     }
@@ -78,10 +78,10 @@ pub fn get_file_from_fv(
 
     let files = Files::parse(fv_data, fv_header.header_length as usize)?;
     for (file_header, file_data) in files {
-        if !validate_ffs_file_header(file_header) {
+        if !file_header.validate() {
             return None;
         }
-        if file_header.r#type == fv_file_type && &file_header.name == file_name.as_bytes() {
+        if file_header.r#type() == fv_file_type && file_header.name() == file_name.as_bytes() {
             return Some(file_data);
         }
     }
@@ -93,12 +93,26 @@ fn get_image_from_sections(sections_data: &[u8], section_type: SectionType) -> O
     let sections = Sections::parse(sections_data, 0)?;
 
     for (section_header, section_data) in sections {
-        if section_header.r#type == section_type {
+        if section_header.r#type() == section_type {
             return Some(section_data);
         }
     }
 
     None
+}
+
+enum CommonSectionHeaderType {
+    Header(CommonSectionHeader),
+    Header2(CommonSectionHeader2),
+}
+
+impl CommonSectionHeaderType {
+    fn r#type(&self) -> FvFileType {
+        match self {
+            Self::Header(header) => header.r#type,
+            Self::Header2(header2) => header2.r#type,
+        }
+    }
 }
 
 struct Sections<'a> {
@@ -118,17 +132,32 @@ impl<'a> Sections<'a> {
 }
 
 impl<'a> Iterator for Sections<'a> {
-    type Item = (CommonSectionHeader, &'a [u8]);
+    type Item = (CommonSectionHeaderType, &'a [u8]);
 
     fn next(&mut self) -> Option<Self::Item> {
-        const HEADER_SIZE: usize = core::mem::size_of::<CommonSectionHeader>();
         let header: CommonSectionHeader = self.buffer.pread(0).ok()?;
-        let section_size = header.size[0] as usize
-            + ((header.size[1] as usize) << 8)
-            + ((header.size[2] as usize) << 16);
-        section_size.checked_sub(HEADER_SIZE)?;
+        let is_large_section = header.size == [0xff, 0xff, 0xff];
+
+        let (section_size, section_header, header_size) = if is_large_section {
+            let header2: CommonSectionHeader2 = self.buffer.pread(0).ok()?;
+            (
+                header2.extended_size as usize,
+                CommonSectionHeaderType::Header2(header2),
+                core::mem::size_of::<CommonSectionHeader2>(),
+            )
+        } else {
+            (
+                header.size[0] as usize
+                    + ((header.size[1] as usize) << 8)
+                    + ((header.size[2] as usize) << 16),
+                CommonSectionHeaderType::Header(header),
+                core::mem::size_of::<CommonSectionHeader>(),
+            )
+        };
+
+        section_size.checked_sub(header_size)?;
         self.buffer.len().checked_sub(section_size)?;
-        let buf = &self.buffer[HEADER_SIZE..section_size];
+        let buf = &self.buffer[header_size..section_size];
 
         // Align to 4 bytes.
         let section_size = (section_size + 3) & !3;
@@ -138,7 +167,39 @@ impl<'a> Iterator for Sections<'a> {
             self.buffer = &self.buffer[0..0];
         }
 
-        Some((header, buf))
+        Some((section_header, buf))
+    }
+}
+
+enum FfsFileHeaderType {
+    Header(FfsFileHeader),
+    Header2(FfsFileHeader2),
+}
+
+impl FfsFileHeaderType {
+    fn r#type(&self) -> FvFileType {
+        match self {
+            FfsFileHeaderType::Header(header) => header.r#type,
+            FfsFileHeaderType::Header2(header2) => header2.r#type,
+        }
+    }
+
+    fn name(&self) -> &[u8] {
+        match self {
+            FfsFileHeaderType::Header(header) => &header.name,
+            FfsFileHeaderType::Header2(header2) => &header2.name,
+        }
+    }
+
+    // Validate Ffs File header
+    fn validate(&self) -> bool {
+        // Do the sanity check for Ffs header.
+        // Verify the header integrity,
+        //
+        match self {
+            FfsFileHeaderType::Header(header) => header.validate_checksum(),
+            FfsFileHeaderType::Header2(header2) => header2.validate_checksum(),
+        }
     }
 }
 
@@ -159,18 +220,32 @@ impl<'a> Files<'a> {
 }
 
 impl<'a> Iterator for Files<'a> {
-    type Item = (FfsFileHeader, &'a [u8]);
+    type Item = (FfsFileHeaderType, &'a [u8]);
 
     fn next(&mut self) -> Option<Self::Item> {
-        const HEADER_SIZE: usize = core::mem::size_of::<FfsFileHeader>();
-
         let header: FfsFileHeader = self.buffer.pread(0).ok()?;
-        let data_size = header.size[0] as usize
-            + ((header.size[1] as usize) << 8)
-            + ((header.size[2] as usize) << 16);
-        data_size.checked_sub(HEADER_SIZE)?;
+        let is_large_file = header.attributes & FFS_ATTRIB_LARGE_FILE != 0;
+
+        let (data_size, ffs_header, header_size) = if is_large_file {
+            let header2: FfsFileHeader2 = self.buffer.pread(0).ok()?;
+            (
+                header2.extended_size as usize,
+                FfsFileHeaderType::Header2(header2),
+                core::mem::size_of::<FfsFileHeader2>(),
+            )
+        } else {
+            (
+                header.size[0] as usize
+                    + ((header.size[1] as usize) << 8)
+                    + ((header.size[2] as usize) << 16),
+                FfsFileHeaderType::Header(header),
+                core::mem::size_of::<FfsFileHeader>(),
+            )
+        };
+
+        data_size.checked_sub(header_size)?;
         self.buffer.len().checked_sub(data_size)?;
-        let buf = &self.buffer[HEADER_SIZE..data_size];
+        let buf = &self.buffer[header_size..data_size];
 
         // Align to 8 bytes.
         let data_size = (data_size + 7) & !7;
@@ -180,7 +255,7 @@ impl<'a> Iterator for Files<'a> {
             self.buffer = &self.buffer[0..0];
         }
 
-        Some((header, buf))
+        Some((ffs_header, buf))
     }
 }
 
