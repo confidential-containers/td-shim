@@ -37,10 +37,7 @@ jobs:
         run: bash sh_script/update_toolchain.sh ${{ env.RUST_TOOLCHAIN }}
 
       - name: Run cargo install cargo-xbuild
-        uses: actions-rs/cargo@v1
-        with:
-          command: install
-          args: cargo-xbuild
+        run: cargo install cargo-xbuild
 
       - name: Preparation Work
         run: bash sh_script/preparation.sh

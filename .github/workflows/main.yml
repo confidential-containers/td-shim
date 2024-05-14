@@ -46,18 +46,13 @@ jobs:
           submodules: recursive
 
       - name: Install toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@master
         with:
-          profile: ${{ env.TOOLCHAIN_PROFILE }}
           toolchain: ${{ env.RUST_TOOLCHAIN }}
-          override: true
           components: rust-src
 
       - name: Run cargo install cargo-xbuild
-        uses: actions-rs/cargo@v1
-        with:
-          command: install
-          args: cargo-xbuild
+        run: cargo install cargo-xbuild
       
       - name: Preparation Work
         run: bash sh_script/preparation.sh
@@ -66,16 +61,10 @@ jobs:
         run: make test 
 
       - name: Build Release TdShim
-        uses: actions-rs/cargo@v1
-        with:
-          command: xbuild
-          args: -p td-shim --target x86_64-unknown-none --release --features=main,tdx
+        run: cargo xbuild -p td-shim --target x86_64-unknown-none --release --features=main,tdx
       
       - name: Build Debug TdShim
-        uses: actions-rs/cargo@v1
-        with:
-          command: xbuild
-          args: -p td-shim --target x86_64-unknown-none --features=main,tdx --no-default-features
+        run: cargo xbuild -p td-shim --target x86_64-unknown-none --features=main,tdx --no-default-features
 
       - name: Build td-shim-tools
         run: |

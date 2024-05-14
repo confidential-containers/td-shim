@@ -31,33 +31,22 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
-          override: true
           components: rust-src, llvm-tools-preview
 
       - name: Run cargo install cargo-xbuild
-        uses: actions-rs/cargo@v1
-        with:
-          command: install
-          args: cargo-xbuild
+        run: cargo install cargo-xbuild
       
       - name: install NASM
         uses: ilammy/setup-nasm@v1
       
       - name: Install AFL (Linux)
-        uses: actions-rs/cargo@v1
-        with:
-          command: install
-          args: cargo-afl
+        run: cargo install cargo-afl
         if: runner.os == 'Linux'
       
       - name: Install Cargo-Fuzz (Linux)
-        uses: actions-rs/cargo@v1
-        with:
-          command: install
-          args: cargo-fuzz
+        run: cargo install cargo-fuzz
         if: runner.os == 'Linux'
       
       - name: Preparation work

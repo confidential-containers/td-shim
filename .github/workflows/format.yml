@@ -28,11 +28,9 @@ jobs:
         uses: ilammy/setup-nasm@v1
 
       - name: Install toolchain with clippy available
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@master
         with:
-          profile: minimal
           toolchain: nightly-2023-12-31
-          override: true
           components: clippy
 
       - name: Add target
@@ -65,23 +63,16 @@ jobs:
           submodules: recursive
 
       - name: Install toolchain with rustfmt available
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@master
         with:
-          profile: minimal
           toolchain: nightly-2023-12-31
-          override: true
           components: rustfmt
 
       - name: Preparation Work
         run: make preparation
 
       - name: Run cargo check
-        uses: actions-rs/cargo@v1
-        with:
-          command: check
+        run: cargo check
 
       - name: Run cargo fmt
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
+        run: cargo fmt --all -- --check
