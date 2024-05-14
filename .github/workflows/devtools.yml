@@ -42,18 +42,14 @@ jobs:
           submodules: recursive
 
       - name: Install stable toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@master
         with:
-          profile: ${{ env.TOOLCHAIN_PROFILE }}
           toolchain: ${{ env.STABLE_RUST_TOOLCHAIN }}
-          override: true
 
       - name: Install nightly toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@master
         with:
-          profile: ${{ env.TOOLCHAIN_PROFILE }}
           toolchain: ${{ env.NIGHTLY_RUST_TOOLCHAIN }}
-          override: true
 
       - name: Preparation work
         run: make preparation
