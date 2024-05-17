@@ -8,9 +8,6 @@
 //! A customized secure boot protocol is designed for td-shim, please refer to `doc/secure_boot.md`
 //! for details.
 
-extern crate alloc;
-
-use alloc::vec::Vec;
 use core::mem::size_of;
 use core::ptr::slice_from_raw_parts;
 
@@ -45,6 +42,10 @@ pub const CFV_FILE_HEADER_PUBKEY_GUID: Guid = Guid::from_fields(
 
 pub const PUBKEY_FILE_STRUCT_VERSION_V1: u32 = 0x01;
 pub const PUBKEY_HASH_ALGORITHM_SHA384: u64 = 1;
+
+const RSA_3072_MAX_DER_PUBLIC_KEY_SIZE: usize = 396;
+const ECDSA_3072_PUBLIC_KEY_SIZE: usize = 97;
+const FORMATED_PUBKEY_MAX_SIZE: usize = RSA_3072_MAX_DER_PUBLIC_KEY_SIZE;
 
 #[repr(C, align(4))]
 #[derive(Debug, Default, Pread, Pwrite)]
@@ -130,7 +131,8 @@ pub struct PayloadVerifier<'a> {
     config: &'a [u8],
     image: &'a [u8],
     public_key: &'a [u8],
-    formated_public_key: Vec<u8>,
+    formated_public_key: [u8; FORMATED_PUBKEY_MAX_SIZE],
+    public_key_size: usize,
     signature: &'a [u8],
     verify_alg: &'static dyn VerificationAlgorithm,
 }
@@ -153,7 +155,8 @@ impl<'a> PayloadVerifier<'a> {
         // The image to be verified contains signing header and payload ELF/PE image
         let image = &signed_payload[0..offset];
 
-        let mut formated_public_key: Vec<u8> = Vec::new();
+        let mut formated_public_key = [0u8; FORMATED_PUBKEY_MAX_SIZE];
+        let public_key_size;
         let verify_alg: &'static dyn VerificationAlgorithm;
         let signature;
         let public_key;
@@ -171,8 +174,9 @@ impl<'a> PayloadVerifier<'a> {
                 signature = &signed_payload[offset..offset + 96];
 
                 // Uncompressed public key
-                formated_public_key.push(0x04);
-                formated_public_key.extend_from_slice(public_key);
+                formated_public_key[0] = 0x04;
+                formated_public_key[1..1 + public_key.len()].copy_from_slice(public_key);
+                public_key_size = ECDSA_3072_PUBLIC_KEY_SIZE;
 
                 verify_alg = &signature::ECDSA_P384_SHA384_FIXED;
             }
@@ -199,8 +203,13 @@ impl<'a> PayloadVerifier<'a> {
                     modulus: UIntBytes::new(modulus).map_err(|_e| VerifyErr::InvalidContent)?,
                     exponents: UIntBytes::new(exp).map_err(|_e| VerifyErr::InvalidContent)?,
                 };
-                der.encode_to_vec(&mut formated_public_key)
+                let encoded = der
+                    .encode_to_slice(&mut formated_public_key)
                     .map_err(|_e| VerifyErr::InvalidContent)?;
+                if encoded.len() > RSA_3072_MAX_DER_PUBLIC_KEY_SIZE {
+                    return Err(VerifyErr::InvalidPublicKey);
+                }
+                public_key_size = encoded.len();
 
                 verify_alg = &signature::RSA_PSS_2048_8192_SHA384;
             }
@@ -213,6 +222,7 @@ impl<'a> PayloadVerifier<'a> {
             config,
             public_key,
             formated_public_key,
+            public_key_size,
             signature,
             verify_alg,
         })
@@ -245,8 +255,10 @@ impl<'a> PayloadVerifier<'a> {
     }
 
     fn verify_signature(&self) -> Result<(), VerifyErr> {
-        let signature_verifier =
-            UnparsedPublicKey::new(self.verify_alg, self.formated_public_key.as_slice());
+        let signature_verifier = UnparsedPublicKey::new(
+            self.verify_alg,
+            &self.formated_public_key[..self.public_key_size],
+        );
         signature_verifier
             .verify(self.image, self.signature)
             .map_err(|_e| VerifyErr::InvalidSignature)
