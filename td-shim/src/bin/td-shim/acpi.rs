@@ -4,19 +4,20 @@
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 extern crate alloc;
 
-use alloc::vec::Vec;
 use td_shim_interface::acpi::{calculate_checksum, Rsdp, Xsdt};
 
 use super::*;
 
-#[derive(Default)]
+const ACPI_MAX_TABLES: usize = 128;
+
 pub struct AcpiTables<'a> {
     acpi_memory: &'a mut [u8],
     pa: u64,
     size: usize,
     fadt: Option<(usize, usize)>, // FADT offset in acpi memory
     dsdt: Option<usize>,          // DSDT offset in acpi memory
-    table_offset: Vec<usize>,
+    table_offsets: [usize; ACPI_MAX_TABLES],
+    num_tables: usize,
 }
 
 impl<'a> AcpiTables<'a> {
@@ -24,7 +25,11 @@ impl<'a> AcpiTables<'a> {
         AcpiTables {
             acpi_memory: td_acpi_mem,
             pa,
-            ..Default::default()
+            size: 0,
+            fadt: None,
+            dsdt: None,
+            table_offsets: [0; ACPI_MAX_TABLES],
+            num_tables: 0,
         }
     }
 
@@ -53,7 +58,7 @@ impl<'a> AcpiTables<'a> {
                 .expect("Unable to add table into XSDT");
         }
 
-        for offset in &self.table_offset {
+        for offset in &self.table_offsets[..self.num_tables] {
             xsdt.add_table(self.offset_to_address(*offset))
                 .expect("Unable to add table into XSDT");
         }
@@ -102,7 +107,7 @@ impl<'a> AcpiTables<'a> {
         } else if &header.signature == b"DSDT" {
             self.dsdt = Some(self.size);
         } else {
-            for offset in &self.table_offset {
+            for offset in &self.table_offsets[..self.num_tables] {
                 // Safe because it's reading data from our own buffer.
                 let table_header = GenericSdtHeader::read_from(
                     &self.acpi_memory[*offset..*offset + size_of::<GenericSdtHeader>()],
@@ -116,7 +121,11 @@ impl<'a> AcpiTables<'a> {
                     return;
                 }
             }
-            self.table_offset.push(self.size);
+            if self.num_tables >= ACPI_MAX_TABLES {
+                panic!("Number of ACPI table exceeds limit 0x{:X}", ACPI_MAX_TABLES,);
+            }
+            self.table_offsets[self.num_tables] = self.size;
+            self.num_tables += 1;
         }
 
         self.acpi_memory[self.size..self.size + table.len()].copy_from_slice(table);
