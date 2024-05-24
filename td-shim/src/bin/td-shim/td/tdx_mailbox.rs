@@ -18,6 +18,8 @@ use crate::asm::{ap_relocated_func_addr, ap_relocated_func_size};
 // The maximum size of memory used for AP stacks is 30 KB.
 const MAX_WORKING_AP_COUNT: u32 = 15;
 const AP_TEMP_STACK_SIZE: usize = 0x800;
+const AP_TEMP_STACK_TOTAL_SIZE: usize = MAX_WORKING_AP_COUNT as usize * AP_TEMP_STACK_SIZE;
+static AP_TEMP_STACK: [u8; AP_TEMP_STACK_TOTAL_SIZE] = [0; AP_TEMP_STACK_TOTAL_SIZE];
 
 const ACCEPT_CHUNK_SIZE: u64 = 0x2000000;
 const ACCEPT_PAGE_SIZE: u64 = 0x200000;
@@ -250,7 +252,6 @@ pub fn accept_memory_resource_range(mut cpu_num: u32, address: u64, size: u64) {
     // Safety:
     // BSP is the owner of the mailbox area, and APs cooperate with BSP to access the mailbox area.
     let mut mail_box = unsafe { MailBox::new(get_mem_slice_mut(SliceType::MailBox)) };
-    let mut stacks: Vec<u8> = Vec::with_capacity(AP_TEMP_STACK_SIZE * active_ap_cnt as usize);
 
     // BSP calles the same function parallel_accept_memory to accept memory,
     // so set the firmware arguments here.
@@ -264,7 +265,7 @@ pub fn accept_memory_resource_range(mut cpu_num: u32, address: u64, size: u64) {
         // 0 is the bootstrap processor running this code
         for i in make_apic_range(active_ap_cnt) {
             // rsp should be at the top of the memory allocated for each ap
-            let stack_top = stacks.as_ptr() as u64 + i as u64 * AP_TEMP_STACK_SIZE as u64;
+            let stack_top = AP_TEMP_STACK.as_ptr() as u64 + i as u64 * AP_TEMP_STACK_SIZE as u64;
             ap_assign_work(i, stack_top, parallel_accept_memory as *const () as u32);
         }
     }
