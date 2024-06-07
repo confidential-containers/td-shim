@@ -7,6 +7,9 @@ homepage = "https://github.com/confidential-containers"
 license = "BSD-2-Clause-Patent"
 edition = "2018"
 
+readme = "README.md"
+keywords = ["TDCALL", "TDX", "intel"]
+
 [dependencies]
 lazy_static = { version = "1.0", features = ["spin_no_std"] }
 log = "0.4.13"
