@@ -57,6 +57,7 @@ const TDVMCALL_SERVICE: u64 = 0x10005;
 
 // TDCALL completion status code
 const TDCALL_STATUS_SUCCESS: u64 = 0;
+
 // leaf-specific completion status code
 pub const TDCALL_STATUS_PAGE_ALREADY_ACCEPTED: u64 = 0x00000B0A00000000;
 pub const TDCALL_STATUS_PAGE_SIZE_MISMATCH: u64 = 0xC0000B0B00000001;

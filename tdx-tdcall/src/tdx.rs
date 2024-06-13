@@ -575,13 +575,23 @@ pub fn tdcall_accept_page(address: u64) -> Result<(), TdCallError> {
         ..Default::default()
     };
 
-    let ret = td_call(&mut args);
+    const MAX_RETRIES_ACCEPT_PAGE: usize = 5;
+    let mut retry_counter = 0;
+    let mut ret = 0;
 
-    if ret != TDCALL_STATUS_SUCCESS {
-        return Err(ret.into());
+    while retry_counter < MAX_RETRIES_ACCEPT_PAGE {
+        ret = td_call(&mut args);
+
+        if ret == TDCALL_STATUS_SUCCESS {
+            return Ok(());
+        } else if TdCallError::TdxExitReasonOperandBusy != ret.into() {
+            return Err(ret.into());
+        }
+
+        retry_counter += 1;
     }
 
-    Ok(())
+    return Err(ret.into());
 }
 
 /// Get the guest physical address (GPA) width via TDG.VP.INFO
