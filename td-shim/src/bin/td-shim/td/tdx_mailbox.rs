@@ -10,7 +10,7 @@ use core::cmp::min;
 use core::ops::RangeInclusive;
 use td_exception::idt::DescriptorTablePointer;
 use td_layout::memslice::{get_mem_slice_mut, SliceType};
-use tdx_tdcall::{self, tdx};
+use tdx_tdcall::{self, tdx::*};
 
 use crate::asm::{ap_relocated_func_addr, ap_relocated_func_size};
 
@@ -23,8 +23,6 @@ static AP_TEMP_STACK: [u8; AP_TEMP_STACK_TOTAL_SIZE] = [0; AP_TEMP_STACK_TOTAL_S
 
 const ACCEPT_CHUNK_SIZE: u64 = 0x2000000;
 const ACCEPT_PAGE_SIZE: u64 = 0x200000;
-const PAGE_SIZE_2M: u64 = 0x200000;
-const PAGE_SIZE_4K: u64 = 0x1000;
 const MAILBOX_SIZE: usize = 0x1000;
 
 #[derive(Debug)]
@@ -167,32 +165,6 @@ pub fn ap_assign_work(cpu_index: u32, stack_top: u64, entry: u32) {
     mail_box.set_apic_id(cpu_index);
 
     wait_for_ap_response(&mut mail_box);
-}
-
-fn td_accept_pages(address: u64, pages: u64, page_size: u64) {
-    for i in 0..pages {
-        let mut accept_addr = address + i * page_size;
-        let accept_level = if page_size == PAGE_SIZE_2M { 1 } else { 0 };
-        match tdx::tdcall_accept_page(accept_addr | accept_level) {
-            Ok(()) => {}
-            Err(e) => {
-                if let tdx_tdcall::TdCallError::LeafSpecific(error_code) = e {
-                    if error_code == tdx_tdcall::TDCALL_STATUS_PAGE_SIZE_MISMATCH {
-                        if page_size == PAGE_SIZE_2M {
-                            td_accept_pages(accept_addr, 512, PAGE_SIZE_4K);
-                            continue;
-                        }
-                    } else if error_code == tdx_tdcall::TDCALL_STATUS_PAGE_ALREADY_ACCEPTED {
-                        continue;
-                    }
-                }
-                panic!(
-                    "Accept Page Error: 0x{:x}, page_size: {}\n",
-                    accept_addr, page_size
-                );
-            }
-        }
-    }
 }
 
 extern "win64" fn parallel_accept_memory(cpu_index: u64) {
