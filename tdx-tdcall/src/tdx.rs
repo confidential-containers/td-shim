@@ -626,6 +626,36 @@ pub fn td_accept_pages(address: u64, pages: u64, page_size: u64) {
     }
 }
 
+/// Accept a range of either 4K normal pages or 2M huge pages. This is basically a wrapper over
+/// td_accept_pages and initializes the pages to zero using the TD ephemeral private key.
+pub fn td_accept_memory(address: u64, len: u64) {
+    let mut start = address;
+    let end = address + len;
+
+    while start < end {
+        let remaining = end - start;
+
+        // Try larger accepts first to keep 1G/2M Secure EPT entries
+        // where possible and speeds up process by cutting number of
+        // tdcalls (if successful).
+        if remaining >= PAGE_SIZE_2M && (start & (PAGE_SIZE_2M - 1)) == 0 {
+            let npages = remaining >> 21;
+            td_accept_pages(start, npages, PAGE_SIZE_2M);
+            start += npages << 21;
+        } else if remaining >= PAGE_SIZE_4K && (start & (PAGE_SIZE_4K - 1)) == 0 {
+            let mut npages = remaining >> 12;
+            // Try to consume in 4K chunks until 2M aligned.
+            if remaining >= PAGE_SIZE_2M {
+                npages = (PAGE_SIZE_2M - (start & (PAGE_SIZE_2M - 1))) >> 12;
+            }
+            td_accept_pages(start, npages, PAGE_SIZE_4K);
+            start += npages << 12;
+        } else {
+            panic!("Accept Memory Error: 0x{:x}, length: {}\n", address, len);
+        }
+    }
+}
+
 /// Get the guest physical address (GPA) width via TDG.VP.INFO
 /// The GPA width can be used to determine the shared-bit of GPA
 pub fn td_shared_mask() -> Option<u64> {
