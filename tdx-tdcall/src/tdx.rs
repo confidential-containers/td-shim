@@ -336,7 +336,7 @@ pub fn tdvmcall_mapgpa(shared: bool, paddr: u64, length: usize) -> Result<(), Td
 /// Used to help perform RDMSR operation.
 ///
 /// Details can be found in TDX GHCI spec section 'TDG.VP.VMCALL<Instruction.RDMSR>'
-pub fn tdvmcall_rdmsr(index: u32) -> u64 {
+pub fn tdvmcall_rdmsr(index: u32) -> Result<u64, TdVmcallError> {
     let mut args = TdVmcallArgs {
         r11: TDVMCALL_RDMSR,
         r12: index as u64,
@@ -346,16 +346,16 @@ pub fn tdvmcall_rdmsr(index: u32) -> u64 {
     let ret = td_vmcall(&mut args);
 
     if ret != TDVMCALL_STATUS_SUCCESS {
-        tdvmcall_halt();
+        return Err(ret.into());
     }
 
-    args.r11
+    Ok(args.r11)
 }
 
 /// Used to help perform WRMSR operation.
 ///
 /// Details can be found in TDX GHCI spec section 'TDG.VP.VMCALL<Instruction.WRMSR>'
-pub fn tdvmcall_wrmsr(index: u32, value: u64) {
+pub fn tdvmcall_wrmsr(index: u32, value: u64) -> Result<(), TdVmcallError> {
     let mut args = TdVmcallArgs {
         r11: TDVMCALL_WRMSR,
         r12: index as u64,
@@ -366,8 +366,10 @@ pub fn tdvmcall_wrmsr(index: u32, value: u64) {
     let ret = td_vmcall(&mut args);
 
     if ret != TDVMCALL_STATUS_SUCCESS {
-        tdvmcall_halt();
+        return Err(ret.into());
     }
+
+    Ok(())
 }
 
 /// Used to enable the TD-guest to request the VMM to emulate the CPUID operation
