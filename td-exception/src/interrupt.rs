@@ -399,13 +399,15 @@ interrupt_no_error!(virtualization, stack, {
             }
         }
         EXIT_REASON_MSR_READ => {
-            let msr = tdx::tdvmcall_rdmsr(stack.scratch.rcx as u32);
+            let msr = tdx::tdvmcall_rdmsr(stack.scratch.rcx as u32)
+                .expect("fail to perform RDMSR operation\n");
             stack.scratch.rax = (msr as u32 & u32::MAX) as usize; // EAX
             stack.scratch.rdx = ((msr >> 32) as u32 & u32::MAX) as usize; // EDX
         }
         EXIT_REASON_MSR_WRITE => {
             let data = stack.scratch.rax as u64 | ((stack.scratch.rdx as u64) << 32); // EDX:EAX
-            tdx::tdvmcall_wrmsr(stack.scratch.rcx as u32, data);
+            tdx::tdvmcall_wrmsr(stack.scratch.rcx as u32, data)
+                .expect("fail to perform WRMSR operation\n");
         }
         EXIT_REASON_CPUID => {
             let cpuid = tdx::tdvmcall_cpuid(stack.scratch.rax as u32, stack.scratch.rcx as u32);
