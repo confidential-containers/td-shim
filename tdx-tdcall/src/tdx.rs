@@ -807,6 +807,46 @@ pub fn tdcall_vp_write(field: u64, value: u64, mask: u64) -> Result<u64, TdCallE
     Ok(args.r8)
 }
 
+/// Invalidate mappings in the translation lookaside buffers (TLBs) and paging-structure caches
+/// for a specified L2 VM and a specified list of 4KB page linear addresses.
+///
+/// Details can be found in TDX Module v1.5 ABI spec section 'TDG.VP.INVVPID Leaf'.
+pub fn tdcall_vp_invvpid(flags: u64, gla: u64) -> Result<u64, TdCallError> {
+    let mut args = TdcallArgs {
+        rax: TDCALL_VP_INVVPID,
+        rcx: flags,
+        rdx: gla,
+        ..Default::default()
+    };
+
+    let ret = td_call(&mut args);
+
+    if ret != TDCALL_STATUS_SUCCESS {
+        return Err(ret.into());
+    }
+
+    Ok(args.rdx)
+}
+
+/// Invalidate cached EPT translations for selected L2 VM.
+///
+/// Details can be found in TDX Module v1.5 ABI spec section 'TDG.VP.INVEPT Leaf'.
+pub fn tdcall_vp_invept(vm_flags: u64) -> Result<(), TdCallError> {
+    let mut args = TdcallArgs {
+        rax: TDCALL_VP_INVEPT,
+        rcx: vm_flags,
+        ..Default::default()
+    };
+
+    let ret = td_call(&mut args);
+
+    if ret != TDCALL_STATUS_SUCCESS {
+        return Err(ret.into());
+    }
+
+    Ok(())
+}
+
 /// Read a TD-scope metadata field (control structure field) of a TD.
 ///
 /// Details can be found in TDX Module v1.5 ABI spec section 'TDG.VM.RD Leaf'.
