@@ -767,6 +767,86 @@ pub fn tdcall_sys_rd(field_identifier: u64) -> core::result::Result<(u64, u64), 
     Ok((args.rdx, args.r8))
 }
 
+/// Read a VCPU-scope metadata field (control structure field) of a TD.
+///
+/// Details can be found in TDX Module v1.5 ABI spec section 'TDG.VP.RD Leaf'.
+pub fn tdcall_vp_read(field: u64) -> Result<(u64, u64), TdCallError> {
+    let mut args = TdcallArgs {
+        rax: TDCALL_VP_RD,
+        rdx: field,
+        ..Default::default()
+    };
+
+    let ret = td_call(&mut args);
+
+    if ret != TDCALL_STATUS_SUCCESS {
+        return Err(ret.into());
+    }
+
+    Ok((args.rdx, args.r8))
+}
+
+/// Write a VCPU-scope metadata field (control structure field) of a TD.
+///
+/// Details can be found in TDX Module v1.5 ABI spec section 'TDG.VP.WR Leaf'.
+pub fn tdcall_vp_write(field: u64, value: u64, mask: u64) -> Result<u64, TdCallError> {
+    let mut args = TdcallArgs {
+        rax: TDCALL_VP_WR,
+        rdx: field,
+        r8: value,
+        r9: mask,
+        ..Default::default()
+    };
+
+    let ret = td_call(&mut args);
+
+    if ret != TDCALL_STATUS_SUCCESS {
+        return Err(ret.into());
+    }
+
+    Ok(args.r8)
+}
+
+/// Read a TD-scope metadata field (control structure field) of a TD.
+///
+/// Details can be found in TDX Module v1.5 ABI spec section 'TDG.VM.RD Leaf'.
+pub fn tdcall_vm_read(field: u64, version: u8) -> Result<(u64, u64), TdCallError> {
+    let mut args = TdcallArgs {
+        rax: TDCALL_VM_RD | (version as u64) << 16,
+        rdx: field,
+        ..Default::default()
+    };
+
+    let ret = td_call(&mut args);
+
+    if ret != TDCALL_STATUS_SUCCESS {
+        return Err(ret.into());
+    }
+
+    Ok((args.rdx, args.r8))
+}
+
+/// Write a TD-scope metadata field (control structure field) of a TD.
+///
+/// Details can be found in TDX Module v1.5 ABI spec section 'TDG.VM.WR Leaf'.
+pub fn tdcall_vm_write(field: u64, value: u64, mask: u64) -> Result<u64, TdCallError> {
+    let mut args = TdcallArgs {
+        rax: TDCALL_VM_WR,
+        rdx: field,
+        r8: value,
+        r9: mask,
+        ..Default::default()
+    };
+
+    let ret = td_call(&mut args);
+
+    if ret != TDCALL_STATUS_SUCCESS {
+        return Err(ret.into());
+    }
+
+    Ok(args.r8)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
