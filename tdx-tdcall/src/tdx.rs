@@ -21,6 +21,8 @@ use crate::*;
 const IO_READ: u64 = 0;
 const IO_WRITE: u64 = 1;
 const TARGET_TD_UUID_NUM: usize = 4;
+pub const PAGE_SIZE_4K: u64 = 0x1000;
+pub const PAGE_SIZE_2M: u64 = 0x200000;
 
 /// SHA384 digest value extended to RTMR
 /// Both alignment and size are 64 bytes.
@@ -592,6 +594,36 @@ pub fn tdcall_accept_page(address: u64) -> Result<(), TdCallError> {
     }
 
     return Err(ret.into());
+}
+
+/// Accept a range of private pages and initialize the pages to zeros using the TD ephemeral
+/// private key.
+///
+/// This function is a wrapper to `tdcall_accept_page()`.
+pub fn td_accept_pages(address: u64, pages: u64, page_size: u64) {
+    for i in 0..pages {
+        let accept_addr = address + i * page_size;
+        let accept_level = if page_size == PAGE_SIZE_2M { 1 } else { 0 };
+        match tdcall_accept_page(accept_addr | accept_level) {
+            Ok(()) => {}
+            Err(e) => {
+                if let TdCallError::LeafSpecific(error_code) = e {
+                    if error_code == TDCALL_STATUS_PAGE_SIZE_MISMATCH {
+                        if page_size == PAGE_SIZE_2M {
+                            td_accept_pages(accept_addr, 512, PAGE_SIZE_4K);
+                            continue;
+                        }
+                    } else if error_code == TDCALL_STATUS_PAGE_ALREADY_ACCEPTED {
+                        continue;
+                    }
+                }
+                panic!(
+                    "Accept Page Error: 0x{:x}, page_size: {}, err {:?}\n",
+                    accept_addr, page_size, e
+                );
+            }
+        }
+    }
 }
 
 /// Get the guest physical address (GPA) width via TDG.VP.INFO
