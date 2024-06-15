@@ -903,6 +903,41 @@ pub fn tdcall_vm_write(field: u64, value: u64, mask: u64) -> Result<u64, TdCallE
     Ok(args.r8)
 }
 
+/// Write the attributes of a private page.  Create or remove L2 page aliases as required.
+///
+/// Details can be found in TDX Module v1.5 ABI spec section 'TDG.MEM.PAGE.ATTR.WR Leaf'.
+pub fn tdcall_mem_page_attr_wr(
+    gpa_mapping: u64,
+    gpa_attr: u64,
+    attr_flags: u64,
+) -> Result<(u64, u64), TdCallError> {
+    let mut args = TdcallArgs {
+        rax: TDCALL_MEM_PAGE_ATTR_WR,
+        rcx: gpa_mapping,
+        rdx: gpa_attr,
+        r8: attr_flags,
+        ..Default::default()
+    };
+
+    const MAX_RETRIES_ATTR_WR: usize = 5;
+    let mut retry_counter = 0;
+    let mut ret = 0;
+
+    while retry_counter < MAX_RETRIES_ATTR_WR {
+        ret = td_call(&mut args);
+
+        if ret == TDCALL_STATUS_SUCCESS {
+            return Ok((args.rcx, args.rdx));
+        } else if TdCallError::TdxExitReasonOperandBusy != ret.into() {
+            return Err(ret.into());
+        }
+
+        retry_counter += 1;
+    }
+
+    return Err(ret.into());
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
