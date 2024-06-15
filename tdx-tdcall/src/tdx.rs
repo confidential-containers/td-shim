@@ -847,6 +847,22 @@ pub fn tdcall_vp_invept(vm_flags: u64) -> Result<(), TdCallError> {
     Ok(())
 }
 
+/// Enter L2 VCPU operation.
+///
+/// Details can be found in TDX Module v1.5 ABI spec section 'TDG.VP.ENTER Leaf'.
+pub fn tdcall_vp_enter(vm_flags: u64, gpa: u64) -> TdcallArgs {
+    let mut args = TdcallArgs {
+        rax: TDCALL_VP_ENTER,
+        rcx: vm_flags,
+        rdx: gpa,
+        ..Default::default()
+    };
+
+    td_call(&mut args);
+
+    args
+}
+
 /// Read a TD-scope metadata field (control structure field) of a TD.
 ///
 /// Details can be found in TDX Module v1.5 ABI spec section 'TDG.VM.RD Leaf'.
