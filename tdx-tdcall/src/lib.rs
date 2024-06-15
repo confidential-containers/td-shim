@@ -46,6 +46,7 @@ const TDCALL_VP_WR: u64 = 10;
 const TDCALL_SYS_RD: u64 = 11;
 const TDCALL_SERVTD_RD: u64 = 18;
 const TDCALL_SERVTD_WR: u64 = 20;
+const TDCALL_VP_ENTER: u64 = 25;
 const TDCALL_VP_INVEPT: u64 = 26;
 const TDCALL_VP_INVVPID: u64 = 27;
 
