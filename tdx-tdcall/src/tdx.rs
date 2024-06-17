@@ -37,7 +37,8 @@ pub struct TdInfo {
     pub attributes: u64,
     pub max_vcpus: u32,
     pub num_vcpus: u32,
-    pub rsvd: [u64; 3],
+    pub vcpu_index: u32,
+    pub rsvd: [u32; 5],
 }
 
 /// Virtualization exception information returned from TDG.VP.VEINFO.GET leaf
@@ -504,6 +505,7 @@ pub fn tdcall_get_td_info() -> Result<TdInfo, TdCallError> {
         attributes: args.rdx,
         max_vcpus: (args.r8 >> 32) as u32,
         num_vcpus: args.r8 as u32,
+        vcpu_index: args.r9 as u32,
         ..Default::default()
     };
 
