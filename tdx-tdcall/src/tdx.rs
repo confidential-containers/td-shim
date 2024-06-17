@@ -234,7 +234,7 @@ pub fn tdvmcall_io_write_32(port: u16, byte: u32) {
 pub fn tdvmcall_mmio_write<T: Sized>(address: *const T, value: T) {
     let address = address as u64 | *SHARED_MASK;
     fence(Ordering::SeqCst);
-    let val = unsafe { *(&value as *const T as *const u64) };
+    let val = unsafe { *(core::ptr::addr_of!(value) as *const u64) };
 
     let mut args = TdVmcallArgs {
         r11: TDVMCALL_MMIO,
@@ -273,7 +273,7 @@ pub fn tdvmcall_mmio_read<T: Clone + Copy + Sized>(address: usize) -> T {
         tdvmcall_halt();
     }
 
-    unsafe { *(&args.r11 as *const u64 as *const T) }
+    unsafe { *(core::ptr::addr_of!(args.r11) as *const T) }
 }
 
 /// Used to request the host VMM to map a GPA range as a private or shared memory mappings.
@@ -514,7 +514,7 @@ pub fn tdcall_get_td_info() -> Result<TdInfo, TdCallError> {
 ///
 /// Details can be found in TDX Module ABI spec section 'TDG.VP.INFO Leaf'
 pub fn tdcall_extend_rtmr(digest: &TdxDigest, mr_index: u32) -> Result<(), TdCallError> {
-    let buffer: u64 = &digest.data as *const u8 as u64;
+    let buffer: u64 = core::ptr::addr_of!(digest.data) as u64;
 
     let mut args = TdcallArgs {
         rax: TDCALL_TDEXTENDRTMR,
