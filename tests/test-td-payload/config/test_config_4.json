@@ -5,7 +5,8 @@
             "attributes": 0,
             "max_vcpus": 1,
             "num_vcpus": 1,
-            "rsvd": [0,0,0]
+            "vcpu_index":0,
+            "rsvd": [0,0,0,0,0]
         },
         "result": "None",
         "run": false
@@ -16,7 +17,8 @@
             "attributes": 0,
             "max_vcpus": 2,
             "num_vcpus": 2,
-            "rsvd": [0,0,0]
+            "vcpu_index":0,
+            "rsvd": [0,0,0,0,0]
         },
         "result": "None",
         "run": false  
@@ -27,7 +29,8 @@
             "attributes": 0,
             "max_vcpus": 4,
             "num_vcpus": 4,
-            "rsvd": [0,0,0]
+            "vcpu_index":0,
+            "rsvd": [0,0,0,0,0]
         },
         "result": "None",
         "run": true 
@@ -38,7 +41,8 @@
             "attributes": 0,
             "max_vcpus": 8,
             "num_vcpus": 8,
-            "rsvd": [0,0,0]
+            "vcpu_index":0,
+            "rsvd": [0,0,0,0,0]
         },
         "result": "None",
         "run": false  
