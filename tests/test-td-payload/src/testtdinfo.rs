@@ -18,7 +18,8 @@ pub struct TdInfoRetData {
     pub attributes: u64,
     pub max_vcpus: u32,
     pub num_vcpus: u32,
-    pub rsvd: [u64; 3],
+    pub vcpu_index: u32,
+    pub rsvd: [u32; 5],
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -26,7 +27,8 @@ pub struct TdInfoExpectedData {
     pub attributes: u64,
     pub max_vcpus: u32,
     pub num_vcpus: u32,
-    pub rsvd: [u64; 3],
+    pub vcpu_index: u32,
+    pub rsvd: [u32; 5],
 }
 
 /**
@@ -96,6 +98,17 @@ impl TestCase for Tdinfo {
                 td_info.num_vcpus
             );
             return;
+        }
+
+        if (self.expected.vcpu_index != td_info.vcpu_index) {
+            log::info!(
+                "Check vcpu_index fail - Expected {:?}: Actual {:?}\n",
+                self.expected.vcpu_index,
+                td_info.vcpu_index
+            );
+            return;
+        } else {
+            log::info!("vcpu_index - {:?}\n", td_info.vcpu_index);
         }
 
         if (self.expected.rsvd != td_info.rsvd) {

@@ -54,7 +54,8 @@ The output file **final.test.bin** with [test.json](../tests/test-td-payload/src
             "attributes": 0,
             "max_vcpus": 1,
             "num_vcpus": 1,
-            "rsvd": [0,0,0]
+            "vcpu_index":0,
+            "rsvd": [0,0,0,0,0]
         },
         "result": "None",
         "run": true  
