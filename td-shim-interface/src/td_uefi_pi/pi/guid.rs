@@ -1,3 +1,7 @@
+// Copyright (c) 2024 Intel Corporation
+//
+// SPDX-License-Identifier: BSD-2-Clause-Patent
+
 use core::{convert::TryInto, mem::size_of, ptr::slice_from_raw_parts, str::FromStr};
 
 use scroll::{Pread, Pwrite};
