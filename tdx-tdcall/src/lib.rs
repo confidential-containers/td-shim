@@ -162,10 +162,10 @@ pub enum TdCallError {
     TdxExitInvalidParameters,
 
     // The operand is busy (e.g., it is locked in Exclusive mode)
-    TdxExitReasonOperandBusy,
+    TdxExitReasonOperandBusy(u32),
 
     // Operand is invalid (e.g., illegal leaf number)
-    TdxExitReasonOperandInvalid,
+    TdxExitReasonOperandInvalid(u32),
 
     // Error code defined by individual leaf function
     LeafSpecific(u64),
@@ -174,9 +174,9 @@ pub enum TdCallError {
 // TDCALL Completion Status Codes (Returned in RAX) Definition
 impl From<u64> for TdCallError {
     fn from(val: u64) -> Self {
-        match val {
-            0x8000_0200 => Self::TdxExitReasonOperandBusy,
-            0xC000_0100 => Self::TdxExitReasonOperandInvalid,
+        match val >> 32 {
+            0x8000_0200 => Self::TdxExitReasonOperandBusy(val as u32),
+            0xC000_0100 => Self::TdxExitReasonOperandInvalid(val as u32),
             _ => Self::LeafSpecific(val),
         }
     }
