@@ -586,11 +586,12 @@ pub fn tdcall_accept_page(address: u64) -> Result<(), TdCallError> {
 
         if ret == TDCALL_STATUS_SUCCESS {
             return Ok(());
-        } else if TdCallError::TdxExitReasonOperandBusy != ret.into() {
-            return Err(ret.into());
+        } else {
+            match TdCallError::from(ret) {
+                TdCallError::TdxExitReasonOperandBusy(_) => retry_counter += 1,
+                e => return Err(e),
+            }
         }
-
-        retry_counter += 1;
     }
 
     return Err(ret.into());
@@ -618,7 +619,7 @@ pub fn td_accept_pages(address: u64, pages: u64, page_size: u64) {
                     }
                 }
                 panic!(
-                    "Accept Page Error: 0x{:x}, page_size: {}, err {:?}\n",
+                    "Accept Page Error: 0x{:x}, page_size: {}, err {:x?}\n",
                     accept_addr, page_size, e
                 );
             }
@@ -928,11 +929,12 @@ pub fn tdcall_mem_page_attr_wr(
 
         if ret == TDCALL_STATUS_SUCCESS {
             return Ok((args.rcx, args.rdx));
-        } else if TdCallError::TdxExitReasonOperandBusy != ret.into() {
-            return Err(ret.into());
+        } else {
+            match TdCallError::from(ret) {
+                TdCallError::TdxExitReasonOperandBusy(_) => retry_counter += 1,
+                e => return Err(e),
+            }
         }
-
-        retry_counter += 1;
     }
 
     return Err(ret.into());
