@@ -142,11 +142,10 @@ launch_td_test_payload() {
     local time_out=120
     local key_str="0 failed"
 
-    nohup ${qemu_tdx_path} -accel kvm \
+    QEMU_CMD="${qemu_tdx_path} -accel kvm \
         -name process=rust-td,debug-threads=on \
         -smp ${cpus},sockets=${cpus} \
         -object tdx-guest,id=tdx,debug=on \
-        -object memory-backend-memfd-private,id=ram1,size=${memory} \
         -machine q35,memory-backend=ram1,kernel_irqchip=split,confidential-guest-support=tdx \
         -no-hpet \
         -cpu host,pmu=off,-kvm-steal-time \
@@ -155,17 +154,25 @@ launch_td_test_payload() {
         -chardev stdio,id=mux,mux=on,signal=off \
         -device virtio-serial,romfile= \
         -device virtconsole,chardev=mux -serial chardev:mux -monitor chardev:mux \
-        -d int -no-reboot > ${nohup_logfile} 2>&1 &
-    
+        -d int -no-reboot" 
+
+    QEMU_VERSION=`${qemu_tdx_path} --version | grep -oP 'version \K[^\s]+'`
+    if [ "$(printf '%s\n' "8.0.0" "${QEMU_VERSION}" | sort -V | head -n1)" == "8.0.0" ]; then
+        QEMU_CMD+=" -object memory-backend-ram,id=ram1,size=${memory},private=on "
+    else
+        QEMU_CMD+=" -object memory-backend-memfd-private,id=ram1,size=${memory} "
+    fi
+
+    eval "nohup ${QEMU_CMD} > ${nohup_logfile} 2>&1 &" 
     check_result ${nohup_logfile} "${key_str}" ${time_out}
 
     if [[ $? -eq 0 ]]
     then
-        ps aux | grep ${qemu_tdx_path} | grep -v grep | awk -F ' ' '{print $2}' | xargs kill -9
         cat ${nohup_logfile} && echo "-- launch td payload: Pass"
-    else
         ps aux | grep ${qemu_tdx_path} | grep -v grep | awk -F ' ' '{print $2}' | xargs kill -9
+    else
         cat ${nohup_logfile} && echo "-- launch td payload: Fail" && exit 1
+        ps aux | grep ${qemu_tdx_path} | grep -v grep | awk -F ' ' '{print $2}' | xargs kill -9
     fi
 }
 
@@ -174,11 +181,10 @@ test_secure_boot() {
     local time_out=120
     local key_str="Starting td-payload hob"
     
-    nohup ${qemu_tdx_path} -accel kvm \
+    QEMU_CMD="${qemu_tdx_path} -accel kvm \
         -name process=rust-td,debug-threads=on \
         -smp ${cpus},sockets=${cpus} \
         -object tdx-guest,id=tdx,debug=on \
-        -object memory-backend-memfd-private,id=ram1,size=${memory} \
         -machine q35,memory-backend=ram1,kernel_irqchip=split,confidential-guest-support=tdx \
         -no-hpet \
         -cpu host,pmu=off,-kvm-steal-time \
@@ -187,19 +193,28 @@ test_secure_boot() {
         -chardev stdio,id=mux,mux=on,signal=off \
         -device virtio-serial,romfile= \
         -device virtconsole,chardev=mux -serial chardev:mux -monitor chardev:mux \
-        -d int -no-reboot > ${nohup_logfile} 2>&1 &
-    
+        -d int -no-reboot" 
+
+    QEMU_VERSION=`${qemu_tdx_path} --version | grep -oP 'version \K[^\s]+'`
+    if [ "$(printf '%s\n' "8.0.0" "${QEMU_VERSION}" | sort -V | head -n1)" == "8.0.0" ]; then
+        QEMU_CMD+=" -object memory-backend-ram,id=ram1,size=${memory},private=on "
+    else
+        QEMU_CMD+=" -object memory-backend-memfd-private,id=ram1,size=${memory} "
+    fi
+
+    eval "nohup ${QEMU_CMD} > ${nohup_logfile} 2>&1 &" 
     check_result ${nohup_logfile} "${key_str}" ${time_out}
 
     if [[ $? -eq 0 && ${firmware} == *normal* ]] ||
         [[ $? -ne 0 && ${firmware} == *mismatch-pubkey* ]] ||
         [[ $? -ne 0 && ${firmware} == *unsigned* ]]
     then
-        ps aux | grep ${qemu_tdx_path} | grep -v grep | awk -F ' ' '{print $2}' | xargs kill -9
         echo "-- secure boot test: Pass"
-    else
         ps aux | grep ${qemu_tdx_path} | grep -v grep | awk -F ' ' '{print $2}' | xargs kill -9
+        
+    else
         cat ${nohup_logfile} && echo "-- secure boot test: Fail" && exit 1
+        ps aux | grep ${qemu_tdx_path} | grep -v grep | awk -F ' ' '{print $2}' | xargs kill -9
     fi
 }
 
