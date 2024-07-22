@@ -15,6 +15,7 @@ mod testcetshstk;
 mod testiorw32;
 mod testiorw8;
 mod testmemmap;
+mod testmsrrw;
 mod teststackguard;
 mod testtdinfo;
 mod testtdreport;
@@ -39,6 +40,7 @@ use crate::testcetshstk::TestCetShstk;
 use crate::testiorw32::Tdiorw32;
 use crate::testiorw8::Tdiorw8;
 use crate::testmemmap::MemoryMap;
+use crate::testmsrrw::Tdmsrrw;
 use crate::teststackguard::TestStackGuard;
 use crate::testtdinfo::Tdinfo;
 use crate::testtdreport::Tdreport;
@@ -79,6 +81,7 @@ pub struct TestCases {
     pub tcs017: Option<TestStackGuard>,
     pub tcs018: Option<TestCetShstk>,
     pub tcs019: Option<TestCetIbt>,
+    pub tcs020: Tdmsrrw,
 }
 
 pub const CFV_FFS_HEADER_TEST_CONFIG_GUID: Guid = Guid::from_fields(
@@ -260,6 +263,10 @@ extern "C" fn main() -> ! {
         if tcs019.run {
             ts.testsuite.push(Box::new(tcs019));
         }
+    }
+
+    if tcs.tcs020.run {
+        ts.testsuite.push(Box::new(tcs.tcs020));
     }
 
     // run the TestSuite which contains the test cases
