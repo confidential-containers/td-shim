@@ -1,6 +1,11 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## [0.2.1] - 2024-07-23
+### Changed
+- Remove nightly feature in the x86_64 crate
+- Fix TdCallError parsing
+
 ## [0.2.0] - 2024-06-21
 ### Added
 - Wrapper to tdcall_accept_page to accept a memory range (for both normal 4K as well as 2M large pages).
