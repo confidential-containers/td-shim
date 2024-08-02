@@ -10,35 +10,38 @@ use super::SIZE_4K;
 use crate::arch::shared::decrypt;
 
 static SHARED_MEMORY_ALLOCATOR: LockedHeap = LockedHeap::empty();
-static SHADOW_OFFSET: Once<usize> = Once::new();
+static SHARED_START: Once<usize> = Once::new();
+static SHADOW_START: Once<usize> = Once::new();
 
 pub fn init_shared_memory(start: u64, size: usize) {
     if size % SIZE_4K != 0 {
         panic!("Failed to initialize shared memory: size needs to be aligned with 0x1000");
     }
-    let shared_size = size / 2;
 
     // Set the shared memory region to be shared
-    decrypt(start, shared_size);
+    decrypt(start, size);
     // Initialize the shared memory allocator
     unsafe {
-        SHARED_MEMORY_ALLOCATOR
-            .lock()
-            .init(start as *mut u8, shared_size);
+        SHARED_MEMORY_ALLOCATOR.lock().init(start as *mut u8, size);
     }
-    SHADOW_OFFSET.call_once(|| shared_size);
+}
+
+pub fn init_shared_memory_with_shadow(start: u64, size: usize, shadow_start: u64) {
+    init_shared_memory(start, size);
+    SHARED_START.call_once(|| start as usize);
+    SHADOW_START.call_once(|| shadow_start as usize);
 }
 
 pub struct SharedMemory {
     addr: usize,
-    shadow_addr: usize,
+    shadow_addr: Option<usize>,
     size: usize,
 }
 
 impl SharedMemory {
     pub fn new(num_page: usize) -> Option<Self> {
         let addr = unsafe { alloc_shared_pages(num_page)? };
-        let shadow_addr = alloc_private_shadow_pages(addr)?;
+        let shadow_addr = alloc_private_shadow_pages(addr);
 
         Some(Self {
             addr,
@@ -47,12 +50,13 @@ impl SharedMemory {
         })
     }
 
-    pub fn copy_to_private_shadow(&mut self) -> &[u8] {
-        let shadow =
-            unsafe { core::slice::from_raw_parts_mut(self.shadow_addr as *mut u8, self.size) };
-        shadow.copy_from_slice(self.as_bytes());
+    pub fn copy_to_private_shadow(&mut self) -> Option<&[u8]> {
+        self.shadow_addr.map(|addr| {
+            let shadow = unsafe { core::slice::from_raw_parts_mut(addr as *mut u8, self.size) };
+            shadow.copy_from_slice(self.as_bytes());
 
-        shadow
+            &shadow[..]
+        })
     }
 
     pub fn as_bytes(&self) -> &[u8] {
@@ -110,5 +114,6 @@ pub unsafe fn free_shared_page(addr: usize) {
 }
 
 fn alloc_private_shadow_pages(shared_addr: usize) -> Option<usize> {
-    Some(shared_addr + SHADOW_OFFSET.get()?)
+    let offset = shared_addr.checked_sub(*SHARED_START.get()?)?;
+    Some(SHADOW_START.get()? + offset)
 }

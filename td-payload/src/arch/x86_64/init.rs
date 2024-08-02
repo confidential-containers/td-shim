@@ -7,8 +7,12 @@ use crate::{
     arch::{gdt, idt},
     hob::{self, get_hob},
     mm::{
-        get_usable, heap::init_heap, init_ram, layout::RuntimeLayout,
-        page_table::init_pt_frame_allocator, shared::init_shared_memory,
+        get_usable,
+        heap::init_heap,
+        init_ram,
+        layout::RuntimeLayout,
+        page_table::init_pt_frame_allocator,
+        shared::{init_shared_memory, init_shared_memory_with_shadow},
     },
 };
 
@@ -22,7 +26,7 @@ use super::{
     idt::{PAGE_FAULT_EXCEPTION, PAGE_FAULT_IST},
 };
 
-pub fn pre_init(hob: u64, layout: &RuntimeLayout) {
+pub fn pre_init(hob: u64, layout: &RuntimeLayout, use_shared_shadow: bool) {
     let hob = hob::init(hob).expect("Invalid payload HOB");
     let memory_map = init_ram(hob).expect("Failed to parse E820 table from payload HOB");
 
@@ -35,7 +39,13 @@ pub fn pre_init(hob: u64, layout: &RuntimeLayout) {
     init_heap(heap, layout.heap_size);
 
     let shared = get_usable(layout.shared_memory_size).expect("Failed to allocate shared memory");
-    init_shared_memory(shared, layout.shared_memory_size);
+    if use_shared_shadow {
+        let shadow =
+            get_usable(layout.shared_memory_size).expect("Failed to allocate shared shadow");
+        init_shared_memory_with_shadow(shared, layout.shared_memory_size, shadow);
+    } else {
+        init_shared_memory(shared, layout.shared_memory_size);
+    }
 
     // Init Global Descriptor Table and Task State Segment
     gdt::init_gdt();

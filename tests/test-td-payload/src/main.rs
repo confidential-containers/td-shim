@@ -135,7 +135,7 @@ pub extern "C" fn _start(hob: u64, _payload: u64) -> ! {
         shadow_stack_size: layout::DEFAULT_SHADOW_STACK_SIZE,
     };
 
-    arch::init::pre_init(hob, &layout);
+    arch::init::pre_init(hob, &layout, false);
     arch::init::init(&layout, main);
 }
 
