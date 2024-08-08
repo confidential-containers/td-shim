@@ -155,7 +155,7 @@ impl FvHeaderByte {
         let mut tdx_ipl_fv_header = IplFvHeader::default();
         tdx_ipl_fv_header.fv_header.fv_length =
             (TD_SHIM_IPL_SIZE + TD_SHIM_RESET_VECTOR_SIZE) as u64;
-        tdx_ipl_fv_header.fv_header.checksum = 0x3d21;
+        tdx_ipl_fv_header.fv_header.update_checksum();
         tdx_ipl_fv_header.fv_block_map[0].num_blocks =
             (TD_SHIM_IPL_SIZE + TD_SHIM_RESET_VECTOR_SIZE) / 0x1000;
         tdx_ipl_fv_header.fv_block_map[0].length = 0x1000;
