@@ -22,7 +22,7 @@ Transition32FlatTo64Flat:
     ; LA57 and use 5-level paging
     ;
     mov     ecx, esp
-    and     ecx, 0x2f
+    and     ecx, 0x3f
     cmp     ecx, 52
     jl      .set_cr4
     bts     eax, 12
