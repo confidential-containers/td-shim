@@ -14,6 +14,7 @@ use td_shim_interface::td_uefi_pi::pi::hob::{
     RESOURCE_SYSTEM_MEMORY,
 };
 use x86_64::{
+    registers::control::{Cr4, Cr4Flags},
     structures::paging::PageTableFlags as Flags,
     structures::paging::{OffsetPageTable, PageTable},
     PhysAddr, VirtAddr,
@@ -125,6 +126,11 @@ impl<'a> Memory<'a> {
             }
         }
 
+        if Cr4::read().contains(Cr4Flags::L5_PAGING) {
+            panic!(
+                "5-Level paging is not supported by td-shim but it is enabled in CR4 unexpectedly"
+            );
+        }
         td_paging::cr3_write(
             self.get_layout_region(SliceType::PayloadPageTable)
                 .base_address as u64,
