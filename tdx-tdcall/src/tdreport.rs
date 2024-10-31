@@ -190,7 +190,7 @@ struct TdxReportBuf(TdxReport);
 /// information of the guest TD, measurements/configuration information of the Intel
 /// TDX module and a REPORTMACSTRUCT
 ///
-/// Details can be found in TDX GHCI spec section 'TDG.MR.REPORT'
+/// Details can be found in TDX module ABI spec section 'TDG.MR.REPORT'
 pub fn tdcall_report(
     additional_data: &[u8; TD_REPORT_ADDITIONAL_DATA_SIZE],
 ) -> Result<TdxReport, TdCallError> {
