@@ -2,21 +2,15 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
-use core::alloc::Layout;
 use core::fmt;
 use core::mem::{size_of, zeroed};
 use core::ptr::{slice_from_raw_parts, slice_from_raw_parts_mut};
-use lazy_static::lazy_static;
 use scroll::{Pread, Pwrite};
-use spin::Mutex;
 
 use crate::{td_call, TdCallError, TdcallArgs, TDCALL_TDREPORT, TDVMCALL_STATUS_SUCCESS};
 
 pub const TD_REPORT_SIZE: usize = 0x400;
 pub const TD_REPORT_ADDITIONAL_DATA_SIZE: usize = 64;
-
-// The buffer to td_report() must be aligned to TD_REPORT_SIZE.
-const TD_REPORT_BUFF_SIZE: usize = TD_REPORT_SIZE + TD_REPORT_ADDITIONAL_DATA_SIZE;
 
 #[repr(C)]
 #[derive(Debug, Pread, Pwrite, Clone, Copy)]
@@ -189,62 +183,8 @@ impl Default for TdxReport {
     }
 }
 
-/// Struct to fulfill the alignment requirement of buffer for td-report tdcall.
-struct TdxReportBuf {
-    start: u64,
-}
-
-impl TdxReportBuf {
-    fn new() -> Self {
-        // Safety: align is a power of two
-        let start = unsafe {
-            alloc::alloc::alloc_zeroed(Layout::from_size_align_unchecked(
-                TD_REPORT_BUFF_SIZE,
-                TD_REPORT_SIZE,
-            ))
-        } as u64;
-        Self { start }
-    }
-
-    fn report_buf_start(&mut self) -> u64 {
-        self.start
-    }
-
-    fn report_buf(&self) -> &[u8] {
-        unsafe { core::slice::from_raw_parts(self.start as *const u8, TD_REPORT_SIZE) }
-    }
-
-    fn additional_buf_mut(&mut self) -> &mut [u8] {
-        unsafe {
-            core::slice::from_raw_parts_mut(
-                (self.start + TD_REPORT_SIZE as u64) as *mut u8,
-                TD_REPORT_ADDITIONAL_DATA_SIZE,
-            )
-        }
-    }
-
-    fn to_owned(&self) -> TdxReport {
-        let mut report: TdxReport = TdxReport::default();
-        report.as_bytes_mut().copy_from_slice(self.report_buf());
-        report
-    }
-}
-
-impl Drop for TdxReportBuf {
-    fn drop(&mut self) {
-        unsafe {
-            // Safety: align is a power of two
-            alloc::alloc::dealloc(
-                self.start as *mut u8,
-                Layout::from_size_align_unchecked(TD_REPORT_BUFF_SIZE, TD_REPORT_SIZE),
-            )
-        }
-    }
-}
-
-lazy_static! {
-    static ref TD_REPORT: Mutex<TdxReportBuf> = Mutex::new(TdxReportBuf::new());
-}
+#[repr(C, align(1024))]
+struct TdxReportBuf(TdxReport);
 
 /// Create a TDREPORT_STRUCT structure that contains the measurements/configuration
 /// information of the guest TD, measurements/configuration information of the Intel
@@ -254,15 +194,12 @@ lazy_static! {
 pub fn tdcall_report(
     additional_data: &[u8; TD_REPORT_ADDITIONAL_DATA_SIZE],
 ) -> Result<TdxReport, TdCallError> {
-    let mut buff = TD_REPORT.lock();
-
-    let addr = buff.report_buf_start();
-    buff.additional_buf_mut().copy_from_slice(additional_data);
+    let mut buf = TdxReportBuf(TdxReport::default());
 
     let mut args = TdcallArgs {
         rax: TDCALL_TDREPORT,
-        rcx: addr,
-        rdx: addr.checked_add(TD_REPORT_SIZE as u64).unwrap(),
+        rcx: &mut buf as *mut _ as u64,
+        rdx: additional_data.as_ptr() as u64,
         ..Default::default()
     };
 
@@ -271,7 +208,7 @@ pub fn tdcall_report(
         return Err(args.r10.into());
     }
 
-    Ok(buff.to_owned())
+    Ok(buf.0)
 }
 
 #[cfg(test)]
@@ -281,23 +218,5 @@ mod tests {
     #[test]
     fn test_tdx_report_size() {
         assert_eq!(size_of::<TdxReport>(), 0x400);
-    }
-
-    #[test]
-    fn test_tdx_report_buf() {
-        let mut buf = TdxReportBuf::new();
-        assert_eq!(buf.report_buf_start() & 0x3ff, 0);
-
-        let additional = buf.additional_buf_mut().as_ptr() as u64;
-        assert_eq!(buf.report_buf_start() + 0x400, additional);
-
-        assert_eq!(TD_REPORT.lock().report_buf_start() & 0x3ff, 0);
-    }
-
-    #[test]
-    fn test_to_owned() {
-        let buff = TdxReportBuf::new();
-
-        buff.to_owned();
     }
 }
