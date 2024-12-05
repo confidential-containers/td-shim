@@ -46,7 +46,7 @@ jobs:
         if: runner.os == 'Linux'
       
       - name: Install Cargo-Fuzz (Linux)
-        run: cargo install cargo-fuzz
+        run: cargo +stable install cargo-fuzz
         if: runner.os == 'Linux'
       
       - name: Preparation work
