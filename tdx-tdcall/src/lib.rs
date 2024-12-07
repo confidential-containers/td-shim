@@ -21,7 +21,6 @@
 
 #![no_std]
 
-extern crate alloc;
 use core::ffi::c_void;
 
 #[cfg(feature = "use_tdx_emulation")]
