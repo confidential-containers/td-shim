@@ -186,6 +186,9 @@ impl Default for TdxReport {
 #[repr(C, align(1024))]
 struct TdxReportBuf(TdxReport);
 
+#[repr(C, align(64))]
+struct AdditionalDataBuf([u8; TD_REPORT_ADDITIONAL_DATA_SIZE]);
+
 /// Create a TDREPORT_STRUCT structure that contains the measurements/configuration
 /// information of the guest TD, measurements/configuration information of the Intel
 /// TDX module and a REPORTMACSTRUCT
@@ -194,12 +197,13 @@ struct TdxReportBuf(TdxReport);
 pub fn tdcall_report(
     additional_data: &[u8; TD_REPORT_ADDITIONAL_DATA_SIZE],
 ) -> Result<TdxReport, TdCallError> {
-    let mut buf = TdxReportBuf(TdxReport::default());
+    let mut report_buf = TdxReportBuf(TdxReport::default());
+    let additional_data_buf = AdditionalDataBuf(*additional_data);
 
     let mut args = TdcallArgs {
         rax: TDCALL_TDREPORT,
-        rcx: &mut buf as *mut _ as u64,
-        rdx: additional_data.as_ptr() as u64,
+        rcx: &mut report_buf as *mut _ as u64,
+        rdx: &additional_data_buf as *const _ as u64,
         ..Default::default()
     };
 
@@ -208,7 +212,7 @@ pub fn tdcall_report(
         return Err(args.r10.into());
     }
 
-    Ok(buf.0)
+    Ok(report_buf.0)
 }
 
 #[cfg(test)]
