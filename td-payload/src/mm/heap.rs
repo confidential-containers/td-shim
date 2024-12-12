@@ -25,16 +25,6 @@ fn panic(_info: &PanicInfo) -> ! {
     loop {}
 }
 
-#[alloc_error_handler]
-#[allow(clippy::empty_loop)]
-fn alloc_error(_info: core::alloc::Layout) -> ! {
-    use crate::println;
-
-    println!("alloc_error ... {:?}", _info);
-    x86_64::instructions::hlt();
-    loop {}
-}
-
 /// The initialization method for the global heap allocator.
 pub fn init_heap(heap_start: u64, heap_size: usize) {
     unsafe {

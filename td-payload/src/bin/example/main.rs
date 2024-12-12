@@ -15,7 +15,6 @@
 
 #![no_std]
 #![cfg_attr(not(test), no_main)]
-#![feature(alloc_error_handler)]
 #![allow(unused)]
 
 use core::mem::size_of;
