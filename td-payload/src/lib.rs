@@ -5,7 +5,6 @@
 
 #![cfg_attr(not(test), no_std)]
 #![cfg_attr(not(test), no_main)]
-#![feature(alloc_error_handler)]
 
 use console::CONSOLE;
 use core::fmt::{Arguments, Write};

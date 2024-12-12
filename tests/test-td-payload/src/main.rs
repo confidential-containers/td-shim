@@ -5,7 +5,6 @@
 #![no_std]
 #![no_main]
 #![allow(unused)]
-#![feature(alloc_error_handler)]
 #[macro_use]
 
 mod lib;

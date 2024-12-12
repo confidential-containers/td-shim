@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
 #![allow(unused)]
-#![feature(alloc_error_handler)]
 #![cfg_attr(not(test), no_std)]
 #![cfg_attr(not(test), no_main)]
 #![allow(unused_imports)]
@@ -58,14 +57,6 @@ mod td;
 #[allow(clippy::empty_loop)]
 fn panic(_info: &PanicInfo) -> ! {
     log::info!("panic ... {:?}\n", _info);
-    deadloop()
-}
-
-#[cfg(not(test))]
-#[alloc_error_handler]
-#[allow(clippy::empty_loop)]
-fn alloc_error(_info: core::alloc::Layout) -> ! {
-    log::info!("alloc_error ... {:?}\n", _info);
     deadloop()
 }
 
