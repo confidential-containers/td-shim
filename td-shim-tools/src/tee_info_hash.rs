@@ -290,7 +290,11 @@ impl TdInfoStruct {
                 panic!("Memory address must be 4K aligned!\n");
             }
 
-            if sec.memory_data_size < sec.raw_data_size as u64 {
+            // MemoryAddress and MemoryDataSize shall be zero when the section type is TD_INFO
+            if (sec.r#type != TDX_METADATA_SECTION_TYPE_TD_INFO)
+                && (sec.memory_address != 0 || sec.memory_data_size != 0)
+                && sec.memory_data_size < sec.raw_data_size as u64
+            {
                 panic!("Memory data size must exceed or equal the raw data size!\n");
             }
 
