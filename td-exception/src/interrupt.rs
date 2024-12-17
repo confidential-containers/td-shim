@@ -3,8 +3,11 @@
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
 use core::arch::asm;
+use spin::Mutex;
 #[cfg(feature = "tdx")]
 use tdx_tdcall::tdx;
+
+use crate::{idt::IDT_ENTRY_COUNT, ExceptionError};
 
 // the order is aligned with scratch_push!() and scratch_pop!()
 #[repr(C, packed)]
@@ -34,40 +37,6 @@ impl ScratchRegisters {
     }
 }
 
-#[macro_export]
-macro_rules! scratch_push {
-    () => {
-        "
-        push rax
-        push rcx
-        push rdx
-        push rdi
-        push rsi
-        push r8
-        push r9
-        push r10
-        push r11
-    "
-    };
-}
-
-#[macro_export]
-macro_rules! scratch_pop {
-    () => {
-        "
-        pop r11
-        pop r10
-        pop r9
-        pop r8
-        pop rsi
-        pop rdi
-        pop rdx
-        pop rcx
-        pop rax
-    "
-    };
-}
-
 #[repr(C, packed)]
 pub struct PreservedRegisters {
     pub r15: usize,
@@ -89,34 +58,6 @@ impl PreservedRegisters {
     }
 }
 
-#[macro_export]
-macro_rules! preserved_push {
-    () => {
-        "
-        push rbx
-        push rbp
-        push r12
-        push r13
-        push r14
-        push r15
-    "
-    };
-}
-
-#[macro_export]
-macro_rules! preserved_pop {
-    () => {
-        "
-        pop r15
-        pop r14
-        pop r13
-        pop r12
-        pop rbp
-        pop rbx
-    "
-    };
-}
-
 #[repr(packed)]
 pub struct IretRegisters {
     pub rip: usize,
@@ -133,235 +74,254 @@ impl IretRegisters {
 }
 
 #[repr(packed)]
-pub struct InterruptNoErrorStack {
+pub struct InterruptStack {
     pub preserved: PreservedRegisters,
     pub scratch: ScratchRegisters,
-    pub iret: IretRegisters,
-}
-
-impl InterruptNoErrorStack {
-    pub fn dump(&self) {
-        self.iret.dump();
-        self.scratch.dump();
-        self.preserved.dump();
-    }
-}
-
-#[repr(packed)]
-pub struct InterruptErrorStack {
-    pub preserved: PreservedRegisters,
-    pub scratch: ScratchRegisters,
+    pub vector: usize,
     pub code: usize,
     pub iret: IretRegisters,
 }
 
-impl InterruptErrorStack {
+impl InterruptStack {
     pub fn dump(&self) {
         self.iret.dump();
         log::info!("CODE:  {:>016X}\n", { self.code });
+        log::info!("VECTOR:  {:>016X}\n", { self.vector });
         self.scratch.dump();
         self.preserved.dump();
     }
 }
 
-#[macro_export]
-macro_rules! interrupt_common {
-    ($name:ident, $stack: ident, $stack_type:ty, $func:block, $asm_epilogue:literal) => {
-        #[naked]
-        #[no_mangle]
-        pub unsafe extern fn $name () {
-            #[inline(never)]
-            unsafe extern "win64" fn inner($stack: &mut $stack_type) {
-                $func
-            }
+#[derive(Debug, Copy, Clone)]
+pub struct InterruptCallback {
+    func: fn(&mut InterruptStack),
+}
 
-            // Push scratch registers
-            core::arch::asm!( concat!(
-                $crate::scratch_push!(),
-                $crate::preserved_push!(),
-                "
-                mov rcx, rsp
-                call {inner}
-                ",
-                $crate::preserved_pop!(),
-                $crate::scratch_pop!(),
-                $asm_epilogue
-                ),
-                inner = sym inner,
-                options(noreturn),
-            )
+impl InterruptCallback {
+    const fn new(func: fn(&mut InterruptStack)) -> Self {
+        InterruptCallback { func }
+    }
+}
+
+struct InterruptCallbackTable {
+    table: [InterruptCallback; IDT_ENTRY_COUNT],
+}
+
+impl InterruptCallbackTable {
+    const fn init() -> Self {
+        InterruptCallbackTable {
+            table: [InterruptCallback::new(default_callback); IDT_ENTRY_COUNT],
         }
-    };
+    }
 }
 
-#[macro_export]
-macro_rules! interrupt_no_error {
-    ($name:ident, $stack: ident, $func:block) => {
-        $crate::interrupt_common!(
-            $name,
-            $stack,
-            $crate::interrupt::InterruptNoErrorStack,
-            $func,
-            "
-            iretq
-            "
-        );
-    };
+static CALLBACK_TABLE: Mutex<InterruptCallbackTable> = Mutex::new(InterruptCallbackTable::init());
+
+pub(crate) fn init_interrupt_callbacks() {
+    let mut callbacks = CALLBACK_TABLE.lock();
+    // Set up exceptions handler according to Intel64 & IA32 Software Developer Manual
+    // Reference: https://www.intel.com/content/www/us/en/developer/articles/technical/intel-sdm.html
+    callbacks.table[0].func = divide_by_zero;
+    callbacks.table[1].func = debug;
+    callbacks.table[2].func = non_maskable;
+    callbacks.table[3].func = breakpoint;
+    callbacks.table[4].func = overflow;
+    callbacks.table[5].func = bound_range;
+    callbacks.table[6].func = invalid_opcode;
+    callbacks.table[7].func = device_not_available;
+    callbacks.table[8].func = double_fault;
+    // 9 no longer available
+    callbacks.table[10].func = invalid_tss;
+    callbacks.table[11].func = segment_not_present;
+    callbacks.table[12].func = stack_segment;
+    callbacks.table[13].func = protection;
+    callbacks.table[14].func = page;
+    // 15 reserved
+    callbacks.table[16].func = fpu;
+    callbacks.table[17].func = alignment_check;
+    callbacks.table[18].func = machine_check;
+    callbacks.table[19].func = simd;
+    #[cfg(feature = "tdx")]
+    {
+        callbacks.table[20].func = virtualization;
+    }
+    callbacks.table[21].func = control_flow;
 }
 
-#[macro_export]
-macro_rules! interrupt_error {
-    ($name:ident, $stack: ident, $func:block) => {
-        $crate::interrupt_common!(
-            $name,
-            $stack,
-            $crate::interrupt::InterruptErrorStack,
-            $func,
-            "
-            add rsp, 8
-            iretq
-            "
-        );
-    };
+pub fn register_interrupt_callback(
+    index: usize,
+    callback: InterruptCallback,
+) -> Result<(), ExceptionError> {
+    if index > IDT_ENTRY_COUNT {
+        return Err(ExceptionError::InvalidParameter);
+    }
+    CALLBACK_TABLE.lock().table[index] = callback;
+    Ok(())
 }
 
-interrupt_no_error!(default_exception, stack, {
-    log::info!("default exception\n");
+fn eoi() {
+    // Write the end-of-interrupt (EOI) register (0x80B) at the end of the handler
+    // routine, sometime before the IRET instruction
+    unsafe {
+        asm!(
+            "
+            mov rcx, 0x80B
+            mov edx, 0
+            mov eax, 0
+            wrmsr
+        "
+        )
+    }
+}
+
+#[no_mangle]
+fn generic_interrupt_handler(stack: &mut InterruptStack) {
+    if stack.vector >= IDT_ENTRY_COUNT {
+        log::error!("Invalid interrupt vector number!\n");
+        return;
+    }
+
+    (CALLBACK_TABLE.lock().table[stack.vector].func)(stack);
+
+    // If we are handling an interrupt, signal a end-of-interrupt before return.
+    if stack.vector > 31 {
+        eoi();
+    }
+}
+
+fn default_callback(stack: &mut InterruptStack) {
+    log::info!("default interrupt callback\n");
     stack.dump();
     deadloop();
-});
-
-interrupt_no_error!(default_interrupt, stack, {
-    log::info!("default interrupt\n");
-    stack.dump();
-    deadloop();
-});
+}
 
 #[cfg(feature = "integration-test")]
-interrupt_no_error!(divide_by_zero, stack, {
+fn divide_by_zero(stack: &mut InterruptStack) {
     log::info!("Divide by zero\n");
     crate::DIVIDED_BY_ZERO_EVENT_COUNT.fetch_add(1, core::sync::atomic::Ordering::AcqRel);
     stack.iret.rip += 7;
     log::info!("divide_by_zero done\n");
     return;
-});
+}
 
 #[cfg(not(feature = "integration-test"))]
-interrupt_no_error!(divide_by_zero, stack, {
+fn divide_by_zero(stack: &mut InterruptStack) {
     log::info!("Divide by zero\n");
     stack.dump();
     deadloop();
-});
+}
 
-interrupt_no_error!(debug, stack, {
+fn debug(stack: &mut InterruptStack) {
     log::info!("Debug trap\n");
     stack.dump();
     deadloop();
-});
+}
 
-interrupt_no_error!(non_maskable, stack, {
+fn non_maskable(stack: &mut InterruptStack) {
     log::info!("Non-maskable interrupt\n");
     stack.dump();
     deadloop();
-});
+}
 
-interrupt_no_error!(breakpoint, stack, {
+fn breakpoint(stack: &mut InterruptStack) {
     log::info!("Breakpoint trap\n");
     stack.dump();
     deadloop();
-});
+}
 
-interrupt_no_error!(overflow, stack, {
+fn overflow(stack: &mut InterruptStack) {
     log::info!("Overflow trap\n");
     stack.dump();
     deadloop();
-});
+}
 
-interrupt_no_error!(bound_range, stack, {
+fn bound_range(stack: &mut InterruptStack) {
     log::info!("Bound range exceeded fault\n");
     stack.dump();
     deadloop();
-});
+}
 
-interrupt_no_error!(invalid_opcode, stack, {
+fn invalid_opcode(stack: &mut InterruptStack) {
     log::info!("Invalid opcode fault\n");
     stack.dump();
     deadloop();
-});
+}
 
-interrupt_no_error!(device_not_available, stack, {
+fn device_not_available(stack: &mut InterruptStack) {
     log::info!("Device not available fault\n");
     stack.dump();
     deadloop();
-});
+}
 
-interrupt_error!(double_fault, stack, {
+fn double_fault(stack: &mut InterruptStack) {
     log::info!("Double fault\n");
     stack.dump();
     deadloop();
-});
+}
 
-interrupt_error!(invalid_tss, stack, {
+fn invalid_tss(stack: &mut InterruptStack) {
     log::info!("Invalid TSS fault\n");
     stack.dump();
     deadloop();
-});
+}
 
-interrupt_error!(segment_not_present, stack, {
+fn segment_not_present(stack: &mut InterruptStack) {
     log::info!("Segment not present fault\n");
     stack.dump();
     deadloop();
-});
+}
 
-interrupt_error!(stack_segment, stack, {
+fn stack_segment(stack: &mut InterruptStack) {
     log::info!("Stack segment fault\n");
     stack.dump();
     deadloop();
-});
+}
 
-interrupt_error!(protection, stack, {
+fn protection(stack: &mut InterruptStack) {
     log::info!("Protection fault\n");
     stack.dump();
     deadloop();
-});
+}
 
-interrupt_error!(page, stack, {
+fn page(stack: &mut InterruptStack) {
     let cr2: usize;
-    asm!("mov {}, cr2",  out(reg) cr2);
+    unsafe {
+        asm!("mov {}, cr2",  out(reg) cr2);
+    }
     log::info!("Page fault: {:>016X}\n", cr2);
     stack.dump();
     deadloop();
-});
+}
 
-interrupt_no_error!(fpu, stack, {
+fn fpu(stack: &mut InterruptStack) {
     log::info!("FPU floating point fault\n");
     stack.dump();
     deadloop();
-});
+}
 
-interrupt_error!(alignment_check, stack, {
+fn alignment_check(stack: &mut InterruptStack) {
     log::info!("Alignment check fault\n");
     stack.dump();
     deadloop();
-});
+}
 
-interrupt_no_error!(machine_check, stack, {
+fn machine_check(stack: &mut InterruptStack) {
     log::info!("Machine check fault\n");
     stack.dump();
     deadloop();
-});
+}
 
-interrupt_no_error!(simd, stack, {
+fn simd(stack: &mut InterruptStack) {
     log::info!("SIMD floating point fault\n");
     stack.dump();
     deadloop();
-});
+}
 
-interrupt_error!(control_flow, stack, {
+fn control_flow(stack: &mut InterruptStack) {
     log::info!("Control Flow Exception\n");
     stack.dump();
     deadloop();
-});
+}
 
 #[cfg(feature = "tdx")]
 const EXIT_REASON_CPUID: u32 = 10;
@@ -385,7 +345,7 @@ const EXIT_REASON_MONITOR_INSTRUCTION: u32 = 39;
 const EXIT_REASON_WBINVD: u32 = 54;
 
 #[cfg(feature = "tdx")]
-interrupt_no_error!(virtualization, stack, {
+fn virtualization(stack: &mut InterruptStack) {
     // Firstly get VE information from TDX module, halt it error occurs
     let ve_info = tdx::tdcall_get_ve_info().expect("#VE handler: fail to get VE info\n");
 
@@ -439,7 +399,7 @@ interrupt_no_error!(virtualization, stack, {
     // stack and the `RIP` value saved in the normal stack when executing a return from an
     // exception handler and cause a control protection exception if they do not match.
     #[cfg(feature = "cet-shstk")]
-    {
+    unsafe {
         use x86_64::registers::control::{Cr4, Cr4Flags};
         use x86_64::registers::model_specific::Msr;
 
@@ -463,8 +423,12 @@ interrupt_no_error!(virtualization, stack, {
             ssp = out(reg) ssp,
         );
 
-        // SSP -> Return address of current function | SSP | LIP | CS
-        let lip_ptr = ssp + 0x10;
+        // SSP -> return address of func [virtualization]
+        //        return address of func [generic_interrupt_handler]
+        //        SSP
+        //        LIP
+        //        CS
+        let lip_ptr = ssp + 0x18;
         let lip = *(lip_ptr as *const u64) + ve_info.exit_instruction_length as u64;
 
         // Enables the WRSSD/WRSSQ instructions by setting the `WR_SHSTK_E`
@@ -481,14 +445,14 @@ interrupt_no_error!(virtualization, stack, {
         // Clear the `WR_SHSTK_E`
         msr_cet.write(msr_cet.read() & !WR_SHSTK_E);
     }
-});
+}
 
 // Handle IO exit from TDX Module
 //
 // Use TDVMCALL to realize IO read/write operation
 // Return false if VE info is invalid
 #[cfg(feature = "tdx")]
-fn handle_tdx_ioexit(ve_info: &tdx::TdVeInfo, stack: &mut InterruptNoErrorStack) -> bool {
+fn handle_tdx_ioexit(ve_info: &tdx::TdVeInfo, stack: &mut InterruptStack) -> bool {
     let size = ((ve_info.exit_qualification & 0x7) + 1) as usize; // 0 - 1bytes, 1 - 2bytes, 3 - 4bytes
     let read = (ve_info.exit_qualification >> 3) & 0x1 == 1;
     let string = (ve_info.exit_qualification >> 4) & 0x1 == 1;

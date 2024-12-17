@@ -22,9 +22,10 @@ use x86_64::{
     VirtAddr,
 };
 
-use crate::interrupt;
+use crate::asm::interrupt_handler_table;
+use crate::interrupt::init_interrupt_callbacks;
 
-const IDT_ENTRY_COUNT: usize = 256;
+pub(crate) const IDT_ENTRY_COUNT: usize = 256;
 
 lazy_static! {
     static ref INIT_IDT: Mutex<Idt> = Mutex::new(Idt::new());
@@ -71,44 +72,13 @@ impl Idt {
 
     pub fn init(&mut self) {
         let current_idt = &mut self.entries;
+        let handler_table = unsafe { &interrupt_handler_table as *const u8 as usize };
 
-        // Set up exceptions handler according to Intel64 & IA32 Software Developer Manual
-        // Reference: https://www.intel.com/content/www/us/en/developer/articles/technical/intel-sdm.html
-        current_idt[0].set_func(interrupt::divide_by_zero as usize);
-        current_idt[1].set_func(interrupt::debug as usize);
-        current_idt[2].set_func(interrupt::non_maskable as usize);
-        current_idt[3].set_func(interrupt::breakpoint as usize);
-        current_idt[4].set_func(interrupt::overflow as usize);
-        current_idt[5].set_func(interrupt::bound_range as usize);
-        current_idt[6].set_func(interrupt::invalid_opcode as usize);
-        current_idt[7].set_func(interrupt::device_not_available as usize);
-        current_idt[8].set_func(interrupt::double_fault as usize);
-        // 9 no longer available
-        current_idt[9].set_func(interrupt::default_exception as usize);
-        current_idt[10].set_func(interrupt::invalid_tss as usize);
-        current_idt[11].set_func(interrupt::segment_not_present as usize);
-        current_idt[12].set_func(interrupt::stack_segment as usize);
-        current_idt[13].set_func(interrupt::protection as usize);
-        current_idt[14].set_func(interrupt::page as usize);
-        // 15 reserved
-        current_idt[15].set_func(interrupt::default_exception as usize);
-        current_idt[16].set_func(interrupt::fpu as usize);
-        current_idt[17].set_func(interrupt::alignment_check as usize);
-        current_idt[18].set_func(interrupt::machine_check as usize);
-        current_idt[19].set_func(interrupt::simd as usize);
-        #[cfg(feature = "tdx")]
-        current_idt[20].set_func(interrupt::virtualization as usize);
-        #[cfg(not(feature = "tdx"))]
-        current_idt[20].set_func(interrupt::default_exception as usize);
-        current_idt[21].set_func(interrupt::control_flow as usize);
-        // reset exception reserved
-        for idt in current_idt.iter_mut().take(32).skip(22) {
-            idt.set_func(interrupt::default_exception as usize);
+        for (idx, idt) in current_idt.iter_mut().enumerate() {
+            idt.set_func(handler_table + idx * 32);
         }
-        // Setup reset potential interrupt handler.
-        for idt in current_idt.iter_mut().take(IDT_ENTRY_COUNT).skip(32) {
-            idt.set_func(interrupt::default_interrupt as usize);
-        }
+
+        init_interrupt_callbacks();
     }
 
     // Construct the Interrupt Descriptor Table Pointer (IDTR) based

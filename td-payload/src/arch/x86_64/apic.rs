@@ -2,9 +2,6 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
-pub use td_exception::interrupt::InterruptNoErrorStack;
-pub use td_exception::{preserved_pop, preserved_push, scratch_pop, scratch_push};
-
 // MSR registers
 pub const MSR_LVTT: u32 = 0x832;
 pub const MSR_INITIAL_COUNT: u32 = 0x838;
@@ -53,57 +50,4 @@ pub fn one_shot_tsc_deadline_mode(period: u64) -> Option<u64> {
 
 pub fn one_shot_tsc_deadline_mode_reset() {
     unsafe { x86::msr::wrmsr(MSR_TSC_DEADLINE, 0) }
-}
-
-#[macro_export]
-macro_rules! interrupt_handler_template {
-    ($name:ident, $stack: ident, $func:block) => {
-        #[naked]
-        #[no_mangle]
-        /// # Safety
-        ///
-        /// Interrupt handler will handle the register reserve and restore
-        pub unsafe extern fn $name () {
-            #[inline(never)]
-            /// # Safety
-            ///
-            /// Interrupt handler will handle the register reserve and restore
-            unsafe extern "win64" fn inner($stack: &mut $crate::arch::apic::InterruptNoErrorStack) {
-                $func
-            }
-
-            // Push scratch registers
-            core::arch::asm!( concat!(
-                $crate::arch::apic::scratch_push!(),
-                $crate::arch::apic::preserved_push!(),
-                "
-                mov rcx, rsp
-                call {inner}
-                ",
-                $crate::eoi!(),
-                $crate::arch::apic::preserved_pop!(),
-                $crate::arch::apic::scratch_pop!(),
-                "
-                iretq
-                "
-                ),
-                inner = sym inner,
-                options(noreturn),
-            )
-        }
-    };
-}
-
-#[macro_export]
-macro_rules! eoi {
-    // Write the end-of-interrupt (EOI) register (0x80B) at the end of the handler
-    // routine, sometime before the IRET instruction
-    () => {
-        "
-        mov rcx, 0x80B
-        mov edx, 0
-        mov eax, 0
-        wrmsr
-    "
-    };
 }
