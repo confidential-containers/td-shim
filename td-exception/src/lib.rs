@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
 #![no_std]
-#![feature(naked_functions)]
 
+mod asm;
 pub mod idt;
 pub mod interrupt;
 
@@ -16,4 +16,9 @@ pub fn setup_exception_handlers() {
 #[cfg(feature = "integration-test")]
 lazy_static::lazy_static! {
     pub static ref DIVIDED_BY_ZERO_EVENT_COUNT: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU32::new(0);
+}
+
+pub enum ExceptionError {
+    // Caller gives an input that is not expected.
+    InvalidParameter,
 }
