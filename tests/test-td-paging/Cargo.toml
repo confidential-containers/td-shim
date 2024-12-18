@@ -15,7 +15,7 @@ bootloader = "0.10.12"
 td-paging = { path = "../../td-paging" }
 td-layout = { path = "../../td-layout" }
 test-runner-client = { path = "../../devtools/test-runner-client" }
-x86_64 = "0.14.9"
+x86_64 = { version = "0.14.9", default-features = false, features = ["instructions"] }
 
 [package.metadata.bootloader]
 map-physical-memory = true
