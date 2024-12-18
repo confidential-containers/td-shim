@@ -13,7 +13,7 @@ env:
   AS: nasm
   AR_x86_64_unknown_none: llvm-ar
   CC_x86_64_unknown_none: clang
-  RUST_TOOLCHAIN: nightly-2023-12-31
+  RUST_TOOLCHAIN: nightly
   TOOLCHAIN_PROFILE: minimal
 
 jobs:
@@ -33,20 +33,18 @@ jobs:
           submodules: recursive
       - uses: dtolnay/rust-toolchain@stable
         with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
           components: rust-src, llvm-tools-preview
-
-      - name: Run cargo install cargo-xbuild
-        run: cargo install cargo-xbuild
       
       - name: install NASM
         uses: ilammy/setup-nasm@v1
       
       - name: Install AFL (Linux)
-        run: cargo install cargo-afl
+        run: cargo +nightly install cargo-afl
         if: runner.os == 'Linux'
       
       - name: Install Cargo-Fuzz (Linux)
-        run: cargo +stable install cargo-fuzz
+        run: cargo install cargo-fuzz
         if: runner.os == 'Linux'
       
       - name: Preparation work

@@ -26,7 +26,7 @@ final_elf() {
 final_elf_test() {
     echo "Build final binary with ELF format test td payload"
     pushd tests
-    cargo xbuild -p test-td-payload --target x86_64-unknown-none --release --features=main,tdx --no-default-features
+    cargo build -p test-td-payload --target x86_64-unknown-none --release --features=main,tdx --no-default-features
     popd
 
     cargo run -p td-shim-tools --bin td-shim-strip-info -- -n test-td-payload --target x86_64-unknown-none
@@ -42,7 +42,7 @@ final_elf_test() {
 
 final_elf_sb_test() {
     echo "Build final binaries with ELF format td payload for secure boot test"
-    cargo xbuild -p td-payload --target x86_64-unknown-none --release --bin example --features=tdx,start,cet-shstk,stack-guard
+    cargo build -p td-payload --target x86_64-unknown-none --release --bin example --features=tdx,start,cet-shstk,stack-guard
     cargo run -p td-shim-tools --bin td-shim-strip-info -- -n example --target x86_64-unknown-none
 
     cargo run -p td-shim-tools --bin td-shim-sign-payload -- -A ECDSA_NIST_P384_SHA384 data/sample-keys/ecdsa-p384-private.pk8 target/x86_64-unknown-none/release/example 1 1 
