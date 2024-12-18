@@ -57,17 +57,12 @@ The threat model analysis is at [td-shim threat model](doc/threat_model.md).
 
 1. Install [RUST](https://www.rust-lang.org/)
 
-please use nightly-2023-12-31.
-
-NOTE: We need install nightly version because we use cargo-xbuild.
-
-1.1. Install xbuild
+please use 1.83.0.
 
 ```
-cargo install cargo-xbuild
+curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain 1.83.0
+rustup target add x86_64-unknown-none
 ```
-
-Please reinstall cargo-xbuild, after you update the rust toolchain.
 
 2. Install [NASM](https://www.nasm.us/)
 
@@ -121,27 +116,27 @@ cargo image --example-payload --release
 Build TdShim to launch a payload support Linux Boot Protocol
 
 ```
-cargo xbuild -p td-shim --target x86_64-unknown-none --release --features=main,tdx
+cargo build -p td-shim --target x86_64-unknown-none --release --features=main,tdx
 cargo run -p td-shim-tools --bin td-shim-ld --features=linker -- target/x86_64-unknown-none/release/ResetVector.bin target/x86_64-unknown-none/release/td-shim -o target/release/final.bin
 ```
 
 Build TdShim to launch a executable payload
 
 ```
-cargo xbuild -p td-shim --target x86_64-unknown-none --release --features=main,tdx --no-default-features
+cargo build -p td-shim --target x86_64-unknown-none --release --features=main,tdx --no-default-features
 ```
 
 Build Elf format payload
 
 ```
-cargo xbuild -p td-payload --target x86_64-unknown-none --release --bin example --features=tdx,start,cet-shstk,stack-guard
+cargo build -p td-payload --target x86_64-unknown-none --release --bin example --features=tdx,start,cet-shstk,stack-guard
 cargo run -p td-shim-tools --bin td-shim-ld -- target/x86_64-unknown-none/release/ResetVector.bin target/x86_64-unknown-none/release/td-shim -t executable -p target/x86_64-unknown-none/release/example -o target/release/final-elf.bin
 ```
 
 To build the debug TdShim, please use `dev-opt` profile to build `td-shim` binary. For example:
 
 ```
-cargo xbuild -p td-shim --target x86_64-unknown-none --profile dev-opt --features=main,tdx
+cargo build -p td-shim --target x86_64-unknown-none --profile dev-opt --features=main,tdx
 cargo run -p td-shim-tools --bin td-shim-ld --features=linker -- target/x86_64-unknown-none/dev-opt/ResetVector.bin target/x86_64-unknown-none/dev-opt/td-shim -o target/debug/final.bin
 ```
 

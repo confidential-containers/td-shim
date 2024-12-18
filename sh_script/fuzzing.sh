@@ -371,6 +371,9 @@ main() {
     fi
     test_check
    
+    # Switch to nightly toolchain
+    rustup override set nightly
+
 	if [ "$check_build" == "YES" ]; then
 		check_build
 	else
@@ -388,6 +391,9 @@ main() {
 			run_single_case
 		fi
     fi
+
+    # Revert to the previous toolchain
+    rustup override unset
 }
 
 main

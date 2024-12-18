@@ -11,8 +11,7 @@ name: Devtools
 
 env:
   AS: nasm
-  STABLE_RUST_TOOLCHAIN: 1.75.0
-  NIGHTLY_RUST_TOOLCHAIN: nightly-2023-12-31
+  RUST_TOOLCHAIN: 1.83.0
   TOOLCHAIN_PROFILE: minimal
 
 jobs:
@@ -44,12 +43,7 @@ jobs:
       - name: Install stable toolchain
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: ${{ env.STABLE_RUST_TOOLCHAIN }}
-
-      - name: Install nightly toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ env.NIGHTLY_RUST_TOOLCHAIN }}
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
 
       - name: Preparation work
         run: make preparation

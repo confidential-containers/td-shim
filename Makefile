@@ -1,5 +1,5 @@
 export CARGO=cargo
-export STABLE_TOOLCHAIN:=1.75.0
+export STABLE_TOOLCHAIN:=1.83.0
 export NIGHTLY_TOOLCHAIN:=nightly-2023-12-31
 export BUILD_TYPE:=release
 export PREFIX:=/usr/local
@@ -11,8 +11,7 @@ else
 	export BUILD_TYPE_FLAG=
 endif
 
-GENERIC_LIB_CRATES = td-layout td-logger td-shim-interface td-loader cc-measurement
-NIGHTLY_LIB_CRATES = td-exception td-paging tdx-tdcall
+LIB_CRATES = td-layout td-logger td-shim-interface td-loader cc-measurement td-exception td-paging tdx-tdcall
 SHIM_CRATES = td-shim td-payload
 TEST_CRATES = test-td-exception test-td-paging
 TOOL_CRATES = td-shim-tools
@@ -51,7 +50,7 @@ uninstall-devtools: uninstall-subdir-devtools $(TOOL_CRATES:%=uninstall-devtool-
 .PHONY: tools-devtools
 tools-devtools: tools-subdir-devtools
 
-install-devtool-%: nightly-build-%
+install-devtool-%:
 	mkdir -p ${TOPDIR}/devtools/bin
 	${CARGO} install --bins --target-dir ${TOPDIR}/devtools/bin/ --path $(patsubst install-devtool-%,%,$@)
 
@@ -71,13 +70,13 @@ afl-test: afl_test
 libfuzzer-test: libfuzzer_test
 
 # Targets for library crates
-lib-build: $(GENERIC_LIB_CRATES:%=build-%) $(NIGHTLY_LIB_CRATES:%=nightly-build-%)
+lib-build: $(LIB_CRATES:%=build-%)
 
-lib-check: $(GENERIC_LIB_CRATES:%=check-%) $(NIGHTLY_LIB_CRATES:%=nightly-check-%)
+lib-check: $(LIB_CRATES:%=check-%)
 
-lib-test: $(GENERIC_LIB_CRATES:%=test-%) $(NIGHTLY_LIB_CRATES:%=nightly-test-%)
+lib-test: $(LIB_CRATES:%=test-%)
 
-lib-clean: $(GENERIC_LIB_CRATES:%=clean-%) $(NIGHTLY_LIB_CRATES:%=nightly-clean-%)
+lib-clean: $(LIB_CRATES:%=clean-%)
 
 # Targets for integration test crates
 integration-build: $(TEST_CRATES:%=integration-build-%)
@@ -90,13 +89,13 @@ integration-clean: $(TEST_CRATES:%=integration-clean-%)
 
 # Target for crates which should be compiled with `x86_64-unknown-none` target
 none-build-%:
-	${CARGO} +${NIGHTLY_TOOLCHAIN} xbuild --target x86_64-unknown-none -p $(patsubst none-build-%,%,$@) ${BUILD_TYPE_FLAG}
+	${CARGO} +${STABLE_TOOLCHAIN} build --target x86_64-unknown-none -p $(patsubst none-build-%,%,$@) ${BUILD_TYPE_FLAG}
 
 none-check-%:
-	 ${CARGO} +${NIGHTLY_TOOLCHAIN}xcheck --target x86_64-unknown-none -p $(patsubst none-check-%,%,$@) ${BUILD_TYPE_FLAG}
+	 ${CARGO} +${STABLE_TOOLCHAIN} check --target x86_64-unknown-none -p $(patsubst none-check-%,%,$@) ${BUILD_TYPE_FLAG}
 
 none-clean-%:
-	${CARGO} +${NIGHTLY_TOOLCHAIN} clean --target x86_64-unknown-none -p $(patsubst none-clean-%,%,$@) ${BUILD_TYPE_FLAG}
+	${CARGO} +${STABLE_TOOLCHAIN} clean --target x86_64-unknown-none -p $(patsubst none-clean-%,%,$@) ${BUILD_TYPE_FLAG}
 
 # Target for integration test crates which should be compiled with `x86_64-custom.json` target
 integration-build-%:
@@ -122,20 +121,7 @@ clean-%:
 	${CARGO} +${STABLE_TOOLCHAIN} clean -p $(patsubst clean-%,%,$@) ${BUILD_TYPE_FLAG}
 
 test-%:
-	${CARGO} +${NIGHTLY_TOOLCHAIN} test -p $(patsubst test-%,%,$@) ${BUILD_TYPE_FLAG}
-
-# Targets for normal library/binary crates
-nightly-build-%:
-	${CARGO} +${NIGHTLY_TOOLCHAIN} build -p $(patsubst nightly-build-%,%,$@) ${BUILD_TYPE_FLAG}
-
-nightly-check-%:
-	${CARGO} +${NIGHTLY_TOOLCHAIN} check -p $(patsubst nightly-check-%,%,$@) ${BUILD_TYPE_FLAG}
-
-nightly-clean-%:
-	${CARGO} +${NIGHTLY_TOOLCHAIN} clean -p $(patsubst nightly-clean-%,%,$@) ${BUILD_TYPE_FLAG}
-
-nightly-test-%:
-	${CARGO} +${NIGHTLY_TOOLCHAIN} test -p $(patsubst nightly-test-%,%,$@) ${BUILD_TYPE_FLAG}
+	${CARGO} +${STABLE_TOOLCHAIN} test -p $(patsubst test-%,%,$@) ${BUILD_TYPE_FLAG}
 
 # Targets for subdirectories
 build-subdir-%:

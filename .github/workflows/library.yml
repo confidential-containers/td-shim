@@ -11,8 +11,7 @@ name: Library Crates
 
 env:
   AS: nasm
-  STABLE_RUST_TOOLCHAIN: 1.75.0
-  NIGHTLY_RUST_TOOLCHAIN: nightly-2023-12-31
+  RUST_TOOLCHAIN: 1.83.0
   TOOLCHAIN_PROFILE: minimal
 
 jobs:
@@ -37,15 +36,10 @@ jobs:
       - name: install NASM
         uses: ilammy/setup-nasm@v1
 
-      - name: Install stable toolchain
+      - name: Install rust toolchain
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: ${{ env.STABLE_RUST_TOOLCHAIN }}
-
-      - name: Install nightly toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ env.NIGHTLY_RUST_TOOLCHAIN }}
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
 
       - name: Checkout sources
         uses: actions/checkout@v4
@@ -82,15 +76,10 @@ jobs:
       - name: install NASM
         uses: ilammy/setup-nasm@v1
 
-      - name: Install stable toolchain
+      - name: Install rust toolchain
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: ${{ env.STABLE_RUST_TOOLCHAIN }}
-
-      - name: Install nightly toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ env.NIGHTLY_RUST_TOOLCHAIN }}
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
 
       - name: Checkout sources
         uses: actions/checkout@v4

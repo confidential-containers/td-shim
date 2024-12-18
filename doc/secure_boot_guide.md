@@ -5,7 +5,7 @@ This guide follows the [Secure Boot Specification](secure_boot.md) for td-shim.
 ## Build td-shim with secure boot feature enabled
 
 ```
-cargo xbuild -p td-shim --target x86_64-unknown-none --release --features=main,tdx,secure-boot
+cargo build -p td-shim --target x86_64-unknown-none --release --features=main,tdx,secure-boot
 ```
 
 ## Build payload
@@ -13,7 +13,7 @@ cargo xbuild -p td-shim --target x86_64-unknown-none --release --features=main,t
 Refer to [README](../README.md), using ELF as example:
 
 ```
-cargo xbuild -p td-payload --target x86_64-unknown-none --release --bin example --features=tdx,start,cet-shstk,stack-guard
+cargo build -p td-payload --target x86_64-unknown-none --release --bin example --features=tdx,start,cet-shstk,stack-guard
 ```
 
 ## Generate Key
