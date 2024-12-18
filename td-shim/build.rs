@@ -41,7 +41,7 @@ fn run_command(mut cmd: Command) {
     }
 }
 
-#[cfg(target = "x86_64-unknown-none")]
+#[cfg(all(target_arch = "x86_64", target_os = "none"))]
 // clang is only required when building ring with the x86_64-unknown-none target. #109
 fn check_environment() -> Result<()> {
     use anyhow::anyhow;
@@ -152,7 +152,7 @@ fn real_main() -> Result<()> {
     // tell cargo when to re-run the script
     println!("cargo:rerun-if-changed=build.rs");
 
-    #[cfg(target = "x86_64-unknown-none")]
+    #[cfg(all(target_arch = "x86_64", target_os = "none"))]
     check_environment()?;
 
     println!(
