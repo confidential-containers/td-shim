@@ -116,7 +116,7 @@ impl BuildArgs {
         let sh = Shell::new()?;
         cmd!(
             sh,
-            "cargo xbuild -p td-shim --target x86_64-unknown-none --no-default-features"
+            "cargo build -p td-shim --target x86_64-unknown-none --no-default-features"
         )
         .args(["--features", self.features().as_str()])
         .args(["--profile", self.profile()])
@@ -138,7 +138,7 @@ impl BuildArgs {
         let sh = Shell::new()?;
         cmd!(
             sh,
-            "cargo xbuild -p td-payload --bin example --target x86_64-unknown-none"
+            "cargo build -p td-payload --bin example --target x86_64-unknown-none"
         )
         .args(["--features", "tdx,start,cet-shstk,stack-guard"])
         .args(["--profile", self.profile()])

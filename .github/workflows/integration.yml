@@ -47,8 +47,8 @@ jobs:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
           components: rust-src, llvm-tools-preview
 
-      - name: Run cargo install cargo-xbuild
-        run: cargo install cargo-xbuild
+      - name: Add `x86_64-unknown-none` target
+        run: rustup target add x86_64-unknown-none --toolchain ${{ env.RUST_TOOLCHAIN }}
 
       # install QEMU
       - name: Install QEMU (Linux)
