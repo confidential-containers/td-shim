@@ -12,7 +12,7 @@ bitflags = "1.2.1"
 lazy_static = { version = "1.0", features = ["spin_no_std"] }
 log = "0.4.13"
 tdx-tdcall =  { path = "../tdx-tdcall", optional = true }
-x86_64 = "0.14.9"
+x86_64 = { version = "0.14.9", default-features = false, features = ["instructions"] }
 spin = "0.9.2"
 
 [features]

@@ -27,7 +27,7 @@ td-shim-interface =  { path = "../td-shim-interface" }
 td-exception =  { path = "../td-exception" }
 td-paging =  { path = "../td-paging" }
 x86 = "0.47.0"
-x86_64 = "0.14"
+x86_64 = { version = "0.14.9", default-features = false, features = ["instructions"] }
 td-benchmark = { path = "../devtools/td-benchmark", optional = true }
 tdx-tdcall = { path = "../tdx-tdcall", optional = true }
 zerocopy = { version = "0.7.31", features = ["derive"] }
