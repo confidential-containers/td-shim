@@ -11,7 +11,7 @@
 use core::mem::size_of;
 use core::ptr::slice_from_raw_parts;
 
-use der::{asn1::UIntBytes, Encodable, Message};
+use der::{asn1::UintRef, Encode, Sequence};
 use r_efi::efi::Guid;
 use ring::{
     digest,
@@ -120,10 +120,10 @@ pub enum VerifyErr {
 //     modulus            INTEGER,    -- n
 //     publicExponent     INTEGER  }  -- e
 //
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Message)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Sequence)]
 struct RsaPublicKeyDer<'a> {
-    pub modulus: UIntBytes<'a>,
-    pub exponents: UIntBytes<'a>,
+    pub modulus: UintRef<'a>,
+    pub exponents: UintRef<'a>,
 }
 
 pub struct PayloadVerifier<'a> {
@@ -200,8 +200,8 @@ impl<'a> PayloadVerifier<'a> {
                 signature = &signed_payload[offset..offset + 384];
 
                 let der = RsaPublicKeyDer {
-                    modulus: UIntBytes::new(modulus).map_err(|_e| VerifyErr::InvalidContent)?,
-                    exponents: UIntBytes::new(exp).map_err(|_e| VerifyErr::InvalidContent)?,
+                    modulus: UintRef::new(modulus).map_err(|_e| VerifyErr::InvalidContent)?,
+                    exponents: UintRef::new(exp).map_err(|_e| VerifyErr::InvalidContent)?,
                 };
                 let encoded = der
                     .encode_to_slice(&mut formated_public_key)
