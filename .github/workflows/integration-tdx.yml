@@ -11,7 +11,7 @@ name: Integration Test on TDX Server
 
 env:
   AS: nasm
-  RUST_TOOLCHAIN: nightly-2023-12-31
+  RUST_TOOLCHAIN: 1.83.0
   TOOLCHAIN_PROFILE: minimal
 
 jobs:
@@ -36,8 +36,8 @@ jobs:
       - name: Install toolchain
         run: bash sh_script/update_toolchain.sh ${{ env.RUST_TOOLCHAIN }}
 
-      - name: Run cargo install cargo-xbuild
-        run: cargo install cargo-xbuild
+      - name: Add `x86_64-unknown-none` target
+        run: rustup target add x86_64-unknown-none
 
       - name: Preparation Work
         run: bash sh_script/preparation.sh

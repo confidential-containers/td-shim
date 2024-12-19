@@ -6,6 +6,7 @@ env:
   AS: nasm
   AR: llvm-ar
   CC: clang
+  RUST_TOOLCHAIN: 1.83.0
 
 jobs:
   clippy:
@@ -30,7 +31,7 @@ jobs:
       - name: Install toolchain with clippy available
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: nightly-2023-12-31
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
           components: clippy
 
       - name: Add target
@@ -65,7 +66,7 @@ jobs:
       - name: Install toolchain with rustfmt available
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: nightly-2023-12-31
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
           components: rustfmt
 
       - name: Preparation Work
