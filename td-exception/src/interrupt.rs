@@ -98,7 +98,7 @@ pub struct InterruptCallback {
 }
 
 impl InterruptCallback {
-    const fn new(func: fn(&mut InterruptStack)) -> Self {
+    pub const fn new(func: fn(&mut InterruptStack)) -> Self {
         InterruptCallback { func }
     }
 }

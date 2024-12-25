@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
 pub use td_exception::idt::*;
+pub use td_exception::interrupt::*;
 
 pub const PAGE_FAULT_EXCEPTION: u8 = 14;
 pub const PAGE_FAULT_IST: u8 = 1;
