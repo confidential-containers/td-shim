@@ -52,7 +52,7 @@ interrupt_handler_table:
         i = 0
         .rept 256
         .align 32
-        .if ((EXCEPTION_ERROR_CODE_MASK >> i) & 1) == 0
+        .if i > 31 || ((EXCEPTION_ERROR_CODE_MASK >> i) & 1) == 0
         push 0
         .endif
         push i
