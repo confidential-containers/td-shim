@@ -6,13 +6,15 @@ use serde::de::Error;
 use serde::{de, Deserialize};
 use std::{mem::size_of, vec::Vec};
 use td_layout::build_time::*;
+use td_layout::runtime::exec::LARGE_PAYLOAD_BASE;
 use td_layout::runtime::*;
 use td_shim_interface::metadata::{
-    TdxMetadataDescriptor, TDX_METADATA_GUID, TDX_METADATA_SECTION_TYPE_BFV,
-    TDX_METADATA_SECTION_TYPE_CFV, TDX_METADATA_SECTION_TYPE_PAYLOAD,
-    TDX_METADATA_SECTION_TYPE_PAYLOAD_PARAM, TDX_METADATA_SECTION_TYPE_PERM_MEM,
-    TDX_METADATA_SECTION_TYPE_TD_HOB, TDX_METADATA_SECTION_TYPE_TD_INFO,
-    TDX_METADATA_SECTION_TYPE_TEMP_MEM, TDX_METADATA_SIGNATURE, TDX_METADATA_VERSION,
+    TdxMetadataDescriptor, TDX_METADATA_ATTRIBUTES_EXTENDMR, TDX_METADATA_GUID,
+    TDX_METADATA_SECTION_TYPE_BFV, TDX_METADATA_SECTION_TYPE_CFV,
+    TDX_METADATA_SECTION_TYPE_PAYLOAD, TDX_METADATA_SECTION_TYPE_PAYLOAD_PARAM,
+    TDX_METADATA_SECTION_TYPE_PERM_MEM, TDX_METADATA_SECTION_TYPE_TD_HOB,
+    TDX_METADATA_SECTION_TYPE_TD_INFO, TDX_METADATA_SECTION_TYPE_TEMP_MEM, TDX_METADATA_SIGNATURE,
+    TDX_METADATA_VERSION,
 };
 use td_shim_interface::td_uefi_pi::pi::guid::Guid;
 
@@ -101,8 +103,6 @@ impl MetadataSections {
 }
 
 fn basic_metadata_sections(payload_type: PayloadType) -> MetadataSections {
-    use td_shim_interface::metadata::TDX_METADATA_ATTRIBUTES_EXTENDMR;
-
     let mut metadata_sections = MetadataSections::new();
 
     // BFV
@@ -182,7 +182,10 @@ fn basic_metadata_sections(payload_type: PayloadType) -> MetadataSections {
     metadata_sections
 }
 
-pub fn default_metadata_sections(payload_type: PayloadType) -> MetadataSections {
+pub fn default_metadata_sections(
+    payload_type: PayloadType,
+    is_large_payload: bool,
+) -> MetadataSections {
     let mut metadata_sections = basic_metadata_sections(payload_type);
 
     if payload_type == PayloadType::Linux {
@@ -226,16 +229,38 @@ pub fn default_metadata_sections(payload_type: PayloadType) -> MetadataSections 
             attributes: 0,
         });
 
-        if cfg!(feature = "exec-payload-section") {
-            println!("default_metadata_sections_exec_payload");
+        if cfg!(feature = "exec-payload-section") || is_large_payload {
+            let (data_offset, raw_data_size, memory_address) = if is_large_payload {
+                (
+                    TD_SHIM_LARGE_PAYLOAD_OFFSET,
+                    TD_SHIM_LARGE_PAYLOAD_SIZE,
+                    LARGE_PAYLOAD_BASE as u64,
+                )
+            } else {
+                (
+                    TD_SHIM_PAYLOAD_OFFSET,
+                    TD_SHIM_PAYLOAD_SIZE,
+                    TD_SHIM_PAYLOAD_BASE as u64,
+                )
+            };
+
+            let (r#type, attributes) = if cfg!(feature = "exec-payload-section") {
+                (TDX_METADATA_SECTION_TYPE_PAYLOAD, 0)
+            } else {
+                (
+                    TDX_METADATA_SECTION_TYPE_BFV,
+                    TDX_METADATA_ATTRIBUTES_EXTENDMR,
+                )
+            };
+
             // payload image
             metadata_sections.add(TdxMetadataSection {
-                data_offset: TD_SHIM_PAYLOAD_OFFSET,
-                raw_data_size: TD_SHIM_PAYLOAD_SIZE,
-                memory_address: TD_SHIM_PAYLOAD_BASE as u64,
-                memory_data_size: TD_SHIM_PAYLOAD_SIZE as u64,
-                r#type: TDX_METADATA_SECTION_TYPE_PAYLOAD,
-                attributes: 0,
+                data_offset,
+                raw_data_size,
+                memory_address,
+                memory_data_size: raw_data_size as u64,
+                r#type,
+                attributes,
             });
         }
     }

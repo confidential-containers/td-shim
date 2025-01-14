@@ -10,9 +10,10 @@ use log::trace;
 use r_efi::base::Guid;
 use scroll::Pwrite;
 use td_layout::build_time::{
-    TD_SHIM_FIRMWARE_BASE, TD_SHIM_FIRMWARE_SIZE, TD_SHIM_IPL_OFFSET, TD_SHIM_IPL_SIZE,
-    TD_SHIM_MAILBOX_OFFSET, TD_SHIM_METADATA_OFFSET, TD_SHIM_PAYLOAD_BASE, TD_SHIM_PAYLOAD_OFFSET,
-    TD_SHIM_PAYLOAD_SIZE, TD_SHIM_RESET_VECTOR_SIZE, TD_SHIM_SEC_CORE_INFO_OFFSET,
+    TD_SHIM_FIRMWARE_SIZE, TD_SHIM_IPL_BASE, TD_SHIM_IPL_OFFSET, TD_SHIM_IPL_SIZE,
+    TD_SHIM_LARGE_PAYLOAD_OFFSET, TD_SHIM_LARGE_PAYLOAD_SIZE, TD_SHIM_MAILBOX_OFFSET,
+    TD_SHIM_METADATA_OFFSET, TD_SHIM_PAYLOAD_BASE, TD_SHIM_PAYLOAD_OFFSET, TD_SHIM_PAYLOAD_SIZE,
+    TD_SHIM_RESET_VECTOR_OFFSET, TD_SHIM_RESET_VECTOR_SIZE, TD_SHIM_SEC_CORE_INFO_OFFSET,
 };
 use td_layout::mailbox::TdxMpWakeupMailbox;
 use td_loader::{elf, pe};
@@ -24,8 +25,8 @@ use td_shim::reset_vector::{ResetVectorHeader, ResetVectorParams};
 use td_shim::write_u24;
 use td_shim_interface::metadata::{TdxMetadataGuid, TdxMetadataPtr};
 use td_shim_interface::td_uefi_pi::pi::fv::{
-    FfsFileHeader, FVH_REVISION, FVH_SIGNATURE, FV_FILETYPE_DXE_CORE, FV_FILETYPE_SECURITY_CORE,
-    SECTION_PE32,
+    CommonSectionHeader2, FfsFileHeader, FfsFileHeader2, FFS_ATTRIB_LARGE_FILE, FVH_REVISION,
+    FVH_SIGNATURE, FV_FILETYPE_DXE_CORE, FV_FILETYPE_SECURITY_CORE, SECTION_PE32,
 };
 
 use crate::metadata::{default_metadata_sections, MetadataSections, TdxMetadata};
@@ -33,8 +34,6 @@ use crate::{InputData, OutputFile};
 
 pub const MAX_IPL_CONTENT_SIZE: usize =
     TD_SHIM_IPL_SIZE as usize - size_of::<IplFvHeaderByte>() - size_of::<ResetVectorHeader>();
-pub const MAX_PAYLOAD_CONTENT_SIZE: usize =
-    TD_SHIM_PAYLOAD_SIZE as usize - size_of::<FvHeaderByte>();
 pub const MAX_METADATA_CONFIG_SIZE: usize = 1024 * 1024;
 
 pub const OVMF_TABLE_FOOTER_GUID: Guid = Guid::from_fields(
@@ -73,80 +72,6 @@ impl Default for FvHeaderByte {
 }
 
 impl FvHeaderByte {
-    pub fn build_tdx_payload_fv_header() -> Self {
-        let mut hdr = Self::default();
-        let fv_header_size = (size_of::<FvHeader>()) as usize;
-
-        let mut tdx_payload_fv_header = FvHeader::default();
-        tdx_payload_fv_header.fv_header.fv_length = TD_SHIM_PAYLOAD_SIZE as u64;
-        tdx_payload_fv_header.fv_header.signature = FVH_SIGNATURE;
-        tdx_payload_fv_header.fv_header.header_length = size_of::<FvHeader>() as u16;
-        tdx_payload_fv_header.fv_header.revision = FVH_REVISION;
-        tdx_payload_fv_header.fv_header.update_checksum();
-
-        tdx_payload_fv_header.fv_block_map[0].num_blocks = (TD_SHIM_PAYLOAD_SIZE as u32) / 0x1000;
-        tdx_payload_fv_header.fv_block_map[0].length = 0x1000;
-        tdx_payload_fv_header.fv_ext_header.fv_name.copy_from_slice(
-            Guid::from_fields(
-                0x7cb8bdc9,
-                0xf8eb,
-                0x4f34,
-                0xaa,
-                0xea,
-                &[0x3e, 0xe4, 0xaf, 0x65, 0x16, 0xa1],
-            )
-            .as_bytes(),
-        );
-        tdx_payload_fv_header.fv_ext_header.ext_header_size = 0x14;
-        // Safe to unwrap() because space is enough.
-        let res = hdr.data.pwrite(tdx_payload_fv_header, 0).unwrap();
-        assert_eq!(res, 120);
-
-        let mut tdx_payload_fv_ffs_header = FvFfsFileHeader::default();
-        tdx_payload_fv_ffs_header.ffs_header.name.copy_from_slice(
-            Guid::from_fields(
-                0xa8f75d7c,
-                0x8b85,
-                0x49b6,
-                0x91,
-                0x3e,
-                &[0xaf, 0x99, 0x61, 0x55, 0x73, 0x08],
-            )
-            .as_bytes(),
-        );
-        tdx_payload_fv_ffs_header.ffs_header.r#type = FV_FILETYPE_DXE_CORE;
-        tdx_payload_fv_ffs_header.ffs_header.attributes = 0x00;
-        write_u24(
-            TD_SHIM_PAYLOAD_SIZE - fv_header_size as u32,
-            &mut tdx_payload_fv_ffs_header.ffs_header.size,
-        );
-        tdx_payload_fv_ffs_header.ffs_header.update_checksum();
-        // Safe to unwrap() because space is enough.
-        let res = hdr
-            .data
-            .pwrite(tdx_payload_fv_ffs_header, fv_header_size)
-            .unwrap();
-        assert_eq!(res, 24);
-
-        let mut tdx_payload_fv_ffs_section_header = FvFfsSectionHeader::default();
-        write_u24(
-            TD_SHIM_PAYLOAD_SIZE - fv_header_size as u32 - size_of::<FvFfsFileHeader>() as u32,
-            &mut tdx_payload_fv_ffs_section_header.section_header.size,
-        );
-        tdx_payload_fv_ffs_section_header.section_header.r#type = SECTION_PE32;
-        // Safe to unwrap() because space is enough.
-        let res = hdr
-            .data
-            .pwrite(
-                tdx_payload_fv_ffs_section_header,
-                fv_header_size + size_of::<FvFfsFileHeader>(),
-            )
-            .unwrap();
-        assert_eq!(res, 4);
-
-        hdr
-    }
-
     // Build internal payload header
     pub fn build_tdx_ipl_fv_header() -> Self {
         let mut hdr = Self::default();
@@ -222,19 +147,117 @@ impl FvHeaderByte {
     }
 }
 
-pub type PayloadFvHeaderByte = FvHeaderByte;
+#[repr(C, align(4))]
+pub struct FvHeader2Byte {
+    pub data: [u8; size_of::<FvHeader>()
+        + size_of::<FfsFileHeader2>()
+        + size_of::<CommonSectionHeader2>()],
+}
+
+impl Default for FvHeader2Byte {
+    fn default() -> Self {
+        Self {
+            data: [0u8; size_of::<FvHeader>()
+                + size_of::<FfsFileHeader2>()
+                + size_of::<CommonSectionHeader2>()],
+        }
+    }
+}
+
+impl FvHeader2Byte {
+    pub fn build_tdx_payload_fv_header(is_large_payload: bool) -> Self {
+        let mut hdr = Self::default();
+        let fv_header_size = (size_of::<FvHeader>()) as usize;
+
+        let mut tdx_payload_fv_header = FvHeader::default();
+        let payload_region_size = if is_large_payload {
+            TD_SHIM_LARGE_PAYLOAD_SIZE
+        } else {
+            TD_SHIM_PAYLOAD_SIZE
+        };
+        tdx_payload_fv_header.fv_header.fv_length = payload_region_size as u64;
+        tdx_payload_fv_header.fv_header.signature = FVH_SIGNATURE;
+        tdx_payload_fv_header.fv_header.header_length = size_of::<FvHeader>() as u16;
+        tdx_payload_fv_header.fv_header.revision = FVH_REVISION;
+        tdx_payload_fv_header.fv_header.update_checksum();
+
+        tdx_payload_fv_header.fv_block_map[0].num_blocks = payload_region_size / 0x1000;
+        tdx_payload_fv_header.fv_block_map[0].length = 0x1000;
+        tdx_payload_fv_header.fv_ext_header.fv_name.copy_from_slice(
+            Guid::from_fields(
+                0x7cb8bdc9,
+                0xf8eb,
+                0x4f34,
+                0xaa,
+                0xea,
+                &[0x3e, 0xe4, 0xaf, 0x65, 0x16, 0xa1],
+            )
+            .as_bytes(),
+        );
+        tdx_payload_fv_header.fv_ext_header.ext_header_size = 0x14;
+        // Safe to unwrap() because space is enough.
+        let res = hdr.data.pwrite(tdx_payload_fv_header, 0).unwrap();
+        assert_eq!(res, 120);
+
+        let mut tdx_payload_fv_ffs_header = FfsFileHeader2::default();
+        tdx_payload_fv_ffs_header.name.copy_from_slice(
+            Guid::from_fields(
+                0xa8f75d7c,
+                0x8b85,
+                0x49b6,
+                0x91,
+                0x3e,
+                &[0xaf, 0x99, 0x61, 0x55, 0x73, 0x08],
+            )
+            .as_bytes(),
+        );
+        tdx_payload_fv_ffs_header.r#type = FV_FILETYPE_DXE_CORE;
+        tdx_payload_fv_ffs_header.attributes = FFS_ATTRIB_LARGE_FILE;
+        tdx_payload_fv_ffs_header.extended_size =
+            payload_region_size as u32 - fv_header_size as u32;
+        tdx_payload_fv_ffs_header.update_checksum();
+        // Safe to unwrap() because space is enough.
+        let res = hdr
+            .data
+            .pwrite(tdx_payload_fv_ffs_header, fv_header_size)
+            .unwrap();
+        assert_eq!(res, 28);
+
+        let mut tdx_payload_fv_ffs_section_header = CommonSectionHeader2::default();
+        tdx_payload_fv_ffs_section_header
+            .size
+            .copy_from_slice(&[0xff, 0xff, 0xff]);
+        tdx_payload_fv_ffs_section_header.extended_size =
+            TD_SHIM_PAYLOAD_SIZE - fv_header_size as u32 - size_of::<FfsFileHeader2>() as u32;
+        tdx_payload_fv_ffs_section_header.r#type = SECTION_PE32;
+        // Safe to unwrap() because space is enough.
+        let res = hdr
+            .data
+            .pwrite(
+                tdx_payload_fv_ffs_section_header,
+                fv_header_size + size_of::<FfsFileHeader2>(),
+            )
+            .unwrap();
+        assert_eq!(res, 8);
+
+        hdr
+    }
+}
+
+pub type PayloadFvHeaderByte = FvHeader2Byte;
 pub type IplFvHeaderByte = FvHeaderByte;
 
 pub fn build_tdx_metadata(
     path: Option<&str>,
     payload_type: PayloadType,
+    is_large_payload: bool,
 ) -> io::Result<TdxMetadata> {
     let sections = if let Some(path) = path {
         let metadata_config = fs::read(path)?;
         serde_json::from_slice::<MetadataSections>(metadata_config.as_slice())
             .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?
     } else {
-        default_metadata_sections(payload_type)
+        default_metadata_sections(payload_type, is_large_payload)
     };
 
     TdxMetadata::new(sections).ok_or(io::Error::new(
@@ -361,18 +384,33 @@ impl TdShimLinker {
             "mailbox content",
         )?;
 
+        let mut is_large_payload = false;
         if let Some(payload_name) = payload_name {
-            let payload_bin =
-                InputData::new(payload_name, 0..=MAX_PAYLOAD_CONTENT_SIZE, "payload")?;
-            let payload_header = PayloadFvHeaderByte::build_tdx_payload_fv_header();
+            let max_payload_size = core::cmp::max(TD_SHIM_PAYLOAD_SIZE, TD_SHIM_LARGE_PAYLOAD_SIZE)
+                as usize
+                - size_of::<FvHeaderByte>();
+            let payload_bin = InputData::new(payload_name, 0..=max_payload_size, "payload")?;
+            is_large_payload = payload_bin.as_bytes().len() > TD_SHIM_PAYLOAD_SIZE as usize;
+
+            // If the payload image size greater than the size of payload region, it will be loaded
+            // into the large payload region.
+            // is_large_payload = payload_bin.as_bytes().len()
+            // > TD_SHIM_PAYLOAD_SIZE as usize - size_of::<FvHeaderByte>();
+            let payload_offset = if is_large_payload {
+                TD_SHIM_LARGE_PAYLOAD_OFFSET
+            } else {
+                TD_SHIM_PAYLOAD_OFFSET
+            };
+
+            let payload_header = PayloadFvHeaderByte::build_tdx_payload_fv_header(is_large_payload);
             output_file.seek_and_write(
-                TD_SHIM_PAYLOAD_OFFSET as u64,
+                payload_offset as u64,
                 &payload_header.data,
                 "payload header",
             )?;
 
             if self.payload_relocation {
-                let mut payload_reloc_buf = vec![0x0u8; MAX_PAYLOAD_CONTENT_SIZE];
+                let mut payload_reloc_buf = vec![0x0u8; max_payload_size];
                 let reloc = pe::relocate(
                     &payload_bin.data,
                     &mut payload_reloc_buf,
@@ -386,9 +424,9 @@ impl TdShimLinker {
             } else {
                 output_file.write(&payload_bin.data, "payload content")?;
             }
-        }
+        };
 
-        let metadata = build_tdx_metadata(metadata_name, self.payload_type)?;
+        let metadata = build_tdx_metadata(metadata_name, self.payload_type, is_large_payload)?;
         let pos = TD_SHIM_METADATA_OFFSET as u64;
         output_file.seek_and_write(pos, &metadata.to_vec(), "metadata")?;
 
@@ -409,18 +447,25 @@ impl TdShimLinker {
             0x100000
         );
         let entry_point = (reloc.0 - 0x100000) as u32;
-        let current_pos = output_file.current_pos()?;
         let reset_vector_info = ResetVectorParams {
             entry_point,
-            img_base: TD_SHIM_FIRMWARE_BASE + current_pos as u32,
+            img_base: TD_SHIM_IPL_BASE + size_of::<IplFvHeaderByte>() as u32,
             img_size: ipl_bin.data.len() as u32,
         };
 
         output_file.write(&ipl_reloc_buf, "internal payload content")?;
 
         let reset_vector_header = ResetVectorHeader::build_tdx_reset_vector_header();
-        output_file.write(reset_vector_header.as_bytes(), "reset vector header")?;
-        output_file.write(&reset_vector_bin.data, "reset vector content")?;
+        output_file.seek_and_write(
+            TD_SHIM_RESET_VECTOR_OFFSET as u64 - size_of::<ResetVectorHeader>() as u64,
+            reset_vector_header.as_bytes(),
+            "reset vector header",
+        )?;
+        output_file.seek_and_write(
+            TD_SHIM_RESET_VECTOR_OFFSET as u64,
+            &reset_vector_bin.data,
+            "reset vector content",
+        )?;
 
         let current_pos = output_file.current_pos()?;
         assert_eq!(current_pos, TD_SHIM_FIRMWARE_SIZE as u64);
