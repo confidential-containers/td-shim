@@ -59,7 +59,14 @@ fn main() {
             io::Error::last_os_error()
         ))
     };
-    let bios = create_disk_images(&kernel_binary_path);
+
+    let bios = kernel_binary_path.parent().unwrap().join(format!(
+        "boot-bios-{}.img",
+        kernel_binary_path.file_name().unwrap().to_str().unwrap()
+    ));
+    bootloader::BiosBoot::new(&kernel_binary_path)
+        .create_disk_image(&bios)
+        .unwrap();
 
     //let output = matches.value_of("no-run")
     if matches.get_flag("no-run") {
@@ -94,43 +101,6 @@ fn main() {
 
 fn run_test_command(mut cmd: Command) -> ExitStatus {
     runner_utils::run_with_timeout(&mut cmd, Duration::from_secs(TEST_TIMEOUT_SECS)).unwrap()
-}
-
-fn create_disk_images(kernel_binary_path: &Path) -> PathBuf {
-    let bootloader_manifest_path = locate_bootloader("bootloader").unwrap();
-    let kernel_manifest_path = locate_manifest().unwrap();
-
-    let mut build_cmd = Command::new(env!("CARGO"));
-    build_cmd.current_dir(bootloader_manifest_path.parent().unwrap());
-    build_cmd.arg("builder");
-    build_cmd
-        .arg("--kernel-manifest")
-        .arg(&kernel_manifest_path);
-    build_cmd.arg("--kernel-binary").arg(&kernel_binary_path);
-    build_cmd
-        .arg("--target-dir")
-        .arg(kernel_manifest_path.parent().unwrap().join("target"));
-    build_cmd
-        .arg("--out-dir")
-        .arg(kernel_binary_path.parent().unwrap());
-    build_cmd.arg("--quiet");
-
-    if !build_cmd.status().unwrap().success() {
-        panic!("build failed");
-    }
-
-    let kernel_binary_name = kernel_binary_path.file_name().unwrap().to_str().unwrap();
-    let disk_image = kernel_binary_path
-        .parent()
-        .unwrap()
-        .join(format!("boot-bios-{}.img", kernel_binary_name));
-    if !disk_image.exists() {
-        panic!(
-            "Disk image does not exist at {} after bootloader build",
-            disk_image.display()
-        );
-    }
-    disk_image
 }
 
 fn locate_manifest() -> Result<PathBuf, LocateError> {

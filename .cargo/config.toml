@@ -2,9 +2,9 @@
 runner = "cargo run --package test-runner-server --"
 
 [alias]
-kbuild = "build --target x86_64-custom.json -Zbuild-std=core -Zbuild-std-features=compiler-builtins-mem"
-kimage = "run --target x86_64-custom.json -Zbuild-std=core -Zbuild-std-features=compiler-builtins-mem -- --no-run"
-krun = "run --target x86_64-custom.json -Zbuild-std=core -Zbuild-std-features=compiler-builtins-mem"
-ktest = "xtest --target x86_64-custom.json"
+kbuild = "build --target x86_64-unknown-none"
+kimage = "run --target x86_64-unknown-none -- --no-run"
+krun = "run --target x86_64-unknown-none"
+ktest = "test --target x86_64-unknown-none"
 xtask = "run -p xtask --"
 image = "xtask image"
