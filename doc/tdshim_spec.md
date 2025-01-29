@@ -177,7 +177,8 @@ The TD Shim metadata can be located at (TD Shim end – 0x20) byte. It is a
 | 5              | Payload      | Private Memory    | PAGE.ADD + MR.EXTEND(o) | RTMR.EXTEND(o) | MRTD (or) RTMR[1] |
 | 6              | PayloadParam | Private Memory    | PAGE.ADD                | RTMR.EXTEND    | RTMR[1]           |
 | 7              | TD_INFO      | Private Memory    | N/A                     | N/A            | N/A               |
-| 8 ~ 0xFFFFFFFF | Reserved     | N/A               | N/A                     | N/A            | N/A               |
+| 8              | TD_PARAMS    | Private Memory    | N/A                     | N/A            | N/A               |
+| 9 ~ 0xFFFFFFFF | Reserved     | N/A               | N/A                     | N/A            | N/A               |
 
 Rules for the TDVF_SECTION:
  * A TD-Shim shall include at least one BFV and the reset vector shall be inside
@@ -199,8 +200,10 @@ Rules for the TDVF_SECTION:
    must be zero.
  * A TD-Shim may have zero or one PayloadParam.  PayloadParam is present only if
    the Payload is present.
- * A TDVF may have zero or one TD_INFO section. If present, it shall be included
+ * A TD-Shim may have zero or one TD_INFO section. If present, it shall be included
    in BFV section. MemoryAddress and MemoryDataSize shall be zero. See Table 1.1-5.
+ * A TD-Shim may have zero or one TD_PARAMS section. If present, it shall be included
+   in BFV section. MemoryAddress and MemoryDataSize shall be zero.
 
 **Table 1.1-5 TD_INFO definition**
 

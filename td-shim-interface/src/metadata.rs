@@ -47,8 +47,10 @@ pub const TDX_METADATA_SECTION_TYPE_PAYLOAD: u32 = 5;
 pub const TDX_METADATA_SECTION_TYPE_PAYLOAD_PARAM: u32 = 6;
 /// Section type for td info.
 pub const TDX_METADATA_SECTION_TYPE_TD_INFO: u32 = 7;
+/// Section type for TD Params.
+pub const TDX_METADATA_SECTION_TYPE_TD_PARAMS: u32 = 8;
 /// Max Section type
-pub const TDX_METADATA_SECTION_TYPE_MAX: u32 = 8;
+pub const TDX_METADATA_SECTION_TYPE_MAX: u32 = 9;
 
 pub const TDX_METADATA_SECTION_TYPE_STRS: [&str; TDX_METADATA_SECTION_TYPE_MAX as usize] = [
     "BFV",
@@ -59,6 +61,7 @@ pub const TDX_METADATA_SECTION_TYPE_STRS: [&str; TDX_METADATA_SECTION_TYPE_MAX a
     "Payload",
     "PayloadParam",
     "TdInfo",
+    "TdParams",
 ];
 
 /// Attribute flags for BFV.
@@ -204,6 +207,9 @@ pub fn validate_sections(sections: &[TdxMetadataSection]) -> Result<(), TdxMetad
     let mut td_info_cnt = 0;
     let mut td_info_start = 0;
     let mut td_info_end = 0;
+    let mut td_params_cnt = 0;
+    let mut td_params_start = 0;
+    let mut td_params_end = 0;
     let check_data_memory_fields =
         |data_offset: u32, data_size: u32, memory_address: u64, memory_size: u64| -> bool {
             if data_size == 0 && data_offset != 0 {
@@ -407,6 +413,31 @@ pub fn validate_sections(sections: &[TdxMetadataSection]) -> Result<(), TdxMetad
                 }
             }
 
+            TDX_METADATA_SECTION_TYPE_TD_PARAMS => {
+                // A TD-Shim may have zero or one TdParams. If present, it shall be included in BFV section.
+                if td_params_cnt == i32::MAX {
+                    return Err(TdxMetadataError::InvalidSection);
+                }
+                td_params_cnt += 1;
+                if td_params_cnt > 1 {
+                    return Err(TdxMetadataError::InvalidSection);
+                }
+                if section.attributes != 0 {
+                    return Err(TdxMetadataError::InvalidSection);
+                }
+                if section.raw_data_size == 0 {
+                    return Err(TdxMetadataError::InvalidSection);
+                } else {
+                    td_params_start = section.data_offset;
+                    td_params_end = td_params_start + section.raw_data_size;
+                }
+
+                // MemoryAddress and MemoryDataSize shall be zero.
+                if section.memory_address != 0 || section.memory_data_size != 0 {
+                    return Err(TdxMetadataError::InvalidSection);
+                }
+            }
+
             _ => {
                 return Err(TdxMetadataError::InvalidSection);
             }
@@ -427,9 +458,16 @@ pub fn validate_sections(sections: &[TdxMetadataSection]) -> Result<(), TdxMetad
         return Err(TdxMetadataError::InvalidSection);
     }
 
-    //TdInfo. If present, it shall be included in BFV section.
+    // TdInfo. If present, it shall be included in BFV section.
     if td_info_cnt != 0
         && (td_info_start < bfv_start || td_info_start >= bfv_end || td_info_end > bfv_end)
+    {
+        return Err(TdxMetadataError::InvalidSection);
+    }
+
+    // TdParams. If present, it shall be included in BFV section.
+    if td_params_cnt != 0
+        && (td_params_start < bfv_start || td_params_start >= bfv_end || td_params_end > bfv_end)
     {
         return Err(TdxMetadataError::InvalidSection);
     }
@@ -523,8 +561,9 @@ mod tests {
             "PayloadParam"
         );
         assert_eq!(TdxMetadataSection::get_type_name(7).unwrap(), "TdInfo");
+        assert_eq!(TdxMetadataSection::get_type_name(8).unwrap(), "TdParams");
 
-        assert!(TdxMetadataSection::get_type_name(8).is_none());
+        assert!(TdxMetadataSection::get_type_name(9).is_none());
     }
 
     #[test]

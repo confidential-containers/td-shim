@@ -20,6 +20,8 @@ struct ImageConfig {
     builtin_payload: Option<String>,
     #[serde(rename = "TdInfo")]
     td_info: Option<String>,
+    #[serde(rename = "TdParams")]
+    td_params: Option<String>,
     #[serde(rename = "Metadata")]
     metadata: String,
     #[serde(rename = "Ipl")]
@@ -75,6 +77,14 @@ pub fn parse_image(data: String) -> String {
         image_layout.reserve_high(
             "TdInfo",
             parse_int::parse::<u32>(&td_info_config).unwrap() as usize,
+            "Reserved",
+        )
+    }
+
+    if let Some(td_params_config) = image_config.td_params {
+        image_layout.reserve_high(
+            "TdParams",
+            parse_int::parse::<u32>(&td_params_config).unwrap() as usize,
             "Reserved",
         )
     }

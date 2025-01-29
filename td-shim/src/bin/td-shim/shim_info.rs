@@ -259,8 +259,8 @@ impl<'a> BootTimeDynamic<'a> {
 
                     memory.push(resource)
                 }
-                TDX_METADATA_SECTION_TYPE_TD_INFO => {
-                    // for TD_INFO type, the MemoryDataSize is zero, should not make it
+                TDX_METADATA_SECTION_TYPE_TD_INFO | TDX_METADATA_SECTION_TYPE_TD_PARAMS => {
+                    // for TD_INFO and TD_PARAMS type, the MemoryDataSize is zero, should not make it
                     // into a ResourceDescription!
                     continue;
                 }
@@ -278,10 +278,10 @@ mod tests {
 
     #[test]
     fn test_parse_metadata() {
-        // Ensure the TD_INFO section is not parsed into a ResourceDescription.
+        // Ensure the TD_INFO and TD_PARAMS section is not parsed into a ResourceDescription.
 
         // init sections include all types
-        let mut sections: [TdxMetadataSection; 7] = [TdxMetadataSection::default(); 7];
+        let mut sections: [TdxMetadataSection; 8] = [TdxMetadataSection::default(); 8];
         // BFV
         sections[0] = TdxMetadataSection {
             data_offset: 0,
@@ -344,6 +344,15 @@ mod tests {
             memory_data_size: 0,
             attributes: 0,
             r#type: TDX_METADATA_SECTION_TYPE_TD_INFO,
+        };
+        // TdParams
+        sections[7] = TdxMetadataSection {
+            data_offset: 0,
+            raw_data_size: 0x400,
+            memory_address: 0,
+            memory_data_size: 0,
+            attributes: 0,
+            r#type: TDX_METADATA_SECTION_TYPE_TD_PARAMS,
         };
 
         let res = BootTimeDynamic::parse_metadata(&sections);
