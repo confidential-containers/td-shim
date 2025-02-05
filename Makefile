@@ -1,6 +1,6 @@
 export CARGO=cargo
 export STABLE_TOOLCHAIN:=1.83.0
-export NIGHTLY_TOOLCHAIN:=nightly-2023-12-31
+export NIGHTLY_TOOLCHAIN:=nightly
 export BUILD_TYPE:=release
 export PREFIX:=/usr/local
 
@@ -99,16 +99,16 @@ none-clean-%:
 
 # Target for integration test crates which should be compiled with `x86_64-custom.json` target
 integration-build-%:
-	${CARGO} +${NIGHTLY_TOOLCHAIN} xbuild --target ${TOPDIR}/devtools/rustc-targets/x86_64-custom.json -p $(patsubst integration-build-%,%,$@) ${BUILD_TYPE_FLAG}
+	${CARGO} +${NIGHTLY_TOOLCHAIN} build --target x86_64-unknown-none -p $(patsubst integration-build-%,%,$@) ${BUILD_TYPE_FLAG}
 
 integration-check-%:
-	${CARGO} +${NIGHTLY_TOOLCHAIN} xcheck --target ${TOPDIR}/devtools/rustc-targets/x86_64-custom.json -p $(patsubst integration-check-%,%,$@) ${BUILD_TYPE_FLAG}
+	${CARGO} +${NIGHTLY_TOOLCHAIN} check --target x86_64-unknown-none -p $(patsubst integration-check-%,%,$@) ${BUILD_TYPE_FLAG}
 
 integration-test-%:
-	${CARGO} +${NIGHTLY_TOOLCHAIN} xtest --target ${TOPDIR}/devtools/rustc-targets/x86_64-custom.json -p $(patsubst integration-test-%,%,$@) ${BUILD_TYPE_FLAG}
+	${CARGO} +${NIGHTLY_TOOLCHAIN} test --target x86_64-unknown-none -p $(patsubst integration-test-%,%,$@) ${BUILD_TYPE_FLAG}
 
 integration-clean-%:
-	${CARGO} +${NIGHTLY_TOOLCHAIN} clean --target ${TOPDIR}/devtools/rustc-targets/x86_64-custom.json -p $(patsubst integration-clean-%,%,$@) ${BUILD_TYPE_FLAG}
+	${CARGO} +${NIGHTLY_TOOLCHAIN} clean --target x86_64-unknown-none -p $(patsubst integration-clean-%,%,$@) ${BUILD_TYPE_FLAG}
 
 # Targets for normal library/binary crates
 build-%:

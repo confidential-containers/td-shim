@@ -9,7 +9,7 @@ edition = "2018"
 
 [dependencies]
 # Keep it as `dependencies` to satisfy bootloader-locator's requirement, though it should be `dev-dependencies`
-bootloader = "0.10.12"
+bootloader_api = "0.11.9"
 
 [dev-dependencies]
 td-exception = { path = "../../td-exception", features = ["integration-test"] }

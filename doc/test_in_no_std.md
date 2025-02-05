@@ -36,7 +36,7 @@ cargo install cargo-xbuild
 #![reexport_test_harness_main = "test_main"]
 
 #[cfg(test)]
-use bootloader::{entry_point, BootInfo};
+use bootloader_api::{entry_point, BootInfo};
 #[cfg(test)]
 entry_point!(kernel_main);
 
@@ -62,7 +62,7 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 ```toml
 [dependencies]
 # add bootloader
-bootloader = "0.10.12"
+bootloader_api = "0.11.9"
 
 [package.metadata.bootloader]
 # To map the complete physical memory starting at virtual address.
@@ -84,10 +84,6 @@ mod tests {
 ```
 
 ####  Customize cargo configuration for integration tests
-
-Symlink file `devtools/rustc-targets/x86_64-custom.json` into the current rust project, so the project will be compiled
-for customized rust target.
-
 Create a `.cargo/config.toml` file in the current rust project with content
 
 ```toml
@@ -95,7 +91,7 @@ Create a `.cargo/config.toml` file in the current rust project with content
 runner = "cargo run --package test-runner-server --"
 
 [alias]
-ktest = "xtest --target x86_64-custom.json"
+ktest = "xtest --target x86_64-unknown-none"
 
 ```
 
