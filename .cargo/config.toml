@@ -8,3 +8,6 @@ krun = "run --target x86_64-custom.json -Zbuild-std=core -Zbuild-std-features=co
 ktest = "xtest --target x86_64-custom.json"
 xtask = "run -p xtask --"
 image = "xtask image"
+
+[target.x86_64-unknown-none]
+rustflags = [ "-Crelocation-model=static" ]

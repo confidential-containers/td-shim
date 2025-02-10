@@ -5,6 +5,7 @@ export AR_x86_64_unknown_none=llvm-ar
 export CC=clang
 export AR=llvm-ar
 export AS=nasm
+export RUSTFLAGS="-Crelocation-model=static" # enforce static linking
 
 config_num=5
 
@@ -20,7 +21,7 @@ final_boot_kernel() {
 
 final_elf() {
     echo final-elf
-    cargo --example-payload -o target/release/final-elf.bin 
+    cargo --example-payload -o target/release/final-elf.bin
 }
 
 final_elf_test() {
@@ -37,7 +38,7 @@ final_elf_test() {
             -p target/x86_64-unknown-none/release/test-td-payload \
             --enroll-file F10E684E-3ABD-20E4-5932-8F973C355E57,tests/test-td-payload/config/test_config_${i}.json \
             -o target/release/final-elf-test${i}.bin
-    done 
+    done
 }
 
 final_elf_sb_test() {
@@ -45,7 +46,7 @@ final_elf_sb_test() {
     cargo build -p td-payload --target x86_64-unknown-none --release --bin example --features=tdx,start,cet-shstk,stack-guard
     cargo run -p td-shim-tools --bin td-shim-strip-info -- -n example --target x86_64-unknown-none
 
-    cargo run -p td-shim-tools --bin td-shim-sign-payload -- -A ECDSA_NIST_P384_SHA384 data/sample-keys/ecdsa-p384-private.pk8 target/x86_64-unknown-none/release/example 1 1 
+    cargo run -p td-shim-tools --bin td-shim-sign-payload -- -A ECDSA_NIST_P384_SHA384 data/sample-keys/ecdsa-p384-private.pk8 target/x86_64-unknown-none/release/example 1 1
 
     echo "Build final binary with unsigned td payload"
     cargo image --release -t executable --features secure-boot \
@@ -77,5 +78,5 @@ case "${1:-}" in
     elf) final_elf ;;
     elf_test) final_elf_test ;;
     elf_sb_test) final_elf_sb_test ;;
-    *) final_boot_kernel && final_elf && final_elf_test && final_elf_sb_test;; 
+    *) final_boot_kernel && final_elf && final_elf_test && final_elf_sb_test;;
 esac
