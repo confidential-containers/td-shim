@@ -66,5 +66,5 @@ jobs:
       - name: Preparation Work
         run: make preparation
 
-      # - name: Run Tests
-      #   run: make integration-test
+      - name: Run Tests
+        run: make integration-test
