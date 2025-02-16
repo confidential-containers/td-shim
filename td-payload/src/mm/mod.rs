@@ -39,7 +39,7 @@ pub const FIRMWARE_BASE: usize = 0xFF00_0000;
 pub const FIRMWARE_SIZE: usize = 0x100_0000;
 
 lazy_static! {
-    static ref MEMORY_MAP: Mutex<[E820Entry; E820_TABLE_SIZE]> =
+    pub static ref MEMORY_MAP: Mutex<[E820Entry; E820_TABLE_SIZE]> =
         Mutex::new([E820Entry::default(); E820_TABLE_SIZE]);
 }
 static END_OF_RAM: Once<usize> = Once::new();
