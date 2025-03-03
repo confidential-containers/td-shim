@@ -53,20 +53,20 @@ pub fn dbg_write_string(s: &str) {
     }
 }
 
-#[cfg(any(feature = "tdx", feature = "serial-port"))]
+#[cfg(any(feature = "tdvmcall", feature = "serial-port"))]
 const SERIAL_IO_PORT: u16 = 0x3F8;
 
-#[cfg(feature = "tdx")]
+#[cfg(feature = "tdvmcall")]
 fn dbg_port_write(byte: u8) {
-    tdx_tdcall::tdx::tdvmcall::io_write_8(SERIAL_IO_PORT, byte);
+    tdx_tdcall::tdvmcall::io_write_8(SERIAL_IO_PORT, byte);
 }
 
-#[cfg(all(not(feature = "tdx"), feature = "serial-port"))]
+#[cfg(all(not(feature = "tdvmcall"), feature = "serial-port"))]
 fn dbg_port_write(byte: u8) {
     unsafe { x86::io::outb(SERIAL_IO_PORT, byte) };
 }
 
-#[cfg(all(not(feature = "tdx"), not(feature = "serial-port")))]
+#[cfg(all(not(feature = "tdvmcall"), not(feature = "serial-port")))]
 fn dbg_port_write(_byte: u8) {}
 
 #[cfg(test)]

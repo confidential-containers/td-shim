@@ -16,5 +16,5 @@ tdx-tdcall = { path = "../tdx-tdcall", optional = true }
 x86 = { version = "0.47.0", optional = true }
 
 [features]
-tdx = ["tdx-tdcall"]
+tdvmcall = ["tdx-tdcall/tdvmcall"]
 serial-port = ["x86"]
