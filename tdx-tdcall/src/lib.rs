@@ -33,6 +33,8 @@ pub mod tdreport;
 pub mod tdx;
 #[cfg(feature = "tdvmcall")]
 pub mod tdvmcall;
+#[cfg(feature = "tdcall")]
+pub mod tdcall;
 
 // Guest-Side (TDCALL) interface functions leaf numbers
 const TDCALL_TDINFO: u64 = 1;
