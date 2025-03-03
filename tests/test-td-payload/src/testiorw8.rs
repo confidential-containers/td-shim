@@ -8,7 +8,7 @@ extern crate alloc;
 use crate::lib::{TestCase, TestResult};
 use alloc::string::String;
 use core::ffi::c_void;
-use tdx_tdcall::tdx;
+use tdx_tdcall::tdvmcall;
 
 use serde::{Deserialize, Serialize};
 
@@ -38,14 +38,14 @@ impl TestCase for Tdiorw8 {
      * io read Century of RTC
      */
     fn run(&mut self) {
-        tdx::tdvmcall::io_write_8(0x70, 0x32);
+        tdvmcall::io_write_8(0x70, 0x32);
 
-        let read1 = tdx::tdvmcall::io_read_8(0x71);
+        let read1 = tdvmcall::io_read_8(0x71);
         log::info!("First time read {}\n", read1);
 
-        tdx::tdvmcall::io_write_8(0x71, read1 + 1);
+        tdvmcall::io_write_8(0x71, read1 + 1);
 
-        let read2 = tdx::tdvmcall::io_read_8(0x71);
+        let read2 = tdvmcall::io_read_8(0x71);
         log::info!("Second time read {}\n", read2);
 
         if (read1 + 1 != read2) {

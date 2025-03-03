@@ -8,7 +8,7 @@ extern crate alloc;
 use crate::lib::{TestCase, TestResult};
 use alloc::string::String;
 use core::ffi::c_void;
-use tdx_tdcall::tdx;
+use tdx_tdcall::tdvmcall;
 
 use serde::{Deserialize, Serialize};
 
@@ -27,16 +27,16 @@ impl Tdmsrrw {
         const APIC_SVR_MSR: u32 = 0x80f; // APIC Spurious Vector Register MSR address
 
         // Read the current value of the APIC SVR MSR
-        match tdx::tdvmcall::rdmsr(APIC_SVR_MSR) {
+        match tdvmcall::rdmsr(APIC_SVR_MSR) {
             Ok(read1) => {
                 // Attempt to write the incremented value back to the APIC SVR MSR
-                if tdx::tdvmcall::wrmsr(APIC_SVR_MSR, read1 + 1).is_err() {
+                if tdvmcall::wrmsr(APIC_SVR_MSR, read1 + 1).is_err() {
                     log::info!("Failed to write MSR 0x{:x}", APIC_SVR_MSR);
                     return TestResult::Fail;
                 }
 
                 // Read the value again to verify the write operation
-                match tdx::tdvmcall::rdmsr(APIC_SVR_MSR) {
+                match tdvmcall::rdmsr(APIC_SVR_MSR) {
                     Ok(read2) if read1 + 1 == read2 => TestResult::Pass,
                     Ok(read2) => {
                         log::info!(

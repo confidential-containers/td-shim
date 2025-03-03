@@ -88,7 +88,7 @@ impl TestMemoryMap {
     fn verify_memory_map(&self, e820: Vec<E820Entry>) -> TestResult {
         let mut top = 0;
         let mut total = 0;
-        let max_gpa = 1 << 51; //tdx::td_shared_page_mask();
+        let max_gpa = 1 << 51; // tdcall::td_shared_page_mask();
         for entry in e820 {
             let entry_end = entry.addr + entry.size;
             if entry.r#type < E820Type::Memory as u32
