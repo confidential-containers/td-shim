@@ -153,7 +153,7 @@ impl From<u64> for TdCallError {
 /// Get guest TD execution environment information
 ///
 /// Details can be found in TDX Module ABI spec section 'TDG.VP.INFO Leaf'
-pub fn tdcall_get_td_info() -> Result<TdInfo, TdCallError> {
+pub fn get_td_info() -> Result<TdInfo, TdCallError> {
     let mut args = TdcallArgs {
         rax: TDCALL_TDINFO,
         ..Default::default()
@@ -180,7 +180,7 @@ pub fn tdcall_get_td_info() -> Result<TdInfo, TdCallError> {
 /// Extend a TDCS.RTMR measurement register
 ///
 /// Details can be found in TDX Module ABI spec section 'TDG.VP.INFO Leaf'
-pub fn tdcall_extend_rtmr(digest: &TdxDigest, mr_index: u32) -> Result<(), TdCallError> {
+pub fn extend_rtmr(digest: &TdxDigest, mr_index: u32) -> Result<(), TdCallError> {
     let buffer: u64 = core::ptr::addr_of!(digest.data) as u64;
 
     let mut args = TdcallArgs {
@@ -202,7 +202,7 @@ pub fn tdcall_extend_rtmr(digest: &TdxDigest, mr_index: u32) -> Result<(), TdCal
 /// Get virtualization exception information for the recent #VE
 ///
 /// Details can be found in TDX Module ABI spec section 'TDG.VP.VEINFO.GET Leaf'
-pub fn tdcall_get_ve_info() -> Result<TdVeInfo, TdCallError> {
+pub fn get_ve_info() -> Result<TdVeInfo, TdCallError> {
     let mut args = TdcallArgs {
         rax: TDCALL_TDGETVEINFO,
         ..Default::default()
@@ -231,7 +231,7 @@ pub fn tdcall_get_ve_info() -> Result<TdVeInfo, TdCallError> {
 /// private key
 ///
 /// Details can be found in TDX Module ABI spec section 'TDG.MEM.PAGE.Accept Leaf'
-pub fn tdcall_accept_page(address: u64) -> Result<(), TdCallError> {
+pub fn accept_page(address: u64) -> Result<(), TdCallError> {
     let mut args = TdcallArgs {
         rax: TDCALL_TDACCEPTPAGE,
         rcx: address,
@@ -261,12 +261,12 @@ pub fn tdcall_accept_page(address: u64) -> Result<(), TdCallError> {
 /// Accept a range of private pages and initialize the pages to zeros using the TD ephemeral
 /// private key.
 ///
-/// This function is a wrapper to `tdcall_accept_page()`.
+/// This function is a wrapper to `accept_page()`.
 pub fn td_accept_pages(address: u64, pages: u64, page_size: u64) {
     for i in 0..pages {
         let accept_addr = address + i * page_size;
         let accept_level = if page_size == PAGE_SIZE_2M { 1 } else { 0 };
-        match tdcall_accept_page(accept_addr | accept_level) {
+        match accept_page(accept_addr | accept_level) {
             Ok(()) => {}
             Err(e) => {
                 if let TdCallError::LeafSpecific(error_code) = e {
@@ -321,7 +321,7 @@ pub fn td_accept_memory(address: u64, len: u64) {
 /// Get the guest physical address (GPA) width via TDG.VP.INFO
 /// The GPA width can be used to determine the shared-bit of GPA
 pub fn td_shared_mask() -> Option<u64> {
-    let td_info = tdcall_get_td_info().ok()?;
+    let td_info = get_td_info().ok()?;
     let gpaw = (td_info.gpaw & 0x3f) as u8;
 
     // Detail can be found in TDX Module v1.5 ABI spec section 'TDVPS(excluding TD VMCS)'.
@@ -336,7 +336,7 @@ pub fn td_shared_mask() -> Option<u64> {
 /// a target TD.
 ///
 /// Details can be found in TDX Module v1.5 ABI spec section 'TDG.SERVTD.RD Leaf'.
-pub fn tdcall_servtd_rd(
+pub fn servtd_rd(
     binding_handle: u64,
     field_identifier: u64,
     target_td_uuid: &[u64],
@@ -374,7 +374,7 @@ pub fn tdcall_servtd_rd(
 /// a target TD.
 ///
 /// Details can be found in TDX Module v1.5 ABI spec section 'TDG.SERVTD.RD Leaf'.
-pub fn tdcall_servtd_wr(
+pub fn servtd_wr(
     binding_handle: u64,
     field_identifier: u64,
     data: u64,
@@ -413,7 +413,7 @@ pub fn tdcall_servtd_wr(
 /// Used to read a TDX Module global-scope metadata field.
 ///
 /// Details can be found in TDX Module v1.5 ABI spec section 'TDG.SYS.RD Leaf'.
-pub fn tdcall_sys_rd(field_identifier: u64) -> core::result::Result<(u64, u64), TdCallError> {
+pub fn sys_rd(field_identifier: u64) -> core::result::Result<(u64, u64), TdCallError> {
     let mut args = TdcallArgs {
         rax: TDCALL_SYS_RD,
         rdx: field_identifier,
@@ -432,7 +432,7 @@ pub fn tdcall_sys_rd(field_identifier: u64) -> core::result::Result<(u64, u64), 
 /// Read a VCPU-scope metadata field (control structure field) of a TD.
 ///
 /// Details can be found in TDX Module v1.5 ABI spec section 'TDG.VP.RD Leaf'.
-pub fn tdcall_vp_read(field: u64) -> Result<(u64, u64), TdCallError> {
+pub fn vp_read(field: u64) -> Result<(u64, u64), TdCallError> {
     let mut args = TdcallArgs {
         rax: TDCALL_VP_RD,
         rdx: field,
@@ -451,7 +451,7 @@ pub fn tdcall_vp_read(field: u64) -> Result<(u64, u64), TdCallError> {
 /// Write a VCPU-scope metadata field (control structure field) of a TD.
 ///
 /// Details can be found in TDX Module v1.5 ABI spec section 'TDG.VP.WR Leaf'.
-pub fn tdcall_vp_write(field: u64, value: u64, mask: u64) -> Result<u64, TdCallError> {
+pub fn vp_write(field: u64, value: u64, mask: u64) -> Result<u64, TdCallError> {
     let mut args = TdcallArgs {
         rax: TDCALL_VP_WR,
         rdx: field,
@@ -473,7 +473,7 @@ pub fn tdcall_vp_write(field: u64, value: u64, mask: u64) -> Result<u64, TdCallE
 /// for a specified L2 VM and a specified list of 4KB page linear addresses.
 ///
 /// Details can be found in TDX Module v1.5 ABI spec section 'TDG.VP.INVVPID Leaf'.
-pub fn tdcall_vp_invvpid(flags: u64, gla: u64) -> Result<u64, TdCallError> {
+pub fn vp_invvpid(flags: u64, gla: u64) -> Result<u64, TdCallError> {
     let mut args = TdcallArgs {
         rax: TDCALL_VP_INVVPID,
         rcx: flags,
@@ -493,7 +493,7 @@ pub fn tdcall_vp_invvpid(flags: u64, gla: u64) -> Result<u64, TdCallError> {
 /// Invalidate cached EPT translations for selected L2 VM.
 ///
 /// Details can be found in TDX Module v1.5 ABI spec section 'TDG.VP.INVEPT Leaf'.
-pub fn tdcall_vp_invept(vm_flags: u64) -> Result<(), TdCallError> {
+pub fn vp_invept(vm_flags: u64) -> Result<(), TdCallError> {
     let mut args = TdcallArgs {
         rax: TDCALL_VP_INVEPT,
         rcx: vm_flags,
@@ -512,7 +512,7 @@ pub fn tdcall_vp_invept(vm_flags: u64) -> Result<(), TdCallError> {
 /// Enter L2 VCPU operation.
 ///
 /// Details can be found in TDX Module v1.5 ABI spec section 'TDG.VP.ENTER Leaf'.
-pub fn tdcall_vp_enter(vm_flags: u64, gpa: u64) -> TdcallArgs {
+pub fn vp_enter(vm_flags: u64, gpa: u64) -> TdcallArgs {
     let mut args = TdcallArgs {
         rax: TDCALL_VP_ENTER,
         rcx: vm_flags,
@@ -528,7 +528,7 @@ pub fn tdcall_vp_enter(vm_flags: u64, gpa: u64) -> TdcallArgs {
 /// Read a TD-scope metadata field (control structure field) of a TD.
 ///
 /// Details can be found in TDX Module v1.5 ABI spec section 'TDG.VM.RD Leaf'.
-pub fn tdcall_vm_read(field: u64, version: u8) -> Result<(u64, u64), TdCallError> {
+pub fn vm_read(field: u64, version: u8) -> Result<(u64, u64), TdCallError> {
     let mut args = TdcallArgs {
         rax: TDCALL_VM_RD | (version as u64) << 16,
         rdx: field,
@@ -547,7 +547,7 @@ pub fn tdcall_vm_read(field: u64, version: u8) -> Result<(u64, u64), TdCallError
 /// Write a TD-scope metadata field (control structure field) of a TD.
 ///
 /// Details can be found in TDX Module v1.5 ABI spec section 'TDG.VM.WR Leaf'.
-pub fn tdcall_vm_write(field: u64, value: u64, mask: u64) -> Result<u64, TdCallError> {
+pub fn vm_write(field: u64, value: u64, mask: u64) -> Result<u64, TdCallError> {
     let mut args = TdcallArgs {
         rax: TDCALL_VM_WR,
         rdx: field,
@@ -568,7 +568,7 @@ pub fn tdcall_vm_write(field: u64, value: u64, mask: u64) -> Result<u64, TdCallE
 /// Write the attributes of a private page.  Create or remove L2 page aliases as required.
 ///
 /// Details can be found in TDX Module v1.5 ABI spec section 'TDG.MEM.PAGE.ATTR.WR Leaf'.
-pub fn tdcall_mem_page_attr_wr(
+pub fn mem_page_attr_wr(
     gpa_mapping: u64,
     gpa_attr: u64,
     attr_flags: u64,
@@ -615,17 +615,17 @@ mod tests {
     }
 
     #[test]
-    fn test_tdcall_servtd_rd() {
+    fn test_servtd_rd() {
         let uuid: [u64; 3] = [0; 3];
-        let ret = tdcall_servtd_rd(0x0, 0x0, &uuid);
+        let ret = servtd_rd(0x0, 0x0, &uuid);
 
         assert!(ret.is_err());
     }
 
     #[test]
-    fn test_tdcall_servtd_wr() {
+    fn test_servtd_wr() {
         let uuid: [u64; 3] = [0; 3];
-        let ret = tdcall_servtd_wr(0x0, 0x0, 0x0, &uuid);
+        let ret = servtd_wr(0x0, 0x0, 0x0, &uuid);
 
         assert!(ret.is_err());
     }
