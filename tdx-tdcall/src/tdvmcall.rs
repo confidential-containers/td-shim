@@ -14,7 +14,7 @@ use lazy_static::lazy_static;
 use crate::*;
 
 lazy_static! {
-    static ref SHARED_MASK: u64 = td_shared_mask().expect("Fail to get the shared mask of TD");
+    static ref SHARED_MASK: u64 = tdcall::td_shared_mask().expect("Fail to get the shared mask of TD");
 }
 
 // GTDG.VP.VMCALL leaf sub-function numbers
@@ -112,6 +112,13 @@ impl From<u64> for TdVmcallError {
 //
 pub fn td_vmcall(args: &mut TdVmcallArgs) -> u64 {
     unsafe { asm::asm_td_vmcall(args as *mut TdVmcallArgs as *mut c_void, 0) }
+}
+
+// An extended public wrapper for use of asm_td_vmcall.
+//
+// `do_sti` is a flag used to determine whether to execute `sti` instruction before `tdcall`
+pub fn td_vmcall_ex(args: &mut TdVmcallArgs, do_sti: bool) -> u64 {
+    unsafe { asm::asm_td_vmcall(args as *mut TdVmcallArgs as *mut c_void, do_sti as u64) }
 }
 
 /// Used to help perform HLT operation.

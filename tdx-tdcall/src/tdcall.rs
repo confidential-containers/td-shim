@@ -13,28 +13,28 @@ use crate::*;
 
 pub const PAGE_SIZE_4K: u64 = 0x1000;
 pub const PAGE_SIZE_2M: u64 = 0x200000;
-const TARGET_TD_UUID_NUM: usize = 4;
+pub const TARGET_TD_UUID_NUM: usize = 4;
 
 // Guest-Side (TDCALL) interface functions leaf numbers
-const TDCALL_TDINFO: u64 = 1;
-const TDCALL_TDEXTENDRTMR: u64 = 2;
-const TDCALL_TDGETVEINFO: u64 = 3;
-const TDCALL_TDREPORT: u64 = 4;
-const TDCALL_TDACCEPTPAGE: u64 = 6;
-const TDCALL_VM_RD: u64 = 7;
-const TDCALL_VM_WR: u64 = 8;
-const TDCALL_VP_RD: u64 = 9;
-const TDCALL_VP_WR: u64 = 10;
-const TDCALL_SYS_RD: u64 = 11;
-const TDCALL_SERVTD_RD: u64 = 18;
-const TDCALL_SERVTD_WR: u64 = 20;
-const TDCALL_MEM_PAGE_ATTR_WR: u64 = 24;
-const TDCALL_VP_ENTER: u64 = 25;
-const TDCALL_VP_INVEPT: u64 = 26;
-const TDCALL_VP_INVVPID: u64 = 27;
+pub const TDCALL_TDINFO: u64 = 1;
+pub const TDCALL_TDEXTENDRTMR: u64 = 2;
+pub const TDCALL_TDGETVEINFO: u64 = 3;
+pub const TDCALL_TDREPORT: u64 = 4;
+pub const TDCALL_TDACCEPTPAGE: u64 = 6;
+pub const TDCALL_VM_RD: u64 = 7;
+pub const TDCALL_VM_WR: u64 = 8;
+pub const TDCALL_VP_RD: u64 = 9;
+pub const TDCALL_VP_WR: u64 = 10;
+pub const TDCALL_SYS_RD: u64 = 11;
+pub const TDCALL_SERVTD_RD: u64 = 18;
+pub const TDCALL_SERVTD_WR: u64 = 20;
+pub const TDCALL_MEM_PAGE_ATTR_WR: u64 = 24;
+pub const TDCALL_VP_ENTER: u64 = 25;
+pub const TDCALL_VP_INVEPT: u64 = 26;
+pub const TDCALL_VP_INVVPID: u64 = 27;
 
 // TDCALL completion status code
-const TDCALL_STATUS_SUCCESS: u64 = 0;
+pub const TDCALL_STATUS_SUCCESS: u64 = 0;
 
 // leaf-specific completion status code
 pub const TDCALL_STATUS_PAGE_ALREADY_ACCEPTED: u64 = 0x00000B0A00000000;
@@ -78,13 +78,6 @@ pub struct TdVeInfo {
 pub struct ServtdRWResult {
     pub content: u64,
     pub uuid: [u64; 4],
-}
-
-// An extended public wrapper for use of asm_td_vmcall.
-//
-// `do_sti` is a flag used to determine whether to execute `sti` instruction before `tdcall`
-pub fn td_vmcall_ex(args: &mut TdVmcallArgs, do_sti: bool) -> u64 {
-    unsafe { asm::asm_td_vmcall(args as *mut TdVmcallArgs as *mut c_void, do_sti as u64) }
 }
 
 // Wrapper for use of asm_td_call, this function takes a mutable reference of a
