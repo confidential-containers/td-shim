@@ -1,6 +1,6 @@
 [package]
 name = "tdx-tdcall"
-version = "0.2.1"
+version = "0.3.0"
 description = "Constants, stuctures and wrappers to access TDCALL services"
 repository = "https://github.com/confidential-containers/td-shim"
 homepage = "https://github.com/confidential-containers"
