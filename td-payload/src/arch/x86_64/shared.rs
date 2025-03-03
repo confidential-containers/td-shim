@@ -11,7 +11,7 @@ pub fn decrypt(addr: u64, length: usize) {
     set_shared_bit(addr, length);
 
     // Safety: Fail to map GPA is a fatal error that we cannot handle
-    if tdx::tdvmcall_mapgpa(true, addr, length).is_err() {
+    if tdx::tdvmcall::mapgpa(true, addr, length).is_err() {
         panic!("Fail to map GPA to shared memory with TDVMCALL");
     }
 }
@@ -20,7 +20,7 @@ pub fn encrypt(addr: u64, length: usize) {
     clear_shared_bit(addr, length);
 
     // Safety: Fail to map GPA is a fatal error that we cannot handle
-    if tdx_tdcall::tdx::tdvmcall_mapgpa(false, addr, length).is_err() {
+    if tdx_tdcall::tdx::tdvmcall::mapgpa(false, addr, length).is_err() {
         panic!("Fail to map GPA to private memory with TDVMCALL");
     }
     accept_memory(addr, length);

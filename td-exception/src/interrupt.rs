@@ -351,26 +351,26 @@ fn virtualization(stack: &mut InterruptStack) {
 
     match ve_info.exit_reason {
         EXIT_REASON_HLT => {
-            tdx::tdvmcall_halt();
+            tdx::tdvmcall::halt();
         }
         EXIT_REASON_IO_INSTRUCTION => {
             if !handle_tdx_ioexit(&ve_info, stack) {
-                tdx::tdvmcall_halt();
+                tdx::tdvmcall::halt();
             }
         }
         EXIT_REASON_MSR_READ => {
-            let msr = tdx::tdvmcall_rdmsr(stack.scratch.rcx as u32)
+            let msr = tdx::tdvmcall::rdmsr(stack.scratch.rcx as u32)
                 .expect("fail to perform RDMSR operation\n");
             stack.scratch.rax = (msr as u32 & u32::MAX) as usize; // EAX
             stack.scratch.rdx = ((msr >> 32) as u32 & u32::MAX) as usize; // EDX
         }
         EXIT_REASON_MSR_WRITE => {
             let data = stack.scratch.rax as u64 | ((stack.scratch.rdx as u64) << 32); // EDX:EAX
-            tdx::tdvmcall_wrmsr(stack.scratch.rcx as u32, data)
+            tdx::tdvmcall::wrmsr(stack.scratch.rcx as u32, data)
                 .expect("fail to perform WRMSR operation\n");
         }
         EXIT_REASON_CPUID => {
-            let cpuid = tdx::tdvmcall_cpuid(stack.scratch.rax as u32, stack.scratch.rcx as u32);
+            let cpuid = tdx::tdvmcall::cpuid(stack.scratch.rax as u32, stack.scratch.rcx as u32);
             let mask = 0xFFFF_FFFF_0000_0000_usize;
             stack.scratch.rax = (stack.scratch.rax & mask) | cpuid.eax as usize;
             stack.preserved.rbx = (stack.preserved.rbx & mask) | cpuid.ebx as usize;
@@ -471,17 +471,17 @@ fn handle_tdx_ioexit(ve_info: &tdx::TdVeInfo, stack: &mut InterruptStack) -> boo
 
     // Define closure to perform IO port read with different size operands
     let io_read = |size, port| match size {
-        1 => tdx::tdvmcall_io_read_8(port) as u32,
-        2 => tdx::tdvmcall_io_read_16(port) as u32,
-        4 => tdx::tdvmcall_io_read_32(port),
+        1 => tdx::tdvmcall::io_read_8(port) as u32,
+        2 => tdx::tdvmcall::io_read_16(port) as u32,
+        4 => tdx::tdvmcall::io_read_32(port),
         _ => 0,
     };
 
     // Define closure to perform IO port write with different size operands
     let io_write = |size, port, data| match size {
-        1 => tdx::tdvmcall_io_write_8(port, data as u8),
-        2 => tdx::tdvmcall_io_write_16(port, data as u16),
-        4 => tdx::tdvmcall_io_write_32(port, data),
+        1 => tdx::tdvmcall::io_write_8(port, data as u8),
+        2 => tdx::tdvmcall::io_write_16(port, data as u16),
+        4 => tdx::tdvmcall::io_write_32(port, data),
         _ => {}
     };
 

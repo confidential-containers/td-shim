@@ -38,14 +38,14 @@ impl TestCase for Tdiorw8 {
      * io read Century of RTC
      */
     fn run(&mut self) {
-        tdx::tdvmcall_io_write_8(0x70, 0x32);
+        tdx::tdvmcall::io_write_8(0x70, 0x32);
 
-        let read1 = tdx::tdvmcall_io_read_8(0x71);
+        let read1 = tdx::tdvmcall::io_read_8(0x71);
         log::info!("First time read {}\n", read1);
 
-        tdx::tdvmcall_io_write_8(0x71, read1 + 1);
+        tdx::tdvmcall::io_write_8(0x71, read1 + 1);
 
-        let read2 = tdx::tdvmcall_io_read_8(0x71);
+        let read2 = tdx::tdvmcall::io_read_8(0x71);
         log::info!("Second time read {}\n", read2);
 
         if (read1 + 1 != read2) {

@@ -16,8 +16,8 @@ All notable changes to this project will be documented in this file.
 - Add tdcall to support memory attribute write.
 
 ### Changed
-- Change return type for tdvmcall_wrmsr, tdvmcall_rdmsr
-- Replace the & operator with addr_of! macro for tdvmcall_mmio_write/tdvmcall_mmio_read
+- Change return type for tdvmcall::wrmsr, tdvmcall::rdmsr
+- Replace the & operator with addr_of! macro for tdvmcall::mmio_write/tdvmcall::mmio_read
 - Extend TdInfo struct to add vcpu_index field
 
 ## [0.1.0] - 2024-06-07

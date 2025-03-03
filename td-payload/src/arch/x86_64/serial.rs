@@ -21,7 +21,7 @@ const SERIAL_IO_PORT: u16 = 0x3F8;
 
 #[cfg(feature = "tdx")]
 fn io_write(byte: u8) {
-    tdx_tdcall::tdx::tdvmcall_io_write_8(SERIAL_IO_PORT, byte);
+    tdx_tdcall::tdx::tdvmcall::io_write_8(SERIAL_IO_PORT, byte);
 }
 
 #[cfg(not(feature = "tdx"))]
