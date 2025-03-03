@@ -117,7 +117,7 @@ pub fn td_vmcall(args: &mut TdVmcallArgs) -> u64 {
 /// Used to help perform HLT operation.
 ///
 /// Details can be found in TDX GHCI spec section 'TDG.VP.VMCALL<Instruction.HLT>'
-pub fn tdvmcall_halt() {
+pub fn halt() {
     let interrupt_blocked = !rflags::read().contains(RFlags::INTERRUPT_FLAG);
 
     let mut args = TdVmcallArgs {
@@ -133,7 +133,7 @@ pub fn tdvmcall_halt() {
 /// `sti;hlt` which typically used for idle is not working in this case since `hlt` instruction
 /// must be the instruction next to `sti`. To use safe halt, `sti` must be executed just before
 /// `tdcall` instruction.
-pub fn tdvmcall_sti_halt() {
+pub fn sti_halt() {
     let mut args = TdVmcallArgs {
         r11: TDVMCALL_HALT,
         ..Default::default()
@@ -150,7 +150,7 @@ const IO_WRITE: u64 = 1;
 /// Request the VMM perform single byte IO read operation
 ///
 /// Details can be found in TDX GHCI spec section 'TDG.VP.VMCALL<Instruction.IO>'
-pub fn tdvmcall_io_read_8(port: u16) -> u8 {
+pub fn io_read_8(port: u16) -> u8 {
     let mut args = TdVmcallArgs {
         r11: TDVMCALL_IO,
         r12: core::mem::size_of::<u8>() as u64,
@@ -162,7 +162,7 @@ pub fn tdvmcall_io_read_8(port: u16) -> u8 {
     let ret = td_vmcall(&mut args);
 
     if ret != TDVMCALL_STATUS_SUCCESS {
-        tdvmcall_halt();
+        halt();
     }
 
     (args.r11 & 0xff) as u8
@@ -171,7 +171,7 @@ pub fn tdvmcall_io_read_8(port: u16) -> u8 {
 /// Request the VMM perform 2-bytes byte IO read operation
 ///
 /// Details can be found in TDX GHCI spec section 'TDG.VP.VMCALL<Instruction.IO>'
-pub fn tdvmcall_io_read_16(port: u16) -> u16 {
+pub fn io_read_16(port: u16) -> u16 {
     let mut args = TdVmcallArgs {
         r11: TDVMCALL_IO,
         r12: core::mem::size_of::<u16>() as u64,
@@ -183,7 +183,7 @@ pub fn tdvmcall_io_read_16(port: u16) -> u16 {
     let ret = td_vmcall(&mut args);
 
     if ret != TDVMCALL_STATUS_SUCCESS {
-        tdvmcall_halt();
+        halt();
     }
 
     (args.r11 & 0xffff) as u16
@@ -192,7 +192,7 @@ pub fn tdvmcall_io_read_16(port: u16) -> u16 {
 /// Request the VMM perform 4-bytes byte IO read operation
 ///
 /// Details can be found in TDX GHCI spec section 'TDG.VP.VMCALL<Instruction.IO>'
-pub fn tdvmcall_io_read_32(port: u16) -> u32 {
+pub fn io_read_32(port: u16) -> u32 {
     let mut args = TdVmcallArgs {
         r11: TDVMCALL_IO,
         r12: core::mem::size_of::<u32>() as u64,
@@ -204,7 +204,7 @@ pub fn tdvmcall_io_read_32(port: u16) -> u32 {
     let ret = td_vmcall(&mut args);
 
     if ret != TDVMCALL_STATUS_SUCCESS {
-        tdvmcall_halt();
+        halt();
     }
 
     (args.r11 & 0xffff_ffff) as u32
@@ -213,7 +213,7 @@ pub fn tdvmcall_io_read_32(port: u16) -> u32 {
 /// Request the VMM perform single byte IO write operation
 ///
 /// Details can be found in TDX GHCI spec section 'TDG.VP.VMCALL<Instruction.IO>'
-pub fn tdvmcall_io_write_8(port: u16, byte: u8) {
+pub fn io_write_8(port: u16, byte: u8) {
     let mut args = TdVmcallArgs {
         r11: TDVMCALL_IO,
         r12: core::mem::size_of::<u8>() as u64,
@@ -226,14 +226,14 @@ pub fn tdvmcall_io_write_8(port: u16, byte: u8) {
     let ret = td_vmcall(&mut args);
 
     if ret != TDVMCALL_STATUS_SUCCESS {
-        tdvmcall_halt();
+        halt();
     }
 }
 
 /// Request the VMM perform 2-bytes IO write operation
 ///
 /// Details can be found in TDX GHCI spec section 'TDG.VP.VMCALL<Instruction.IO>'
-pub fn tdvmcall_io_write_16(port: u16, byte: u16) {
+pub fn io_write_16(port: u16, byte: u16) {
     let mut args = TdVmcallArgs {
         r11: TDVMCALL_IO,
         r12: core::mem::size_of::<u16>() as u64,
@@ -246,14 +246,14 @@ pub fn tdvmcall_io_write_16(port: u16, byte: u16) {
     let ret = td_vmcall(&mut args);
 
     if ret != TDVMCALL_STATUS_SUCCESS {
-        tdvmcall_halt();
+        halt();
     }
 }
 
 /// Request the VMM perform 4-bytes IO write operation
 ///
 /// Details can be found in TDX GHCI spec section 'TDG.VP.VMCALL<Instruction.IO>'
-pub fn tdvmcall_io_write_32(port: u16, byte: u32) {
+pub fn io_write_32(port: u16, byte: u32) {
     let mut args = TdVmcallArgs {
         r11: TDVMCALL_IO,
         r12: core::mem::size_of::<u32>() as u64,
@@ -266,14 +266,14 @@ pub fn tdvmcall_io_write_32(port: u16, byte: u32) {
     let ret = td_vmcall(&mut args);
 
     if ret != TDVMCALL_STATUS_SUCCESS {
-        tdvmcall_halt();
+        halt();
     }
 }
 
 /// Used to help request the VMM perform emulated-MMIO-write operation.
 ///
 /// Details can be found in TDX GHCI spec section 'TDG.VP.VMCALL<#VE.RequestMMIO>'
-pub fn tdvmcall_mmio_write<T: Sized>(address: *const T, value: T) {
+pub fn mmio_write<T: Sized>(address: *const T, value: T) {
     let address = address as u64 | *SHARED_MASK;
     fence(Ordering::SeqCst);
     let val = unsafe { *(core::ptr::addr_of!(value) as *const u64) };
@@ -290,14 +290,14 @@ pub fn tdvmcall_mmio_write<T: Sized>(address: *const T, value: T) {
     let ret = td_vmcall(&mut args);
 
     if ret != TDVMCALL_STATUS_SUCCESS {
-        tdvmcall_halt();
+        halt();
     }
 }
 
 /// Used to help request the VMM perform emulated-MMIO-read operation.
 ///
 /// Details can be found in TDX GHCI spec section 'TDG.VP.VMCALL<#VE.RequestMMIO>'
-pub fn tdvmcall_mmio_read<T: Clone + Copy + Sized>(address: usize) -> T {
+pub fn mmio_read<T: Clone + Copy + Sized>(address: usize) -> T {
     let address = address as u64 | *SHARED_MASK;
     fence(Ordering::SeqCst);
 
@@ -312,7 +312,7 @@ pub fn tdvmcall_mmio_read<T: Clone + Copy + Sized>(address: usize) -> T {
     let ret = td_vmcall(&mut args);
 
     if ret != TDVMCALL_STATUS_SUCCESS {
-        tdvmcall_halt();
+        halt();
     }
 
     unsafe { *(core::ptr::addr_of!(args.r11) as *const T) }
@@ -322,7 +322,7 @@ pub fn tdvmcall_mmio_read<T: Clone + Copy + Sized>(address: usize) -> T {
 /// It can be used to convert page mappings from private to shared or vice versa
 ///
 /// Details can be found in TDX GHCI spec section 'TDG.VP.VMCALL<MapGPA>'
-pub fn tdvmcall_mapgpa(shared: bool, paddr: u64, length: usize) -> Result<(), TdVmcallError> {
+pub fn mapgpa(shared: bool, paddr: u64, length: usize) -> Result<(), TdVmcallError> {
     let share_bit = *SHARED_MASK;
     let mut map_start = if shared {
         paddr | share_bit
@@ -378,7 +378,7 @@ pub fn tdvmcall_mapgpa(shared: bool, paddr: u64, length: usize) -> Result<(), Td
 /// Used to help perform RDMSR operation.
 ///
 /// Details can be found in TDX GHCI spec section 'TDG.VP.VMCALL<Instruction.RDMSR>'
-pub fn tdvmcall_rdmsr(index: u32) -> Result<u64, TdVmcallError> {
+pub fn rdmsr(index: u32) -> Result<u64, TdVmcallError> {
     let mut args = TdVmcallArgs {
         r11: TDVMCALL_RDMSR,
         r12: index as u64,
@@ -397,7 +397,7 @@ pub fn tdvmcall_rdmsr(index: u32) -> Result<u64, TdVmcallError> {
 /// Used to help perform WRMSR operation.
 ///
 /// Details can be found in TDX GHCI spec section 'TDG.VP.VMCALL<Instruction.WRMSR>'
-pub fn tdvmcall_wrmsr(index: u32, value: u64) -> Result<(), TdVmcallError> {
+pub fn wrmsr(index: u32, value: u64) -> Result<(), TdVmcallError> {
     let mut args = TdVmcallArgs {
         r11: TDVMCALL_WRMSR,
         r12: index as u64,
@@ -417,7 +417,7 @@ pub fn tdvmcall_wrmsr(index: u32, value: u64) -> Result<(), TdVmcallError> {
 /// Used to enable the TD-guest to request the VMM to emulate the CPUID operation
 ///
 /// Details can be found in TDX GHCI spec section 'TDG.VP.VMCALL<Instruction.WRMSR>'
-pub fn tdvmcall_cpuid(eax: u32, ecx: u32) -> CpuIdInfo {
+pub fn cpuid(eax: u32, ecx: u32) -> CpuIdInfo {
     let mut args = TdVmcallArgs {
         r11: TDVMCALL_CPUID,
         r12: eax as u64,
@@ -428,7 +428,7 @@ pub fn tdvmcall_cpuid(eax: u32, ecx: u32) -> CpuIdInfo {
     let ret = td_vmcall(&mut args);
 
     if ret != TDVMCALL_STATUS_SUCCESS {
-        tdvmcall_halt();
+        halt();
     }
 
     CpuIdInfo {
@@ -443,7 +443,7 @@ pub fn tdvmcall_cpuid(eax: u32, ecx: u32) -> CpuIdInfo {
 /// vector.
 ///
 /// Details can be found in TDX GHCI spec section 'TDG.VP.VMCALL<SetupEventNotifyInterrupt>'
-pub fn tdvmcall_setup_event_notify(vector: u64) -> Result<(), TdVmcallError> {
+pub fn setup_event_notify(vector: u64) -> Result<(), TdVmcallError> {
     let mut args = TdVmcallArgs {
         r11: TDVMCALL_SETUPEVENTNOTIFY,
         r12: vector,
@@ -464,7 +464,7 @@ pub fn tdvmcall_setup_event_notify(vector: u64) -> Result<(), TdVmcallError> {
 /// Details can be found in TDX GHCI spec section 'TDG.VP.VMCALL<GetQuote>'
 ///
 /// * buffer: a piece of 4KB-aligned shared memory
-pub fn tdvmcall_get_quote(buffer: &mut [u8]) -> Result<(), TdVmcallError> {
+pub fn get_quote(buffer: &mut [u8]) -> Result<(), TdVmcallError> {
     let addr = buffer.as_mut_ptr() as u64 | *SHARED_MASK;
 
     let mut args = TdVmcallArgs {
@@ -491,7 +491,7 @@ pub fn tdvmcall_get_quote(buffer: &mut [u8]) -> Result<(), TdVmcallError> {
 /// * response: a piece of 4KB-aligned shared memory as ouput
 /// * interrupt: event notification interrupt vector, valid values [32-255]
 /// * wait_time: Maximum wait time for the command and response
-pub fn tdvmcall_service(
+pub fn service(
     command: &[u8],
     response: &mut [u8],
     interrupt: u64,
