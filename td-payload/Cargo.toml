@@ -35,8 +35,9 @@ zerocopy = { version = "0.7.31", features = ["derive"] }
 minicov = { version = "0.2", default-features = false, optional = true }
 
 [features]
-default = ["tdx"]
-tdx = ["tdx-tdcall", "td-logger/tdx", "td-exception/tdx"]
+default = ["tdcall"]
+tdcall = ["tdx-tdcall/tdcall", "td-exception/tdcall"]
+tdvmcall = ["tdx-tdcall/tdvmcall", "td-logger/tdvmcall"]
 stack-guard = []
 cet-shstk = ["td-exception/cet-shstk"]
 cet-ibt = []

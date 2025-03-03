@@ -10,5 +10,4 @@ pub mod idt;
 pub mod init;
 pub mod paging;
 pub mod serial;
-#[cfg(feature = "tdx")]
 pub mod shared;

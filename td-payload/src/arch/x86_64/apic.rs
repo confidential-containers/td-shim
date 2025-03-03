@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Intel Corporation
+// Copyright (c) 2022, 2025 Intel Corporation
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
@@ -13,21 +13,22 @@ pub const LOCAL_APIC_LVTT: u32 = 0xfee0_0320;
 pub const INITIAL_COUNT: u32 = 0xfee0_0380;
 pub const DIVIDE_CONFIGURATION_REGISTER: u32 = 0xfee0_03e0;
 
+#[cfg(feature = "tdvmcall")]
 pub fn enable_apic_interrupt() {
     // Enable the local APIC by setting bit 8 of the APIC spurious vector region (SVR)
     // Ref: Intel SDM Vol3. 8.4.4.1
     // In x2APIC mode, SVR is mapped to MSR address 0x80f.
     // Since SVR(SIVR) is not virtualized, before we implement the handling in #VE of MSRRD/WR,
     // use tdvmcall instead direct read/write operation.
-    let svr = tdx_tdcall::tdx::tdvmcall::rdmsr(0x80f).expect("fail to perform RDMSR operation\n");
-    tdx_tdcall::tdx::tdvmcall::wrmsr(0x80f, svr | (0x1 << 8))
+    let svr = tdx_tdcall::tdvmcall::rdmsr(0x80f).expect("fail to perform RDMSR operation\n");
+    tdx_tdcall::tdvmcall::wrmsr(0x80f, svr | (0x1 << 8))
         .expect("fail to perform WRMSR operation\n");
 }
 
 pub fn enable_and_hlt() {
-    #[cfg(feature = "tdx")]
-    tdx_tdcall::tdx::tdvmcall::sti_halt();
-    #[cfg(not(feature = "tdx"))]
+    #[cfg(feature = "tdvmcall")]
+    tdx_tdcall::tdvmcall::sti_halt();
+    #[cfg(not(feature = "tdvmcall"))]
     x86_64::instructions::interrupts::enable_and_hlt()
 }
 

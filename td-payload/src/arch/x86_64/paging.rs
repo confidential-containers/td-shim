@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Intel Corporation
+// Copyright (c) 2022, 2025 Intel Corporation
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
@@ -129,13 +129,13 @@ pub fn set_not_present(address: u64, size: usize) {
     set_page_flags(&mut pt, address, size, flags);
 }
 
-#[cfg(feature = "tdx")]
+#[cfg(feature = "tdcall")]
 pub fn set_shared_bit(address: u64, size: usize) {
     let mut pt = offset_pt();
     map_shared(&mut pt, address, size, true);
 }
 
-#[cfg(feature = "tdx")]
+#[cfg(feature = "tdcall")]
 pub fn clear_shared_bit(address: u64, size: usize) {
     let mut pt = offset_pt();
     map_shared(&mut pt, address, size, false);
@@ -202,7 +202,7 @@ pub(crate) fn set_page_flags(pt: &mut OffsetPageTable, va: u64, size: usize, fla
     }
 }
 
-#[cfg(feature = "tdx")]
+#[cfg(feature = "tdcall")]
 fn map_shared(pt: &mut OffsetPageTable, va: u64, size: usize, shared: bool) {
     let end = va + size as u64;
     let mut va = VirtAddr::new(va);
@@ -217,7 +217,7 @@ fn map_shared(pt: &mut OffsetPageTable, va: u64, size: usize, shared: bool) {
     }
 }
 
-#[cfg(feature = "tdx")]
+#[cfg(feature = "tdcall")]
 fn pt_set_shared_bit(pt: &mut OffsetPageTable, page: &Page, shared: bool) {
     let p4 = pt.level_4_table();
     let p3 = unsafe { &mut *(p4.index(page.p4_index()).addr().as_u64() as *mut PageTable) };
@@ -237,10 +237,10 @@ fn pt_set_shared_bit(pt: &mut OffsetPageTable, page: &Page, shared: bool) {
     }
 }
 
-#[cfg(feature = "tdx")]
+#[cfg(feature = "tdcall")]
 fn pt_entry_set_shared_bit(page_table: &mut PageTable, index: PageTableIndex, shared: bool) {
     let entry = page_table.index(index);
-    let shared_bit = tdx_tdcall::tdx::td_shared_mask().expect("Failed to get shared bit of GPA");
+    let shared_bit = tdx_tdcall::tdcall::td_shared_mask().expect("Failed to get shared bit of GPA");
 
     let addr = if shared {
         entry.addr().as_u64() | shared_bit

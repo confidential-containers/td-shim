@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Intel Corporation
+// Copyright (c) 2022, 2025 Intel Corporation
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
@@ -19,12 +19,12 @@ pub fn serial_write_string(s: &str) {
 
 const SERIAL_IO_PORT: u16 = 0x3F8;
 
-#[cfg(feature = "tdx")]
+#[cfg(feature = "tdvmcall")]
 fn io_write(byte: u8) {
-    tdx_tdcall::tdx::tdvmcall::io_write_8(SERIAL_IO_PORT, byte);
+    tdx_tdcall::tdvmcall::io_write_8(SERIAL_IO_PORT, byte);
 }
 
-#[cfg(not(feature = "tdx"))]
+#[cfg(not(feature = "tdvmcall"))]
 fn io_write(byte: u8) {
     unsafe { x86::io::outb(SERIAL_IO_PORT, byte) };
 }
