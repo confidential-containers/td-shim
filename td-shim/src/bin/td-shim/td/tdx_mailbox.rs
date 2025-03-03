@@ -10,7 +10,7 @@ use core::cmp::min;
 use core::ops::RangeInclusive;
 use td_exception::idt::DescriptorTablePointer;
 use td_layout::memslice::{get_mem_slice_mut, SliceType};
-use tdx_tdcall::{self, tdx::*};
+use tdx_tdcall::{self, tdcall::*};
 
 use crate::asm::{ap_relocated_func_addr, ap_relocated_func_size};
 

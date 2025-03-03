@@ -4,8 +4,16 @@
 use core::arch::global_asm;
 
 global_asm!(include_str!("msr64.asm"));
-global_asm!(include_str!("ap_loop.asm"));
+
+#[cfg(not(feature = "tdvmcall"))]
 global_asm!(include_str!("exception.asm"));
+#[cfg(not(feature = "tdvmcall"))]
+global_asm!(include_str!("ap_loop_notdvmcall.asm"));
+
+#[cfg(feature = "tdvmcall")]
+global_asm!(include_str!("exception_notdvmcall.asm"));
+#[cfg(feature = "tdvmcall")]
+global_asm!(include_str!("ap_loop.asm"));
 
 extern "C" {
     fn ap_relocated_func();

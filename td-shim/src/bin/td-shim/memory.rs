@@ -224,7 +224,7 @@ impl<'a> Memory<'a> {
             regions.push(new);
         }
 
-        #[cfg(feature = "tdx")]
+        #[cfg(feature = "tdcall")]
         Self::accept_memory_resources(&mut regions);
 
         regions
@@ -245,7 +245,7 @@ impl<'a> Memory<'a> {
         false
     }
 
-    #[cfg(feature = "tdx")]
+    #[cfg(feature = "tdcall")]
     /// Build a 2M granularity bitmap for kernel to track the unaccepted memory
     pub fn build_unaccepted_memory_bitmap(&self) -> u64 {
         #[cfg(not(feature = "lazy-accept"))]
@@ -287,7 +287,7 @@ impl<'a> Memory<'a> {
             .base_address as u64
     }
 
-    #[cfg(feature = "tdx")]
+    #[cfg(feature = "tdcall")]
     fn accept_memory_resources(resources: &mut Vec<ResourceDescription>) {
         use td_layout::TD_PAYLOAD_PARTIAL_ACCEPT_MEMORY_SIZE;
         use td_shim_interface::td_uefi_pi::pi;

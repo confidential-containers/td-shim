@@ -196,7 +196,7 @@ fn boot_linux_kernel(
         e820_table.as_slice(),
         mailbox,
         kernel_info,
-        #[cfg(feature = "tdx")]
+        #[cfg(feature = "tdcall")]
         mem.build_unaccepted_memory_bitmap(),
     );
     panic!("Linux kernel should not return here!!!");

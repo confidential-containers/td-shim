@@ -32,7 +32,7 @@ linked_list_allocator = { version = "0.10", optional = true }
 log = { version = "0.4.13", features = ["release_max_level_off"], optional = true }
 ring = { version = "0.17.6", default-features = false, features = ["alloc"], optional = true }
 spin = { version = "0.9.2", optional = true }
-td-exception =  { path = "../td-exception", features = ["tdx"], optional = true }
+td-exception =  { path = "../td-exception", optional = true }
 td-logger =  { path = "../td-logger", optional = true }
 td-paging = { path = "../td-paging", optional = true }
 x86 = { version ="0.47.0", optional = true }
@@ -47,8 +47,9 @@ tdx-tdcall = { path = "../tdx-tdcall", optional = true }
 [features]
 default = ["secure-boot"]
 secure-boot = ["der", "ring"]
-tdx = ["tdx-tdcall", "td-exception/tdx", "td-logger/tdx", "x86"]
-lazy-accept = ["tdx"]
+tdcall = ["tdx-tdcall/tdcall", "td-exception/tdcall", "x86"]
+tdvmcall = ["tdx-tdcall/tdvmcall", "td-exception/tdvmcall", "td-logger/tdvmcall", "x86"]
+lazy-accept = ["tdcall"]
 ring-hash = ["cc-measurement/ring"]
 sha2-hash = ["cc-measurement/sha2"]
 main = [

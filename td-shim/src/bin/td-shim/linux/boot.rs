@@ -62,13 +62,13 @@ pub fn boot_kernel(
     e820: &[E820Entry],
     mailbox: &mut [u8],
     info: &PayloadInfo,
-    #[cfg(feature = "tdx")] unaccepted_bitmap: u64,
+    #[cfg(feature = "tdcall")] unaccepted_bitmap: u64,
 ) -> Result<(), Error> {
     let mut params: BootParams = BootParams::default();
     params.acpi_rsdp_addr = rsdp_addr;
     params.e820_entries = e820.len() as u8;
     params.e820_table[..e820.len()].copy_from_slice(e820);
-    #[cfg(feature = "tdx")]
+    #[cfg(feature = "tdcall")]
     {
         params.unaccepted_memory = unaccepted_bitmap;
     }
