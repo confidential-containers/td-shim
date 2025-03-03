@@ -51,7 +51,7 @@ pub extern "C" fn main() -> ! {
         stack::bench_stack();
     }
 
-    #[cfg(feature = "tdx")]
+    #[cfg(feature = "tdcall")]
     {
         use tdx_tdcall::tdreport::TD_REPORT_ADDITIONAL_DATA_SIZE;
         //Dump TD Report

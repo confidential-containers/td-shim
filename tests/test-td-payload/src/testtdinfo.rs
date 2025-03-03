@@ -57,7 +57,7 @@ impl TestCase for Tdinfo {
      * run the test case
      */
     fn run(&mut self) {
-        let mut td_info = tdx::tdcall_get_td_info().expect("Failt to get td info");
+        let mut td_info = tdx::tdcall::get_td_info().expect("Failt to get td info");
         // Only GPAW values 48 and 52 are possible.
         if (td_info.gpaw != 52) && (td_info.gpaw != 48) {
             log::info!(

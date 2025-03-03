@@ -26,7 +26,7 @@
 .global td_vm_call
 td_vm_call:
         endbr64
-        # tdcall_push_regs
+        # tdcall::push_regs
         push rbp
         mov  rbp, rsp
         push r15
@@ -43,7 +43,7 @@ td_vm_call:
         mov  r14, r9
         mov  r15, [rsp+first_variable_on_stack_offset]
 
-       #tdcall_regs_preamble TDVMCALL, TDVMCALL_EXPOSE_REGS_MASK
+       #tdcall::regs_preamble TDVMCALL, TDVMCALL_EXPOSE_REGS_MASK
         mov rax, TDVMCALL
 
         mov ecx, TDVMCALL_EXPOSE_REGS_MASK
@@ -89,7 +89,7 @@ td_vm_call:
        mov [r9], r11
 
 no_return_data:
-        #tdcall_regs_postamble
+        #tdcall::regs_postamble
         xor ebx, ebx
         xor esi, esi
         xor edi, edi
@@ -101,7 +101,7 @@ no_return_data:
         xor r10d, r10d
         xor r11d, r11d
 
-        # tdcall_pop_regs
+        # tdcall::pop_regs
         pop rdi
         pop rsi
         pop rbx

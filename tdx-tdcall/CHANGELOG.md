@@ -8,11 +8,11 @@ All notable changes to this project will be documented in this file.
 
 ## [0.2.0] - 2024-06-21
 ### Added
-- Wrapper to tdcall_accept_page to accept a memory range (for both normal 4K as well as 2M large pages).
-- Add tdcall_vm_read/write to access TD-scope meta field of a TD.
-- Add tdcall_vp_read/write is to access vCPU-scope meta field of a TD.
-- Add tdcall_vp_invept/invvpid to provide SEPT flushing support.
-- Add tdcall_vp_enter support.
+- Wrapper to tdcall::accept_page to accept a memory range (for both normal 4K as well as 2M large pages).
+- Add tdcall::vm_read/write to access TD-scope meta field of a TD.
+- Add tdcall::vp_read/write is to access vCPU-scope meta field of a TD.
+- Add tdcall::vp_invept/invvpid to provide SEPT flushing support.
+- Add tdcall::vp_enter support.
 - Add tdcall to support memory attribute write.
 
 ### Changed

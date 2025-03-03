@@ -38,7 +38,7 @@ pub fn set_idt(idt_ptr: &DescriptorTablePointer) {
 }
 
 pub fn get_num_vcpus() -> u32 {
-    let td_info = tdx::tdcall_get_td_info().expect("Fail to get TDINFO");
+    let td_info = tdx::tdcall::get_td_info().expect("Fail to get TDINFO");
 
     log::info!("gpaw - {:?}\n", td_info.gpaw);
     log::info!("num_vcpus - {:?}\n", td_info.num_vcpus);
@@ -54,5 +54,5 @@ pub fn extend_rtmr(data: &[u8; SHA384_DIGEST_SIZE], mr_index: u32) -> Result<(),
         e => return Err(CcEventLogError::InvalidMrIndex(e)),
     };
 
-    tdx::tdcall_extend_rtmr(&digest, rtmr_index).map_err(|_| CcEventLogError::ExtendMr)
+    tdx::tdcall::extend_rtmr(&digest, rtmr_index).map_err(|_| CcEventLogError::ExtendMr)
 }

@@ -347,7 +347,7 @@ const EXIT_REASON_WBINVD: u32 = 54;
 #[cfg(feature = "tdx")]
 fn virtualization(stack: &mut InterruptStack) {
     // Firstly get VE information from TDX module, halt it error occurs
-    let ve_info = tdx::tdcall_get_ve_info().expect("#VE handler: fail to get VE info\n");
+    let ve_info = tdx::tdcall::get_ve_info().expect("#VE handler: fail to get VE info\n");
 
     match ve_info.exit_reason {
         EXIT_REASON_HLT => {

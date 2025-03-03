@@ -19,7 +19,7 @@
 .global td_call
 td_call:
         endbr64
-        # tdcall_push_regs
+        # tdcall::push_regs
         push rbp
         mov rbp, rsp
         push r15
@@ -57,7 +57,7 @@ td_call:
        mov [r12+32], r10
        mov [r12+40], r11
 exit:
-        # tdcall_pop_regs
+        # tdcall::pop_regs
         pop rdi
         pop rsi
         pop rbx

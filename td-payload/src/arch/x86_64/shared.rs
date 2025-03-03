@@ -30,7 +30,7 @@ fn accept_memory(addr: u64, length: usize) {
     let page_num = length / SIZE_4K;
 
     for p in 0..page_num {
-        if let Err(e) = tdx::tdcall_accept_page(addr + (p * SIZE_4K) as u64) {
+        if let Err(e) = tdx::tdcall::accept_page(addr + (p * SIZE_4K) as u64) {
             if let tdx_tdcall::TdCallError::LeafSpecific(error_code) = e {
                 if error_code == tdx_tdcall::TDCALL_STATUS_PAGE_ALREADY_ACCEPTED {
                     continue;
