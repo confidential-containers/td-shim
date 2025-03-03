@@ -4,8 +4,12 @@
 
 use core::arch::asm;
 use spin::Mutex;
-#[cfg(feature = "tdx")]
-use tdx_tdcall::tdx;
+
+#[cfg(feature = "tdvmcall")]
+use tdx_tdcall::tdcall;
+
+#[cfg(feature = "tdvmcall")]
+use tdx_tdcall::tdvmcall;
 
 use crate::{idt::IDT_ENTRY_COUNT, ExceptionError};
 
@@ -141,7 +145,7 @@ pub(crate) fn init_interrupt_callbacks() {
     callbacks.table[17].func = alignment_check;
     callbacks.table[18].func = machine_check;
     callbacks.table[19].func = simd;
-    #[cfg(feature = "tdx")]
+    #[cfg(all(feature = "tdcall", feature = "tdvmcall"))]
     {
         callbacks.table[20].func = virtualization;
     }
@@ -323,54 +327,54 @@ fn control_flow(stack: &mut InterruptStack) {
     deadloop();
 }
 
-#[cfg(feature = "tdx")]
+#[cfg(all(feature = "tdcall", feature = "tdvmcall"))]
 const EXIT_REASON_CPUID: u32 = 10;
-#[cfg(feature = "tdx")]
+#[cfg(all(feature = "tdcall", feature = "tdvmcall"))]
 const EXIT_REASON_HLT: u32 = 12;
-#[cfg(feature = "tdx")]
+#[cfg(all(feature = "tdcall", feature = "tdvmcall"))]
 const EXIT_REASON_RDPMC: u32 = 15;
-#[cfg(feature = "tdx")]
+#[cfg(all(feature = "tdcall", feature = "tdvmcall"))]
 const EXIT_REASON_VMCALL: u32 = 18;
-#[cfg(feature = "tdx")]
+#[cfg(all(feature = "tdcall", feature = "tdvmcall"))]
 const EXIT_REASON_IO_INSTRUCTION: u32 = 30;
-#[cfg(feature = "tdx")]
+#[cfg(all(feature = "tdcall", feature = "tdvmcall"))]
 const EXIT_REASON_MSR_READ: u32 = 31;
-#[cfg(feature = "tdx")]
+#[cfg(all(feature = "tdcall", feature = "tdvmcall"))]
 const EXIT_REASON_MSR_WRITE: u32 = 32;
-#[cfg(feature = "tdx")]
+#[cfg(all(feature = "tdcall", feature = "tdvmcall"))]
 const EXIT_REASON_MWAIT_INSTRUCTION: u32 = 36;
-#[cfg(feature = "tdx")]
+#[cfg(all(feature = "tdcall", feature = "tdvmcall"))]
 const EXIT_REASON_MONITOR_INSTRUCTION: u32 = 39;
-#[cfg(feature = "tdx")]
+#[cfg(all(feature = "tdcall", feature = "tdvmcall"))]
 const EXIT_REASON_WBINVD: u32 = 54;
 
-#[cfg(feature = "tdx")]
+#[cfg(all(feature = "tdcall", feature = "tdvmcall"))]
 fn virtualization(stack: &mut InterruptStack) {
     // Firstly get VE information from TDX module, halt it error occurs
-    let ve_info = tdx::tdcall::get_ve_info().expect("#VE handler: fail to get VE info\n");
+    let ve_info = tdcall::get_ve_info().expect("#VE handler: fail to get VE info\n");
 
     match ve_info.exit_reason {
         EXIT_REASON_HLT => {
-            tdx::tdvmcall::halt();
+            tdvmcall::halt();
         }
         EXIT_REASON_IO_INSTRUCTION => {
             if !handle_tdx_ioexit(&ve_info, stack) {
-                tdx::tdvmcall::halt();
+                tdvmcall::halt();
             }
         }
         EXIT_REASON_MSR_READ => {
-            let msr = tdx::tdvmcall::rdmsr(stack.scratch.rcx as u32)
+            let msr = tdvmcall::rdmsr(stack.scratch.rcx as u32)
                 .expect("fail to perform RDMSR operation\n");
             stack.scratch.rax = (msr as u32 & u32::MAX) as usize; // EAX
             stack.scratch.rdx = ((msr >> 32) as u32 & u32::MAX) as usize; // EDX
         }
         EXIT_REASON_MSR_WRITE => {
             let data = stack.scratch.rax as u64 | ((stack.scratch.rdx as u64) << 32); // EDX:EAX
-            tdx::tdvmcall::wrmsr(stack.scratch.rcx as u32, data)
+            tdvmcall::wrmsr(stack.scratch.rcx as u32, data)
                 .expect("fail to perform WRMSR operation\n");
         }
         EXIT_REASON_CPUID => {
-            let cpuid = tdx::tdvmcall::cpuid(stack.scratch.rax as u32, stack.scratch.rcx as u32);
+            let cpuid = tdvmcall::cpuid(stack.scratch.rax as u32, stack.scratch.rcx as u32);
             let mask = 0xFFFF_FFFF_0000_0000_usize;
             stack.scratch.rax = (stack.scratch.rax & mask) | cpuid.eax as usize;
             stack.preserved.rbx = (stack.preserved.rbx & mask) | cpuid.ebx as usize;
@@ -451,8 +455,8 @@ fn virtualization(stack: &mut InterruptStack) {
 //
 // Use TDVMCALL to realize IO read/write operation
 // Return false if VE info is invalid
-#[cfg(feature = "tdx")]
-fn handle_tdx_ioexit(ve_info: &tdx::TdVeInfo, stack: &mut InterruptStack) -> bool {
+#[cfg(all(feature = "tdcall", feature = "tdvmcall"))]
+fn handle_tdx_ioexit(ve_info: &tdcall::TdVeInfo, stack: &mut InterruptStack) -> bool {
     let size = ((ve_info.exit_qualification & 0x7) + 1) as usize; // 0 - 1bytes, 1 - 2bytes, 3 - 4bytes
     let read = (ve_info.exit_qualification >> 3) & 0x1 == 1;
     let string = (ve_info.exit_qualification >> 4) & 0x1 == 1;
@@ -471,17 +475,17 @@ fn handle_tdx_ioexit(ve_info: &tdx::TdVeInfo, stack: &mut InterruptStack) -> boo
 
     // Define closure to perform IO port read with different size operands
     let io_read = |size, port| match size {
-        1 => tdx::tdvmcall::io_read_8(port) as u32,
-        2 => tdx::tdvmcall::io_read_16(port) as u32,
-        4 => tdx::tdvmcall::io_read_32(port),
+        1 => tdvmcall::io_read_8(port) as u32,
+        2 => tdvmcall::io_read_16(port) as u32,
+        4 => tdvmcall::io_read_32(port),
         _ => 0,
     };
 
     // Define closure to perform IO port write with different size operands
     let io_write = |size, port, data| match size {
-        1 => tdx::tdvmcall::io_write_8(port, data as u8),
-        2 => tdx::tdvmcall::io_write_16(port, data as u16),
-        4 => tdx::tdvmcall::io_write_32(port, data),
+        1 => tdvmcall::io_write_8(port, data as u8),
+        2 => tdvmcall::io_write_16(port, data as u16),
+        4 => tdvmcall::io_write_32(port, data),
         _ => {}
     };
 
