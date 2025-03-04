@@ -25,6 +25,17 @@ pub fn enable_apic_interrupt() {
         .expect("fail to perform WRMSR operation\n");
 }
 
+#[cfg(not(feature = "tdvmcall"))]
+pub fn enable_apic_interrupt() {
+    // Enable the local APIC by setting bit 8 of the APIC spurious vector region (SVR)
+    // Ref: Intel SDM Vol3. 8.4.4.1
+    // In x2APIC mode, SVR is mapped to MSR address 0x80f.
+    let svr = unsafe { x86::msr::rdmsr(0x80f) };
+    unsafe {
+        x86::msr::wrmsr(0x80f, svr | (0x1 << 8));
+    }
+}
+
 pub fn enable_and_hlt() {
     #[cfg(feature = "tdvmcall")]
     tdx_tdcall::tdvmcall::sti_halt();
