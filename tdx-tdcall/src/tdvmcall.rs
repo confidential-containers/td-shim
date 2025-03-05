@@ -7,14 +7,15 @@
 //! TDVMCALL (TDG.VP.VMCALL) is a leaf function 0 for TDCALL. It helps invoke services from
 //! the host VMM.
 
+use crate::*;
 use core::result::Result;
-use x86_64::registers::rflags::{self, RFlags};
 use core::sync::atomic::{fence, Ordering};
 use lazy_static::lazy_static;
-use crate::*;
+use x86_64::registers::rflags::{self, RFlags};
 
 lazy_static! {
-    static ref SHARED_MASK: u64 = tdcall::td_shared_mask().expect("Fail to get the shared mask of TD");
+    static ref SHARED_MASK: u64 =
+        tdcall::td_shared_mask().expect("Fail to get the shared mask of TD");
 }
 
 // GTDG.VP.VMCALL leaf sub-function numbers

@@ -7,7 +7,7 @@ use core::mem::{size_of, zeroed};
 use core::ptr::{slice_from_raw_parts, slice_from_raw_parts_mut};
 use scroll::{Pread, Pwrite};
 
-use crate::tdcall::{td_call, TdCallError, TdcallArgs, TDCALL_TDREPORT, TDCALL_STATUS_SUCCESS};
+use crate::tdcall::{td_call, TdCallError, TdcallArgs, TDCALL_STATUS_SUCCESS, TDCALL_TDREPORT};
 
 pub const TD_REPORT_SIZE: usize = 0x400;
 pub const TD_REPORT_ADDITIONAL_DATA_SIZE: usize = 64;

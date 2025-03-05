@@ -8,8 +8,8 @@
 //! The TDCALL instruction causes a VM exit to the Intel TDX Module. It is used to call
 //! guest-side Intel TDX functions, either local or a TD exit to the host VMM.
 
-use core::result::Result;
 use crate::*;
+use core::result::Result;
 
 pub const PAGE_SIZE_4K: u64 = 0x1000;
 pub const PAGE_SIZE_2M: u64 = 0x200000;

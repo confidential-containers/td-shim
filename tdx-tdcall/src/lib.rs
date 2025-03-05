@@ -30,8 +30,8 @@ pub const USE_TDX_EMULATION: bool = false;
 
 pub mod asm;
 #[cfg(feature = "tdcall")]
-pub mod tdreport;
-#[cfg(feature = "tdcall")]
 pub mod tdcall;
+#[cfg(feature = "tdcall")]
+pub mod tdreport;
 #[cfg(feature = "tdvmcall")]
 pub mod tdvmcall;

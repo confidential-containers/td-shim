@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
-
 #[cfg(feature = "tdcall")]
 use crate::mm::SIZE_4K;
 #[cfg(feature = "tdcall")]
