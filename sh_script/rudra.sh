@@ -34,7 +34,7 @@ for i in ${paths[@]}; do
     pushd $PWD/$i
 
     case "$i" in
-    td-shim) cargo rudra --features main,tdx ;;
+    td-shim) cargo rudra --features main,tdcall,tdvmcall ;;
     *) cargo rudra ;;
     esac
 
