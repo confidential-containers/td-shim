@@ -5,10 +5,10 @@ use core::arch::global_asm;
 use core::ffi::c_void;
 
 #[cfg(feature = "use_tdx_emulation")]
-global_asm!(include_str!("tdcall::emu.asm"));
+global_asm!(include_str!("tdcall_emu.asm"));
 
 #[cfg(feature = "use_tdx_emulation")]
-global_asm!(include_str!("tdvmcall::emu.asm"));
+global_asm!(include_str!("tdvmcall_emu.asm"));
 
 #[cfg(not(feature = "use_tdx_emulation"))]
 global_asm!(include_str!("tdcall.asm"));
