@@ -11,7 +11,7 @@ use std::{
 };
 use xshell::{cmd, Shell};
 
-const TD_SHIM_DEFAULT_FEATURES: &str = "main,tdcall";
+const TD_SHIM_DEFAULT_FEATURES: &str = "main,tdcall,tdvmcall";
 
 lazy_static! {
     static ref PROJECT_ROOT: &'static Path =
@@ -42,7 +42,7 @@ pub(crate) struct BuildArgs {
     #[arg(short, long)]
     output: Option<PathBuf>,
     /// List of features of `td-shim` crate to activate in addition to the `main` and `tdcall`,
-    /// separated by comma. By default, only the `main` and `tdcall` features of `td-shim` are enabled
+    /// separated by comma. By default, only the `main`, `tdcall` and `tdvmcall` features of `td-shim` are enabled
     #[arg(long)]
     features: Option<String>,
     /// Path of customized metadata configuration file
@@ -140,7 +140,7 @@ impl BuildArgs {
             sh,
             "cargo build -p td-payload --bin example --target x86_64-unknown-none"
         )
-        .args(["--features", "tdcall,start,cet-shstk,stack-guard"])
+        .args(["--features", "tdcall,tdvmcall,start,cet-shstk,stack-guard"])
         .args(["--profile", self.profile()])
         .run()?;
 
