@@ -1,6 +1,11 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## [0.3.0] - 2025-03-05
+### Changed
+- Split tdx feature into two features: tdcall, tdvmcall
+- Moved corresponding functions into tdcall.rs and tdvmcall.rs
+
 ## [0.2.1] - 2024-07-23
 ### Changed
 - Remove nightly feature in the x86_64 crate
