@@ -248,7 +248,7 @@ pub fn accept_page(address: u64) -> Result<(), TdCallError> {
         }
     }
 
-    return Err(ret.into());
+    Err(ret.into())
 }
 
 /// Accept a range of private pages and initialize the pages to zeros using the TD ephemeral
@@ -591,7 +591,7 @@ pub fn mem_page_attr_wr(
         }
     }
 
-    return Err(ret.into());
+    Err(ret.into())
 }
 
 #[cfg(test)]
