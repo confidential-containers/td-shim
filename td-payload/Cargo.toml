@@ -37,7 +37,7 @@ minicov = { version = "0.2", default-features = false, optional = true }
 [features]
 default = ["tdcall"]
 tdcall = ["tdx-tdcall/tdcall", "td-exception/tdcall"]
-tdvmcall = ["tdx-tdcall/tdvmcall", "td-logger/tdvmcall"]
+tdvmcall = ["tdx-tdcall/tdvmcall", "td-exception/tdvmcall", "td-logger/tdvmcall"]
 tdx = ["tdcall", "tdvmcall"]
 stack-guard = []
 cet-shstk = ["td-exception/cet-shstk"]
