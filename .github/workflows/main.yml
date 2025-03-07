@@ -61,10 +61,10 @@ jobs:
         run: make test
 
       - name: Build Release TdShim
-        run: cargo build -p td-shim --target x86_64-unknown-none --release --features=main,tdcall,tdvmcall
+        run: cargo build -p td-shim --target x86_64-unknown-none --release --features=main,tdx
 
       - name: Build Debug TdShim
-        run: cargo build -p td-shim --target x86_64-unknown-none --features=main,tdcall,tdvmcall --no-default-features
+        run: cargo build -p td-shim --target x86_64-unknown-none --features=main,tdx --no-default-features
 
       - name: Build td-shim-tools
         run: |

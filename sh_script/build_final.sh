@@ -26,7 +26,7 @@ final_elf() {
 final_elf_test() {
     echo "Build final binary with ELF format test td payload"
     pushd tests
-    cargo build -p test-td-payload --target x86_64-unknown-none --release --features=main,tdcall,tdvmcall --no-default-features
+    cargo build -p test-td-payload --target x86_64-unknown-none --release --features=main,tdx --no-default-features
     popd
 
     cargo run -p td-shim-tools --bin td-shim-strip-info -- -n test-td-payload --target x86_64-unknown-none

@@ -24,7 +24,7 @@ serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
 x86 = { version = "0.47.0" }
 ring = { version = "0.17.6", default-features = false, features = ["alloc"] }
 td-shim = { path = "../../td-shim" }
-td-payload = { path = "../../td-payload", features = ["tdcall","tdvmcall","cet-shstk","stack-guard"] }
+td-payload = { path = "../../td-payload", features = ["cet-shstk","stack-guard"] }
 zerocopy = { version = "0.7.31", features = ["derive"] }
 
 minicov = { version = "0.2", default-features = false, optional = true }
@@ -37,7 +37,8 @@ features = ["spin_no_std"]
 map-physical-memory = true
 
 [features]
-tdvmcall = ["tdx-tdcall/tdvmcall", "td-logger/tdvmcall"]
-tdcall = ["tdx-tdcall/tdcall"]
+tdvmcall = ["td-payload/tdvmcall", "tdx-tdcall/tdvmcall", "td-logger/tdvmcall"]
+tdcall = ["td-payload/tdcall", "tdx-tdcall/tdcall"]
+tdx = ["tdcall", "tdvmcall"]
 main = []
 coverage = ["minicov"]
