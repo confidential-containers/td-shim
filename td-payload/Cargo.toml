@@ -35,7 +35,7 @@ zerocopy = { version = "0.7.31", features = ["derive"] }
 minicov = { version = "0.2", default-features = false, optional = true }
 
 [features]
-default = ["tdcall"]
+default = ["tdx"]
 tdcall = ["tdx-tdcall/tdcall", "td-exception/tdcall"]
 tdvmcall = ["tdx-tdcall/tdvmcall", "td-exception/tdvmcall", "td-logger/tdvmcall"]
 tdx = ["tdcall", "tdvmcall"]

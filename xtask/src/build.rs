@@ -41,7 +41,7 @@ pub(crate) struct BuildArgs {
     /// Path of the output td-shim image file
     #[arg(short, long)]
     output: Option<PathBuf>,
-    /// List of features of `td-shim` crate to activate in addition to the `main` and `tdcall`,
+    /// List of features of `td-shim` crate to activate in addition to the `main` and `tdx`,
     /// separated by comma. By default, only the `main` and `tdx` features of `td-shim` are enabled
     #[arg(long)]
     features: Option<String>,
@@ -140,7 +140,7 @@ impl BuildArgs {
             sh,
             "cargo build -p td-payload --bin example --target x86_64-unknown-none"
         )
-        .args(["--features", "tdcall,tdvmcall,start,cet-shstk,stack-guard"])
+        .args(["--features", "tdx,start,cet-shstk,stack-guard"])
         .args(["--profile", self.profile()])
         .run()?;
 
