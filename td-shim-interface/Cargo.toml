@@ -16,3 +16,7 @@ scroll = { version = "0.10", default-features = false, features = ["derive"] }
 zerocopy = { version = "0.7.31", features = ["derive"] }
 
 log = "0.4.13"
+
+[features]
+no-tdx-metadata-signature-check = []
+no-tdx-metadata-attributes-check = []

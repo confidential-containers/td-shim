@@ -98,14 +98,22 @@ impl TdxMetadataDescriptor {
     }
 
     pub fn is_valid(&self) -> bool {
-        let len = self.length;
+        #[cfg(not(feature = "no-tdx-metadata-signature-check"))]
+        if self.signature != TDX_METADATA_SIGNATURE {
+            return false;
+        }
 
-        !(self.signature != TDX_METADATA_SIGNATURE
-            || self.version != 1
+        let len = self.length;
+        if self.version != 1
             || self.number_of_section_entry == 0
             || len < 16
             || (len - 16) % 32 != 0
-            || (len - 16) / 32 != self.number_of_section_entry)
+            || (len - 16) / 32 != self.number_of_section_entry
+        {
+            return false;
+        }
+
+        true
     }
 
     pub fn as_bytes(&self) -> &[u8] {
@@ -235,6 +243,7 @@ pub fn validate_sections(sections: &[TdxMetadataSection]) -> Result<(), TdxMetad
                 if section.raw_data_size == 0 {
                     return Err(TdxMetadataError::InvalidSection);
                 }
+                #[cfg(not(feature = "no-tdx-metadata-attributes-check"))]
                 if section.attributes != TDX_METADATA_ATTRIBUTES_EXTENDMR {
                     return Err(TdxMetadataError::InvalidSection);
                 }
@@ -328,6 +337,7 @@ pub fn validate_sections(sections: &[TdxMetadataSection]) -> Result<(), TdxMetad
                 if section.raw_data_size != 0 || section.data_offset != 0 {
                     return Err(TdxMetadataError::InvalidSection);
                 }
+                #[cfg(not(feature = "no-tdx-metadata-attributes-check"))]
                 if section.attributes != TDX_METADATA_ATTRIBUTES_PAGE_AUG {
                     return Err(TdxMetadataError::InvalidSection);
                 }
@@ -352,6 +362,7 @@ pub fn validate_sections(sections: &[TdxMetadataSection]) -> Result<(), TdxMetad
                 if payload_cnt > 1 {
                     return Err(TdxMetadataError::InvalidSection);
                 }
+                #[cfg(not(feature = "no-tdx-metadata-attributes-check"))]
                 if section.attributes & (!TDX_METADATA_ATTRIBUTES_EXTENDMR) != 0 {
                     return Err(TdxMetadataError::InvalidSection);
                 }

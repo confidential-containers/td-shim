@@ -51,6 +51,8 @@ tdx = ["tdx-tdcall", "td-exception/tdx", "td-logger/tdx", "x86"]
 lazy-accept = ["tdx"]
 ring-hash = ["cc-measurement/ring"]
 sha2-hash = ["cc-measurement/sha2"]
+no-tdx-metadata-signature-check = ["td-shim-interface/no-tdx-metadata-signature-check"]
+no-tdx-metadata-attributes-check = ["td-shim-interface/no-tdx-metadata-attributes-check"]
 main = [
     "log",
     "td-loader",
