@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
+use core::convert::TryFrom;
+
 use td_layout::memslice;
 use td_loader::elf;
 use td_loader::elf64::ProgramHeader;
@@ -11,9 +13,23 @@ use crate::memory::Memory;
 
 const SIZE_4KB: u64 = 0x00001000u64;
 
+#[repr(u8)]
+#[derive(Debug, Copy, Clone)]
 pub enum ExecutablePayloadType {
-    Elf,
-    PeCoff,
+    Elf = 0,
+    PeCoff = 1,
+}
+
+impl TryFrom<u8> for ExecutablePayloadType {
+    type Error = ();
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(ExecutablePayloadType::Elf),
+            1 => Ok(ExecutablePayloadType::PeCoff),
+            _ => Err(()),
+        }
+    }
 }
 
 pub struct PayloadRelocationInfo {
@@ -77,6 +93,20 @@ pub fn find_and_report_entry_point(
             entry_point,
         })
     }
+}
+
+pub fn jump_to_payload_entry(entry: u64, image_type: u8, hob_addr: u64, payload_addr: u64) {
+    let image_type = ExecutablePayloadType::try_from(image_type).expect("Unknown image type");
+    match image_type {
+        ExecutablePayloadType::Elf => {
+            let entry = unsafe { core::mem::transmute::<u64, extern "sysv64" fn(u64, u64)>(entry) };
+            entry(hob_addr, payload_addr);
+        }
+        ExecutablePayloadType::PeCoff => {
+            let entry = unsafe { core::mem::transmute::<u64, extern "win64" fn(u64, u64)>(entry) };
+            entry(hob_addr, payload_addr);
+        }
+    };
 }
 
 #[cfg(test)]

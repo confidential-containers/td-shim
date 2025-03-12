@@ -7,6 +7,7 @@
 #![cfg_attr(not(test), no_main)]
 #![allow(unused_imports)]
 
+#[macro_use]
 extern crate alloc;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
@@ -14,8 +15,12 @@ use asm::{empty_exception_handler, empty_exception_handler_size};
 use core::ffi::c_void;
 use core::mem::size_of;
 use core::panic::PanicInfo;
+use e820::E820Table;
 use memory::Memory;
+use td::ap_set_payload;
 use td_exception::idt::{load_idtr, DescriptorTablePointer, Idt, IdtEntry};
+use td_layout::runtime::exec::PAYLOAD_SIZE;
+use td_shim::e820::E820Type;
 use td_shim::event_log::CCEL_CC_TYPE_TDX;
 use x86_64::instructions::hlt;
 use x86_64::registers::segmentation::{Segment, CS};
@@ -28,7 +33,7 @@ use zerocopy::{AsBytes, ByteSlice, FromBytes};
 use cc_measurement::{log::CcEventLogWriter, EV_EFI_HANDOFF_TABLES2, EV_PLATFORM_CONFIG_FLAGS};
 use td_layout::build_time::{self, *};
 use td_layout::memslice::{self, SliceType};
-use td_layout::RuntimeMemoryLayout;
+use td_layout::{mailbox, RuntimeMemoryLayout};
 use td_shim::event_log::{log_hob_list, log_payload_binary, log_payload_parameter};
 use td_shim::{
     speculation_barrier, PayloadInfo, TdPayloadInfoHobType, TD_ACPI_TABLE_HOB_GUID,
@@ -151,6 +156,7 @@ pub extern "win64" fn _start(
         &mut mem,
         &mut td_event_log,
         &dynamic_info.acpi_tables,
+        num_vcpus,
     );
 
     panic!("payload entry() should not return here, deadloop!!!");
@@ -207,6 +213,7 @@ fn boot_builtin_payload(
     mem: &mut memory::Memory,
     event_log: &mut CcEventLogWriter,
     acpi_tables: &Vec<&[u8]>,
+    num_vcpus: u32,
 ) {
     // Get and parse image file from the payload firmware volume.
     let fv_buffer = memslice::get_mem_slice(memslice::SliceType::ShimPayload);
@@ -230,6 +237,10 @@ fn boot_builtin_payload(
     // Create an EV_SEPARATOR event to mark the end of the td-shim events
     event_log.create_seperator();
 
+    if cfg!(feature = "multi-payload") {
+        mp::launch_payload_per_cpu(mem, payload_bin, acpi_tables, num_vcpus);
+    }
+
     let payload = mem.get_dynamic_mem_slice_mut(memslice::SliceType::Payload);
     let relocation_info = ipl::find_and_report_entry_point(mem, payload_bin, payload)
         .expect("Entry point not found!");
@@ -241,8 +252,11 @@ fn boot_builtin_payload(
         payload_hob_region.size as u64,
     );
 
+    let payload_hob = mem.get_dynamic_mem_slice_mut(SliceType::Acpi);
+    let e820 = mem.create_e820();
     // Prepare the HOB list to run the image
-    payload_hob::build_payload_hob(acpi_tables, &mem).expect("Fail to create payload HOB");
+    payload_hob::build_payload_hob(payload_hob, acpi_tables, &e820)
+        .expect("Fail to create payload HOB");
 
     // Finally let's switch stack and jump to the image entry point...
     log::info!(
@@ -258,30 +272,12 @@ fn boot_builtin_payload(
     // Relocate Mailbox along side with the AP function
     td::relocate_mailbox(mailbox);
 
-    match relocation_info.image_type {
-        ExecutablePayloadType::Elf => {
-            let entry = unsafe {
-                core::mem::transmute::<u64, extern "sysv64" fn(u64, u64)>(
-                    relocation_info.entry_point,
-                )
-            };
-            entry(
-                payload_hob_region.base_address as u64,
-                payload.as_ptr() as u64,
-            );
-        }
-        ExecutablePayloadType::PeCoff => {
-            let entry = unsafe {
-                core::mem::transmute::<u64, extern "win64" fn(u64, u64)>(
-                    relocation_info.entry_point,
-                )
-            };
-            entry(
-                payload_hob_region.base_address as u64,
-                payload.as_ptr() as u64,
-            );
-        }
-    };
+    ipl::jump_to_payload_entry(
+        relocation_info.entry_point,
+        relocation_info.image_type as u8,
+        payload_hob_region.base_address as u64,
+        payload.as_ptr() as u64,
+    );
 }
 
 // Reuse mailbox for the IDT used before payload setup its own one.

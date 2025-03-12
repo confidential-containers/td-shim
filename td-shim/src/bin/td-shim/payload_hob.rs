@@ -23,13 +23,13 @@ pub enum PayloadHobError {
     OutOfResource,
 }
 
-pub struct PayloadHob {
-    memory: &'static mut [u8],
+pub struct PayloadHob<'a> {
+    memory: &'a mut [u8],
     end: usize,
 }
 
-impl PayloadHob {
-    pub fn new(memory: &'static mut [u8]) -> Option<Self> {
+impl<'a> PayloadHob<'a> {
+    pub fn new(memory: &'a mut [u8]) -> Option<Self> {
         if memory.len() < size_of::<pi::hob::HandoffInfoTable>() {
             return None;
         }
@@ -168,10 +168,13 @@ impl PayloadHob {
     }
 }
 
-pub fn build_payload_hob(acpi_tables: &Vec<&[u8]>, memory: &Memory) -> Option<PayloadHob> {
+pub fn build_payload_hob<'a>(
+    hob: &'a mut [u8],
+    acpi_tables: &Vec<&[u8]>,
+    e820: &E820Table,
+) -> Option<PayloadHob<'a>> {
     // Reuse the ACPI memory to build the payload HOB.
-    let mut payload_hob =
-        PayloadHob::new(memory.get_dynamic_mem_slice_mut(memslice::SliceType::Acpi))?;
+    let mut payload_hob = PayloadHob::new(hob)?;
 
     payload_hob.add_cpu(memory::cpu_get_memory_space_size(), 16);
     payload_hob.add_fv(TD_SHIM_PAYLOAD_BASE as u64, TD_SHIM_PAYLOAD_SIZE as u64);
@@ -182,9 +185,6 @@ pub fn build_payload_hob(acpi_tables: &Vec<&[u8]>, memory: &Memory) -> Option<Pa
             .ok()?;
     }
 
-    let mut e820 = memory.create_e820();
-
-    log::info!("e820 table: {:x?}\n", e820.as_slice());
     payload_hob
         .add_guided_data(&TD_E820_TABLE_HOB_GUID, e820.as_bytes())
         .ok()?;

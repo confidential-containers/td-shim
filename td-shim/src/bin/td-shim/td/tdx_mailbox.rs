@@ -9,7 +9,7 @@ use core::arch::asm;
 use core::cmp::min;
 use core::ops::RangeInclusive;
 use td_exception::idt::DescriptorTablePointer;
-use td_layout::memslice::{get_mem_slice_mut, SliceType};
+use td_layout::memslice::{get_mem_slice, get_mem_slice_mut, SliceType};
 use tdx_tdcall::{self, tdx::*};
 
 use crate::asm::{ap_relocated_func_addr, ap_relocated_func_size};
@@ -43,7 +43,7 @@ mod spec {
     pub const MP_WAKEUP_COMMAND_NOOP: u32 = 0;
     pub const MP_WAKEUP_COMMAND_WAKEUP: u32 = 1;
     pub const MP_WAKEUP_COMMAND_SLEEP: u32 = 2;
-    pub const MP_WAKEUP_COMMAND_ACCEPT_PAGES: u32 = 3;
+    pub const MP_WAKEUP_COMMAND_ASSIGN_WORKS: u32 = 3;
     pub const MP_WAKEUP_COMMAND_AVAILABLE: u32 = 4;
     pub const MP_WAKEUP_COMMAND_SET_PAGING: u32 = 5;
     pub const MP_WAKEUP_COMMAND_SET_IDT: u32 = 6;
@@ -160,11 +160,49 @@ pub fn ap_assign_work(cpu_index: u32, stack_top: u64, entry: u32) {
 
     mail_box.set_wakeup_vector(entry);
     mail_box.set_fw_arg(0, stack_top);
-    mail_box.set_command(spec::MP_WAKEUP_COMMAND_ACCEPT_PAGES);
+    mail_box.set_command(spec::MP_WAKEUP_COMMAND_ASSIGN_WORKS);
     x86::fence::mfence();
     mail_box.set_apic_id(cpu_index);
 
     wait_for_ap_response(&mut mail_box);
+}
+
+pub fn ap_set_payload(
+    cpu_index: u32,
+    stack_top: u64,
+    payload_entry: u64,
+    image_type: u8,
+    param0: u64,
+    param1: u64,
+) {
+    // Safety:
+    // BSP is the owner of the mailbox area, and APs cooperate with BSP to access the mailbox area.
+    let mut mail_box = unsafe { MailBox::new(get_mem_slice_mut(SliceType::MailBox)) };
+    mail_box.set_wakeup_vector(ap_start_payload as u32);
+    mail_box.set_command(spec::MP_WAKEUP_COMMAND_ASSIGN_WORKS);
+    mail_box.set_fw_arg(0, stack_top);
+    mail_box.set_fw_arg(1, payload_entry);
+    mail_box.set_fw_arg(2, image_type as u64);
+    mail_box.set_fw_arg(3, param0);
+    mail_box.set_fw_arg(4, param1);
+    x86::fence::mfence();
+    mail_box.set_apic_id(cpu_index);
+
+    wait_for_ap_response(&mut mail_box);
+}
+
+fn ap_start_payload() {
+    // Safety:
+    // BSP is the owner of the mailbox area, and APs cooperate with BSP to access the mailbox area.
+    let mail_box = unsafe { MailBox::new(get_mem_slice_mut(SliceType::MailBox)) };
+
+    let entry_point = mail_box.fw_arg(1);
+    let image_type = mail_box.fw_arg(2);
+    let param0 = mail_box.fw_arg(3);
+    let param1 = mail_box.fw_arg(4);
+
+    let entry = unsafe { core::mem::transmute::<u64, extern "sysv64" fn(u64, u64)>(entry_point) };
+    entry(param0, param1);
 }
 
 extern "win64" fn parallel_accept_memory(cpu_index: u64) {

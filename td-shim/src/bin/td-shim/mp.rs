@@ -2,11 +2,21 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
+use alloc::vec::Vec;
 use core::convert::TryInto;
 use core::mem::size_of;
+use td_layout::runtime::exec::{ACPI_SIZE, PAYLOAD_SIZE};
+use td_shim::e820::E820Type;
 use zerocopy::{AsBytes, FromBytes, FromZeroes};
 
 use td_shim_interface::acpi::{self, GenericSdtHeader};
+
+use crate::{
+    e820::E820Table,
+    ipl::{self, jump_to_payload_entry, ExecutablePayloadType},
+    memory::Memory,
+    payload_hob, td,
+};
 
 // 255 vCPUs needs 2278 bytes, refer to create_madt().
 const MADT_MAX_SIZE: usize = 0xc00;
@@ -142,6 +152,80 @@ pub fn create_madt_default(cpu_num: u32, mailbox_base: u64) -> Option<Madt> {
     madt.update_checksum();
 
     Some(madt)
+}
+
+pub fn launch_payload_per_cpu(
+    mem: &mut Memory,
+    payload_bin: &[u8],
+    acpi_tables: &Vec<&[u8]>,
+    num_vcpus: u32,
+) {
+    const TEMP_STACK_SIZE: u64 = 0x4000;
+
+    let e820 = mem.create_e820();
+
+    // Get the largest usable memory index in e820 table
+    let (max_addr, max_usable) = e820
+        .as_slice()
+        .iter()
+        .enumerate()
+        .filter(|&(_, e)| e.r#type == E820Type::Memory as u32)
+        .max_by_key(|&(_, e)| e.size)
+        .map(|(_, e)| (e.addr, e.size))
+        .expect("No usable memory found!");
+
+    let size_per_cpu = max_usable / num_vcpus as u64;
+    let mut bsp_relocation_info = None;
+    let mut bsp_hob_addr = 0;
+    let mut bsp_payload_addr = 0;
+    for cpu_idx in 0..num_vcpus {
+        let start = cpu_idx as u64 * size_per_cpu + max_addr;
+        let temp_stack = start;
+        let payload_addr = temp_stack + TEMP_STACK_SIZE;
+        let hob_addr = payload_addr + PAYLOAD_SIZE as u64;
+
+        let mut table = E820Table::new();
+        table.add_range(E820Type::Memory, start, size_per_cpu);
+        table.convert_range(E820Type::Reserved, temp_stack, TEMP_STACK_SIZE);
+        table.convert_range(E820Type::Reserved, payload_addr, PAYLOAD_SIZE as u64);
+        table.convert_range(E820Type::Acpi, hob_addr, ACPI_SIZE as u64);
+        let payload =
+            unsafe { core::slice::from_raw_parts_mut(payload_addr as *mut u8, PAYLOAD_SIZE) };
+        let hob = unsafe { core::slice::from_raw_parts_mut(hob_addr as *mut u8, ACPI_SIZE) };
+
+        let relocation_info = ipl::find_and_report_entry_point(mem, payload_bin, payload)
+            .expect("Entry point not found!");
+        // Prepare the HOB list to run the image
+        payload_hob::build_payload_hob(hob, acpi_tables, &table)
+            .expect("Fail to create payload HOB");
+
+        // Skip the BSP
+        if cpu_idx != 0 {
+            td::ap_set_payload(
+                cpu_idx,
+                temp_stack + TEMP_STACK_SIZE,
+                relocation_info.entry_point,
+                relocation_info.image_type as u8,
+                hob_addr,
+                payload_addr,
+            );
+        }
+        // Save the relocation info for BSP paylaod
+        if cpu_idx == 0 {
+            bsp_relocation_info = Some(relocation_info);
+            bsp_hob_addr = hob_addr;
+            bsp_payload_addr = payload_addr;
+        }
+    }
+
+    // For BSP
+    let bsp_relocation_info = bsp_relocation_info.expect("Payload entry point not found for BSP!");
+    jump_to_payload_entry(
+        bsp_relocation_info.entry_point,
+        bsp_relocation_info.image_type as u8,
+        bsp_hob_addr,
+        bsp_payload_addr,
+    );
 }
 
 #[cfg(test)]
