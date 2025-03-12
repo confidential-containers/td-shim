@@ -6,6 +6,8 @@ use cc_measurement::log::CcEventLogError;
 use td_exception::idt::DescriptorTablePointer;
 use tdx_tdcall::tdx;
 
+pub use super::tdx_mailbox::ap_set_payload;
+
 extern "win64" {
     fn asm_read_msr64(index: u32) -> u64;
     fn asm_write_msr64(index: u32, value: u64) -> u64;
