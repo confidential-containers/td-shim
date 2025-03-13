@@ -19,13 +19,15 @@ pub fn enable_apic_interrupt() {
     // In x2APIC mode, SVR is mapped to MSR address 0x80f.
     // Since SVR(SIVR) is not virtualized, before we implement the handling in #VE of MSRRD/WR,
     // use tdvmcall instead direct read/write operation.
+    #[cfg(not(feature = "no-tdvmcall"))]
     let svr = tdx_tdcall::tdx::tdvmcall_rdmsr(0x80f).expect("fail to perform RDMSR operation\n");
+    #[cfg(not(feature = "no-tdvmcall"))]
     tdx_tdcall::tdx::tdvmcall_wrmsr(0x80f, svr | (0x1 << 8))
         .expect("fail to perform WRMSR operation\n");
 }
 
 pub fn enable_and_hlt() {
-    #[cfg(feature = "tdx")]
+    #[cfg(all(feature = "tdx", not(feature = "no-tdvmcall")))]
     tdx_tdcall::tdx::tdvmcall_sti_halt();
     #[cfg(not(feature = "tdx"))]
     x86_64::instructions::interrupts::enable_and_hlt()

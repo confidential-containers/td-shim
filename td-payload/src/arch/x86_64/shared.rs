@@ -7,6 +7,7 @@ use tdx_tdcall::tdx;
 
 use super::paging::{clear_shared_bit, set_shared_bit};
 
+#[cfg(not(feature = "no-tdvmcall"))]
 pub fn decrypt(addr: u64, length: usize) {
     set_shared_bit(addr, length);
 
@@ -16,6 +17,7 @@ pub fn decrypt(addr: u64, length: usize) {
     }
 }
 
+#[cfg(not(feature = "no-tdvmcall"))]
 pub fn encrypt(addr: u64, length: usize) {
     clear_shared_bit(addr, length);
 
@@ -23,6 +25,17 @@ pub fn encrypt(addr: u64, length: usize) {
     if tdx_tdcall::tdx::tdvmcall_mapgpa(false, addr, length).is_err() {
         panic!("Fail to map GPA to private memory with TDVMCALL");
     }
+    accept_memory(addr, length);
+}
+
+#[cfg(feature = "no-tdvmcall")]
+pub fn decrypt(addr: u64, length: usize) {
+    set_shared_bit(addr, length);
+}
+
+#[cfg(feature = "no-tdvmcall")]
+pub fn encrypt(addr: u64, length: usize) {
+    clear_shared_bit(addr, length);
     accept_memory(addr, length);
 }
 
