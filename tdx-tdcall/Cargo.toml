@@ -1,6 +1,6 @@
 [package]
 name = "tdx-tdcall"
-version = "0.2.2"
+version = "0.2.3"
 description = "Constants, stuctures and wrappers to access TDCALL services"
 repository = "https://github.com/confidential-containers/td-shim"
 homepage = "https://github.com/confidential-containers"
@@ -23,3 +23,4 @@ default = []
 use_tdx_emulation = []
 no-tdvmcall = []
 no-tdaccept = []
+tdg_dbg = []

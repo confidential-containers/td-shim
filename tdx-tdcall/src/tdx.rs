@@ -967,6 +967,24 @@ pub fn tdcall_mem_page_attr_wr(
     return Err(ret.into());
 }
 
+/// Debug-only: Write a byte to TDX Module
+///
+/// Details can be found in TDX Module v2.1 ABI spec section 'TDG.DEBUG Leaf'.
+/// This API is only valid for debug TDX Module version.
+#[cfg(feature = "tdg_dbg")]
+pub fn tdcall_tdg_debug_write_8(byte: u8) -> TdcallArgs {
+    let mut args = TdcallArgs {
+        rax: TDCALL_TDG_DEBUG,
+        rcx: 0u64, // WriteByte
+        rdx: byte as u64,
+        ..Default::default()
+    };
+
+    td_call(&mut args);
+
+    args
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
