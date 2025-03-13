@@ -14,14 +14,24 @@
 #![reexport_test_harness_main = "test_main"]
 
 #[cfg(test)]
-use bootloader::{boot_info, entry_point, BootInfo};
+use bootloader_api::{
+    config::{BootloaderConfig, Mapping},
+    entry_point, info, BootInfo,
+};
 #[cfg(test)]
 use core::ops::Deref;
 #[cfg(test)]
 use test_runner_client::{init_heap, serial_println, test_runner};
 
 #[cfg(test)]
-entry_point!(kernel_main);
+pub static BOOTLOADER_CONFIG: BootloaderConfig = {
+    let mut config = BootloaderConfig::new_default();
+    config.mappings.physical_memory = Some(Mapping::Dynamic);
+    config
+};
+
+#[cfg(test)]
+entry_point!(kernel_main, config = &BOOTLOADER_CONFIG);
 
 #[cfg(test)]
 fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
@@ -36,7 +46,7 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     let offset = boot_info.physical_memory_offset.into_option().unwrap();
 
     for usable in memoryregions.iter() {
-        if usable.kind == boot_info::MemoryRegionKind::Usable {
+        if usable.kind == info::MemoryRegionKind::Usable {
             init_heap((usable.start + offset) as usize, 0x100000);
             break;
         }

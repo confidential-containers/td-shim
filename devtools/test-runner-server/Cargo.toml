@@ -8,6 +8,7 @@ license = "Apache-2.0"
 edition = "2018"
 
 [dependencies]
+bootloader = "0.11"
 clap = { version = "4.0", features = ["cargo"] }
 runner-utils = "0.0.2" # small helper functions for custom runners (e.g. timeouts)
 serde_json = "1.0.114"
