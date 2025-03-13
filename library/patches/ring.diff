@@ -1,32 +1,32 @@
+From 022337ecdb430a2e536db8dbd3199b9d3e3cf58e Mon Sep 17 00:00:00 2001
+From: Zbigniew Lukwinski <zbigniew.lukwinski@intel.com>
+Date: Thu, 13 Mar 2025 15:18:16 +0100
+Subject: [PATCH] Support x86_64_unknown target
+
+Signed-off-by: Zbigniew Lukwinski <zbigniew.lukwinski@intel.com>
+---
+ Cargo.toml |  2 +-
+ build.rs   | 18 +++++++++++++++++-
+ 2 files changed, 18 insertions(+), 2 deletions(-)
+
 diff --git a/Cargo.toml b/Cargo.toml
-index 2c8ba6964..209c3d4a1 100644
+index 8f8da17da..a45ec829d 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
-@@ -171,7 +171,7 @@ all-features = true
- name = "ring"
+@@ -159,7 +159,7 @@ name = "ring"
  
  [dependencies]
+ cfg-if = { version = "1.0.0", default-features = false }
 -getrandom = { version = "0.2.10" }
 +getrandom = { version = "0.2.10", features = ["rdrand"] }
  untrusted = { version = "0.9" }
  
- [target.'cfg(any(target_arch = "x86",target_arch = "x86_64", all(any(target_arch = "aarch64", target_arch = "arm"), any(target_os = "android", target_os = "fuchsia", target_os = "linux", target_os = "windows"))))'.dependencies]
+ [target.'cfg(all(any(all(target_arch = "aarch64", target_endian = "little"), all(target_arch = "arm", target_endian = "little")), any(target_os = "android", target_os = "linux")))'.dependencies]
 diff --git a/build.rs b/build.rs
-index f7b94108b..3bdc8cd29 100644
+index 9843ad8aa..494d8cfc7 100644
 --- a/build.rs
 +++ b/build.rs
-@@ -121,7 +121,9 @@ fn cpp_flags(compiler: &cc::Tool) -> &'static [&'static str] {
-             "-Wenum-compare",
-             "-Wfloat-equal",
-             "-Wformat=2",
--            "-Winline",
-+            // Clear the `-Winline` because warnings will be treated as errors
-+            // when `ring` is used as git submodules.
-+            // "-Winline",
-             "-Winvalid-pch",
-             "-Wmissing-field-initializers",
-             "-Wmissing-include-dirs",
-@@ -260,6 +262,8 @@ const LINUX_ABI: &[&str] = &[
+@@ -254,6 +254,8 @@ const LINUX_ABI: &[&str] = &[
      "linux",
      "redox",
      "solaris",
@@ -34,21 +34,19 @@ index f7b94108b..3bdc8cd29 100644
 +    "none",
  ];
  
- /// Operating systems that have the same ABI as macOS on every architecture
-@@ -604,16 +608,29 @@ fn configure_cc(c: &mut cc::Build, target: &Target, include_dir: &Path) {
-     // poly1305_vec.c requires <emmintrin.h> which requires <stdlib.h>.
-     if (target.arch == "wasm32")
-         || (target.os == "linux" && target.is_musl && target.arch != "x86_64")
+ const WIN32N: &str = "win32n";
+@@ -594,14 +596,28 @@ fn configure_cc(c: &mut cc::Build, target: &Target, c_root_dir: &Path, include_d
+     // Allow cross-compiling without a target sysroot for these targets.
+     if (target.arch == WASM32)
+         || (target.os == "linux" && target.env == "musl" && target.arch != X86_64)
 +        || (target.os == "none")
      {
-         if let Ok(compiler) = c.try_get_compiler() {
-             // TODO: Expand this to non-clang compilers in 0.17.0 if practical.
-             if compiler.is_like_clang() {
-                 let _ = c.flag("-nostdlibinc");
-+                // Required on windows for cross compilation to `x86_64-unknown-none`
-+                let _ = c.flag("-ffreestanding");
-                 let _ = c.define("RING_CORE_NOSTDLIBINC", "1");
-             }
+         // TODO: Expand this to non-clang compilers in 0.17.0 if practical.
+         if compiler.is_like_clang() {
+             let _ = c.flag("-nostdlibinc");
++            // Required on windows for cross compilation to `x86_64-unknown-none`
++            let _ = c.flag("-ffreestanding");
+             let _ = c.define("RING_CORE_NOSTDLIBINC", "1");
          }
      }
  
@@ -58,6 +56,7 @@ index f7b94108b..3bdc8cd29 100644
 +        if let Ok(compiler) = c.try_get_compiler() {
 +            if compiler.is_like_clang() {
 +                let _ = c.define("__ELF__", None);
++                let _ = c.flag("-fPIC");
 +            }
 +        }
 +    }
@@ -65,12 +64,14 @@ index f7b94108b..3bdc8cd29 100644
      if target.force_warnings_into_errors {
          c.warnings_into_errors(true);
      }
-@@ -645,7 +662,7 @@ fn nasm(file: &Path, arch: &str, include_dir: &Path, out_file: &Path) -> Command
-         std::path::MAIN_SEPARATOR,
-     )));
+@@ -619,7 +635,7 @@ fn nasm(file: &Path, arch: &str, include_dir: &Path, out_dir: &Path, c_root_dir:
+     let mut include_dir = include_dir.as_os_str().to_os_string();
+     include_dir.push(OsString::from(String::from(std::path::MAIN_SEPARATOR)));
  
 -    let mut c = Command::new("./target/tools/windows/nasm/nasm");
 +    let mut c = Command::new("nasm");
      let _ = c
          .arg("-o")
          .arg(out_file.to_str().expect("Invalid path"))
+-- 
+2.34.1
