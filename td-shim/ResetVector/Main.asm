@@ -158,6 +158,7 @@ BITS    64
     %define SEC_TOP_OF_STACK (TEMP_STACK_BASE + TEMP_STACK_SIZE)
     mov     rsp, SEC_TOP_OF_STACK
 
+%if (TDACCEPT_SUPPORT != 0)
     ; 1) Accept [1M, 1M + SEC Core Size]
 
 
@@ -180,7 +181,7 @@ BITS    64
     add     r14, 0x1000
     cmp     r14, r15
     jne     .accept_pages_for_sec_core_loop
-
+%endif
 
     ; 2) Copy [SEC Core Base, SEC Core Base+Size] to [1M, 1M + SEC Core Size]
     mov     rcx, r12

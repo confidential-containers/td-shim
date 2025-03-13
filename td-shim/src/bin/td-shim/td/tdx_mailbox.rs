@@ -183,6 +183,7 @@ extern "win64" fn parallel_accept_memory(cpu_index: u64) {
 
     while phys_addr < end {
         let page_num = min(ACCEPT_CHUNK_SIZE, end - phys_addr) / ACCEPT_PAGE_SIZE;
+        #[cfg(not(feature = "no-tdaccept"))]
         td_accept_pages(phys_addr, page_num, ACCEPT_PAGE_SIZE);
         phys_addr += stride;
     }
@@ -244,7 +245,9 @@ pub fn accept_memory_resource_range(mut cpu_num: u32, address: u64, size: u64) {
 
     parallel_accept_memory(0);
 
+    #[cfg(not(feature = "no-tdaccept"))]
     td_accept_pages(address, align_low / PAGE_SIZE_4K, PAGE_SIZE_4K);
+    #[cfg(not(feature = "no-tdaccept"))]
     td_accept_pages(
         address + align_low + major_part,
         align_high / PAGE_SIZE_4K,

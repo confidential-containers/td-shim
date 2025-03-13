@@ -199,6 +199,14 @@ fn real_main() -> Result<()> {
         "-DTD_SHIM_RESET_SEC_CORE_SIZE_ADDR=0x{:X}",
         build_time::TD_SHIM_SEC_CORE_INFO_BASE + 2 * size_of::<u32>() as u32
     );
+    let tdaccept = format!(
+        "-DTDACCEPT_SUPPORT={}",
+        if tdx_tdcall::TDACCEPT_SUPPORT {
+            1u8
+        } else {
+            0u8
+        }
+    );
 
     let _ = env::set_current_dir(reset_vector_src_dir.as_path());
     run_command(nasm(
@@ -217,6 +225,7 @@ fn real_main() -> Result<()> {
             &loaded_sec_entrypoint_base,
             &loaded_sec_core_base,
             &loaded_sec_core_size,
+            &tdaccept,
         ],
     ));
 
