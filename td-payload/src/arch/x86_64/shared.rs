@@ -25,6 +25,7 @@ pub fn encrypt(addr: u64, length: usize) {
     if tdx_tdcall::tdx::tdvmcall_mapgpa(false, addr, length).is_err() {
         panic!("Fail to map GPA to private memory with TDVMCALL");
     }
+    #[cfg(not(feature = "no-tdaccept"))]
     accept_memory(addr, length);
 }
 
@@ -36,9 +37,11 @@ pub fn decrypt(addr: u64, length: usize) {
 #[cfg(feature = "no-tdvmcall")]
 pub fn encrypt(addr: u64, length: usize) {
     clear_shared_bit(addr, length);
+    #[cfg(not(feature = "no-tdaccept"))]
     accept_memory(addr, length);
 }
 
+#[cfg(not(feature = "no-tdaccept"))]
 fn accept_memory(addr: u64, length: usize) {
     let page_num = length / SIZE_4K;
 
