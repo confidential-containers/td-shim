@@ -349,6 +349,7 @@ fn virtualization(stack: &mut InterruptStack) {
     // Firstly get VE information from TDX module, halt it error occurs
     let ve_info = tdx::tdcall_get_ve_info().expect("#VE handler: fail to get VE info\n");
 
+    #[cfg(not(feature = "no-tdvmcall"))]
     match ve_info.exit_reason {
         EXIT_REASON_HLT => {
             tdx::tdvmcall_halt();
@@ -378,6 +379,29 @@ fn virtualization(stack: &mut InterruptStack) {
             stack.scratch.rdx = (stack.scratch.rdx & mask) | cpuid.edx as usize;
         }
         EXIT_REASON_VMCALL
+        | EXIT_REASON_MWAIT_INSTRUCTION
+        | EXIT_REASON_MONITOR_INSTRUCTION
+        | EXIT_REASON_WBINVD
+        | EXIT_REASON_RDPMC => return,
+        // Unknown
+        // And currently CPUID and MMIO handler is not implemented
+        // Only VMCall is supported
+        _ => {
+            log::warn!("Unsupported #VE exit reason {:#x} ", ve_info.exit_reason);
+            log::info!("Virtualization fault\n");
+            stack.dump();
+            deadloop();
+        }
+    };
+
+    #[cfg(feature = "no-tdvmcall")]
+    match ve_info.exit_reason {
+        EXIT_REASON_HLT
+        | EXIT_REASON_IO_INSTRUCTION
+        | EXIT_REASON_MSR_READ
+        | EXIT_REASON_MSR_WRITE
+        | EXIT_REASON_CPUID
+        | EXIT_REASON_VMCALL
         | EXIT_REASON_MWAIT_INSTRUCTION
         | EXIT_REASON_MONITOR_INSTRUCTION
         | EXIT_REASON_WBINVD
@@ -451,7 +475,7 @@ fn virtualization(stack: &mut InterruptStack) {
 //
 // Use TDVMCALL to realize IO read/write operation
 // Return false if VE info is invalid
-#[cfg(feature = "tdx")]
+#[cfg(all(feature = "tdx", not(feature = "no-tdvmcall")))]
 fn handle_tdx_ioexit(ve_info: &tdx::TdVeInfo, stack: &mut InterruptStack) -> bool {
     let size = ((ve_info.exit_qualification & 0x7) + 1) as usize; // 0 - 1bytes, 1 - 2bytes, 3 - 4bytes
     let read = (ve_info.exit_qualification >> 3) & 0x1 == 1;
