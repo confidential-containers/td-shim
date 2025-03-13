@@ -17,6 +17,10 @@ pub fn serial_write_string(s: &str) {
     }
 }
 
+#[cfg(any(
+    all(feature = "tdx", not(feature = "no-tdvmcall")),
+    not(feature = "tdx")
+))]
 const SERIAL_IO_PORT: u16 = 0x3F8;
 
 #[cfg(all(feature = "tdx", not(feature = "no-tdvmcall")))]
