@@ -7,14 +7,13 @@ use crate::{
     arch::{gdt, idt},
     hob::{self, get_hob},
     mm::{
-        get_usable,
-        heap::init_heap,
-        init_ram,
-        layout::RuntimeLayout,
+        get_usable, heap::init_heap, init_ram, layout::RuntimeLayout,
         page_table::init_pt_frame_allocator,
-        shared::{init_shared_memory, init_shared_memory_with_shadow},
     },
 };
+
+#[cfg(not(feature = "no-shared-mem"))]
+use crate::mm::shared::{init_shared_memory, init_shared_memory_with_shadow};
 
 #[cfg(any(feature = "cet-ibt", feature = "cet-shstk"))]
 use super::cet;
@@ -38,13 +37,17 @@ pub fn pre_init(hob: u64, layout: &RuntimeLayout, use_shared_shadow: bool) {
     let heap = get_usable(layout.heap_size).expect("Failed to allocate heap");
     init_heap(heap, layout.heap_size);
 
-    let shared = get_usable(layout.shared_memory_size).expect("Failed to allocate shared memory");
-    if use_shared_shadow {
-        let shadow =
-            get_usable(layout.shared_memory_size).expect("Failed to allocate shared shadow");
-        init_shared_memory_with_shadow(shared, layout.shared_memory_size, shadow);
-    } else {
-        init_shared_memory(shared, layout.shared_memory_size);
+    #[cfg(not(feature = "no-shared-mem"))]
+    {
+        let shared =
+            get_usable(layout.shared_memory_size).expect("Failed to allocate shared memory");
+        if use_shared_shadow {
+            let shadow =
+                get_usable(layout.shared_memory_size).expect("Failed to allocate shared shadow");
+            init_shared_memory_with_shadow(shared, layout.shared_memory_size, shadow);
+        } else {
+            init_shared_memory(shared, layout.shared_memory_size);
+        }
     }
 
     // Init Global Descriptor Table and Task State Segment
