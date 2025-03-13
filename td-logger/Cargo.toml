@@ -19,3 +19,4 @@ x86 = { version = "0.47.0", optional = true }
 tdx = ["tdx-tdcall"]
 serial-port = ["x86"]
 no-tdvmcall = ["tdx-tdcall/no-tdvmcall"]
+tdg_dbg = ["tdx-tdcall/tdg_dbg"]

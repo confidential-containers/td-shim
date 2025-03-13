@@ -54,26 +54,49 @@ pub fn dbg_write_string(s: &str) {
 }
 
 #[cfg(any(
-    all(feature = "tdx", not(feature = "no-tdvmcall")),
-    feature = "serial-port"
+    all(not(feature = "tdx"), feature = "serial-port"),
+    all(
+        feature = "tdx",
+        not(feature = "tdg_dbg"),
+        not(feature = "no-tdvmcall")
+    ),
+    all(not(feature = "tdx"), feature = "serial-port")
 ))]
 const SERIAL_IO_PORT: u16 = 0x3F8;
 
-#[cfg(all(feature = "tdx", not(feature = "no-tdvmcall")))]
+// tdx, tdg_dbg
+#[cfg(all(feature = "tdx", feature = "tdg_dbg"))]
+fn dbg_port_write(byte: u8) {
+    tdx_tdcall::tdx::tdcall_tdg_debug_write_8(byte);
+}
+
+// tdx, !tdg_dbg, no-tdvmcall
+#[cfg(all(feature = "tdx", not(feature = "tdg_dbg"), feature = "no-tdvmcall"))]
+fn dbg_port_write(_byte: u8) {
+    // no-tdvmcall but tdx present, skip port write
+}
+
+// tdx, !tdg_dbg, !no-tdvmcall
+#[cfg(all(
+    feature = "tdx",
+    not(feature = "tdg_dbg"),
+    not(feature = "no-tdvmcall")
+))]
 fn dbg_port_write(byte: u8) {
     tdx_tdcall::tdx::tdvmcall_io_write_8(SERIAL_IO_PORT, byte);
 }
 
-#[cfg(all(feature = "tdx", feature = "no-tdvmcall"))]
-fn dbg_port_write(_byte: u8) {}
-
+// !tdx, serial-port
 #[cfg(all(not(feature = "tdx"), feature = "serial-port"))]
 fn dbg_port_write(byte: u8) {
     unsafe { x86::io::outb(SERIAL_IO_PORT, byte) };
 }
 
-#[cfg(all(not(feature = "tdx"), not(feature = "serial-port")))]
-fn dbg_port_write(_byte: u8) {}
+// !tdx, !serial-port
+#[cfg(not(any(feature = "tdx", feature = "serial-port")))]
+fn dbg_port_write(_byte: u8) {
+    // fallback
+}
 
 #[cfg(test)]
 mod tests {
