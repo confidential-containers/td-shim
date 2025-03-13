@@ -51,7 +51,7 @@ tdx = ["tdx-tdcall", "td-exception/tdx", "td-logger/tdx", "x86"]
 lazy-accept = ["tdx"]
 ring-hash = ["cc-measurement/ring"]
 sha2-hash = ["cc-measurement/sha2"]
-no-tdvmcall = []
+no-tdvmcall = ["tdx-tdcall/no-tdvmcall", "td-logger/no-tdvmcall", "td-exception/no-tdvmcall"]
 
 main = [
     "log",
