@@ -1,11 +1,19 @@
-// Copyright (c) 2020-2022 Intel Corporation
+// Copyright (c) 2020-2022, 2025 Intel Corporation
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 use core::arch::global_asm;
 
 global_asm!(include_str!("msr64.asm"));
+
+#[cfg(not(feature = "no-tdvmcall"))]
 global_asm!(include_str!("ap_loop.asm"));
+#[cfg(not(feature = "no-tdvmcall"))]
 global_asm!(include_str!("exception.asm"));
+
+#[cfg(feature = "no-tdvmcall")]
+global_asm!(include_str!("ap_loop_notdvmcall.asm"));
+#[cfg(feature = "no-tdvmcall")]
+global_asm!(include_str!("exception_notdvmcall.asm"));
 
 extern "C" {
     fn ap_relocated_func();
