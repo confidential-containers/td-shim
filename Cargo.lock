@@ -1255,7 +1255,7 @@ dependencies = [
 
 [[package]]
 name = "tdx-tdcall"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "cfg-if",
  "lazy_static",
