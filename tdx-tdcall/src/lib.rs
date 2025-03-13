@@ -50,18 +50,6 @@ const TDCALL_VP_ENTER: u64 = 25;
 const TDCALL_VP_INVEPT: u64 = 26;
 const TDCALL_VP_INVVPID: u64 = 27;
 
-// GTDG.VP.VMCALL leaf sub-function numbers
-const TDVMCALL_CPUID: u64 = 0x0000a;
-const TDVMCALL_HALT: u64 = 0x0000c;
-const TDVMCALL_IO: u64 = 0x0001e;
-const TDVMCALL_RDMSR: u64 = 0x0001f;
-const TDVMCALL_WRMSR: u64 = 0x00020;
-const TDVMCALL_MMIO: u64 = 0x00030;
-const TDVMCALL_MAPGPA: u64 = 0x10001;
-const TDVMCALL_GETQUOTE: u64 = 0x10002;
-const TDVMCALL_SETUPEVENTNOTIFY: u64 = 0x10004;
-const TDVMCALL_SERVICE: u64 = 0x10005;
-
 // TDCALL completion status code
 const TDCALL_STATUS_SUCCESS: u64 = 0;
 
@@ -69,9 +57,25 @@ const TDCALL_STATUS_SUCCESS: u64 = 0;
 pub const TDCALL_STATUS_PAGE_ALREADY_ACCEPTED: u64 = 0x00000B0A00000000;
 pub const TDCALL_STATUS_PAGE_SIZE_MISMATCH: u64 = 0xC0000B0B00000001;
 
-// TDVMCALL completion status code
-const TDVMCALL_STATUS_SUCCESS: u64 = 0;
-const TDVMCALL_STATUS_RETRY: u64 = 1;
+cfg_if::cfg_if! {
+    if #[cfg(not(feature = "no-tdvmcall"))] {
+        // GTDG.VP.VMCALL leaf sub-function numbers
+        const TDVMCALL_CPUID: u64 = 0x0000a;
+        const TDVMCALL_HALT: u64 = 0x0000c;
+        const TDVMCALL_IO: u64 = 0x0001e;
+        const TDVMCALL_RDMSR: u64 = 0x0001f;
+        const TDVMCALL_WRMSR: u64 = 0x00020;
+        const TDVMCALL_MMIO: u64 = 0x00030;
+        const TDVMCALL_MAPGPA: u64 = 0x10001;
+        const TDVMCALL_GETQUOTE: u64 = 0x10002;
+        const TDVMCALL_SETUPEVENTNOTIFY: u64 = 0x10004;
+        const TDVMCALL_SERVICE: u64 = 0x10005;
+
+        // TDVMCALL completion status code
+        const TDVMCALL_STATUS_SUCCESS: u64 = 0;
+        const TDVMCALL_STATUS_RETRY: u64 = 1;
+    }
+}
 
 // A public wrapper for use of asm_td_vmcall, this function takes a mutable reference of a
 // TdcallArgs structure to ensure the input is valid
@@ -92,6 +96,7 @@ const TDVMCALL_STATUS_RETRY: u64 = 1;
 // * R11 - Correspond to each TDG.VP.VMCALL.
 // * R8-R9, R12-R15, RBX, RBP, RDI, RSI - Correspond to each TDG.VP.VMCALL sub-function.
 //
+#[cfg(not(feature = "no-tdvmcall"))]
 pub fn td_vmcall(args: &mut TdVmcallArgs) -> u64 {
     unsafe { asm::asm_td_vmcall(args as *mut TdVmcallArgs as *mut c_void, 0) }
 }
@@ -99,6 +104,7 @@ pub fn td_vmcall(args: &mut TdVmcallArgs) -> u64 {
 // An extended public wrapper for use of asm_td_vmcall.
 //
 // `do_sti` is a flag used to determine whether to execute `sti` instruction before `tdcall`
+#[cfg(not(feature = "no-tdvmcall"))]
 pub fn td_vmcall_ex(args: &mut TdVmcallArgs, do_sti: bool) -> u64 {
     unsafe { asm::asm_td_vmcall(args as *mut TdVmcallArgs as *mut c_void, do_sti as u64) }
 }
@@ -139,6 +145,7 @@ pub struct TdcallArgs {
 
 // Used to pass the values of input/output register when performing TDVMCALL
 // instruction
+#[cfg(not(feature = "no-tdvmcall"))]
 #[repr(C)]
 #[derive(Default)]
 pub struct TdVmcallArgs {
@@ -185,6 +192,7 @@ impl From<u64> for TdCallError {
 ///
 /// Refer to Guest-Host-Communication-Interface(GHCI) for Intel TDX
 /// table 'TDCALL[TDG.VP.VMCALL]- Sub-function Completion-Status Codes'
+#[cfg(not(feature = "no-tdvmcall"))]
 #[derive(Debug, PartialEq)]
 pub enum TdVmcallError {
     // TDCALL[TDG.VP.VMCALL] sub-function invocation must be retried
@@ -202,6 +210,7 @@ pub enum TdVmcallError {
     Other,
 }
 
+#[cfg(not(feature = "no-tdvmcall"))]
 impl From<u64> for TdVmcallError {
     fn from(val: u64) -> Self {
         match val {
