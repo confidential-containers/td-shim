@@ -1,6 +1,10 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## [0.2.3] - 2025-03-13
++### Added
++- Added new tdcall_tdg_debug_write_8 API under tdg_dbg feature.
+
 ## [0.2.1] - 2024-07-23
 ### Changed
 - Remove nightly feature in the x86_64 crate
