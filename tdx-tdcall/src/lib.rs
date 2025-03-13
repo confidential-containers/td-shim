@@ -28,6 +28,11 @@ pub const USE_TDX_EMULATION: bool = true;
 #[cfg(not(feature = "use_tdx_emulation"))]
 pub const USE_TDX_EMULATION: bool = false;
 
+#[cfg(not(feature = "no-tdaccept"))]
+pub const TDACCEPT_SUPPORT: bool = true;
+#[cfg(feature = "no-tdaccept")]
+pub const TDACCEPT_SUPPORT: bool = false;
+
 pub mod asm;
 pub mod tdreport;
 pub mod tdx;
@@ -37,6 +42,7 @@ const TDCALL_TDINFO: u64 = 1;
 const TDCALL_TDEXTENDRTMR: u64 = 2;
 const TDCALL_TDGETVEINFO: u64 = 3;
 const TDCALL_TDREPORT: u64 = 4;
+#[cfg(not(feature = "no-tdaccept"))]
 const TDCALL_TDACCEPTPAGE: u64 = 6;
 const TDCALL_VM_RD: u64 = 7;
 const TDCALL_VM_WR: u64 = 8;

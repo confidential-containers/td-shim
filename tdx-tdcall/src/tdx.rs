@@ -594,6 +594,7 @@ pub fn tdcall_get_ve_info() -> Result<TdVeInfo, TdCallError> {
 /// private key
 ///
 /// Details can be found in TDX Module ABI spec section 'TDG.MEM.PAGE.Accept Leaf'
+#[cfg(not(feature = "no-tdaccept"))]
 pub fn tdcall_accept_page(address: u64) -> Result<(), TdCallError> {
     let mut args = TdcallArgs {
         rax: TDCALL_TDACCEPTPAGE,
@@ -625,6 +626,7 @@ pub fn tdcall_accept_page(address: u64) -> Result<(), TdCallError> {
 /// private key.
 ///
 /// This function is a wrapper to `tdcall_accept_page()`.
+#[cfg(not(feature = "no-tdaccept"))]
 pub fn td_accept_pages(address: u64, pages: u64, page_size: u64) {
     for i in 0..pages {
         let accept_addr = address + i * page_size;
@@ -653,6 +655,7 @@ pub fn td_accept_pages(address: u64, pages: u64, page_size: u64) {
 
 /// Accept a range of either 4K normal pages or 2M huge pages. This is basically a wrapper over
 /// td_accept_pages and initializes the pages to zero using the TD ephemeral private key.
+#[cfg(not(feature = "no-tdaccept"))]
 pub fn td_accept_memory(address: u64, len: u64) {
     let mut start = address;
     let end = address + len;
