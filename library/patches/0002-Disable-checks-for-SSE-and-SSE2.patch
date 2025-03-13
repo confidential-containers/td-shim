@@ -1,0 +1,54 @@
+From e6dd2c965fb14b3ca3c20005f16d727ee12b589f Mon Sep 17 00:00:00 2001
+From: Zbigniew Lukwinski <zbigniew.lukwinski@intel.com>
+Date: Fri, 14 Mar 2025 11:07:55 +0100
+Subject: [PATCH] Disable checks for SSE and SSE2
+
+Signed-off-by: Zbigniew Lukwinski <zbigniew.lukwinski@intel.com>
+---
+ src/cpu/intel.rs | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/cpu/intel.rs b/src/cpu/intel.rs
+index f45052fe7..9c3ac044e 100644
+--- a/src/cpu/intel.rs
++++ b/src/cpu/intel.rs
+@@ -22,8 +22,8 @@ mod abi_assumptions {
+     // https://github.com/briansmith/ring/issues/1793#issuecomment-1793243725,
+     // https://github.com/briansmith/ring/issues/1832,
+     // https://github.com/briansmith/ring/issues/1833.
+-    const _ASSUMES_SSE2: () =
+-        assert!(cfg!(target_feature = "sse") && cfg!(target_feature = "sse2"));
++    // const _ASSUMES_SSE2: () =
++    //     assert!(cfg!(target_feature = "sse") && cfg!(target_feature = "sse2"));
+ 
+     #[cfg(target_arch = "x86_64")]
+     const _ASSUMED_POINTER_SIZE: usize = 8;
+@@ -156,8 +156,8 @@ fn cpuid_to_caps_and_set_c_flags(cpuid: &[u32; 4]) -> u32 {
+     // CMOV, it is likely that some of our timing side channel prevention does
+     // not work. Presumably the people who delete these are verifying that it
+     // all works fine.
+-    const _SSE_REQUIRED: () = assert!(cfg!(target_feature = "sse"));
+-    const _SSE2_REQUIRED: () = assert!(cfg!(target_feature = "sse2"));
++    // const _SSE_REQUIRED: () = assert!(cfg!(target_feature = "sse"));
++    // const _SSE2_REQUIRED: () = assert!(cfg!(target_feature = "sse2"));
+ 
+     #[cfg(all(target_arch = "x86", not(target_feature = "sse2")))]
+     {
+@@ -184,10 +184,10 @@ fn cpuid_to_caps_and_set_c_flags(cpuid: &[u32; 4]) -> u32 {
+     // assertions in an attempt to support pre-SSE2 32-bit x86 systems. If they
+     // do, hopefully they won't delete these redundant assertions, so that
+     // x86_64 isn't affected.
+-    #[cfg(target_arch = "x86_64")]
+-    const _SSE2_REQUIRED_X86_64: () = assert!(cfg!(target_feature = "sse2"));
+-    #[cfg(target_arch = "x86_64")]
+-    const _SSE_REQUIRED_X86_64: () = assert!(cfg!(target_feature = "sse2"));
++    // #[cfg(target_arch = "x86_64")]
++    // const _SSE2_REQUIRED_X86_64: () = assert!(cfg!(target_feature = "sse2"));
++    // #[cfg(target_arch = "x86_64")]
++    // const _SSE_REQUIRED_X86_64: () = assert!(cfg!(target_feature = "sse2"));
+ 
+     // Intel: "12.7.2 Checking for SSSE3 Support"
+     // If/when we support dynamic detection of SSE/SSE2, make this conditional
+-- 
+2.34.1
+

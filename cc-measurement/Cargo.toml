@@ -8,7 +8,7 @@ edition = "2021"
 
 [dependencies]
 sha2 = { version = "0.10.6", default-features = false, features = ["force-soft"], optional = true }
-ring = { version = "0.17.6", default-features = false, features = ["alloc"], optional = true }
+ring = { version = "0.17.14", default-features = false, features = ["alloc"], optional = true }
 zerocopy = { version = "0.7.31", features = ["derive"] }
 
 [features]
