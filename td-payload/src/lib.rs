@@ -32,7 +32,12 @@ pub extern "C" fn _start(hob: u64, _payload: u64) -> ! {
 
     let layout = RuntimeLayout::default();
 
-    arch::init::pre_init(hob, &layout, false);
+    arch::init::pre_init(
+        hob,
+        &layout,
+        #[cfg(not(feature = "no-shared-mem"))]
+        false,
+    );
     arch::init::init(&layout, main);
 }
 
