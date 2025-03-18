@@ -181,7 +181,11 @@ fn generic_interrupt_handler(stack: &mut InterruptStack) {
         return;
     }
 
-    (CALLBACK_TABLE.lock().table[stack.vector].func)(stack);
+    // We need to allow the re-entry of this handler. For example, virtualization exception may
+    // happen in a timer interrupt handler. So we need to copy the function pointer out and
+    // release the lock.
+    let func = CALLBACK_TABLE.lock().table[stack.vector].func;
+    func(stack);
 
     // If we are handling an interrupt, signal a end-of-interrupt before return.
     if stack.vector > 31 {
