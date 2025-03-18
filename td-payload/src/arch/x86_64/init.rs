@@ -25,7 +25,11 @@ use super::{
     idt::{PAGE_FAULT_EXCEPTION, PAGE_FAULT_IST},
 };
 
-pub fn pre_init(hob: u64, layout: &RuntimeLayout, use_shared_shadow: bool) {
+pub fn pre_init(
+    hob: u64,
+    layout: &RuntimeLayout,
+    #[cfg(not(feature = "no-shared-mem"))] use_shared_shadow: bool,
+) {
     let hob = hob::init(hob).expect("Invalid payload HOB");
     let memory_map = init_ram(hob).expect("Failed to parse E820 table from payload HOB");
 
