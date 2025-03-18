@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
+#[cfg(not(feature = "no-tdaccept"))]
 use crate::mm::SIZE_4K;
+
 use tdx_tdcall::tdx;
 
 use super::paging::{clear_shared_bit, set_shared_bit};
