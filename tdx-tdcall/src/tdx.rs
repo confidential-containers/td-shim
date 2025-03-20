@@ -619,7 +619,7 @@ pub fn tdcall_accept_page(address: u64) -> Result<(), TdCallError> {
         }
     }
 
-    return Err(ret.into());
+    Err(ret.into())
 }
 
 /// Accept a range of private pages and initialize the pages to zeros using the TD ephemeral
@@ -964,7 +964,7 @@ pub fn tdcall_mem_page_attr_wr(
         }
     }
 
-    return Err(ret.into());
+    Err(ret.into())
 }
 
 /// Debug-only: Write a byte to TDX Module
