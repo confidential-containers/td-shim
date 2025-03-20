@@ -5,6 +5,7 @@
 #[cfg(not(feature = "no-tdaccept"))]
 use crate::mm::SIZE_4K;
 
+#[cfg(not(all(feature = "no-tdvmcall", feature = "no-tdaccept")))]
 use tdx_tdcall::tdx;
 
 use super::paging::{clear_shared_bit, set_shared_bit};
