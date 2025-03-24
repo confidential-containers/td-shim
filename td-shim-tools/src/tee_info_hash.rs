@@ -136,21 +136,21 @@ impl fmt::Display for TdInfoStruct {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "TdInfo:\n\tAttributes:\n\t{:x?}\n\txfam:\n\t{:x?}\n\
-                        \tMR TD:\n\t{:x?}\n\tMR Config ID:\n\t{:x?}\n\
-                        \tMR Owner:\n\t{:x?}\n\tMR Owner Config:\n\t{:x?}\n\
-                        \tRTMR[0]:\n\t{:x?}\n\tRTMR[1]:\n\t{:x?}\n\
-                        \tRTMR[2]:\n\t{:x?}\n\tRTMR[3]:\n\t{:x?}\n",
-            self.attributes,
-            self.xfam,
-            self.mrtd,
-            self.mrconfig_id,
-            self.mrowner,
-            self.mrownerconfig,
-            self.rtmr0,
-            self.rtmr1,
-            self.rtmr2,
-            self.rtmr3
+            "TdInfo:\n\tAttributes:\t{:x?}\n\txfam:\t\t{:x?}\n\
+                        \tMRTD:\t\t{:x?}\n\tMRCONFIGID:\t{:x?}\n\
+                        \tMROWNER:\t{:x?}\n\tMROWNERCONFIG:\t{:x?}\n\
+                        \tRTMR[0]:\t{:x?}\n\tRTMR[1]:\t{:x?}\n\
+                        \tRTMR[2]:\t{:x?}\n\tRTMR[3]:\t{:x?}\n",
+            hex::encode(self.attributes),
+            hex::encode(self.xfam),
+            hex::encode(self.mrtd),
+            hex::encode(self.mrconfig_id),
+            hex::encode(self.mrowner),
+            hex::encode(self.mrownerconfig),
+            hex::encode(self.rtmr0),
+            hex::encode(self.rtmr1),
+            hex::encode(self.rtmr2),
+            hex::encode(self.rtmr3)
         )
     }
 }
