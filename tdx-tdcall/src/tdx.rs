@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2022 Intel Corporation
+// Copyright (c) 2020-2025 Intel Corporation
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
@@ -505,6 +505,163 @@ pub fn tdvmcall_service(
     };
 
     let ret = td_vmcall(&mut args);
+
+    if ret != TDVMCALL_STATUS_SUCCESS {
+        return Err(ret.into());
+    }
+
+    Ok(())
+}
+
+#[cfg(not(feature = "no-tdvmcall"))]
+pub fn tdvmcall_migtd_waitforrequest(
+    data_buffer: &mut [u8],
+    interrupt: u8,
+) -> Result<(), TdVmcallError> {
+    let data_buffer_length = data_buffer.len() as u64;
+    let data_buffer = data_buffer.as_mut_ptr() as u64 | *SHARED_MASK;
+
+    // Ensure the address is aligned to 4K bytes
+    if (data_buffer & 0xfff) != 0 {
+        return Err(TdVmcallError::VmcallAlignError);
+    }
+
+    // Ensure that the interrupt vector is in a valid range
+    if (1..32).contains(&interrupt) {
+        return Err(TdVmcallError::VmcallOperandInvalid);
+    }
+
+    let mut args = TdVmcallArgs {
+        r11: TDVMCALL_MIGTD,
+        r12: TDVMCALL_MIGTD_WAITFORREQUEST,
+        r13: data_buffer_length,
+        r14: data_buffer,
+        r15: interrupt as u64,
+        ..Default::default()
+    };
+
+    let ret = td_vmcall(&mut args);
+
+    if ret != TDVMCALL_STATUS_SUCCESS {
+        return Err(ret.into());
+    }
+
+    Ok(())
+}
+
+#[cfg(not(feature = "no-tdvmcall"))]
+pub fn tdvmcall_migtd_reportstatus(
+    mig_request_id: u64,
+    pre_migration_status: u8,
+    data_buffer: &mut [u8],
+    interrupt: u8,
+) -> Result<(), TdVmcallError> {
+    // Ensure that the pre-migration status is not reserved
+    if (0xb..0xff).contains(&pre_migration_status) {
+        return Err(TdVmcallError::VmcallOperandInvalid);
+    }
+
+    let data_buffer_length = data_buffer.len() as u64;
+    let data_buffer = data_buffer.as_mut_ptr() as u64 | *SHARED_MASK;
+
+    // Ensure the address is aligned to 4K bytes
+    if (data_buffer & 0xfff) != 0 {
+        return Err(TdVmcallError::VmcallAlignError);
+    }
+
+    // Ensure that the interrupt vector is in a valid range
+    if (1..32).contains(&interrupt) {
+        return Err(TdVmcallError::VmcallOperandInvalid);
+    }
+
+    let mut args = TdVmcallArgsEx {
+        r11: TDVMCALL_MIGTD,
+        r12: TDVMCALL_MIGTD_REPORTSTATUS,
+        r13: mig_request_id,
+        r14: pre_migration_status as u64,
+        r15: data_buffer_length,
+        rbx: data_buffer,
+        rdi: interrupt as u64,
+        ..Default::default()
+    };
+
+    let ret = td_vmcall_ex2(&mut args, false);
+
+    if ret != TDVMCALL_STATUS_SUCCESS {
+        return Err(ret.into());
+    }
+
+    Ok(())
+}
+
+#[cfg(not(feature = "no-tdvmcall"))]
+pub fn tdvmcall_migtd_send(
+    mig_request_id: u64,
+    data_buffer: &mut [u8],
+    interrupt: u8,
+) -> Result<(), TdVmcallError> {
+    let data_buffer_length = data_buffer.len() as u64;
+    let data_buffer = data_buffer.as_mut_ptr() as u64 | *SHARED_MASK;
+
+    // Ensure the address is aligned to 4K bytes
+    if (data_buffer & 0xfff) != 0 {
+        return Err(TdVmcallError::VmcallAlignError);
+    }
+
+    // Ensure that the interrupt vector is in a valid range
+    if (1..32).contains(&interrupt) {
+        return Err(TdVmcallError::VmcallOperandInvalid);
+    }
+
+    let mut args = TdVmcallArgsEx {
+        r11: TDVMCALL_MIGTD,
+        r12: TDVMCALL_MIGTD_SEND,
+        r13: mig_request_id,
+        r14: data_buffer_length,
+        r15: data_buffer,
+        rbx: interrupt as u64,
+        ..Default::default()
+    };
+
+    let ret = td_vmcall_ex2(&mut args, false);
+
+    if ret != TDVMCALL_STATUS_SUCCESS {
+        return Err(ret.into());
+    }
+
+    Ok(())
+}
+
+#[cfg(not(feature = "no-tdvmcall"))]
+pub fn tdvmcall_migtd_receive(
+    mig_request_id: u64,
+    data_buffer: &mut [u8],
+    interrupt: u8,
+) -> Result<(), TdVmcallError> {
+    let data_buffer_length = data_buffer.len() as u64;
+    let data_buffer = data_buffer.as_mut_ptr() as u64 | *SHARED_MASK;
+
+    // Ensure the address is aligned to 4K bytes
+    if (data_buffer & 0xfff) != 0 {
+        return Err(TdVmcallError::VmcallAlignError);
+    }
+
+    // Ensure that the interrupt vector is in a valid range
+    if (1..32).contains(&interrupt) {
+        return Err(TdVmcallError::VmcallOperandInvalid);
+    }
+
+    let mut args = TdVmcallArgsEx {
+        r11: TDVMCALL_MIGTD,
+        r12: TDVMCALL_MIGTD_RECEIVE,
+        r13: mig_request_id,
+        r14: data_buffer_length,
+        r15: data_buffer,
+        rbx: interrupt as u64,
+        ..Default::default()
+    };
+
+    let ret = td_vmcall_ex2(&mut args, false);
 
     if ret != TDVMCALL_STATUS_SUCCESS {
         return Err(ret.into());
