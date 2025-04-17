@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2022 Intel Corporation
+// Copyright (c) 2020-2025 Intel Corporation
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
@@ -78,10 +78,17 @@ cfg_if::cfg_if! {
         const TDVMCALL_GETQUOTE: u64 = 0x10002;
         const TDVMCALL_SETUPEVENTNOTIFY: u64 = 0x10004;
         const TDVMCALL_SERVICE: u64 = 0x10005;
+        const TDVMCALL_MIGTD: u64 = 0x10006;
 
         // TDVMCALL completion status code
         const TDVMCALL_STATUS_SUCCESS: u64 = 0;
         const TDVMCALL_STATUS_RETRY: u64 = 1;
+
+        // TDVMCALL<MigTD> leaf function numbers
+        const TDVMCALL_MIGTD_WAITFORREQUEST: u64 = 1;
+        const TDVMCALL_MIGTD_REPORTSTATUS: u64 = 2;
+        const TDVMCALL_MIGTD_SEND: u64 = 3;
+        const TDVMCALL_MIGTD_RECEIVE: u64 = 4;
     }
 }
 
@@ -115,6 +122,14 @@ pub fn td_vmcall(args: &mut TdVmcallArgs) -> u64 {
 #[cfg(not(feature = "no-tdvmcall"))]
 pub fn td_vmcall_ex(args: &mut TdVmcallArgs, do_sti: bool) -> u64 {
     unsafe { asm::asm_td_vmcall(args as *mut TdVmcallArgs as *mut c_void, do_sti as u64) }
+}
+
+// An extended public wrapper for use of asm_td_vmcall_ex.
+//
+// `do_sti` is a flag used to determine whether to execute `sti` instruction before `tdcall`
+#[cfg(not(feature = "no-tdvmcall"))]
+pub fn td_vmcall_ex2(args: &mut TdVmcallArgsEx, do_sti: bool) -> u64 {
+    unsafe { asm::asm_td_vmcall_ex(args as *mut TdVmcallArgsEx as *mut c_void, do_sti as u64) }
 }
 
 // Wrapper for use of asm_td_call, this function takes a mutable reference of a
@@ -159,6 +174,28 @@ pub struct TdcallArgs {
 pub struct TdVmcallArgs {
     // Input: Always 0 for  (standard VMCALL)
     // Output: Sub-function
+    pub r10: u64,
+    pub r11: u64,
+    pub r12: u64,
+    pub r13: u64,
+    pub r14: u64,
+    pub r15: u64,
+}
+
+// Used to pass the values of input/output register when performing TDVMCALL
+// instruction
+#[cfg(not(feature = "no-tdvmcall"))]
+#[repr(C)]
+#[derive(Default)]
+pub struct TdVmcallArgsEx {
+    // Input: Always 0 for  (standard VMCALL)
+    // Output: Sub-function
+    pub rdx: u64,
+    pub rbx: u64,
+    pub rsi: u64,
+    pub rdi: u64,
+    pub r8: u64,
+    pub r9: u64,
     pub r10: u64,
     pub r11: u64,
     pub r12: u64,
