@@ -27,7 +27,7 @@ jobs:
     strategy:
       matrix:
         host_os:
-          - ubuntu-20.04
+          - ubuntu-22.04
           - windows-2019
     steps:
       # Install first since it's needed to build NASM
@@ -56,6 +56,10 @@ jobs:
       
       - name: Preparation Work
         run: bash sh_script/preparation.sh
+      
+      - name: Install libtinfo5
+        run: sudo apt-get update -y && sudo apt-get install libtinfo5 -y
+        if: runner.os == 'Linux'
 
       - name: Test Shim Crates
         run: make test 

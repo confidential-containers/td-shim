@@ -64,7 +64,7 @@ name: cargo-deny
 on: [push, pull_request]
 jobs:
   cargo-deny:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         checks:

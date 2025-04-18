@@ -11,22 +11,25 @@ env:
 jobs:
   clippy:
     name: Clippy
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
-      - name: Checkout sources
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
       # Install first since it's needed to build NASM
       - name: Install LLVM and Clang
         uses: KyleMayes/install-llvm-action@v2
         with:
           version: "10.0"
           directory: ${{ runner.temp }}/llvm
+        
+      - name: Install libtinfo5
+        run: sudo apt-get update -y && sudo apt-get install libtinfo5 -y
 
       - name: install NASM
         uses: ilammy/setup-nasm@v1
+      
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Install toolchain with clippy available
         uses: dtolnay/rust-toolchain@master
@@ -45,7 +48,7 @@ jobs:
 
   rustfmt:
     name: Format
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
 
       # Install first since it's needed to build NASM
@@ -54,7 +57,10 @@ jobs:
         with:
           version: "10.0"
           directory: ${{ runner.temp }}/llvm
-
+      
+      - name: Install libtinfo5
+        run: sudo apt-get update -y && sudo apt-get install libtinfo5 -y
+      
       - name: install NASM
         uses: ilammy/setup-nasm@v1
 

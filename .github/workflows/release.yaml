@@ -9,7 +9,7 @@ jobs:
   release:
     if: github.event_name == 'create' && github.event.ref_type== 'tag'
     name: Release
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     timeout-minutes: 30
 
     steps:
