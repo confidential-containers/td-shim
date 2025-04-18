@@ -11,7 +11,7 @@ env:
 jobs:
   clippy:
     name: Clippy
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
@@ -45,7 +45,7 @@ jobs:
 
   rustfmt:
     name: Format
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
 
       # Install first since it's needed to build NASM

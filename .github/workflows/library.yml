@@ -23,7 +23,7 @@ jobs:
     strategy:
       matrix:
         host_os:
-          - ubuntu-20.04
+          - ubuntu-latest
           - windows-2019
     steps:
       # Install first since it's needed to build NASM
@@ -61,7 +61,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-20.04, windows-2019]
+        os: [ubuntu-latest, windows-2019]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
 

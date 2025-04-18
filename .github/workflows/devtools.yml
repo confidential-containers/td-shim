@@ -23,7 +23,7 @@ jobs:
     strategy:
       matrix:
         host_os:
-          - ubuntu-20.04
+          - ubuntu-latest
           - windows-2019
     steps:
       - name: Install LLVM and Clang
