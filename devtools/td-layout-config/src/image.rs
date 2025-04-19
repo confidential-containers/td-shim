@@ -28,13 +28,20 @@ struct ImageConfig {
     bootloader: String,
     #[serde(rename = "ResetVector")]
     reset_vector: String,
+    #[serde(rename = "ImageSize")]
+    image_size: Option<String>,
 }
 
 pub fn parse_image(data: String) -> String {
     let image_config = serde_json::from_str::<ImageConfig>(&data)
         .expect("Content is configuration file is invalid");
 
-    let mut image_layout = LayoutConfig::new(0, 0x100_0000);
+    let mut image_size = 0x100_0000 as usize;
+    if image_config.image_size.is_some() {
+        image_size = parse_int::parse::<u32>(&image_config.image_size.unwrap()).unwrap() as usize;
+    }
+
+    let mut image_layout = LayoutConfig::new(0, image_size);
     image_layout.reserve_low(
         "Config",
         parse_int::parse::<u32>(&image_config.config).unwrap() as usize,
