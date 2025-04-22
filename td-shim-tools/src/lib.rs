@@ -11,7 +11,7 @@ use std::{fs, io};
 use log::error;
 use td_layout::build_time::TD_SHIM_FIRMWARE_SIZE;
 
-#[cfg(feature = "enroller")]
+#[cfg(all(feature = "enroller", not(feature = "no-config")))]
 pub mod enroller;
 #[cfg(feature = "enroller")]
 pub mod public_key;
