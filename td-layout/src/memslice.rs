@@ -106,6 +106,7 @@ mod test {
     use super::*;
 
     #[test]
+    #[cfg(not(feature = "no-config"))]
     fn test_get_mem_slice_with_type_config() {
         let config = get_mem_slice(SliceType::Config);
         assert_eq!(config.len(), TD_SHIM_CONFIG_SIZE as usize);
@@ -130,6 +131,7 @@ mod test {
     }
 
     #[test]
+    #[cfg(not(feature = "no-mailbox"))]
     fn test_get_mem_slice_with_type_mailbox() {
         let mailbox = get_mem_slice(SliceType::MailBox);
         assert_eq!(mailbox.len(), TD_SHIM_MAILBOX_SIZE as usize);
