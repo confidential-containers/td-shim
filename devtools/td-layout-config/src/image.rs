@@ -9,9 +9,9 @@ use super::{layout::LayoutConfig, render};
 #[derive(Deserialize, Debug, PartialEq)]
 struct ImageConfig {
     #[serde(rename = "Config")]
-    config: String,
+    config: Option<String>,
     #[serde(rename = "Mailbox")]
-    mailbox: String,
+    mailbox: Option<String>,
     #[serde(rename = "TempStack")]
     temp_stack: String,
     #[serde(rename = "TempHeap")]
@@ -42,16 +42,22 @@ pub fn parse_image(data: String) -> String {
     }
 
     let mut image_layout = LayoutConfig::new(0, image_size);
-    image_layout.reserve_low(
-        "Config",
-        parse_int::parse::<u32>(&image_config.config).unwrap() as usize,
-        "Reserved",
-    );
-    image_layout.reserve_low(
-        "Mailbox",
-        parse_int::parse::<u32>(&image_config.mailbox).unwrap() as usize,
-        "Reserved",
-    );
+
+    if let Some(config_config) = image_config.config {
+        image_layout.reserve_low(
+            "Config",
+            parse_int::parse::<u32>(&config_config).unwrap() as usize,
+            "Reserved",
+        );
+    }
+    if let Some(mailbox_config) = image_config.mailbox {
+        image_layout.reserve_low(
+            "Mailbox",
+            parse_int::parse::<u32>(&mailbox_config).unwrap() as usize,
+            "Reserved",
+        );
+    }
+
     image_layout.reserve_low(
         "TempStack",
         parse_int::parse::<u32>(&image_config.temp_stack).unwrap() as usize,
