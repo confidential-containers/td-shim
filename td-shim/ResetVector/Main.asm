@@ -233,7 +233,7 @@ BITS    64
     ; Note, BSP never gets here, APs will be unblocked in DXE
     ;
 ParkAp:
-
+%if (MAILBOX_SUPPORT != 0)
     ;
     ; Get vcpuid in rbp
     mov     rbp,  rax
@@ -347,3 +347,4 @@ ParkAp:
     nop
     jmp     rax
     jmp     $
+%endif

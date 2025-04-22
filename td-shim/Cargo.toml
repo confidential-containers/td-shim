@@ -55,6 +55,8 @@ no-tdvmcall = ["tdx-tdcall/no-tdvmcall", "td-logger/no-tdvmcall", "td-exception/
 no-tdaccept = ["tdx-tdcall/no-tdaccept"]
 no-metadata-checks = ["td-shim-interface/no-metadata-checks"]
 tdg_dbg = ["td-logger/tdg_dbg"]
+no-config = ["td-layout/no-config"]
+no-mailbox = ["td-layout/no-mailbox"]
 
 main = [
     "log",

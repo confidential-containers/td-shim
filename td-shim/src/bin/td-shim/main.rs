@@ -217,7 +217,7 @@ fn boot_builtin_payload(
     )
     .expect("Failed to get image file from Firmware Volume");
 
-    #[cfg(feature = "secure-boot")]
+    #[cfg(all(feature = "secure-boot", not(feature = "no-config")))]
     {
         payload_bin = secure_boot_verify_payload(payload_bin, event_log);
     }
@@ -380,7 +380,7 @@ fn prepare_acpi_tables(acpi_tables: &mut Vec<&[u8]>, mem: &Memory, vcpus: u32) -
     (madt, tdel)
 }
 
-#[cfg(feature = "secure-boot")]
+#[cfg(all(feature = "secure-boot", not(feature = "no-config")))]
 fn secure_boot_verify_payload<'a>(
     payload: &'a [u8],
     cc_event_log: &mut CcEventLogWriter,

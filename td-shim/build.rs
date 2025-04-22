@@ -172,8 +172,14 @@ fn real_main() -> Result<()> {
         }
     );
     let td_shim_ipl_base_arg = format!("-DTOP_OF_BFV=0x{:X}", build_time::TD_SHIM_IPL_BASE);
+
+    #[cfg(feature = "no-mailbox")]
+    let mailbox_support = format!("-DMAILBOX_SUPPORT={}", 0u8);
+    #[cfg(not(feature = "no-mailbox"))]
+    let mailbox_support = format!("-DMAILBOX_SUPPORT={}", 1u8);
     let td_mailbox_base_arg = format!("-DTD_MAILBOX_BASE=0x{:X}", build_time::TD_SHIM_MAILBOX_BASE);
     let td_mailbox_size_arg = format!("-DTD_MAILBOX_SIZE=0x{:X}", build_time::TD_SHIM_MAILBOX_SIZE);
+
     let td_shim_tmp_stack_base_arg = format!(
         "-DTEMP_STACK_BASE=0x{:X}",
         build_time::TD_SHIM_TEMP_STACK_BASE
@@ -226,6 +232,7 @@ fn real_main() -> Result<()> {
             &loaded_sec_core_base,
             &loaded_sec_core_size,
             &tdaccept,
+            &mailbox_support,
         ],
     ));
 

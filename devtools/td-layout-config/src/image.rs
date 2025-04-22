@@ -49,6 +49,8 @@ pub fn parse_image(data: String) -> String {
             parse_int::parse::<u32>(&config_config).unwrap() as usize,
             "Reserved",
         );
+    } else {
+        image_layout.reserve_low("Config", 0usize, "Reserved");
     }
     if let Some(mailbox_config) = image_config.mailbox {
         image_layout.reserve_low(
@@ -56,6 +58,8 @@ pub fn parse_image(data: String) -> String {
             parse_int::parse::<u32>(&mailbox_config).unwrap() as usize,
             "Reserved",
         );
+    } else {
+        image_layout.reserve_low("Mailbox", 0usize, "Reserved");
     }
 
     image_layout.reserve_low(
