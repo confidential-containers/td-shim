@@ -22,18 +22,22 @@ pub fn get_shared_page_mask() -> u64 {
 
 pub fn accept_memory_resource_range(address: u64, size: u64) {
     let cpu_num = get_num_vcpus();
+    #[cfg(not(feature = "no-mailbox"))]
     super::tdx_mailbox::accept_memory_resource_range(cpu_num, address, size)
 }
 
 pub fn relocate_mailbox(new_mailbox: &mut [u8]) {
+    #[cfg(not(feature = "no-mailbox"))]
     super::tdx_mailbox::relocate_mailbox(new_mailbox).expect("Unable to relocate mailbox");
 }
 
 pub fn relocate_ap_page_table(page_table_base: u64) {
+    #[cfg(not(feature = "no-mailbox"))]
     super::tdx_mailbox::relocate_page_table(get_num_vcpus(), page_table_base);
 }
 
 pub fn set_idt(idt_ptr: &DescriptorTablePointer) {
+    #[cfg(not(feature = "no-mailbox"))]
     super::tdx_mailbox::set_idt(get_num_vcpus(), idt_ptr);
 }
 

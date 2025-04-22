@@ -4,7 +4,7 @@
 
 #[cfg(feature = "tdx")]
 mod tdx;
-#[cfg(feature = "tdx")]
+#[cfg(all(feature = "tdx", not(feature = "no-mailbox")))]
 mod tdx_mailbox;
 #[cfg(feature = "tdx")]
 pub use tdx::*;
