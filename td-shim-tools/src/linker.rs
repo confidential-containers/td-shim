@@ -1,18 +1,31 @@
-// Copyright (c) 2021 Intel Corporation
+// Copyright (c) 2021-2025 Intel Corporation
 // Copyright (c) 2022 Alibaba Cloud
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
+use std::cmp::min;
+use std::fs::{self, File};
+use std::io::{self, Write};
 use std::mem::size_of;
-use std::{fs, io};
 
+use igvm::{
+    IgvmDirectiveHeader, IgvmFile, IgvmInitializationHeader, IgvmPlatformHeader, IgvmRevision,
+};
+use igvm_defs::{
+    IgvmPageDataFlags, IgvmPageDataType, IgvmPlatformType, IGVM_VHS_SUPPORTED_PLATFORM,
+    PAGE_SIZE_4K,
+};
 use log::trace;
 use r_efi::base::Guid;
 use scroll::Pwrite;
 use td_layout::build_time::{
-    TD_SHIM_FIRMWARE_BASE, TD_SHIM_FIRMWARE_SIZE, TD_SHIM_IPL_OFFSET, TD_SHIM_IPL_SIZE,
-    TD_SHIM_MAILBOX_OFFSET, TD_SHIM_METADATA_OFFSET, TD_SHIM_PAYLOAD_BASE, TD_SHIM_PAYLOAD_OFFSET,
-    TD_SHIM_PAYLOAD_SIZE, TD_SHIM_RESET_VECTOR_SIZE, TD_SHIM_SEC_CORE_INFO_OFFSET,
+    TD_SHIM_CONFIG_BASE, TD_SHIM_CONFIG_SIZE, TD_SHIM_FIRMWARE_BASE, TD_SHIM_FIRMWARE_SIZE,
+    TD_SHIM_IPL_BASE, TD_SHIM_IPL_OFFSET, TD_SHIM_IPL_SIZE, TD_SHIM_MAILBOX_BASE,
+    TD_SHIM_MAILBOX_OFFSET, TD_SHIM_MAILBOX_SIZE, TD_SHIM_METADATA_BASE, TD_SHIM_METADATA_OFFSET,
+    TD_SHIM_METADATA_SIZE, TD_SHIM_PAYLOAD_BASE, TD_SHIM_PAYLOAD_OFFSET, TD_SHIM_PAYLOAD_SIZE,
+    TD_SHIM_RESET_VECTOR_OFFSET, TD_SHIM_RESET_VECTOR_SIZE, TD_SHIM_SEC_CORE_INFO_OFFSET,
+    TD_SHIM_TEMP_HEAP_BASE, TD_SHIM_TEMP_HEAP_SIZE, TD_SHIM_TEMP_STACK_BASE,
+    TD_SHIM_TEMP_STACK_SIZE,
 };
 use td_layout::mailbox::TdxMpWakeupMailbox;
 use td_loader::{elf, pe};
@@ -22,7 +35,9 @@ use td_shim::fv::{
 };
 use td_shim::reset_vector::{ResetVectorHeader, ResetVectorParams};
 use td_shim::write_u24;
-use td_shim_interface::metadata::{TdxMetadataGuid, TdxMetadataPtr};
+use td_shim_interface::metadata::{
+    TdxMetadataGuid, TdxMetadataPtr, TDX_METADATA_SECTION_TYPE_PERM_MEM,
+};
 use td_shim_interface::td_uefi_pi::pi::fv::{
     FfsFileHeader, FVH_REVISION, FVH_SIGNATURE, FV_FILETYPE_DXE_CORE, FV_FILETYPE_SECURITY_CORE,
     SECTION_PE32,
@@ -283,6 +298,30 @@ pub fn build_tdx_metadata_ptr() -> TdxMetadataPtr {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ImageFormat {
+    TDVF,
+    IGVM,
+}
+
+impl Default for ImageFormat {
+    fn default() -> Self {
+        Self::TDVF
+    }
+}
+
+impl std::str::FromStr for ImageFormat {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "tdvf" => Ok(ImageFormat::TDVF),
+            "igvm" => Ok(ImageFormat::IGVM),
+            _ => return Err(format!("Invalid output file type: {}", s)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PayloadType {
     Linux,
     Executable,
@@ -306,11 +345,46 @@ impl std::str::FromStr for PayloadType {
     }
 }
 
+fn insert_igvm_pages(
+    directive_headers: &mut Vec<IgvmDirectiveHeader>,
+    base: u64,
+    size: u64,
+    data: &Vec<u8>,
+    unmeasured: bool,
+) {
+    let num_pages = size / PAGE_SIZE_4K;
+    for i in 0..num_pages {
+        let start = (i * PAGE_SIZE_4K) as usize;
+        let end = min(((i + 1) * PAGE_SIZE_4K) as usize, data.len());
+        let page_data = if data.len() == 0 {
+            vec![]
+        } else {
+            if start < end {
+                data[start..end].to_vec()
+            } else {
+                vec![0u8; PAGE_SIZE_4K as usize]
+            }
+        };
+        let mut flags = IgvmPageDataFlags::new();
+        if unmeasured {
+            flags.set_unmeasured(true);
+        }
+        directive_headers.push(IgvmDirectiveHeader::PageData {
+            gpa: base + i * PAGE_SIZE_4K,
+            compatibility_mask: 1,
+            flags: flags,
+            data_type: IgvmPageDataType::NORMAL,
+            data: page_data,
+        });
+    }
+}
+
 /// TD shim linker to compose multiple components into the final shim binary.
 #[derive(Default)]
 pub struct TdShimLinker {
     payload_relocation: bool,
     output_file_name: Option<String>,
+    image_format: Option<ImageFormat>,
     payload_type: PayloadType,
 }
 
@@ -328,6 +402,12 @@ impl TdShimLinker {
     }
 
     /// Enable/disable relocation of shim payload.
+    pub fn set_image_format(&mut self, image_format: ImageFormat) -> &mut Self {
+        self.image_format = Some(image_format);
+        self
+    }
+
+    /// Enable/disable relocation of shim payload.
     pub fn set_payload_type(&mut self, payload_type: PayloadType) -> &mut Self {
         self.payload_type = payload_type;
         self
@@ -335,6 +415,222 @@ impl TdShimLinker {
 
     /// Build the shim binary.
     pub fn build(
+        &self,
+        reset_name: &str,
+        ipl_name: &str,
+        payload_name: Option<&str>,
+        metadata_name: Option<&str>,
+    ) -> io::Result<()> {
+        match self.image_format.unwrap_or_default() {
+            ImageFormat::TDVF => self.build_tdvf(reset_name, ipl_name, payload_name, metadata_name),
+            ImageFormat::IGVM => self.build_igvm(reset_name, ipl_name, payload_name, metadata_name),
+        }
+    }
+
+    fn build_igvm(
+        &self,
+        reset_name: &str,
+        ipl_name: &str,
+        payload_name: Option<&str>,
+        metadata_name: Option<&str>,
+    ) -> io::Result<()> {
+        let mut directive_headers: Vec<IgvmDirectiveHeader> = Vec::new();
+
+        let metadata = build_tdx_metadata(metadata_name, self.payload_type)?;
+        if let Some(perm_mem) = metadata
+            .sections
+            .as_slice()
+            .iter()
+            .find(|s| s.r#type == TDX_METADATA_SECTION_TYPE_PERM_MEM)
+        {
+            insert_igvm_pages(
+                &mut directive_headers,
+                perm_mem.memory_address,
+                perm_mem.memory_data_size,
+                &vec![],
+                true,
+            );
+        }
+
+        insert_igvm_pages(
+            &mut directive_headers,
+            TD_SHIM_CONFIG_BASE as u64,
+            TD_SHIM_CONFIG_SIZE as u64,
+            &vec![],
+            false,
+        );
+
+        let mailbox = TdxMpWakeupMailbox::default();
+        insert_igvm_pages(
+            &mut directive_headers,
+            TD_SHIM_MAILBOX_BASE as u64,
+            TD_SHIM_MAILBOX_SIZE as u64,
+            &mailbox.as_bytes().to_vec(),
+            false,
+        );
+
+        insert_igvm_pages(
+            &mut directive_headers,
+            TD_SHIM_TEMP_STACK_BASE as u64,
+            TD_SHIM_TEMP_STACK_SIZE as u64,
+            &vec![],
+            false,
+        );
+
+        insert_igvm_pages(
+            &mut directive_headers,
+            TD_SHIM_TEMP_HEAP_BASE as u64,
+            TD_SHIM_TEMP_HEAP_SIZE as u64,
+            &vec![],
+            false,
+        );
+
+        if let Some(payload_name) = payload_name {
+            let payload_bin =
+                InputData::new(payload_name, 0..=MAX_PAYLOAD_CONTENT_SIZE, "payload")?;
+            let payload_header = PayloadFvHeaderByte::build_tdx_payload_fv_header();
+            let mut payload_data = payload_header.data.to_vec();
+            if self.payload_relocation {
+                let mut payload_reloc_buf = vec![0x0u8; MAX_PAYLOAD_CONTENT_SIZE];
+                let reloc = pe::relocate(
+                    &payload_bin.data,
+                    &mut payload_reloc_buf,
+                    TD_SHIM_PAYLOAD_BASE as usize + payload_header.data.len(),
+                )
+                .ok_or_else(|| {
+                    io::Error::new(io::ErrorKind::Other, "Can not relocate payload content")
+                })?;
+                trace!("shim payload relocated to 0x{:x}", reloc);
+                payload_data.extend_from_slice(&payload_reloc_buf);
+            } else {
+                payload_data.extend_from_slice(&payload_bin.data);
+            }
+            insert_igvm_pages(
+                &mut directive_headers,
+                TD_SHIM_PAYLOAD_BASE as u64,
+                TD_SHIM_PAYLOAD_SIZE as u64,
+                &payload_data,
+                true,
+            );
+        }
+
+        let metadata = metadata.to_vec();
+
+        let ipl_header = IplFvHeaderByte::build_tdx_ipl_fv_header();
+        let ipl_bin = InputData::new(ipl_name, 0..=MAX_IPL_CONTENT_SIZE, "IPL")?;
+        let mut ipl_reloc_buf = vec![0x00u8; MAX_IPL_CONTENT_SIZE];
+        // relocate ipl to 1M
+        const SIZE_1MB: u64 = 0x100000;
+        let reloc = elf::relocate_elf_with_per_program_header(
+            &ipl_bin.data,
+            &mut ipl_reloc_buf,
+            SIZE_1MB as usize,
+        )
+        .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "Can not relocate IPL content"))?;
+        trace!(
+            "reloc IPL entrypoint - 0x{:x} - base: 0x{:x}",
+            reloc.0,
+            SIZE_1MB
+        );
+        let mut ipl_data = ipl_header.data.to_vec();
+        ipl_data.extend(ipl_reloc_buf);
+
+        let reset_vector_header = ResetVectorHeader::build_tdx_reset_vector_header();
+        let reset_vector_bin = InputData::new(
+            reset_name,
+            TD_SHIM_RESET_VECTOR_SIZE as usize..=TD_SHIM_RESET_VECTOR_SIZE as usize,
+            "reset_vector",
+        )?;
+        let mut reset_vector_data = reset_vector_header.as_bytes().to_vec();
+        reset_vector_data.extend(&reset_vector_bin.data);
+        let entry_point = (reloc.0 - SIZE_1MB) as u32;
+        // Overwrite the ResetVectorParams and TdxMetadataPtr.
+        let reset_vector_info = ResetVectorParams {
+            entry_point,
+            img_base: TD_SHIM_IPL_BASE + ipl_header.data.len() as u32,
+            img_size: ipl_bin.data.len() as u32,
+        };
+        let start = (TD_SHIM_SEC_CORE_INFO_OFFSET - TD_SHIM_RESET_VECTOR_OFFSET) as usize
+            + reset_vector_header.as_bytes().len();
+        let end = start + reset_vector_info.as_bytes().len();
+        reset_vector_data.splice(start..end, reset_vector_info.as_bytes().to_vec());
+        // Overwrite the OVMF GUID table to be compatible with QEMU
+        let ovmf_guid_table = build_ovmf_guid_table();
+        assert_eq!(
+            ovmf_guid_table.len(),
+            (TD_SHIM_FIRMWARE_SIZE - TD_SHIM_SEC_CORE_INFO_OFFSET) as usize
+                - size_of::<ResetVectorParams>()
+                - 0x20
+        );
+        let start = end;
+        let end = start + ovmf_guid_table.len();
+        reset_vector_data.splice(start..end, ovmf_guid_table.to_vec());
+        let metadata_ptr = build_tdx_metadata_ptr();
+        let start = end;
+        let end = start + metadata_ptr.as_bytes().len();
+        reset_vector_data.splice(start..end, metadata_ptr.as_bytes().to_vec());
+
+        let bfv_size =
+            (TD_SHIM_METADATA_SIZE + TD_SHIM_IPL_SIZE + TD_SHIM_RESET_VECTOR_SIZE) as usize;
+        let mut bfv_data = vec![0u8; bfv_size as usize];
+
+        let start = 0 as usize;
+        let end = start + metadata.len();
+        bfv_data.splice(start..end, metadata);
+
+        let start = (TD_SHIM_IPL_OFFSET - TD_SHIM_METADATA_OFFSET) as usize;
+        let end = start + ipl_data.len();
+        bfv_data.splice(start..end, ipl_data);
+
+        let start = (TD_SHIM_RESET_VECTOR_OFFSET - TD_SHIM_METADATA_OFFSET) as usize
+            - reset_vector_header.as_bytes().len();
+        let end = start + reset_vector_data.len();
+        bfv_data.splice(start..end, reset_vector_data);
+
+        insert_igvm_pages(
+            &mut directive_headers,
+            TD_SHIM_METADATA_BASE as u64,
+            bfv_size as u64,
+            &bfv_data,
+            true,
+        );
+
+        let platform_header = IgvmPlatformHeader::SupportedPlatform(IGVM_VHS_SUPPORTED_PLATFORM {
+            compatibility_mask: 1,
+            highest_vtl: 0,
+            platform_type: IgvmPlatformType::TDX,
+            platform_version: 1,
+            shared_gpa_boundary: 1u64 << 47,
+        });
+
+        let initialization_headers = vec![IgvmInitializationHeader::GuestPolicy {
+            policy: 0,
+            compatibility_mask: 1,
+        }];
+
+        let igvm = IgvmFile::new(
+            IgvmRevision::V1,
+            vec![platform_header],
+            initialization_headers,
+            directive_headers,
+        )
+        .unwrap();
+
+        let mut output: Vec<u8> = Vec::new();
+        igvm.serialize(&mut output).unwrap();
+
+        let output_file_name = self
+            .output_file_name
+            .as_ref()
+            .map(|v| v.as_str())
+            .unwrap_or("td_shim.igvm");
+        let mut file = File::create(output_file_name).unwrap();
+        file.write_all(&output).unwrap();
+
+        io::Result::Ok(())
+    }
+
+    fn build_tdvf(
         &self,
         reset_name: &str,
         ipl_name: &str,

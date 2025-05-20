@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Intel Corporation
+// Copyright (c) 2020-2025 Intel Corporation
 // Copyright (c) 2022 Alibaba Cloud
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
@@ -11,7 +11,7 @@ use std::str::FromStr;
 
 use clap::{builder::PossibleValue, ArgAction};
 use log::{error, LevelFilter};
-use td_shim_tools::linker::{PayloadType, TdShimLinker};
+use td_shim_tools::linker::{ImageFormat, PayloadType, TdShimLinker};
 
 fn main() -> io::Result<()> {
     use env_logger::Env;
@@ -27,6 +27,16 @@ fn main() -> io::Result<()> {
         .arg(
             arg!(-p --payload "Payload binary file")
                 .required(false)
+                .action(ArgAction::Set),
+        )
+        .arg(
+            arg!(-i --"image-format" "Image format")
+                .required(false)
+                .value_parser([
+                    PossibleValue::new("tdvf").help("Generate image in TDVF format"),
+                    PossibleValue::new("igvm").help("Generate image in IGVM format"),
+                ])
+                .default_value("tdvf")
                 .action(ArgAction::Set),
         )
         .arg(
@@ -72,6 +82,15 @@ fn main() -> io::Result<()> {
     if let Some(output_name) = matches.get_one::<String>("output") {
         builder.set_output_file(output_name.clone());
     }
+
+    let image_format = matches.get_one::<String>("image-format").unwrap().as_str();
+    ImageFormat::from_str(image_format)
+        .map(|i| builder.set_image_format(i))
+        .map_err(|_e| {
+            error!("Invalid image format {}", image_format);
+            io::Error::new(io::ErrorKind::Other, "Invalid image format")
+        })?;
+
     if matches.get_flag("relocate-payload") {
         builder.set_payload_relocation(true);
     }
