@@ -32,13 +32,43 @@ struct ImageConfig {
     image_size: Option<String>,
 }
 
-pub fn parse_image(data: String) -> String {
+#[derive(Deserialize, Debug)]
+struct Section {
+    #[serde(rename = "MemoryDataSize")]
+    memory_data_size: String,
+    #[serde(rename = "Type")]
+    r#type: String,
+}
+
+#[derive(Deserialize, Debug)]
+struct Metadata {
+    #[serde(rename = "Sections")]
+    sections: Vec<Section>,
+}
+
+pub fn parse_image(data: String, metadata: Option<String>) -> String {
     let image_config = serde_json::from_str::<ImageConfig>(&data)
-        .expect("Content is configuration file is invalid");
+        .expect("Content in configuration file is invalid");
 
     let mut image_size = 0x100_0000 as usize;
     if image_config.image_size.is_some() {
         image_size = parse_int::parse::<u32>(&image_config.image_size.unwrap()).unwrap() as usize;
+    }
+
+    const MEMORY_4G: usize = 0x1_0000_0000;
+    let mut fw_top = MEMORY_4G;
+    if metadata.is_some() {
+        let metadata = serde_json::from_str::<Metadata>(&metadata.unwrap())
+            .expect("Content in configuration file is invalid");
+
+        for section in metadata.sections {
+            if section.r#type == "PermMem" {
+                let memory_data_size =
+                    parse_int::parse::<usize>(&section.memory_data_size).unwrap();
+                fw_top = memory_data_size + image_size;
+                break;
+            }
+        }
     }
 
     let mut image_layout = LayoutConfig::new(0, image_size);
@@ -114,5 +144,5 @@ pub fn parse_image(data: String) -> String {
         )
     }
 
-    render::render_image(&image_layout).expect("Render image layout failed!")
+    render::render_image(&image_layout, fw_top).expect("Render image layout failed!")
 }

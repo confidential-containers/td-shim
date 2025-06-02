@@ -9,7 +9,7 @@ use tera::{Context, Result, Tera};
 use super::layout::{LayoutConfig, ENTRY_TYPE_FILTER};
 
 /// Render image layout file.
-pub fn render_image(image_layout: &LayoutConfig) -> Result<String> {
+pub fn render_image(image_layout: &LayoutConfig, fw_top: usize) -> Result<String> {
     let mut tera = Tera::default();
     tera.register_filter("format_hex", format_hex);
     tera.register_filter("format_name", format_name);
@@ -21,10 +21,7 @@ pub fn render_image(image_layout: &LayoutConfig) -> Result<String> {
     context.insert("image_size", &image_layout.get_top());
     // Image size - metadata pointer offset(0x20) - OVMF GUID table size(0x28) - SEC Core information size(0xC).
     context.insert("sec_info_offset", &(image_layout.get_top() - 0x54));
-    context.insert(
-        "memory_offset",
-        &(u32::MAX as usize + 1 - &image_layout.get_top()),
-    );
+    context.insert("memory_offset", &(fw_top - &image_layout.get_top()));
     context.insert("entry_type_filter", ENTRY_TYPE_FILTER);
     tera.render("image.rs", &context)
 }

@@ -35,9 +35,7 @@ use td_shim::fv::{
 };
 use td_shim::reset_vector::{ResetVectorHeader, ResetVectorParams};
 use td_shim::write_u24;
-use td_shim_interface::metadata::{
-    TdxMetadataGuid, TdxMetadataPtr, TDX_METADATA_SECTION_TYPE_PERM_MEM,
-};
+use td_shim_interface::metadata::{TdxMetadataGuid, TdxMetadataPtr};
 use td_shim_interface::td_uefi_pi::pi::fv::{
     FfsFileHeader, FVH_REVISION, FVH_SIGNATURE, FV_FILETYPE_DXE_CORE, FV_FILETYPE_SECURITY_CORE,
     SECTION_PE32,
@@ -51,6 +49,7 @@ pub const MAX_IPL_CONTENT_SIZE: usize =
 pub const MAX_PAYLOAD_CONTENT_SIZE: usize =
     TD_SHIM_PAYLOAD_SIZE as usize - size_of::<FvHeaderByte>();
 pub const MAX_METADATA_CONFIG_SIZE: usize = 1024 * 1024;
+const MEMORY_4G: u64 = 0x1_0000_0000;
 
 pub const OVMF_TABLE_FOOTER_GUID: Guid = Guid::from_fields(
     0x96b582de,
@@ -401,7 +400,7 @@ impl TdShimLinker {
         self
     }
 
-    /// Enable/disable relocation of shim payload.
+    /// Set image format.
     pub fn set_image_format(&mut self, image_format: ImageFormat) -> &mut Self {
         self.image_format = Some(image_format);
         self
@@ -436,22 +435,6 @@ impl TdShimLinker {
     ) -> io::Result<()> {
         let mut directive_headers: Vec<IgvmDirectiveHeader> = Vec::new();
 
-        let metadata = build_tdx_metadata(metadata_name, self.payload_type)?;
-        if let Some(perm_mem) = metadata
-            .sections
-            .as_slice()
-            .iter()
-            .find(|s| s.r#type == TDX_METADATA_SECTION_TYPE_PERM_MEM)
-        {
-            insert_igvm_pages(
-                &mut directive_headers,
-                perm_mem.memory_address,
-                perm_mem.memory_data_size,
-                &vec![],
-                true,
-            );
-        }
-
         insert_igvm_pages(
             &mut directive_headers,
             TD_SHIM_CONFIG_BASE as u64,
@@ -460,12 +443,11 @@ impl TdShimLinker {
             false,
         );
 
-        let mailbox = TdxMpWakeupMailbox::default();
         insert_igvm_pages(
             &mut directive_headers,
             TD_SHIM_MAILBOX_BASE as u64,
             TD_SHIM_MAILBOX_SIZE as u64,
-            &mailbox.as_bytes().to_vec(),
+            &vec![],
             false,
         );
 
@@ -514,7 +496,7 @@ impl TdShimLinker {
             );
         }
 
-        let metadata = metadata.to_vec();
+        let metadata = build_tdx_metadata(metadata_name, self.payload_type)?.to_vec();
 
         let ipl_header = IplFvHeaderByte::build_tdx_ipl_fv_header();
         let ipl_bin = InputData::new(ipl_name, 0..=MAX_IPL_CONTENT_SIZE, "IPL")?;
@@ -595,6 +577,19 @@ impl TdShimLinker {
             true,
         );
 
+        if (TD_SHIM_FIRMWARE_BASE as u64 + TD_SHIM_FIRMWARE_SIZE as u64) < MEMORY_4G {
+            let size = PAGE_SIZE_4K as u64;
+            let base = MEMORY_4G - size;
+            let start = bfv_data.len() - size as usize;
+            insert_igvm_pages(
+                &mut directive_headers,
+                base,
+                size,
+                &bfv_data[start..].to_vec(),
+                true,
+            );
+        }
+
         let platform_header = IgvmPlatformHeader::SupportedPlatform(IGVM_VHS_SUPPORTED_PLATFORM {
             compatibility_mask: 1,
             highest_vtl: 0,
@@ -637,6 +632,11 @@ impl TdShimLinker {
         payload_name: Option<&str>,
         metadata_name: Option<&str>,
     ) -> io::Result<()> {
+        assert!(
+            (TD_SHIM_FIRMWARE_BASE as u64 + TD_SHIM_FIRMWARE_SIZE as u64) == MEMORY_4G,
+            "FW top must be 4GB for TDVF images",
+        );
+
         let reset_vector_bin = InputData::new(
             reset_name,
             TD_SHIM_RESET_VECTOR_SIZE as usize..=TD_SHIM_RESET_VECTOR_SIZE as usize,

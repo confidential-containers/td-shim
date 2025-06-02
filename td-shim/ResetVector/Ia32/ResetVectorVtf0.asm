@@ -52,4 +52,4 @@ resetVector:
 
 ALIGN   16
 
-fourGigabytes:
+endOfResetVector:
