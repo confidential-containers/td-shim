@@ -25,6 +25,8 @@ use crate::td;
 
 const EXTENDED_FUNCTION_INFO: u32 = 0x80000000;
 const VIRT_PHYS_MEM_SIZES: u32 = 0x80000008;
+const MEMORY_SIZE: u64 =
+    build_time::TD_SHIM_FIRMWARE_BASE as u64 + build_time::TD_SHIM_FIRMWARE_SIZE as u64;
 const MEMORY_4G: u64 = 0x1_0000_0000;
 const SIZE_2M: u64 = 0x200000;
 const RESERVED_MEMORY_SPACE_SIZE: u64 = 0x400_0000;
@@ -52,7 +54,7 @@ impl<'a> Memory<'a> {
             .iter()
             .map(|entry| {
                 let entry_top = entry.physical_start + entry.resource_length;
-                if entry.resource_type == RESOURCE_SYSTEM_MEMORY && entry_top < MEMORY_4G {
+                if entry.resource_type == RESOURCE_SYSTEM_MEMORY && entry_top < MEMORY_SIZE {
                     entry_top
                 } else {
                     0
@@ -190,8 +192,8 @@ impl<'a> Memory<'a> {
             // For example, QEMU may reserve 4 pages at 0xfeffc000 for an EPT
             // identity map and a TSS in order to use vm86 mode to emulate
             // 16-bit code directly.
-            if new.physical_start >= MEMORY_4G - RESERVED_MEMORY_SPACE_SIZE
-                && new.physical_start + new.resource_length < MEMORY_4G
+            if new.physical_start >= MEMORY_SIZE - RESERVED_MEMORY_SPACE_SIZE
+                && new.physical_start + new.resource_length < MEMORY_SIZE
             {
                 continue;
             }
@@ -207,14 +209,15 @@ impl<'a> Memory<'a> {
 
             // Filter out the resources covers image space
             // TBD: it should be ensured by VMM that this kind of resources should be MMIO
-            if new.physical_start >= TD_SHIM_FIRMWARE_BASE as u64 && new.physical_start < MEMORY_4G
+            if new.physical_start >= TD_SHIM_FIRMWARE_BASE as u64
+                && new.physical_start < MEMORY_SIZE
             {
-                if entry_top > MEMORY_4G {
+                if entry_top > MEMORY_SIZE {
                     if new.resource_type == RESOURCE_SYSTEM_MEMORY
                         || new.resource_type == RESOURCE_MEMORY_UNACCEPTED
                     {
-                        new.physical_start = MEMORY_4G;
-                        new.resource_length = entry_top - MEMORY_4G;
+                        new.physical_start = MEMORY_SIZE;
+                        new.resource_length = entry_top - MEMORY_SIZE;
                     }
                 } else {
                     continue;
