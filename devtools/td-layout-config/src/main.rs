@@ -26,6 +26,9 @@ struct Cli {
     /// Memory base address.
     #[clap(short = 'b', long = "base", default_value_t = String::from("0x0"))]
     base: String,
+    /// Parse memory config to find FW top (only valid with -t image).
+    #[clap(short = 'm', long = "metadata")]
+    metadata: Option<String>,
     /// Output to file
     #[clap(short = 'o', long = "output")]
     output: Option<String>,
@@ -38,13 +41,22 @@ fn main() {
     let cli = Cli::parse();
 
     let config = std::fs::read_to_string(cli.config.to_string())
-        .expect("Content is configuration file is invalid");
+        .expect("Content in configuration file is invalid");
 
     let output_file = cli.output.as_ref().map(|path| PathBuf::from(&path));
 
     match cli.config_type {
         ConfigType::Memory => output(&cli, memory::parse_memory(config), output_file),
-        ConfigType::Image => output(&cli, image::parse_image(config), output_file),
+        ConfigType::Image => {
+            let metadata = match cli.metadata {
+                Some(ref metadata) => Some(
+                    std::fs::read_to_string(metadata.to_string())
+                        .expect("Content in configuration file is invalid"),
+                ),
+                None => None,
+            };
+            output(&cli, image::parse_image(config, metadata), output_file);
+        }
     };
 }
 

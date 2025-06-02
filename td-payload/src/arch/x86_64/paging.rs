@@ -5,6 +5,7 @@
 use core::ops::{Index, IndexMut};
 
 use paging::PageTableFlags as Flags;
+use td_layout::build_time;
 use td_paging::cr3_write;
 use td_shim::e820::E820Entry;
 use x86_64::{
@@ -19,10 +20,7 @@ use x86_64::{
 };
 
 use crate::{
-    mm::{
-        page_table::{alloc_pt_frame, free_pt_frame},
-        FIRMWARE_BASE, FIRMWARE_SIZE,
-    },
+    mm::page_table::{alloc_pt_frame, free_pt_frame},
     Error,
 };
 
@@ -57,7 +55,11 @@ pub fn setup_paging(memory_map: &[E820Entry]) -> Result<(), Error> {
 
         identity_map(&mut pt, entry.addr, entry.size)?;
     }
-    identity_map(&mut pt, FIRMWARE_BASE as u64, FIRMWARE_SIZE as u64)?;
+    identity_map(
+        &mut pt,
+        build_time::TD_SHIM_FIRMWARE_BASE as u64,
+        build_time::TD_SHIM_FIRMWARE_SIZE as u64,
+    )?;
 
     cr3_write(pml4 as u64);
     Ok(())

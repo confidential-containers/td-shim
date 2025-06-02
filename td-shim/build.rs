@@ -213,6 +213,10 @@ fn real_main() -> Result<()> {
             0u8
         }
     );
+    let fw_top = format!(
+        "-DFW_TOP=0x{:X}",
+        build_time::TD_SHIM_FIRMWARE_BASE as u64 + build_time::TD_SHIM_FIRMWARE_SIZE as u64,
+    );
 
     let _ = env::set_current_dir(reset_vector_src_dir.as_path());
     run_command(nasm(
@@ -233,6 +237,7 @@ fn real_main() -> Result<()> {
             &loaded_sec_core_size,
             &tdaccept,
             &mailbox_support,
+            &fw_top,
         ],
     ));
 
