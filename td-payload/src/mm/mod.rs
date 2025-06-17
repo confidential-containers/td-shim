@@ -35,8 +35,6 @@ pub const E820_TABLE_SIZE: usize = 128;
 pub const SIZE_4K: usize = 0x1000;
 pub const SIZE_2M: usize = 0x20_0000;
 pub const SIZE_1G: usize = 0x4000_0000;
-pub const FIRMWARE_BASE: usize = 0xFF00_0000;
-pub const FIRMWARE_SIZE: usize = 0x100_0000;
 
 lazy_static! {
     pub static ref MEMORY_MAP: Mutex<[E820Entry; E820_TABLE_SIZE]> =

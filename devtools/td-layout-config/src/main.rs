@@ -26,6 +26,9 @@ struct Cli {
     /// Memory base address.
     #[clap(short = 'b', long = "base", default_value_t = String::from("0x0"))]
     base: String,
+    /// Memory size.
+    #[clap(short = 'm', long = "memory_size", default_value_t = String::from("0x100000000"))]
+    memory_size: String,
     /// Output to file
     #[clap(short = 'o', long = "output")]
     output: Option<String>,
@@ -42,9 +45,16 @@ fn main() {
 
     let output_file = cli.output.as_ref().map(|path| PathBuf::from(&path));
 
+    let memory_size = if let Some(memory_size) = cli.memory_size.strip_prefix("0x") {
+        usize::from_str_radix(memory_size, 16)
+    } else {
+        cli.memory_size.parse::<usize>()
+    }
+    .expect("Memory size is invalid.");
+
     match cli.config_type {
         ConfigType::Memory => output(&cli, memory::parse_memory(config), output_file),
-        ConfigType::Image => output(&cli, image::parse_image(config), output_file),
+        ConfigType::Image => output(&cli, image::parse_image(config, memory_size), output_file),
     };
 }
 
