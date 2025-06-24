@@ -17,7 +17,7 @@
 
 
 %define ADDR16_OF(x) (0x10000 - fourGigabytes + x)
-%define ADDR_OF(x) (0x100000000 - fourGigabytes + x)
+%define ADDR_OF(x) (MEMORY_SIZE - fourGigabytes + x)
 
 %macro  OneTimeCall 1
     jmp     %1

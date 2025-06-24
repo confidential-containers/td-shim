@@ -21,6 +21,7 @@ scroll = { version = "0.10", default-features = false, features = ["derive"]}
 serde = { version = "1.0", default-features = false, features = ["derive"]}
 serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
 spin = "0.9"
+td-layout = { path = "../td-layout" }
 td-logger =  { path = "../td-logger" }
 td-shim = { path = "../td-shim", default-features = false }
 td-shim-interface =  { path = "../td-shim-interface" }
