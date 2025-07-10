@@ -24,7 +24,7 @@ jobs:
       matrix:
         host_os:
           - ubuntu-latest
-          - windows-2019
+          - windows-2022
     steps:
       - name: Install LLVM and Clang
         uses: KyleMayes/install-llvm-action@v2
