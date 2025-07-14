@@ -36,7 +36,7 @@ pub fn parse_image(data: String) -> String {
     let image_config = serde_json::from_str::<ImageConfig>(&data)
         .expect("Content is configuration file is invalid");
 
-    let mut image_size = 0x100_0000 as usize;
+    let mut image_size = 0x100_0000_usize;
     if image_config.image_size.is_some() {
         image_size = parse_int::parse::<u32>(&image_config.image_size.unwrap()).unwrap() as usize;
     }

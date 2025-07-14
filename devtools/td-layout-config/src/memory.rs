@@ -24,7 +24,7 @@ pub fn parse_memory(data: String) -> String {
     let memory_config = serde_json::from_str::<MemoryConfig>(&data)
         .expect("Content is configuration file is invalid");
 
-    let mut memory_top = 0x8000_0000 as usize; // default 2 GiB
+    let mut memory_top = 0x8000_0000_usize; // default 2 GiB
     if memory_config.memory_top.is_some() {
         memory_top = parse_int::parse::<u64>(&memory_config.memory_top.unwrap()).unwrap() as usize;
     }

@@ -23,7 +23,7 @@ pub fn render_image(image_layout: &LayoutConfig) -> Result<String> {
     context.insert("sec_info_offset", &(image_layout.get_top() - 0x54));
     context.insert(
         "memory_offset",
-        &(u32::MAX as usize + 1 - &image_layout.get_top()),
+        &(u32::MAX as usize + 1 - image_layout.get_top()),
     );
     context.insert("entry_type_filter", ENTRY_TYPE_FILTER);
     tera.render("image.rs", &context)

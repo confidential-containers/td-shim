@@ -37,8 +37,8 @@ struct Cli {
 fn main() {
     let cli = Cli::parse();
 
-    let config = std::fs::read_to_string(cli.config.to_string())
-        .expect("Content is configuration file is invalid");
+    let config =
+        std::fs::read_to_string(&cli.config).expect("Content is configuration file is invalid");
 
     let output_file = cli.output.as_ref().map(|path| PathBuf::from(&path));
 
