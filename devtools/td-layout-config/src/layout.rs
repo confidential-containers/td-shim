@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Intel Corporation
+// Copyright (c) 2022, 2025 Intel Corporation
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
@@ -52,7 +52,6 @@ pub struct LayoutConfig {
     list: Vec<LayoutEntry>,
     base: usize,
     top: usize,
-    free_index: usize,
 }
 
 impl LayoutConfig {
@@ -64,41 +63,116 @@ impl LayoutConfig {
                 ENTRY_TYPE_FILTER.to_string(),
                 false,
             )],
-            free_index: 0,
             base,
             top,
         }
     }
 
     pub fn reserve_low<T: ToString>(&mut self, name: T, length: usize, entry_type: T) {
-        let new_free_base = self
-            .free_base()
+        let free_index = self
+            .find_free_region_for_low(length)
+            .expect("No suitable free region found");
+
+        let free_base = self.list[free_index].region.start;
+        let new_free_base = free_base
             .checked_add(length)
             .expect("Invalid region length.");
-        let free_top = self.list[self.free_index].region.end;
+        let free_top = self.list[free_index].region.end;
 
         self.list.insert(
-            self.free_index,
+            free_index,
             LayoutEntry::new(
                 name.to_string(),
-                self.free_base()..self.free_base() + length,
+                free_base..free_base + length,
                 entry_type.to_string(),
                 false,
             ),
         );
-        self.free_index += 1;
 
-        self.list[self.free_index].region = new_free_base..free_top;
+        // Update the free region to start after the allocated region
+        self.list[free_index + 1].region = new_free_base..free_top;
+    }
+
+    /// Reserve a region at the low end with a base aligned to `alignment`.
+    pub fn reserve_low_aligned<T: ToString>(
+        &mut self,
+        name: T,
+        length: usize,
+        entry_type: T,
+        alignment: usize,
+    ) {
+        let (free_index, aligned_base) = self
+            .find_free_region_for_aligned(length, alignment)
+            .expect("No suitable free region found for aligned allocation");
+
+        let free_base = self.list[free_index].region.start;
+        let new_free_base = aligned_base
+            .checked_add(length)
+            .expect("Invalid region length.");
+        let free_top = self.list[free_index].region.end;
+
+        let mut insert_index = free_index;
+
+        // If there's a gap due to alignment, keep it as free space
+        if aligned_base > free_base {
+            // Update current free region to cover the gap
+            self.list[free_index].region = free_base..aligned_base;
+            insert_index += 1;
+        }
+
+        self.list.insert(
+            insert_index,
+            LayoutEntry::new(
+                name.to_string(),
+                aligned_base..aligned_base + length,
+                entry_type.to_string(),
+                false,
+            ),
+        );
+
+        // Create or update the remaining free region after the allocation
+        if new_free_base < free_top {
+            self.list.insert(
+                insert_index + 1,
+                LayoutEntry::new(
+                    "FREE".to_string(),
+                    new_free_base..free_top,
+                    ENTRY_TYPE_FILTER.to_string(),
+                    false,
+                ),
+            );
+        }
+
+        // If we didn't create a gap, we need to remove the original free region
+        if aligned_base == free_base {
+            self.list.remove(insert_index + 1);
+        }
     }
 
     pub fn reserve_high<T: ToString>(&mut self, name: T, length: usize, entry_type: T) {
-        let new_free_top = self
-            .free_top()
+        // Find the last free region that can accommodate the allocation
+        let free_index = self
+            .list
+            .iter()
+            .enumerate()
+            .rev()
+            .find_map(|(i, entry)| {
+                if self.is_free_region(entry) && entry.region.len() >= length {
+                    Some(i)
+                } else {
+                    None
+                }
+            })
+            .expect("No suitable free region found");
+
+        let free_base = self.list[free_index].region.start;
+        let free_top = self.list[free_index].region.end;
+        let new_free_top = free_top
             .checked_sub(length)
             .expect("Invalid region length.");
 
         self.list.insert(
-            self.free_index + 1,
+            free_index + 1,
             LayoutEntry::new(
                 name.to_string(),
                 new_free_top..new_free_top + length,
@@ -107,11 +181,17 @@ impl LayoutConfig {
             ),
         );
 
-        self.list[self.free_index].region = self.free_base()..new_free_top;
+        self.list[free_index].region = free_base..new_free_top;
     }
 
     pub fn get_total_usage(&self) -> usize {
-        self.top - self.base - (self.free_top() - self.free_base())
+        let total_free: usize = self
+            .list
+            .iter()
+            .filter(|entry| self.is_free_region(entry))
+            .map(|entry| entry.region.len())
+            .sum();
+        self.top - self.base - total_free
     }
 
     pub fn get_regions(&self) -> &[LayoutEntry] {
@@ -126,12 +206,45 @@ impl LayoutConfig {
         self.top
     }
 
-    fn free_base(&self) -> usize {
-        self.list[self.free_index].region.start
+    fn is_free_region(&self, entry: &LayoutEntry) -> bool {
+        entry.entry_type == ENTRY_TYPE_FILTER
     }
 
-    fn free_top(&self) -> usize {
-        self.list[self.free_index].region.end
+    fn find_free_region_for_low(&self, required_size: usize) -> Option<usize> {
+        self.list.iter().enumerate().find_map(|(i, entry)| {
+            if self.is_free_region(entry) && entry.region.len() >= required_size {
+                Some(i)
+            } else {
+                None
+            }
+        })
+    }
+
+    fn find_free_region_for_aligned(
+        &self,
+        length: usize,
+        alignment: usize,
+    ) -> Option<(usize, usize)> {
+        for (i, entry) in self.list.iter().enumerate() {
+            if !self.is_free_region(entry) {
+                continue;
+            }
+
+            let free_base = entry.region.start;
+            let aligned_base = if alignment == 0 {
+                free_base
+            } else {
+                (free_base + alignment - 1) & !(alignment - 1)
+            };
+
+            let required_end = aligned_base.checked_add(length);
+            if let Some(end) = required_end {
+                if end <= entry.region.end {
+                    return Some((i, aligned_base));
+                }
+            }
+        }
+        None
     }
 
     #[allow(unused)]
@@ -168,5 +281,34 @@ mod test {
         regions.reserve_high("STACK", 0x10000, "Reserved");
         regions.reserve_high("MAILBOX", 0x2000, "Nvs");
         regions.reserve_high("TD_EVENT_LOG", 0x10_0000, "Nvs");
+    }
+
+    #[test]
+    fn test_aligned_allocation() {
+        let mut regions = LayoutConfig::new(0x0, 0x10000);
+
+        // Reserve some low memory first
+        regions.reserve_low("LOW1", 0x100, "Memory");
+
+        // Reserve aligned memory with 0x1000 alignment
+        // This should create a gap
+        regions.reserve_low_aligned("ALIGNED", 0x500, "Memory", 0x1000);
+
+        // Verify we have multiple free regions
+        let free_count = regions
+            .list
+            .iter()
+            .filter(|entry| regions.is_free_region(entry))
+            .count();
+
+        assert!(
+            free_count > 1,
+            "Should have multiple free regions after aligned allocation"
+        );
+
+        // Verify the aligned region starts at 0x1000
+        let aligned_region = regions.get_layout_region("Aligned");
+        assert!(aligned_region.is_some());
+        assert_eq!(aligned_region.unwrap().region.start, 0x1000);
     }
 }
