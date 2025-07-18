@@ -32,7 +32,7 @@ struct ImageConfig {
     image_size: Option<String>,
 }
 
-pub fn parse_image(data: String) -> String {
+pub fn parse_image(data: String, fw_top: usize) -> String {
     let image_config = serde_json::from_str::<ImageConfig>(&data)
         .expect("Content is configuration file is invalid");
 
@@ -114,5 +114,5 @@ pub fn parse_image(data: String) -> String {
         )
     }
 
-    render::render_image(&image_layout).expect("Render image layout failed!")
+    render::render_image(&image_layout, fw_top).expect("Render image layout failed!")
 }

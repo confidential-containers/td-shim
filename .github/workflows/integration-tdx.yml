@@ -74,3 +74,6 @@ jobs:
           bash sh_script/integration_tdx.sh -t elf -f target/release/final-elf-sb-normal.bin
           bash sh_script/integration_tdx.sh -t elf -f target/release/final-elf-sb-mismatch-pubkey.bin
           bash sh_script/integration_tdx.sh -t elf -f target/release/final-elf-sb-unsigned.bin
+
+      - name: Build IGVM format image
+        run: bash sh_script/build_final.sh igvm_test

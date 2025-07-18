@@ -69,6 +69,19 @@ final_elf_sb_test() {
         -o target/release/final-elf-sb-normal.bin
 }
 
+final_igvm_test() {
+    echo "Build final binaries with IGVM format image"
+    cargo run -p td-layout-config --bin td-layout-config \
+        devtools/td-layout-config/config_image.json -t image \
+        --fw_top 0x40000000 -o td-layout/src/build_time.rs
+    cargo build -p td-shim --target x86_64-unknown-none --release \
+        --features=main,tdx
+    cargo run -p td-shim-tools --bin td-shim-ld --features=linker -- \
+        target/x86_64-unknown-none/release/ResetVector.bin \
+        target/x86_64-unknown-none/release/td-shim \
+        -o target/release/final.igvm --image-format igvm
+}
+
 ./sh_script/preparation.sh
 
 case "${1:-}" in
@@ -77,5 +90,6 @@ case "${1:-}" in
     elf) final_elf ;;
     elf_test) final_elf_test ;;
     elf_sb_test) final_elf_sb_test ;;
+    igvm_test) final_igvm_test ;;
     *) final_boot_kernel && final_elf && final_elf_test && final_elf_sb_test;; 
 esac

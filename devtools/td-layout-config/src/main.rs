@@ -26,6 +26,9 @@ struct Cli {
     /// Memory base address.
     #[clap(short = 'b', long = "base", default_value_t = String::from("0x0"))]
     base: String,
+    /// Top of firmware address (only valid with -t image).
+    #[clap(short = 'f', long = "fw_top")]
+    fw_top: Option<String>,
     /// Output to file
     #[clap(short = 'o', long = "output")]
     output: Option<String>,
@@ -42,9 +45,33 @@ fn main() {
 
     let output_file = cli.output.as_ref().map(|path| PathBuf::from(&path));
 
+    const MEMORY_4G: usize = 0x1_0000_0000;
+    let mut fw_top = MEMORY_4G;
+
+    if cli.fw_top.is_some() {
+        assert!(
+            cli.config_type == ConfigType::Image,
+            "Top of firmware address is only valid with -t image"
+        );
+        fw_top = if let Some(fw_top) = cli.fw_top.as_ref().unwrap().strip_prefix("0x") {
+            usize::from_str_radix(fw_top, 16)
+        } else {
+            cli.fw_top.as_ref().unwrap().parse::<usize>()
+        }
+        .expect("Top of firmware address is invalid.");
+        assert!(
+            fw_top <= MEMORY_4G,
+            "Top of firmware address must be 4GB or below"
+        );
+        assert!(
+            fw_top & 0xfff == 0,
+            "Top of firmware adddress must be 4KB aligned"
+        );
+    }
+
     match cli.config_type {
         ConfigType::Memory => output(&cli, memory::parse_memory(config), output_file),
-        ConfigType::Image => output(&cli, image::parse_image(config), output_file),
+        ConfigType::Image => output(&cli, image::parse_image(config, fw_top), output_file),
     };
 }
 

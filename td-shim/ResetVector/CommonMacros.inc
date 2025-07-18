@@ -16,8 +16,8 @@
 %endmacro
 
 
-%define ADDR16_OF(x) (0x10000 - fourGigabytes + x)
-%define ADDR_OF(x) (0x100000000 - fourGigabytes + x)
+%define ADDR16_OF(x) (0x10000 - endOfResetVector + x)
+%define ADDR_OF(x) (FW_TOP - endOfResetVector + x)
 
 %macro  OneTimeCall 1
     jmp     %1

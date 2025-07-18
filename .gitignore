@@ -3,6 +3,7 @@
 # Cargo Junk
 target/
 *.bin
+*.igvm
 *.obj
 # afl fuzz and cargo fuzz
 *.profraw
