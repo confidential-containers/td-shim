@@ -115,8 +115,10 @@ pub struct TdInfo {
     pub rtmr1: [u8; 48],
     pub rtmr2: [u8; 48],
     pub rtmr3: [u8; 48],
+    /// SHA384 hash of the TDINFO_STRUCTs of bound Service TDs
+    pub servtd_hash: [u8; 48],
     /// Reserved. Must be zero
-    pub reserved: [u8; 112],
+    pub reserved: [u8; 64],
 }
 
 impl fmt::Display for TdInfo {
@@ -128,7 +130,8 @@ impl fmt::Display for TdInfo {
                         \tMR TD:\n\t{:x?}\n\tMR Config ID:\n\t{:x?}\n\
                         \tMR Owner:\n\t{:x?}\n\tMR Owner Config:\n\t{:x?}\n\
                         \tRTMR[0]:\n\t{:x?}\n\tRTMR[1]:\n\t{:x?}\n\
-                        \tRTMR[2]:\n\t{:x?}\n\tRTMR[3]:\n\t{:x?}\n",
+                        \tRTMR[2]:\n\t{:x?}\n\tRTMR[3]:\n\t{:x?}\n\
+                        \tServTD Hash:\n\t{:x?}\n",
             self.attributes,
             self.xfam,
             self.mrtd,
@@ -138,7 +141,8 @@ impl fmt::Display for TdInfo {
             self.rtmr0,
             self.rtmr1,
             self.rtmr2,
-            self.rtmr3
+            self.rtmr3,
+            self.servtd_hash
         )
     }
 }
