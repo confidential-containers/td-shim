@@ -2,7 +2,10 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
-use crate::build_time::*;
+use crate::{
+    build_time::*,
+    runtime::exec::{LARGE_PAYLOAD_BASE, LARGE_PAYLOAD_SIZE},
+};
 use core::fmt::Display;
 
 /// Type of build time and runtime memory regions.
@@ -16,6 +19,8 @@ pub enum SliceType {
     ShimPayload,
     /// The `TD_MAILBOX` region in image file
     MailBox,
+    /// The `Large PAYLOAD` region in runtime memory layout
+    LargePayload,
     /// The `PAYLOAD` region in runtime memory layout
     Payload,
     /// The `Kernel Parameter` region in runtime memory layout
@@ -41,6 +46,7 @@ impl SliceType {
             SliceType::TdHob => "TdHob",
             SliceType::ShimPayload => "ShimPayload",
             SliceType::MailBox => "MailBox",
+            SliceType::LargePayload => "LargePayload",
             SliceType::Payload => "Payload",
             SliceType::PayloadParameter => "PayloadParameter",
             SliceType::PayloadHob => "PayloadHob",
@@ -73,6 +79,10 @@ pub fn get_mem_slice<'a>(t: SliceType) -> &'a [u8] {
                 TD_SHIM_PAYLOAD_BASE as *const u8,
                 TD_SHIM_PAYLOAD_SIZE as usize,
             ),
+            SliceType::LargePayload => core::slice::from_raw_parts(
+                LARGE_PAYLOAD_BASE as *const u8,
+                LARGE_PAYLOAD_SIZE as usize,
+            ),
             SliceType::MailBox => core::slice::from_raw_parts(
                 TD_SHIM_MAILBOX_BASE as *const u8,
                 TD_SHIM_MAILBOX_SIZE as usize,
@@ -94,7 +104,7 @@ pub unsafe fn get_mem_slice_mut<'a>(t: SliceType) -> &'a mut [u8] {
             TD_SHIM_MAILBOX_BASE as *const u8 as *mut u8,
             TD_SHIM_MAILBOX_SIZE as usize,
         ),
-        SliceType::Config | SliceType::ShimPayload => {
+        SliceType::Config | SliceType::ShimPayload | SliceType::LargePayload => {
             panic!("get_mem_slice_mut: read only")
         }
         _ => panic!("get_mem_slice_mut: not support"),
