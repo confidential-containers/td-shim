@@ -8,7 +8,7 @@ extern crate alloc;
 use crate::lib::{TestCase, TestResult};
 use alloc::{string::String, vec::Vec};
 use core::{convert::TryInto, ffi::c_void};
-use tdx_tdcall::tdreport;
+use tdx_tdcall::tdreport::{self, ReportMac, ReportType};
 
 use serde::{Deserialize, Serialize};
 
@@ -45,7 +45,7 @@ impl TestCase for Tdreport {
      * run the test case
      */
     fn run(&mut self) {
-        let tdx_report = tdreport::tdcall_report(
+        let mut tdx_report = tdreport::tdcall_report(
             &self.input[0..tdreport::TD_REPORT_ADDITIONAL_DATA_SIZE]
                 .try_into()
                 .unwrap(),
@@ -93,6 +93,26 @@ impl TestCase for Tdreport {
                 "Reporttype version - {:?}\n",
                 tdx_report.report_mac.report_type.version
             );
+        }
+
+        // Verify the report
+        if let Err(e) =
+            tdreport::tdcall_verify_report(&tdx_report.as_bytes()[..size_of::<ReportMac>()])
+        {
+            log::info!(
+                "TDReport verification failed - completion status code: {:x?} \n",
+                e
+            );
+            return;
+        }
+
+        // // Corrupt the report MAC structure and expect tdcall_verify_report to return an error
+        tdx_report.as_bytes_mut()[..size_of::<ReportType>()].copy_from_slice(&[0x81, 1, 0, 0]);
+        if let Ok(_) =
+            tdreport::tdcall_verify_report(&tdx_report.as_bytes()[..size_of::<ReportMac>()])
+        {
+            log::info!("TDReport verification failed - expected error not returned\n");
+            return;
         }
 
         self.result = TestResult::Pass;
