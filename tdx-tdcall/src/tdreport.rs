@@ -7,7 +7,9 @@ use core::mem::{size_of, zeroed};
 use core::ptr::{slice_from_raw_parts, slice_from_raw_parts_mut};
 use scroll::{Pread, Pwrite};
 
-use crate::{td_call, TdCallError, TdcallArgs, TDCALL_STATUS_SUCCESS, TDCALL_TDREPORT};
+use crate::{
+    td_call, TdCallError, TdcallArgs, TDCALL_STATUS_SUCCESS, TDCALL_TDREPORT, TDCALL_VERIFYREPORT,
+};
 
 pub const TD_REPORT_SIZE: usize = 0x400;
 pub const TD_REPORT_ADDITIONAL_DATA_SIZE: usize = 64;
@@ -190,6 +192,9 @@ impl Default for TdxReport {
 #[repr(C, align(1024))]
 struct TdxReportBuf(TdxReport);
 
+#[repr(C, align(256))]
+struct ReportMacBuf([u8; size_of::<ReportMac>()]);
+
 #[repr(C, align(64))]
 struct AdditionalDataBuf([u8; TD_REPORT_ADDITIONAL_DATA_SIZE]);
 
@@ -217,6 +222,32 @@ pub fn tdcall_report(
     }
 
     Ok(report_buf.0)
+}
+
+/// Verify a cryptographic REPORTMACSTRUCT that describes the contents of a TD,
+/// to determine that it was created on the current TEE on the current platform
+///
+/// Details can be found in TDX module ABI spec section 'TDG.MR.VERIFYREPORT'
+pub fn tdcall_verify_report(report_mac: &[u8]) -> Result<(), TdCallError> {
+    if report_mac.len() != size_of::<ReportMac>() {
+        return Err(TdCallError::TdxExitInvalidParameters);
+    }
+
+    let mut report_mac_buf = ReportMacBuf([0u8; size_of::<ReportMac>()]);
+    report_mac_buf.0.copy_from_slice(report_mac);
+
+    let mut args = TdcallArgs {
+        rax: TDCALL_VERIFYREPORT,
+        rcx: &mut report_mac_buf as *mut _ as u64,
+        ..Default::default()
+    };
+
+    let ret = td_call(&mut args);
+    if ret != TDCALL_STATUS_SUCCESS {
+        return Err(ret.into());
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]
