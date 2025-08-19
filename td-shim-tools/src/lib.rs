@@ -58,16 +58,20 @@ impl InputData {
             error!("Can not read data from file {}: {}", name, e);
             e
         })?;
-        let len = data.len();
-        if !range.contains(&len) {
-            error!(
-                "Size of {} file ({}) is invalid, should be in range [{}-{}]",
-                desc,
-                len,
-                range.start(),
-                range.end()
-            );
-            return Err(io::Error::new(io::ErrorKind::Other, "invalid file size"));
+
+        // IGVM files need not be TD_SHIM_FIRMWARE_SIZE, as an optimization IGVM files deduplicate pages
+        if !name.contains(".igvm") {
+            let len = data.len();
+            if !range.contains(&len) {
+                error!(
+                    "Size of {} file ({}) is invalid, should be in range [{}-{}]",
+                    desc,
+                    len,
+                    range.start(),
+                    range.end()
+                );
+                return Err(io::Error::new(io::ErrorKind::Other, "invalid file size"));
+            }
         }
 
         Ok(InputData { data })

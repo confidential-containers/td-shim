@@ -440,7 +440,7 @@ impl TdShimLinker {
             TD_SHIM_CONFIG_BASE as u64,
             TD_SHIM_CONFIG_SIZE as u64,
             &vec![],
-            false,
+            true,
         );
 
         insert_igvm_pages(
@@ -448,7 +448,7 @@ impl TdShimLinker {
             TD_SHIM_MAILBOX_BASE as u64,
             TD_SHIM_MAILBOX_SIZE as u64,
             &vec![],
-            false,
+            true,
         );
 
         insert_igvm_pages(
@@ -456,7 +456,7 @@ impl TdShimLinker {
             TD_SHIM_TEMP_STACK_BASE as u64,
             TD_SHIM_TEMP_STACK_SIZE as u64,
             &vec![],
-            false,
+            true,
         );
 
         insert_igvm_pages(
@@ -464,7 +464,7 @@ impl TdShimLinker {
             TD_SHIM_TEMP_HEAP_BASE as u64,
             TD_SHIM_TEMP_HEAP_SIZE as u64,
             &vec![],
-            false,
+            true,
         );
 
         if let Some(payload_name) = payload_name {
@@ -492,7 +492,7 @@ impl TdShimLinker {
                 TD_SHIM_PAYLOAD_BASE as u64,
                 TD_SHIM_PAYLOAD_SIZE as u64,
                 &payload_data,
-                true,
+                false,
             );
         }
 
@@ -574,7 +574,7 @@ impl TdShimLinker {
             TD_SHIM_METADATA_BASE as u64,
             bfv_size as u64,
             &bfv_data,
-            true,
+            false,
         );
 
         if (TD_SHIM_FIRMWARE_BASE as u64 + TD_SHIM_FIRMWARE_SIZE as u64) < MEMORY_4G {
@@ -586,7 +586,7 @@ impl TdShimLinker {
                 base,
                 size,
                 &bfv_data[start..].to_vec(),
-                true,
+                false,
             );
         }
 

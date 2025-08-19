@@ -5,6 +5,7 @@
 use byteorder::LittleEndian;
 use byteorder::ReadBytesExt;
 use core::fmt;
+use igvm::{IgvmDirectiveHeader, IgvmFile};
 use r_efi::base::Guid;
 use scroll::Pread;
 use serde::{Deserialize, Serialize};
@@ -14,8 +15,21 @@ use std::io::Read;
 use std::io::Seek;
 use std::io::SeekFrom;
 use std::mem::size_of;
+use td_layout::build_time::{TD_SHIM_CONFIG_BASE, TD_SHIM_CONFIG_SIZE};
 use td_shim_interface::metadata::*;
+use zerocopy::FromBytes;
 use zeroize::Zeroize;
+
+#[derive(FromBytes)]
+#[repr(C)]
+pub struct IGVM_FIXED_HEADER {
+    pub magic: u32,
+    pub format_version: u32,
+    pub variable_header_offset: u32,
+    pub variable_header_size: u32,
+    pub total_file_size: u32,
+    pub checksum: u32,
+}
 
 pub const SHA384_DIGEST_SIZE: usize = 0x30;
 
@@ -343,6 +357,109 @@ impl TdInfoStruct {
         self.mrtd.copy_from_slice(hash.as_slice());
     }
 
+    pub fn build_igvmmrtd(&mut self, raw_image_file: &mut File) {
+        let mut sha384hasher = Sha384::new();
+        let mut contents = Vec::new();
+        raw_image_file.read_to_end(&mut contents).unwrap();
+        let igvm = IgvmFile::new_from_binary(&contents, None).expect("file parse error");
+        let mut buffer128: [u8; MRTD_EXTENSION_BUFFER_SIZE] = [0; MRTD_EXTENSION_BUFFER_SIZE]; // used by page add
+        let mut buffer3_128: [[u8; MRTD_EXTENSION_BUFFER_SIZE]; 3] =
+            [[0; MRTD_EXTENSION_BUFFER_SIZE]; 3]; // used by mr extend
+
+        for dir in igvm
+            .directives()
+            .iter()
+            .filter(|x| matches! {x, IgvmDirectiveHeader::PageData { .. }})
+        {
+            if let IgvmDirectiveHeader::PageData {
+                gpa,
+                flags,
+                data_type: _,
+                compatibility_mask: _,
+                data,
+                ..
+            } = dir
+            {
+                // Skip shared pages.
+                if flags.shared() {
+                    continue;
+                }
+
+                // Use TDCALL [TDH.MEM.PAGE.ADD]
+                fill_buffer128_with_mem_page_add(&mut buffer128, *gpa);
+
+                sha384hasher.update(buffer128);
+
+                if !flags.unmeasured() {
+                    // Hash the contents of the 4K page, 256 bytes at a time.
+                    let page_data = data;
+                    if (page_data.len() > 0) && (page_data.len() % PAGE_SIZE as usize == 0) {
+                        // Use TDCALL [TDH.MR.EXTEND]
+                        for offset in (0..PAGE_SIZE).step_by(TDH_MR_EXTEND_GRANULARITY as usize) {
+                            fill_buffer3_128_with_mr_extend_tdvf(
+                                &mut buffer3_128,
+                                gpa + offset,
+                                page_data,
+                                offset as u64,
+                            );
+
+                            sha384hasher.update(buffer3_128[0]);
+                            sha384hasher.update(buffer3_128[1]);
+                            sha384hasher.update(buffer3_128[2]);
+                        }
+                    }
+                }
+            }
+        }
+
+        let hash = sha384hasher.finalize();
+        println!("MRTD Hash: {:x?}", hash);
+        self.mrtd.copy_from_slice(hash.as_slice());
+    }
+
+    pub fn read_igvmcfvdata(&mut self, raw_image_file: &mut File) -> Vec<u8> {
+        let mut contents = Vec::new();
+        let mut offset: usize = 0;
+        let mut validpages: usize = 0;
+        let mut cfv;
+        raw_image_file.read_to_end(&mut contents).unwrap();
+        let igvm = IgvmFile::new_from_binary(&contents, None).expect("file parse error");
+        let fixed_header = IGVM_FIXED_HEADER::read_from_prefix(contents.as_slice())
+            .expect("Invalid fixed header")
+            .0; // TODO: zerocopy: use-rest-of-range (https://github.com/microsoft/openvmm/issues/759)
+
+        for dir in igvm
+            .directives()
+            .iter()
+            .filter(|x| matches! {x, IgvmDirectiveHeader::PageData { .. }})
+        {
+            if let IgvmDirectiveHeader::PageData {
+                gpa,
+                flags: _,
+                data_type: _,
+                compatibility_mask: _,
+                data,
+                ..
+            } = dir
+            {
+                if *gpa >= TD_SHIM_CONFIG_BASE.into()
+                    && *gpa < ((TD_SHIM_CONFIG_BASE + TD_SHIM_CONFIG_SIZE).into())
+                {
+                    if data.len() > 0 {
+                        validpages += 1;
+                    }
+                    offset += 1;
+                }
+            }
+        }
+        // IGVM files deduplicates the pages, hence padding zeroes for configvolumesize
+        let paddingbytes = TD_SHIM_CONFIG_SIZE as usize - (validpages * PAGE_SIZE as usize);
+        offset = (fixed_header.variable_header_size + fixed_header.variable_header_offset) as usize;
+        cfv = contents[offset..offset + (validpages * PAGE_SIZE as usize)].to_vec();
+        cfv.extend(std::iter::repeat(0).take(paddingbytes));
+        cfv
+    }
+
     pub fn build_rtmr_with_seperator(&mut self, seperator: u32) {
         let seperator = u32::to_le_bytes(seperator);
 
@@ -393,4 +510,30 @@ fn fill_buffer3_128_with_mr_extend(
     file.seek(SeekFrom::Start(data_offset)).unwrap();
     file.read_exact(&mut buf[1]).unwrap();
     file.read_exact(&mut buf[2]).unwrap();
+}
+
+fn fill_buffer3_128_with_mr_extend_tdvf(
+    buf: &mut [[u8; MRTD_EXTENSION_BUFFER_SIZE]; 3],
+    gpa: u64,
+    data: &Vec<u8>,
+    data_offset: u64,
+) {
+    buf[0].zeroize();
+    buf[1].zeroize();
+    buf[2].zeroize();
+
+    // Byte 0 through 8 contain the ASCII string 'MR.EXTEND'.
+    // Byte 16 through 23 contain the GPA (in little-endian format).
+    // All the other bytes contain 0. The other two extension buffers contain the chunk’s content.
+    buf[0][0..MR_EXTEND_ASCII_SIZE].copy_from_slice("MR.EXTEND".as_bytes());
+    buf[0][MR_EXTEND_GPA_OFFSET..MR_EXTEND_GPA_OFFSET + MR_EXTEND_GPA_SIZE]
+        .copy_from_slice(gpa.to_le_bytes().as_ref());
+    buf[1].copy_from_slice(
+        &data
+            [data_offset as usize..data_offset as usize + (TDH_MR_EXTEND_GRANULARITY as usize / 2)],
+    );
+    buf[2].copy_from_slice(
+        &data[data_offset as usize + (TDH_MR_EXTEND_GRANULARITY as usize / 2)
+            ..data_offset as usize + TDH_MR_EXTEND_GRANULARITY as usize],
+    );
 }
