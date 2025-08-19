@@ -3,6 +3,7 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
+use std::cmp::min;
 use std::convert::{TryFrom, TryInto};
 use std::io;
 use std::mem::size_of;
@@ -11,7 +12,9 @@ use std::vec::Vec;
 
 use log::error;
 use ring::digest;
-use td_layout::build_time::{TD_SHIM_CONFIG_OFFSET, TD_SHIM_CONFIG_SIZE, TD_SHIM_FIRMWARE_SIZE};
+use td_layout::build_time::{
+    TD_SHIM_CONFIG_BASE, TD_SHIM_CONFIG_OFFSET, TD_SHIM_CONFIG_SIZE, TD_SHIM_FIRMWARE_SIZE,
+};
 use td_shim::fv::{FvFfsFileHeader, FvHeader};
 use td_shim::secure_boot::{
     CfvPubKeyFileHeader, CFV_FFS_HEADER_TRUST_ANCHOR_GUID, CFV_FILE_HEADER_PUBKEY_GUID,
@@ -26,6 +29,11 @@ use crate::public_key::{
     RsaPublicKeyInfo, SubjectPublicKeyInfo, ID_EC_PUBKEY_OID, RSA_PUBKEY_OID, SECP384R1_OID,
 };
 use crate::{InputData, OutputFile};
+
+use igvm::{
+    IgvmDirectiveHeader, IgvmFile, IgvmInitializationHeader, IgvmPlatformHeader, IgvmRevision,
+};
+use igvm_defs::{IgvmPlatformType, IGVM_VHS_SUPPORTED_PLATFORM, PAGE_SIZE_4K};
 
 //
 // FFS File Header offset
@@ -149,17 +157,128 @@ pub fn enroll_files(
 
     // Build the CFV header and write on the top of CFV
     let mut output = OutputFile::new(output_file)?;
-    // Write the clean shim binary into the new one
-    output.seek_and_write(0, tdshim_bin.as_bytes(), "enrolled shim binary")?;
-    let cfv_header = build_cfv_header();
-    output.seek_and_write(
-        TD_SHIM_CONFIG_OFFSET as u64,
-        cfv_header.as_bytes(),
-        "firmware volume header",
-    )?;
 
-    for f in firmware_files {
-        output.write(f.as_bytes(), "firmware file")?;
+    if input_file.contains(".igvm") {
+        let mut directive_headers: Vec<IgvmDirectiveHeader> = Vec::new();
+        let mut igvm_data: Vec<u8> = Vec::new();
+        let mut page_data;
+        let mut platform_header =
+            IgvmPlatformHeader::SupportedPlatform(IGVM_VHS_SUPPORTED_PLATFORM {
+                compatibility_mask: 0,
+                highest_vtl: 0,
+                platform_type: IgvmPlatformType::TDX,
+                platform_version: 0,
+                shared_gpa_boundary: 0,
+            });
+        let mut initialization_headers = Vec::new();
+        let igvm =
+            IgvmFile::new_from_binary(&tdshim_bin.as_bytes(), None).expect("file parse error");
+        let mut cfv_data;
+        let mut offset: u64 = 0;
+        let mut pagedataflags;
+
+        let cfv_header = build_cfv_header();
+        cfv_data = cfv_header.as_bytes().to_vec();
+
+        for f in firmware_files {
+            cfv_data.extend(f.as_bytes().to_vec());
+        }
+
+        // Create new clean igvm file with CFV header and data
+        for dir in igvm
+            .directives()
+            .iter()
+            .filter(|x| matches! {x, IgvmDirectiveHeader::PageData { .. }})
+        {
+            if let IgvmDirectiveHeader::PageData {
+                gpa,
+                flags,
+                data_type,
+                compatibility_mask,
+                data,
+                ..
+            } = dir
+            {
+                pagedataflags = *flags;
+                if *gpa >= TD_SHIM_CONFIG_BASE.into()
+                    && *gpa < ((TD_SHIM_CONFIG_BASE + TD_SHIM_CONFIG_SIZE).into())
+                {
+                    let start = (offset * PAGE_SIZE_4K) as usize;
+                    let end = min(((offset + 1) * PAGE_SIZE_4K) as usize, cfv_data.len());
+                    if cfv_data.len() == 0 {
+                        page_data = vec![];
+                    } else {
+                        if start < end {
+                            page_data = cfv_data[start..end].to_vec();
+                            if (end - start) < PAGE_SIZE_4K as usize {
+                                let paddingbytes = PAGE_SIZE_4K as usize - (end - start);
+                                page_data.extend(std::iter::repeat(0).take(paddingbytes));
+                            }
+                            pagedataflags.set_unmeasured(false);
+                        } else {
+                            page_data = vec![];
+                        }
+                    }
+                    offset += 1;
+                } else {
+                    page_data = data.clone();
+                }
+                directive_headers.push(IgvmDirectiveHeader::PageData {
+                    gpa: *gpa,
+                    compatibility_mask: *compatibility_mask,
+                    flags: pagedataflags,
+                    data_type: *data_type,
+                    data: page_data.clone(),
+                });
+            }
+        }
+
+        for p in igvm.platforms() {
+            let IgvmPlatformHeader::SupportedPlatform(sp) = p;
+            if sp.platform_type == IgvmPlatformType::TDX {
+                platform_header = igvm::IgvmPlatformHeader::SupportedPlatform(sp.clone());
+            }
+        }
+
+        for init in igvm.initializations() {
+            match init {
+                IgvmInitializationHeader::GuestPolicy {
+                    policy,
+                    compatibility_mask,
+                } => {
+                    initialization_headers.push(IgvmInitializationHeader::GuestPolicy {
+                        policy: *policy,
+                        compatibility_mask: *compatibility_mask,
+                    });
+                }
+                _ => {
+                    println!("initialization: {init:?}");
+                }
+            }
+        }
+
+        let igvm_enroll = IgvmFile::new(
+            IgvmRevision::V1,
+            vec![platform_header],
+            initialization_headers,
+            directive_headers,
+        )
+        .unwrap();
+        igvm_enroll.serialize(&mut igvm_data).unwrap();
+        output.seek_and_write(0, igvm_data.as_slice(), "enrolled shim binary")?;
+    } else {
+        // Write the clean shim binary into the new one
+        output.seek_and_write(0, tdshim_bin.as_bytes(), "enrolled shim binary")?;
+        let cfv_header = build_cfv_header();
+        output.seek_and_write(
+            TD_SHIM_CONFIG_OFFSET as u64,
+            cfv_header.as_bytes(),
+            "firmware volume header",
+        )?;
+
+        for f in firmware_files {
+            output.write(f.as_bytes(), "firmware file")?;
+        }
     }
 
     output.flush()?;
