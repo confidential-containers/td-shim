@@ -53,3 +53,16 @@ pub fn one_shot_tsc_deadline_mode(period: u64) -> Option<u64> {
 pub fn one_shot_tsc_deadline_mode_reset() {
     unsafe { x86::msr::wrmsr(MSR_TSC_DEADLINE, 0) }
 }
+
+pub fn one_shot(period: u64) -> Option<u64> {
+    unsafe {
+        x86::msr::wrmsr(MSR_DCR, 0x0b); // divide by 1
+        x86::msr::wrmsr(MSR_INITIAL_COUNT, period);
+    }
+
+    Some(period)
+}
+
+pub fn one_shot_reset() {
+    unsafe { x86::msr::wrmsr(MSR_INITIAL_COUNT, 0) }
+}
