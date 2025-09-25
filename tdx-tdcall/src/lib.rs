@@ -86,10 +86,10 @@ cfg_if::cfg_if! {
         const TDVMCALL_STATUS_RETRY: u64 = 1;
 
         // TDVMCALL<MigTD> leaf function numbers
-        const TDVMCALL_MIGTD_WAITFORREQUEST: u64 = 1;
-        const TDVMCALL_MIGTD_REPORTSTATUS: u64 = 2;
-        const TDVMCALL_MIGTD_SEND: u64 = 3;
-        const TDVMCALL_MIGTD_RECEIVE: u64 = 4;
+        const TDVMCALL_MIGTD_WAITFORREQUEST: u16 = 1;
+        const TDVMCALL_MIGTD_REPORTSTATUS: u16 = 2;
+        const TDVMCALL_MIGTD_SEND: u16= 3;
+        const TDVMCALL_MIGTD_RECEIVE: u16 = 4;
     }
 }
 
