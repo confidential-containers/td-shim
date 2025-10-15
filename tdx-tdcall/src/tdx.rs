@@ -568,12 +568,13 @@ pub fn tdvmcall_migtd_waitforrequest(
 #[cfg(not(feature = "no-tdvmcall"))]
 pub fn tdvmcall_migtd_reportstatus(
     mig_request_id: u64,
-    pre_migration_status: u8,
+    pre_migration_status: u64,
     data_buffer: &mut [u8],
     interrupt: u8,
 ) -> Result<(), TdVmcallError> {
+    let le_bytes = pre_migration_status.to_le_bytes();
     // Ensure that the pre-migration status is not reserved
-    if (0xb..0xff).contains(&pre_migration_status) {
+    if (0xd..0xff).contains(&le_bytes[1]) {
         return Err(TdVmcallError::VmcallOperandInvalid);
     }
 
@@ -598,7 +599,7 @@ pub fn tdvmcall_migtd_reportstatus(
         r11: TDVMCALL_MIGTD,
         r12: migtdleafval.into(),
         r13: mig_request_id,
-        r14: pre_migration_status as u64,
+        r14: pre_migration_status,
         r15: data_buffer_length,
         rbx: data_buffer,
         rdi: interrupt as u64,
