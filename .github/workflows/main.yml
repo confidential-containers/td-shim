@@ -15,7 +15,7 @@ env:
   CC_x86_64_unknown_linux_gnu: clang
   AR_x86_64_unknown_none: llvm-ar
   CC_x86_64_unknown_none: clang
-  RUST_TOOLCHAIN: 1.83.0
+  RUST_TOOLCHAIN: 1.88.0
   TOOLCHAIN_PROFILE: minimal
 
 jobs:

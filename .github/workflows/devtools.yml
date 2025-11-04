@@ -11,7 +11,7 @@ name: Devtools
 
 env:
   AS: nasm
-  RUST_TOOLCHAIN: 1.83.0
+  RUST_TOOLCHAIN: 1.88.0
   TOOLCHAIN_PROFILE: minimal
 
 jobs:

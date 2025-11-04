@@ -57,10 +57,10 @@ The threat model analysis is at [td-shim threat model](doc/threat_model.md).
 
 1. Install [RUST](https://www.rust-lang.org/)
 
-please use 1.83.0.
+please use 1.88.0.
 
 ```
-curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain 1.83.0
+curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain 1.88.0
 rustup target add x86_64-unknown-none
 ```
 

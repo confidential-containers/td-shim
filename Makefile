@@ -1,5 +1,5 @@
 export CARGO=cargo
-export STABLE_TOOLCHAIN:=1.83.0
+export STABLE_TOOLCHAIN:=1.88.0
 export NIGHTLY_TOOLCHAIN:=nightly-2023-12-31
 export BUILD_TYPE:=release
 export PREFIX:=/usr/local
