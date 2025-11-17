@@ -214,7 +214,6 @@ pub fn enroll_files(
                                 let paddingbytes = PAGE_SIZE_4K as usize - (end - start);
                                 page_data.extend(std::iter::repeat(0).take(paddingbytes));
                             }
-                            pagedataflags.set_unmeasured(false);
                         } else {
                             page_data = vec![];
                         }
