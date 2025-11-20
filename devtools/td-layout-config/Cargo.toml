@@ -13,7 +13,6 @@ name = "td-layout-config"
 [dependencies]
 clap = { version = "4.0", features = ["derive"] }
 Inflector = "0.11.4"
-json5 = "0.3.0"
 parse_int = "0.6.0"
 scroll = { version = "0.10", default-features = false, features = ["derive"]}
 serde = { version = "1.0", features = ["derive"] }
