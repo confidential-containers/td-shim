@@ -639,17 +639,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "json5"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3d993b17585f39e5e3bd98ff52bbd9e2a6d6b3f5b09d8abcec9d1873fb04cf3f"
-dependencies = [
- "pest",
- "pest_derive",
- "serde",
-]
-
-[[package]]
 name = "lazy_static"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1224,7 +1213,6 @@ version = "0.1.0"
 dependencies = [
  "Inflector",
  "clap",
- "json5",
  "parse_int",
  "scroll",
  "serde",
