@@ -48,8 +48,36 @@ pub fn dbg_write_byte(byte: u8) {
 
 /// Write a string to the debug port.
 pub fn dbg_write_string(s: &str) {
-    for c in s.chars() {
-        dbg_write_byte(c as u8);
+    #[cfg(feature = "tdg_dbg")]
+    {
+        // Split long lines by 254 characters when tdg_dbg feature is enabled
+        // 254 to account for \n -> \r\n conversion
+        s.chars().fold(0usize, |char_count, c| {
+            if char_count >= 254 {
+                // Insert newline if we've reached the limit
+                dbg_write_byte(b'\n');
+                // Print the current character
+                dbg_write_byte(c as u8);
+                // Reset char count
+                if c == '\n' {
+                    0
+                } else {
+                    1
+                }
+            } else {
+                dbg_write_byte(c as u8);
+                if c == '\n' {
+                    0
+                } else {
+                    char_count + 1
+                }
+            }
+        });
+    }
+
+    #[cfg(not(feature = "tdg_dbg"))]
+    {
+        s.chars().for_each(|c| dbg_write_byte(c as u8));
     }
 }
 
