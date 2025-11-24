@@ -23,7 +23,7 @@ jobs:
           directory: ${{ runner.temp }}/llvm
 
       - name: Checkout sources
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           submodules: recursive
 
