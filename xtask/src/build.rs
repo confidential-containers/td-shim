@@ -35,6 +35,9 @@ pub(crate) struct BuildArgs {
     /// Build artifacts in release mode, with optimizations and without log messages
     #[arg(long)]
     release: bool,
+    /// Log level control in td-shim binary, default value is `off` for release and `debug` for debug
+    #[clap(long, alias = "ll")]
+    log_level: Option<LogLevel>,
     /// Type of payload to be launched by td-shim
     #[arg(short = 't', long)]
     payload_type: Option<PayloadType>,
@@ -68,6 +71,40 @@ pub(crate) struct BuildArgs {
     /// Hash algorithm used by the enrolling public key file
     #[arg(long, short = 'H', requires = "enroll_key")]
     enroll_key_hash_alg: Option<String>,
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+enum LogLevel {
+    Off,
+    Error,
+    Warn,
+    Info,
+    Debug,
+    Trace,
+}
+
+impl LogLevel {
+    fn debug_feature(&self) -> &str {
+        match self {
+            LogLevel::Off => "log/max_level_off",
+            LogLevel::Error => "log/max_level_error",
+            LogLevel::Warn => "log/max_level_warn",
+            LogLevel::Info => "log/max_level_info",
+            LogLevel::Debug => "log/max_level_debug",
+            LogLevel::Trace => "log/max_level_trace",
+        }
+    }
+
+    fn relase_feature(&self) -> &str {
+        match self {
+            LogLevel::Off => "log/release_max_level_off",
+            LogLevel::Error => "log/release_max_level_error",
+            LogLevel::Warn => "log/release_max_level_warn",
+            LogLevel::Info => "log/release_max_level_info",
+            LogLevel::Debug => "log/release_max_level_debug",
+            LogLevel::Trace => "log/release_max_level_trace",
+        }
+    }
 }
 
 impl BuildArgs {
@@ -250,6 +287,22 @@ impl BuildArgs {
             for s in selected.split(",") {
                 features.push(s.to_string());
             }
+        }
+
+        if self.release {
+            features.push(
+                self.log_level
+                    .unwrap_or(LogLevel::Off)
+                    .relase_feature()
+                    .to_string(),
+            );
+        } else {
+            features.push(
+                self.log_level
+                    .unwrap_or(LogLevel::Debug)
+                    .debug_feature()
+                    .to_string(),
+            );
         }
 
         features.join(",")
