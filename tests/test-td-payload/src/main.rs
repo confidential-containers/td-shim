@@ -30,6 +30,7 @@ use core::ffi::c_void;
 use core::mem::size_of;
 use core::panic::PanicInfo;
 use linked_list_allocator::LockedHeap;
+use log::LevelFilter;
 use td_layout::memslice;
 
 use crate::lib::{TestResult, TestSuite};
@@ -144,7 +145,7 @@ extern "C" fn main() -> ! {
     use td_payload::hob::get_hob;
     use testmemmap::TestMemoryMap;
 
-    let _ = td_logger::init();
+    let _ = td_logger::init(LevelFilter::Info);
     let hob = get_hob().expect("Failed to get payload HOB").as_ptr() as u64;
 
     // create TestSuite to hold the test cases

@@ -14,6 +14,7 @@ use asm::{empty_exception_handler, empty_exception_handler_size};
 use core::ffi::c_void;
 use core::mem::size_of;
 use core::panic::PanicInfo;
+use log::LevelFilter;
 use memory::Memory;
 use td_exception::idt::{load_idtr, DescriptorTablePointer, Idt, IdtEntry};
 use td_shim::event_log::CCEL_CC_TYPE_TDX;
@@ -87,7 +88,11 @@ pub extern "win64" fn _start(
     info: usize,
 ) -> ! {
     // The bootstrap code has setup the stack, but only the stack is available now...
-    let _ = td_logger::init();
+    #[cfg(debug_assertions)]
+    let _ = td_logger::init(LevelFilter::Debug);
+    #[cfg(not(debug_assertions))]
+    let _ = td_logger::init(LevelFilter::Off);
+
     log::info!("Starting RUST Based TdShim boot_fv - {:p}, Top of stack - {:p}, init_vp - {:p}, info - 0x{:x} \n",
                boot_fv, top_of_stack, init_vp, info);
     td_exception::setup_exception_handlers();
