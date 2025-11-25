@@ -4,8 +4,8 @@
 
 #![no_std]
 
-use log::{Level, Metadata, Record};
 use log::{LevelFilter, SetLoggerError};
+use log::{Metadata, Record};
 
 mod logger;
 pub use logger::*;
@@ -19,7 +19,7 @@ pub struct LoggerBackend;
 
 impl log::Log for LoggerBackend {
     fn enabled(&self, metadata: &Metadata) -> bool {
-        metadata.level() <= Level::Info
+        metadata.level() <= log::max_level()
     }
 
     fn log(&self, record: &Record) {
@@ -34,8 +34,8 @@ impl log::Log for LoggerBackend {
 /// Logger backend for the log crate
 static LOGGER_BACKEND: LoggerBackend = LoggerBackend;
 
-pub fn init() -> Result<(), SetLoggerError> {
-    log::set_logger(&LOGGER_BACKEND).map(|()| log::set_max_level(LevelFilter::Info))
+pub fn init(max_level: LevelFilter) -> Result<(), SetLoggerError> {
+    log::set_logger(&LOGGER_BACKEND).map(|()| log::set_max_level(max_level))
 }
 
 /// Write a byte to the debug port, converting `\n' to '\r\n`.
@@ -132,7 +132,7 @@ mod tests {
 
     #[test]
     fn test_logger() {
-        init().unwrap();
+        init(LevelFilter::Info).unwrap();
 
         assert_eq!(LOGGER.lock().get_level(), LOG_LEVEL_INFO);
         LOGGER.lock().set_level(LOG_LEVEL_ERROR);
