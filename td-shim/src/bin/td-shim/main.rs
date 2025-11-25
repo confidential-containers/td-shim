@@ -88,10 +88,10 @@ pub extern "win64" fn _start(
     info: usize,
 ) -> ! {
     // The bootstrap code has setup the stack, but only the stack is available now...
-    #[cfg(debug_assertions)]
-    let _ = td_logger::init(LevelFilter::Debug);
-    #[cfg(not(debug_assertions))]
-    let _ = td_logger::init(LevelFilter::Off);
+
+    // Set the maximum log-level filter here; the actual logging level is controlled by the
+    // compile-time feature flags.
+    let _ = td_logger::init(LevelFilter::Trace);
 
     log::info!("Starting RUST Based TdShim boot_fv - {:p}, Top of stack - {:p}, init_vp - {:p}, info - 0x{:x} \n",
                boot_fv, top_of_stack, init_vp, info);
