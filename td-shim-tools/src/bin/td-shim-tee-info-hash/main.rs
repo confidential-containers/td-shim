@@ -30,6 +30,14 @@ struct Config {
     pub log_level: String,
     // Seperator for populating rtmr
     pub seperator: u32,
+
+    // For some Qemu version (like 8.2.2+ds-0ubuntu1.4+tdx1.1 for ubuntu),
+    // 1. when loading the guest memory, all pages are firstly all MR.PAGE.ADD and then all MR.EXTEND.
+    // 2. At the meanwhile, some Qemu version will MR.PAGE.ADD and MR.EXTEND separate pages one by one.
+    // Two different bahavior will cause different MRTD values.
+    // This flag is to specify the behavior of Qemu:
+    // if true, use the first behavior, otherwise use the second behavior.
+    pub add_all: bool,
 }
 
 #[derive(Debug)]
@@ -69,6 +77,19 @@ impl Config {
                     .value_parser(value_parser!(u32))
                     .action(ArgAction::Set),
             )
+            .arg(
+                arg!(-a --"add-all" "Boolean flag to specify the behavior of Qemu:
+    For some Qemu version (like 8.2.2+ds-0ubuntu1.4+tdx1.1 for ubuntu),
+    1. when loading the guest memory, all pages are firstly all MR.PAGE.ADD and then all MR.EXTEND.
+    2. At the meanwhile, some Qemu version will MR.PAGE.ADD and MR.EXTEND separate pages one by one.
+    Two different bahavior will cause different MRTD values.
+    This flag is to specify the behavior of Qemu:
+    if true, use the first behavior, otherwise use the second behavior.")
+                .required(false)
+                .default_value("true")
+                .value_parser(value_parser!(bool))
+                .action(ArgAction::Set),
+            )
             .get_matches();
 
         // Safe to unwrap() because they are mandatory or have default values.
@@ -85,6 +106,7 @@ impl Config {
         let manifest = matches.get_one::<String>("manifest").unwrap().clone();
         let log_level = matches.get_one::<String>("log-level").unwrap().clone();
         let seperator = matches.get_one::<u32>("seperator").unwrap().clone();
+        let add_all = matches.get_flag("add-all");
 
         Ok(Self {
             manifest,
@@ -92,6 +114,7 @@ impl Config {
             output,
             log_level,
             seperator,
+            add_all,
         })
     }
 }
@@ -133,7 +156,7 @@ fn main() -> io::Result<()> {
         ..Default::default()
     };
 
-    tee_info.build_mrtd(&mut image, image_size);
+    tee_info.build_mrtd(&mut image, image_size, config.add_all);
     tee_info.build_rtmr_with_seperator(config.seperator);
     log::info!("{}", &tee_info);
 
