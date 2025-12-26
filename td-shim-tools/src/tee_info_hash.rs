@@ -185,7 +185,7 @@ impl TdInfoStruct {
         packed_size
     }
 
-    pub fn build_mrtd(&mut self, raw_image_file: &mut File, image_size: u64) {
+    pub fn build_mrtd(&mut self, raw_image_file: &mut File, image_size: u64, add_all: bool) {
         let mut metadata_off: u32 = 0;
 
         raw_image_file
@@ -322,33 +322,71 @@ impl TdInfoStruct {
 
             let nr_pages = sec.memory_data_size / PAGE_SIZE;
 
-            for iter in 0..nr_pages {
-                if sec.attributes & TDX_METADATA_ATTRIBUTES_EXTEND_MEM_PAGE_ADD == 0 {
-                    // Use TDCALL [TDH.MEM.PAGE.ADD]
-                    fill_buffer128_with_mem_page_add(
-                        &mut buffer128,
-                        sec.memory_address + iter * PAGE_SIZE,
-                    );
-
-                    sha384hasher.update(buffer128);
-                }
-
-                // check attributes
-                if sec.attributes & TDX_METADATA_ATTRIBUTES_EXTENDMR != 0 {
-                    // Use TDCALL [TDH.MR.EXTEND]
-                    let granularity = TDH_MR_EXTEND_GRANULARITY;
-                    let iteration = PAGE_SIZE / granularity;
-                    for chunk_iter in 0..iteration {
-                        fill_buffer3_128_with_mr_extend(
-                            &mut buffer3_128,
-                            sec.memory_address + iter * PAGE_SIZE + chunk_iter * granularity,
-                            raw_image_file,
-                            sec.data_offset as u64 + iter * PAGE_SIZE + chunk_iter * granularity,
+            if add_all {
+                for iter in 0..nr_pages {
+                    if sec.attributes & TDX_METADATA_ATTRIBUTES_EXTEND_MEM_PAGE_ADD == 0 {
+                        // Use TDCALL [TDH.MEM.PAGE.ADD]
+                        fill_buffer128_with_mem_page_add(
+                            &mut buffer128,
+                            sec.memory_address + iter * PAGE_SIZE,
                         );
 
-                        sha384hasher.update(buffer3_128[0]);
-                        sha384hasher.update(buffer3_128[1]);
-                        sha384hasher.update(buffer3_128[2]);
+                        sha384hasher.update(buffer128);
+                    }
+
+                    // check attributes
+                    if sec.attributes & TDX_METADATA_ATTRIBUTES_EXTENDMR != 0 {
+                        // Use TDCALL [TDH.MR.EXTEND]
+                        let granularity = TDH_MR_EXTEND_GRANULARITY;
+                        let iteration = PAGE_SIZE / granularity;
+                        for chunk_iter in 0..iteration {
+                            fill_buffer3_128_with_mr_extend(
+                                &mut buffer3_128,
+                                sec.memory_address + iter * PAGE_SIZE + chunk_iter * granularity,
+                                raw_image_file,
+                                sec.data_offset as u64
+                                    + iter * PAGE_SIZE
+                                    + chunk_iter * granularity,
+                            );
+
+                            sha384hasher.update(buffer3_128[0]);
+                            sha384hasher.update(buffer3_128[1]);
+                            sha384hasher.update(buffer3_128[2]);
+                        }
+                    }
+                }
+            } else {
+                for iter in 0..nr_pages {
+                    if sec.attributes & TDX_METADATA_ATTRIBUTES_EXTEND_MEM_PAGE_ADD == 0 {
+                        // Use TDCALL [TDH.MEM.PAGE.ADD]
+                        fill_buffer128_with_mem_page_add(
+                            &mut buffer128,
+                            sec.memory_address + iter * PAGE_SIZE,
+                        );
+
+                        sha384hasher.update(buffer128);
+                    }
+                }
+                for iter in 0..nr_pages {
+                    // check attributes
+                    if sec.attributes & TDX_METADATA_ATTRIBUTES_EXTENDMR != 0 {
+                        // Use TDCALL [TDH.MR.EXTEND]
+                        let granularity = TDH_MR_EXTEND_GRANULARITY;
+                        let iteration = PAGE_SIZE / granularity;
+                        for chunk_iter in 0..iteration {
+                            fill_buffer3_128_with_mr_extend(
+                                &mut buffer3_128,
+                                sec.memory_address + iter * PAGE_SIZE + chunk_iter * granularity,
+                                raw_image_file,
+                                sec.data_offset as u64
+                                    + iter * PAGE_SIZE
+                                    + chunk_iter * granularity,
+                            );
+
+                            sha384hasher.update(buffer3_128[0]);
+                            sha384hasher.update(buffer3_128[1]);
+                            sha384hasher.update(buffer3_128[2]);
+                        }
                     }
                 }
             }
