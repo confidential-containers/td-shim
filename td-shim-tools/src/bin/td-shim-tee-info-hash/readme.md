@@ -25,3 +25,33 @@ example:<br>
 ```
 cargo run -p td-shim-tools --bin td-shim-tee-info-hash --features tee -- --manifest <td_manifest> --image <td_shim_binary> --out_bin <tee_info_hash_bin> --seperator 0
 ```
+
+## Python Implementation
+
+A Python version of this tool is also available: `td_shim_tee_info_hash.py`
+
+**Note:** The Python version is simplified to only calculate and output MRTD (Measurement Register TD) value. It does not require manifest file or other parameters that don't affect MRTD calculation.
+
+### Requirements
+- Python 3.6+
+- Standard library only (no external dependencies)
+
+### Usage
+
+```bash
+python3 td_shim_tee_info_hash.py --image <td_shim_binary>
+```
+
+Or make it executable and run directly:
+
+```bash
+chmod +x td_shim_tee_info_hash.py
+./td_shim_tee_info_hash.py --image <td_shim_binary>
+```
+
+The tool will output the MRTD value as a hexadecimal string to stdout.
+
+### Options
+
+- `-i, --image <image>`: shim binary file (required)
+- `-l, --log-level <log-level>`: logging level [off, error, warn, info, debug, trace] (default: info)
