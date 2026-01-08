@@ -13,6 +13,7 @@
 .equ TDCALL_ARG_R11, 0x30
 .equ TDCALL_ARG_R12, 0x38
 .equ TDCALL_ARG_R13, 0x40
+.equ TDCALL_ARG_R14, 0x48
 
 # asm_td_call -> u64 (
 #   args: *mut TdcallArgs,  //rcx
@@ -49,6 +50,7 @@ asm_td_call:
         mov r11, [rdi + TDCALL_ARG_R11]
         mov r12, [rdi + TDCALL_ARG_R12]
         mov r13, [rdi + TDCALL_ARG_R13]
+        mov r14, [rdi + TDCALL_ARG_R14]
 
         # tdcall
         .byte 0x66,0x0f,0x01,0xcc
@@ -69,6 +71,7 @@ asm_td_call:
         mov [rdi + TDCALL_ARG_R11], r11
         mov [rdi + TDCALL_ARG_R12], r12
         mov [rdi + TDCALL_ARG_R13], r13
+        mov [rdi + TDCALL_ARG_R14], r14
 
 td_call_exit:
         # Restore saved RCX value

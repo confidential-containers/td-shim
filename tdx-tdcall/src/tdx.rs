@@ -946,6 +946,7 @@ pub fn tdcall_servtd_wr(
         r11: target_td_uuid[1],
         r12: target_td_uuid[2],
         r13: target_td_uuid[3],
+        ..Default::default()
     };
 
     let ret = td_call(&mut args);
