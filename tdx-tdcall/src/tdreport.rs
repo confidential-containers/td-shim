@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
 use core::fmt;
-use core::mem::{size_of, zeroed};
+use core::mem::{size_of, zeroed, MaybeUninit};
 use core::ptr::{slice_from_raw_parts, slice_from_raw_parts_mut};
 use scroll::{Pread, Pwrite};
 
@@ -44,6 +44,12 @@ pub struct ReportMac {
     pub reserved1: [u8; 32],
     /// The MAC over the REPORTMACSTRUCT with model-specific MAC
     pub mac: [u8; 32],
+}
+
+impl ReportMac {
+    pub fn as_bytes(&self) -> &[u8] {
+        unsafe { &*slice_from_raw_parts(self as *const Self as *const u8, size_of::<Self>()) }
+    }
 }
 
 impl fmt::Display for ReportMac {
@@ -92,6 +98,14 @@ impl fmt::Display for TeeTcbInfo {
     }
 }
 
+impl TeeTcbInfo {
+    pub fn as_bytes(&self) -> &[u8] {
+        unsafe {
+            core::slice::from_raw_parts(self as *const TeeTcbInfo as *const u8, size_of::<Self>())
+        }
+    }
+}
+
 /// Defined as the TDX-specific TEE_INFO part of the TDG.MR.REPORT.
 /// Contains the measurements and initial configuration of the TD that
 /// The output of the TDG.MR.REPORT function
@@ -121,6 +135,14 @@ pub struct TdInfo {
     pub servtd_hash: [u8; 48],
     /// Reserved. Must be zero
     pub reserved: [u8; 64],
+}
+
+impl TdInfo {
+    pub fn as_bytes(&self) -> &[u8] {
+        unsafe {
+            core::slice::from_raw_parts(self as *const TdInfo as *const u8, size_of::<Self>())
+        }
+    }
 }
 
 impl fmt::Display for TdInfo {
@@ -180,6 +202,23 @@ impl TdxReport {
 
     pub fn as_bytes_mut(&mut self) -> &mut [u8] {
         unsafe { &mut *slice_from_raw_parts_mut(self as *mut Self as *mut u8, size_of::<Self>()) }
+    }
+
+    pub fn read_from_bytes(bytes: &[u8]) -> Option<Self> {
+        if bytes.len() < size_of::<TdxReport>() {
+            return None;
+        }
+
+        let mut uinit: MaybeUninit<TdxReport> = MaybeUninit::uninit();
+        // Safety: MaybeUninit<TdxReport> has same layout with TdxReport
+        Some(unsafe {
+            core::ptr::copy_nonoverlapping(
+                bytes.as_ptr(),
+                uinit.as_mut_ptr() as *mut u8,
+                size_of::<TdxReport>(),
+            );
+            uinit.assume_init()
+        })
     }
 }
 

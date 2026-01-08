@@ -165,6 +165,7 @@ pub struct TdcallArgs {
     pub r11: u64,
     pub r12: u64,
     pub r13: u64,
+    pub r14: u64,
 }
 
 // Used to pass the values of input/output register when performing TDVMCALL
