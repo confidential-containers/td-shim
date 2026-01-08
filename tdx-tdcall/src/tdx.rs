@@ -13,9 +13,9 @@
 
 #[cfg(not(feature = "no-tdvmcall"))]
 use bitfield_struct::bitfield;
-use core::result::Result;
 #[cfg(not(feature = "no-tdvmcall"))]
 use core::sync::atomic::{fence, Ordering};
+use core::{convert::TryInto, result::Result};
 use lazy_static::lazy_static;
 #[cfg(not(feature = "no-tdvmcall"))]
 use x86_64::registers::rflags::{self, RFlags};
@@ -40,6 +40,8 @@ cfg_if::cfg_if! {
 }
 
 const TARGET_TD_UUID_NUM: usize = 4;
+const REBIND_SESSION_TOKEN_SIZE: usize = 32;
+
 pub const PAGE_SIZE_4K: u64 = 0x1000;
 pub const PAGE_SIZE_2M: u64 = 0x200000;
 
@@ -86,11 +88,13 @@ pub struct CpuIdInfo {
     pub edx: u32,
 }
 
+pub type TargetTdUuid = [u64; 4];
+
 #[derive(Debug, Default)]
 #[repr(C)]
 pub struct ServtdRWResult {
     pub content: u64,
-    pub uuid: [u64; 4],
+    pub uuid: TargetTdUuid,
 }
 
 lazy_static! {
@@ -920,6 +924,43 @@ pub fn tdcall_servtd_rd(
     };
 
     Ok(sertd_rw_result)
+}
+
+/// Used by the currently bound service TD to approve a new Service TD to be bound
+/// to the target TD.
+///
+/// Details can be found in TDX Module ABI spec section 'TDG.SERVTD.REBIND.APPROVE'.
+pub fn tdcall_servtd_rebind_approve(
+    old_binding_handle: u64,
+    rebind_session_token: &[u8],
+    target_td_uuid: &[u64],
+) -> Result<TargetTdUuid, TdCallError> {
+    if target_td_uuid.len() != TARGET_TD_UUID_NUM
+        || rebind_session_token.len() != REBIND_SESSION_TOKEN_SIZE
+    {
+        return Err(TdCallError::TdxExitInvalidParameters);
+    }
+
+    let mut args = TdcallArgs {
+        rax: TDCALL_SERVTD_RD,
+        rcx: old_binding_handle,
+        rdx: u64::from_le_bytes(rebind_session_token[0..8].try_into().unwrap()),
+        r8: u64::from_le_bytes(rebind_session_token[8..16].try_into().unwrap()),
+        r9: u64::from_le_bytes(rebind_session_token[16..24].try_into().unwrap()),
+        r10: target_td_uuid[0],
+        r11: target_td_uuid[1],
+        r12: target_td_uuid[2],
+        r13: target_td_uuid[3],
+        r14: u64::from_le_bytes(rebind_session_token[24..32].try_into().unwrap()),
+    };
+
+    let ret = td_call(&mut args);
+
+    if ret != TDCALL_STATUS_SUCCESS {
+        return Err(ret.into());
+    }
+
+    Ok([args.r10, args.r11, args.r12, args.r13])
 }
 
 /// Used by a service TD to write a metadata field (control structure field) of
