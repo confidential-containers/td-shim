@@ -38,6 +38,18 @@ Will get the result
 a5e921ae5bde7ab989216da059057741688eae9114b854ce60733824f93ade8a848f19c719f3fdd5c4f0d7178164a5e2
 ```
 
+#### Python Script for QEMU Direct Boot
+
+A Python implementation `td_payload_qemu_hash.py` is provided specifically for QEMU Kernel Direct Boot scenarios. This script only supports the QEMU Direct Boot patch logic.
+
+Usage:
+```bash
+python3 td_payload_qemu_hash.py -k bzImage
+```
+
+> [!NOTE]  
+> This script is designed exclusively for QEMU Direct Boot use cases. It applies the QEMU Kernel Direct Boot patch (modifying specific bytes in the kernel image) and calculates the SHA384 hash.
+
 ### Kernel Parameter
 
 Test
