@@ -117,38 +117,6 @@ def get_image_regions(buf):
     return number_of_region_entry, regions_base, regions_size
 
 
-def qemu_patch(buf):
-    """Apply QEMU Kernel Direct Boot patch and calculate hash."""
-    # refer to https://github.com/qemu/qemu/blob/f48c205fb42be48e2e47b7e1cd9a2802e5ca17b0/hw/i386/x86.c#L999
-    # patching type_of_loader @0x210
-    buf[0x210] = 0xB0
-
-    # refer to https://github.com/qemu/qemu/blob/f48c205fb42be48e2e47b7e1cd9a2802e5ca17b0/hw/i386/x86.c#L1003
-    # patching loadflags @0x211
-    buf[0x211] = 0x81
-
-    # refer to https://github.com/qemu/qemu/blob/9c74490bff6c8886a922008d0c9ce6cae70dd17e/hw/i386/x86.c#L1004
-    # patching heap_end_ptr @0x224 cmdline_addr - real_addr - 0x200 = 0xfe00
-    buf[0x224] = 0x00
-    buf[0x225] = 0xFE
-
-    # refer to https://github.com/qemu/qemu/blob/9c74490bff6c8886a922008d0c9ce6cae70dd17e/hw/i386/x86.c#L962
-    # patching cmd_line_ptr @0x228 cmdline_addr = 0x20000
-    buf[0x228] = 0x00
-    buf[0x229] = 0x00
-    buf[0x22A] = 0x02
-    buf[0x22B] = 0x00
-
-    hasher = hashlib.sha384()
-    number_of_region_entry, regions_base, regions_size = get_image_regions(buf)
-
-    for index in range(number_of_region_entry):
-        region_data = buf[regions_base[index]                          : regions_base[index] + regions_size[index]]
-        hasher.update(region_data)
-
-    return hasher.hexdigest()
-
-
 def qemu(path):
     """Process kernel file with QEMU patch."""
     path = Path(path)
@@ -161,7 +129,14 @@ def qemu(path):
     if protocol < 0x206:
         raise ValueError("Protocol version should be 2.06+")
 
-    return qemu_patch(buf)
+    hasher = hashlib.sha384()
+    number_of_region_entry, regions_base, regions_size = get_image_regions(buf)
+
+    for index in range(number_of_region_entry):
+        region_data = buf[regions_base[index]: regions_base[index] + regions_size[index]]
+        hasher.update(region_data)
+
+    return hasher.hexdigest()
 
 
 def main():
