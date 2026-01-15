@@ -81,8 +81,9 @@ pub struct TeeTcbInfo {
     pub mrseam: [u8; 48],
     pub mrsigner_seam: [u8; 48],
     pub attributes: [u8; 8],
+    pub tee_tcb_svn2: [u8; 16],
     /// Reserved. Must be zero
-    pub reserved: [u8; 111],
+    pub reserved: [u8; 95],
 }
 
 impl fmt::Display for TeeTcbInfo {
@@ -92,8 +93,13 @@ impl fmt::Display for TeeTcbInfo {
             f,
             "TEE TCB Info:\n\tValid:\n\t{:x?}\n\tTEE TCB SVN:\n\t{:x?}\n\
                         \tMR SEAM:\n\t{:x?}\n\tMR Signer SEAM:\n\t{:x?}\n\
-                        \tAttributes:\n\t{:x?}\n",
-            self.valid, self.tee_tcb_svn, self.mrseam, self.mrsigner_seam, self.attributes
+                        \tAttributes:\n\t{:x?}\n\tTEE TCB SVN2:\n\t{:x?}\n",
+            self.valid,
+            self.tee_tcb_svn,
+            self.mrseam,
+            self.mrsigner_seam,
+            self.attributes,
+            self.tee_tcb_svn2
         )
     }
 }
