@@ -942,7 +942,7 @@ pub fn tdcall_servtd_rebind_approve(
     }
 
     let mut args = TdcallArgs {
-        rax: TDCALL_SERVTD_RD,
+        rax: TDCALL_SERVTD_REBIND_APPROVE,
         rcx: old_binding_handle,
         rdx: u64::from_le_bytes(rebind_session_token[0..8].try_into().unwrap()),
         r8: u64::from_le_bytes(rebind_session_token[8..16].try_into().unwrap()),
