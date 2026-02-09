@@ -56,6 +56,7 @@ const TDCALL_MEM_PAGE_ATTR_WR: u64 = 24;
 const TDCALL_VP_ENTER: u64 = 25;
 const TDCALL_VP_INVEPT: u64 = 26;
 const TDCALL_VP_INVVPID: u64 = 27;
+const TDCALL_SERVTD_REBIND_APPROVE: u64 = 33;
 #[cfg(feature = "tdg_dbg")]
 const TDCALL_TDG_DEBUG: u64 = 254;
 
