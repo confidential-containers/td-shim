@@ -110,9 +110,10 @@ fn parse_guided_hob(guided_hob: &'static [u8]) -> Option<&'static [E820Entry]> {
     let table = hob_lib::get_guid_data(guided_hob)?;
     let mut entry_num = table.len() / size_of::<E820Entry>();
 
-    let last_entry = E820Entry::read_from(
+    let last_entry = E820Entry::read_from_bytes(
         &table[(entry_num - 1) * size_of::<E820Entry>()..entry_num * size_of::<E820Entry>()],
-    )?;
+    )
+    .ok()?;
 
     // Ignore the padding zeros in GUIDed HOB
     if last_entry == E820Entry::default() {

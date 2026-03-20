@@ -89,7 +89,8 @@ impl<'a> AcpiTables<'a> {
         }
 
         // Safe because we have checked buffer size.
-        let header = GenericSdtHeader::read_from(&table[..size_of::<GenericSdtHeader>()]).unwrap();
+        let header =
+            GenericSdtHeader::read_from_bytes(&table[..size_of::<GenericSdtHeader>()]).unwrap();
         if header.length as usize > table.len() {
             panic!(
                 "invalid ACPI table, header length {} is bigger than data length {}",
@@ -109,7 +110,7 @@ impl<'a> AcpiTables<'a> {
         } else {
             for offset in &self.table_offsets[..self.num_tables] {
                 // Safe because it's reading data from our own buffer.
-                let table_header = GenericSdtHeader::read_from(
+                let table_header = GenericSdtHeader::read_from_bytes(
                     &self.acpi_memory[*offset..*offset + size_of::<GenericSdtHeader>()],
                 )
                 .unwrap();

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
 use core::mem::size_of;
-use zerocopy::{AsBytes, FromBytes, FromZeroes};
+use zerocopy::{FromBytes, Immutable, IntoBytes};
 
 use td_shim::e820::E820Entry;
 
@@ -18,7 +18,7 @@ pub const HDR_TYPE_LOADER: u8 = 0xff;
 pub const HDR_LOAD_HIGH: u8 = 0x01;
 pub const HDR_MIN_VERSION: u16 = 0x0200;
 
-#[derive(Clone, Copy, Default, Debug, AsBytes, FromBytes, FromZeroes)]
+#[derive(Clone, Copy, Default, Debug, IntoBytes, FromBytes, Immutable)]
 #[repr(C, packed)]
 pub struct SetupHeader {
     pub setup_sects: u8,
@@ -64,7 +64,7 @@ pub struct SetupHeader {
 impl SetupHeader {
     // Read a kernel header from the first two sectors of a file
     pub fn from_file(kernel_file: &[u8]) -> Self {
-        SetupHeader::read_from(&kernel_file[0x1f1..0x1f1 + size_of::<SetupHeader>()]).unwrap()
+        SetupHeader::read_from_bytes(&kernel_file[0x1f1..0x1f1 + size_of::<SetupHeader>()]).unwrap()
     }
 }
 

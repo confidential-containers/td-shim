@@ -233,7 +233,8 @@ impl<'a> Iterator for CcEvents<'a> {
             return None;
         }
 
-        let event_header = CcEventHeader::read_from(&self.bytes[..size_of::<CcEventHeader>()])?;
+        let event_header =
+            CcEventHeader::read_from_bytes(&self.bytes[..size_of::<CcEventHeader>()]).ok()?;
         if event_header.event_size == 0 {
             return None;
         }
@@ -265,10 +266,11 @@ impl CcEventLogReader<'_> {
 
         // TCG_EfiSpecIDEvent should be the first event
         let pcr_event_header =
-            TcgPcrEventHeader::read_from(&bytes[..size_of::<TcgPcrEventHeader>()])?;
-        let specific_id_event = TcgEfiSpecIdevent::read_from(
+            TcgPcrEventHeader::read_from_bytes(&bytes[..size_of::<TcgPcrEventHeader>()]).ok()?;
+        let specific_id_event = TcgEfiSpecIdevent::read_from_bytes(
             &bytes[size_of::<TcgPcrEventHeader>()..specific_id_event_size],
-        )?;
+        )
+        .ok()?;
         let cc_event_log = CcEventLogReader {
             cc_events: CcEvents {
                 bytes: &bytes[specific_id_event_size..],
