@@ -17,7 +17,7 @@ use td_shim::TD_ACPI_TABLE_HOB_GUID;
 use td_shim_interface::acpi::{Ccel, GenericSdtHeader};
 use td_shim_interface::td_uefi_pi::hob;
 use tdx_tdcall::tdreport;
-use zerocopy::{AsBytes, FromBytes};
+use zerocopy::FromBytes;
 
 use serde::{Deserialize, Serialize};
 
@@ -73,12 +73,12 @@ impl TestTdTrustedBoot {
             hob::get_next_extension_guid_hob(next_hob, TD_ACPI_TABLE_HOB_GUID.as_bytes())
         {
             let table = hob::get_guid_data(hob).expect("Failed to get data from ACPI GUID HOB");
-            let header = GenericSdtHeader::read_from(&table[..size_of::<GenericSdtHeader>()])
+            let header = GenericSdtHeader::read_from_bytes(&table[..size_of::<GenericSdtHeader>()])
                 .expect("Failed to read table header from ACPI GUID HOB");
 
             // save it to headers
             if &header.signature == b"CCEL" {
-                ccel = Ccel::read_from(&table[..size_of::<Ccel>()]);
+                ccel = Ccel::read_from_bytes(&table[..size_of::<Ccel>()]).ok();
             }
 
             // Then we go to next hob

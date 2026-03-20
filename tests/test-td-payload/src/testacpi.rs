@@ -15,7 +15,7 @@ use td_payload::hob::get_hob;
 use td_shim::TD_ACPI_TABLE_HOB_GUID;
 use td_shim_interface::acpi::GenericSdtHeader;
 use td_shim_interface::td_uefi_pi::hob;
-use zerocopy::{AsBytes, FromBytes};
+use zerocopy::FromBytes;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TdAcpiData {
@@ -70,7 +70,7 @@ impl TestTdAcpi {
             hob::get_next_extension_guid_hob(next_hob, TD_ACPI_TABLE_HOB_GUID.as_bytes())
         {
             let table = hob::get_guid_data(hob).expect("Failed to get data from ACPI GUID HOB\n");
-            let header = GenericSdtHeader::read_from(&table[..size_of::<GenericSdtHeader>()])
+            let header = GenericSdtHeader::read_from_bytes(&table[..size_of::<GenericSdtHeader>()])
                 .expect("Faile to read table header from ACPI GUID HOB\n");
 
             // Check checksum

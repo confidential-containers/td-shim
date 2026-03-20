@@ -16,7 +16,7 @@ use td_payload::hob::get_hob;
 use td_shim::e820::{self, E820Entry, E820Type};
 use td_shim::TD_E820_TABLE_HOB_GUID;
 use td_shim_interface::td_uefi_pi::hob;
-use zerocopy::{AsBytes, FromBytes};
+use zerocopy::FromBytes;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MemoryMapConfig {
@@ -68,7 +68,9 @@ impl TestMemoryMap {
 
             let mut offset = 0;
             while offset < table.len() && offset + size_of::<E820Entry>() <= table.len() {
-                let entry = E820Entry::read_from(&table[offset..offset + size_of::<E820Entry>()])?;
+                let entry =
+                    E820Entry::read_from_bytes(&table[offset..offset + size_of::<E820Entry>()])
+                        .ok()?;
                 // save it to tables
                 e820.push(entry);
                 offset += size_of::<E820Entry>();

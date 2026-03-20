@@ -219,7 +219,7 @@ version = "0.1.0"
 dependencies = [
  "ring",
  "sha2",
- "zerocopy 0.7.32",
+ "zerocopy 0.8.27",
 ]
 
 [[package]]
@@ -1276,7 +1276,7 @@ dependencies = [
  "tdx-tdcall",
  "x86",
  "x86_64",
- "zerocopy 0.7.32",
+ "zerocopy 0.8.27",
 ]
 
 [[package]]
@@ -1304,7 +1304,7 @@ dependencies = [
  "which",
  "x86",
  "x86_64",
- "zerocopy 0.7.32",
+ "zerocopy 0.8.27",
 ]
 
 [[package]]
@@ -1314,7 +1314,7 @@ dependencies = [
  "log",
  "r-efi",
  "scroll",
- "zerocopy 0.7.32",
+ "zerocopy 0.8.27",
 ]
 
 [[package]]
@@ -1455,7 +1455,7 @@ dependencies = [
  "td-shim-interface",
  "tdx-tdcall",
  "x86",
- "zerocopy 0.7.32",
+ "zerocopy 0.8.27",
 ]
 
 [[package]]

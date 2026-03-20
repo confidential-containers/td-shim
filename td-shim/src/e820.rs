@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
-use zerocopy::{AsBytes, FromBytes, FromZeroes};
+use zerocopy::{FromBytes, Immutable, IntoBytes};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u32)]
@@ -51,7 +51,7 @@ impl From<u32> for E820Type {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, FromBytes, AsBytes, FromZeroes, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, FromBytes, IntoBytes, Immutable, PartialEq)]
 #[repr(C, packed)]
 pub struct E820Entry {
     pub addr: u64,

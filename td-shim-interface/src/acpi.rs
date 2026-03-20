@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 use core::mem::size_of;
-use zerocopy::{AsBytes, FromBytes, FromZeroes};
+use zerocopy::{FromBytes, Immutable, IntoBytes};
 
 pub const ACPI_TABLES_MAX_NUM: usize = 20;
 pub const ACPI_RSDP_REVISION: u8 = 2;
@@ -19,7 +19,7 @@ pub fn calculate_checksum(data: &[u8]) -> u8 {
 }
 
 #[repr(packed)]
-#[derive(Default, AsBytes, FromBytes, FromZeroes)]
+#[derive(Default, IntoBytes, FromBytes, Immutable)]
 pub struct Rsdp {
     pub signature: [u8; 8],
     pub checksum: u8,
@@ -61,7 +61,7 @@ impl Rsdp {
 }
 
 #[repr(C, packed)]
-#[derive(Default, AsBytes, FromBytes, FromZeroes)]
+#[derive(Default, IntoBytes, FromBytes, Immutable)]
 pub struct GenericSdtHeader {
     pub signature: [u8; 4],
     pub length: u32,
@@ -95,7 +95,7 @@ impl GenericSdtHeader {
 }
 
 #[repr(C, packed)]
-#[derive(Default, AsBytes, FromBytes, FromZeroes)]
+#[derive(Default, IntoBytes, FromBytes, Immutable)]
 pub struct Xsdt {
     pub header: GenericSdtHeader,
     pub tables: [u64; ACPI_TABLES_MAX_NUM],
@@ -134,7 +134,7 @@ impl Xsdt {
 }
 
 #[repr(C, packed)]
-#[derive(Default, AsBytes, FromBytes, FromZeroes)]
+#[derive(Default, IntoBytes, FromBytes, Immutable)]
 pub struct Ccel {
     pub header: GenericSdtHeader,
     pub cc_type: u8,

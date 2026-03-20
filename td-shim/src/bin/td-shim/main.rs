@@ -24,7 +24,7 @@ use x86_64::VirtAddr;
 
 use r_efi::efi;
 use scroll::{Pread, Pwrite};
-use zerocopy::{AsBytes, ByteSlice, FromBytes};
+use zerocopy::{FromBytes, IntoBytes};
 
 use cc_measurement::{log::CcEventLogWriter, EV_EFI_HANDOFF_TABLES2, EV_PLATFORM_CONFIG_FLAGS};
 use td_layout::build_time::{self, *};
@@ -351,7 +351,7 @@ fn prepare_acpi_tables(acpi_tables: &mut Vec<&[u8]>, mem: &Memory, vcpus: u32) -
         }
         speculation_barrier();
 
-        let header = GenericSdtHeader::read_from(&table[..size_of::<GenericSdtHeader>()])
+        let header = GenericSdtHeader::read_from_bytes(&table[..size_of::<GenericSdtHeader>()])
             .expect("Faile to read table header from ACPI GUID HOB");
         if table.len() < header.length as usize {
             panic!("Invalid ACPI table length\n");

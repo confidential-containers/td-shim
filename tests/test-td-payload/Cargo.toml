@@ -25,7 +25,7 @@ x86 = { version = "0.47.0" }
 ring = { version = "0.17.14", default-features = false, features = ["alloc"] }
 td-shim = { path = "../../td-shim" }
 td-payload = { path = "../../td-payload", features = ["tdx","cet-shstk","stack-guard"] }
-zerocopy = { version = "0.7.31", features = ["derive"] }
+zerocopy = { version = "=0.8.27", features = ["derive"] }
 
 minicov = { version = "0.2", default-features = false, optional = true }
 
