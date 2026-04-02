@@ -22,6 +22,10 @@ fn panic(_info: &PanicInfo) -> ! {
     use crate::println;
 
     println!("panic ... {:?}", _info);
+
+    #[cfg(not(feature = "no-tdvmcall"))]
+    tdx_tdcall::tdx::tdvmcall_report_fatal_error(0, None);
+
     x86_64::instructions::hlt();
     loop {}
 }
