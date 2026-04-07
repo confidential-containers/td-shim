@@ -133,6 +133,7 @@ impl Xsdt {
     }
 }
 
+#[cfg(not(feature = "no-td-hob"))]
 #[repr(C, packed)]
 #[derive(Default, IntoBytes, FromBytes, Immutable)]
 pub struct Ccel {
@@ -144,6 +145,7 @@ pub struct Ccel {
     pub lasa: u64,
 }
 
+#[cfg(not(feature = "no-td-hob"))]
 impl Ccel {
     pub fn new(cc_type: u8, cc_subtype: u8, laml: u64, lasa: u64) -> Ccel {
         let mut ccel = Ccel {
@@ -236,6 +238,7 @@ mod tests {
         assert_eq!(xsdt.header.checksum, CHECK_SUM);
     }
 
+    #[cfg(not(feature = "no-td-hob"))]
     #[test]
     fn test_ccel() {
         let ccel = Ccel::new(2, 0, 0x100, 0);

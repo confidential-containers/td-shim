@@ -19,3 +19,4 @@ log = "0.4.13"
 
 [features]
 no-metadata-checks = []
+no-td-hob = []
