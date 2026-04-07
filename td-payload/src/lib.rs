@@ -11,9 +11,11 @@ use core::fmt::{Arguments, Write};
 
 extern crate alloc;
 
+#[cfg(not(feature = "no-td-hob"))]
 pub mod acpi;
 pub mod arch;
 pub mod console;
+#[cfg(not(feature = "no-td-hob"))]
 pub mod hob;
 pub mod mm;
 
