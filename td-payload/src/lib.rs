@@ -11,9 +11,11 @@ use core::fmt::{Arguments, Write};
 
 extern crate alloc;
 
+#[cfg(not(feature = "no-td-hob"))]
 pub mod acpi;
 pub mod arch;
 pub mod console;
+#[cfg(not(feature = "no-td-hob"))]
 pub mod hob;
 pub mod mm;
 
@@ -30,9 +32,12 @@ pub extern "C" fn _start(hob: u64, _payload: u64) -> ! {
         fn main();
     }
 
+    #[cfg(feature = "no-td-hob")]
+    let _ = hob; // Suppress unused parameter when HOB-based init is disabled
     let layout = RuntimeLayout::default();
 
     arch::init::pre_init(
+        #[cfg(not(feature = "no-td-hob"))]
         hob,
         &layout,
         #[cfg(not(feature = "no-shared-mem"))]
