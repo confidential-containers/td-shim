@@ -39,12 +39,14 @@ mod stack;
 #[cfg(not(test))]
 #[no_mangle]
 pub extern "C" fn main() -> ! {
-    use td_payload::hob::get_hob;
-
-    println!(
-        "Starting td-payload hob - {:p}",
-        get_hob().unwrap().as_ptr()
-    );
+    #[cfg(not(feature = "no-td-hob"))]
+    {
+        use td_payload::hob::get_hob;
+        println!(
+            "Starting td-payload hob - {:p}",
+            get_hob().unwrap().as_ptr()
+        );
+    }
 
     #[cfg(feature = "benches")]
     {

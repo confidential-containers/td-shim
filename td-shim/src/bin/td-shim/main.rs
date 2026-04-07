@@ -17,6 +17,7 @@ use core::panic::PanicInfo;
 use log::LevelFilter;
 use memory::Memory;
 use td_exception::idt::{load_idtr, DescriptorTablePointer, Idt, IdtEntry};
+#[cfg(not(feature = "no-acpi-ccel"))]
 use td_shim::event_log::CCEL_CC_TYPE_TDX;
 use x86_64::instructions::hlt;
 use x86_64::registers::segmentation::{Segment, CS};
@@ -30,12 +31,15 @@ use cc_measurement::{log::CcEventLogWriter, EV_EFI_HANDOFF_TABLES2, EV_PLATFORM_
 use td_layout::build_time::{self, *};
 use td_layout::memslice::{self, SliceType};
 use td_layout::RuntimeMemoryLayout;
+#[cfg(not(feature = "no-acpi-ccel"))]
 use td_shim::event_log::{log_hob_list, log_payload_binary, log_payload_parameter};
 use td_shim::{
     speculation_barrier, PayloadInfo, TdPayloadInfoHobType, TD_ACPI_TABLE_HOB_GUID,
     TD_PAYLOAD_INFO_HOB_GUID,
 };
-use td_shim_interface::acpi::{Ccel, GenericSdtHeader};
+#[cfg(not(feature = "no-acpi-ccel"))]
+use td_shim_interface::acpi::Ccel;
+use td_shim_interface::acpi::GenericSdtHeader;
 use td_shim_interface::td_uefi_pi::{fv, hob, pi};
 
 use crate::ipl::ExecutablePayloadType;
@@ -129,15 +133,28 @@ pub extern "win64" fn _start(
         .expect("Failed to create and initialize the event log");
 
     // Log the TD HOB if td-shim consumed its content
+    #[cfg(all(not(feature = "no-td-hob"), not(feature = "no-acpi-ccel")))]
     if let Some(td_hob) = dynamic_info.td_hob() {
         log_hob_list(td_hob, &mut td_event_log);
     }
 
     let num_vcpus = td::get_num_vcpus();
-    //Create MADT and TDEL
-    let (madt, tdel) = prepare_acpi_tables(&mut dynamic_info.acpi_tables, &mem, num_vcpus);
+    //Create MADT
+    let madt = prepare_acpi_tables(&mut dynamic_info.acpi_tables, &mem, num_vcpus);
     dynamic_info.acpi_tables.push(madt.as_bytes());
-    dynamic_info.acpi_tables.push(tdel.as_bytes());
+    // Create CCEL ACPI table unless disabled
+    #[cfg(not(feature = "no-acpi-ccel"))]
+    let ccel = {
+        let event_log_region = mem.get_layout_region(SliceType::EventLog);
+        Ccel::new(
+            CCEL_CC_TYPE_TDX,
+            0,
+            event_log_region.size as u64,
+            event_log_region.base_address as u64,
+        )
+    };
+    #[cfg(not(feature = "no-acpi-ccel"))]
+    dynamic_info.acpi_tables.push(ccel.as_bytes());
 
     // If the Payload Information GUID HOB is present, try to boot the Linux kernel.
     if let Some(payload_info) = dynamic_info.payload_info {
@@ -187,10 +204,13 @@ fn boot_linux_kernel(
     let payload_parameter = mem.get_dynamic_mem_slice(SliceType::PayloadParameter);
 
     // Record the payload binary/paramater into event log.
-    if static_info.payload_extend_rtmr() {
-        log_payload_binary(payload, event_log);
+    #[cfg(not(feature = "no-acpi-ccel"))]
+    {
+        if static_info.payload_extend_rtmr() {
+            log_payload_binary(payload, event_log);
+        }
+        log_payload_parameter(payload_parameter, event_log);
     }
-    log_payload_parameter(payload_parameter, event_log);
 
     let mailbox = mem.get_dynamic_mem_slice_mut(SliceType::RelocatedMailbox);
 
@@ -228,6 +248,7 @@ fn boot_builtin_payload(
     }
 
     // Record the payload binary information into event log.
+    #[cfg(not(feature = "no-acpi-ccel"))]
     if static_info.payload_extend_rtmr() {
         log_payload_binary(payload_bin, event_log);
     }
@@ -341,7 +362,7 @@ fn install_acpi_tables(acpi_tables: &Vec<&[u8]>, acpi_slice: &mut [u8]) -> u64 {
 }
 
 // Prepare ACPI tables for payload and panic if error happens
-fn prepare_acpi_tables(acpi_tables: &mut Vec<&[u8]>, mem: &Memory, vcpus: u32) -> (mp::Madt, Ccel) {
+fn prepare_acpi_tables(acpi_tables: &mut Vec<&[u8]>, mem: &Memory, vcpus: u32) -> mp::Madt {
     let mut vmm_madt = None;
     let mut idx = 0;
     while idx < acpi_tables.len() {
@@ -366,23 +387,13 @@ fn prepare_acpi_tables(acpi_tables: &mut Vec<&[u8]>, mem: &Memory, vcpus: u32) -
     }
 
     let mailbox_region = mem.get_layout_region(SliceType::RelocatedMailbox);
-    let madt = if let Some(vmm_madt) = vmm_madt {
+    if let Some(vmm_madt) = vmm_madt {
         mp::create_madt(vmm_madt, mailbox_region.base_address as u64)
             .expect("Failed to create ACPI MADT table")
     } else {
         mp::create_madt_default(vcpus, mailbox_region.base_address as u64)
             .expect("Failed to create ACPI MADT table")
-    };
-
-    let event_log_region = mem.get_layout_region(SliceType::EventLog);
-    let tdel = Ccel::new(
-        CCEL_CC_TYPE_TDX,
-        0,
-        event_log_region.size as u64,
-        event_log_region.base_address as u64,
-    );
-
-    (madt, tdel)
+    }
 }
 
 #[cfg(all(feature = "secure-boot", not(feature = "no-config")))]
@@ -390,6 +401,7 @@ fn secure_boot_verify_payload<'a>(
     payload: &'a [u8],
     cc_event_log: &mut CcEventLogWriter,
 ) -> &'a [u8] {
+    #[cfg(not(feature = "no-acpi-ccel"))]
     use td_shim::event_log::{
         create_event_log_platform_config, PLATFORM_CONFIG_SECURE_AUTHORITY,
         PLATFORM_CONFIG_SECURE_POLICY_DB, PLATFORM_CONFIG_SVN, PLATFORM_FIRMWARE_BLOB2_PAYLOAD,
@@ -403,6 +415,7 @@ fn secure_boot_verify_payload<'a>(
         PayloadVerifier::get_trust_anchor(cfv).expect("Fail to get trust anchor from CFV");
 
     // Record the provisioned trust anchor into event log.
+    #[cfg(not(feature = "no-acpi-ccel"))]
     create_event_log_platform_config(
         cc_event_log,
         1,
@@ -415,6 +428,7 @@ fn secure_boot_verify_payload<'a>(
 
     // Record the matched trust anchor which is same as the provisioned
     // trust anchor if it passes the verification.
+    #[cfg(not(feature = "no-acpi-ccel"))]
     create_event_log_platform_config(
         cc_event_log,
         1,
@@ -424,6 +438,7 @@ fn secure_boot_verify_payload<'a>(
     .expect("Fail to measure and log the provisioned trust anchor");
 
     // Record the payload SVN into event log.
+    #[cfg(not(feature = "no-acpi-ccel"))]
     create_event_log_platform_config(
         cc_event_log,
         2,
