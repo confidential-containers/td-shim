@@ -159,6 +159,7 @@ pub fn register_interrupt_callback(
     Ok(())
 }
 
+#[cfg(not(feature = "no-interrupt"))]
 fn eoi() {
     // Write the end-of-interrupt (EOI) register (0x80B) at the end of the handler
     // routine, sometime before the IRET instruction
@@ -188,6 +189,9 @@ fn generic_interrupt_handler(stack: &mut InterruptStack) {
     func(stack);
 
     // If we are handling an interrupt, signal a end-of-interrupt before return.
+    // When no-interrupt feature is enabled, do not send EOI —
+    // VMM interrupts should never reach this point (IDT entries 32-255 are non-present).
+    #[cfg(not(feature = "no-interrupt"))]
     if stack.vector > 31 {
         eoi();
     }

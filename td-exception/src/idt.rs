@@ -74,7 +74,15 @@ impl Idt {
         let current_idt = &mut self.entries;
         let handler_table = unsafe { &interrupt_handler_table as *const u8 as usize };
 
-        for (idx, idt) in current_idt.iter_mut().enumerate() {
+        // When no-interrupt feature is enabled, only set up exception handlers (vectors 0-31).
+        // Vectors 32-255 (VMM interrupts) remain non-present — any unexpected interrupt
+        // will cause a #GP fault
+        #[cfg(feature = "no-interrupt")]
+        let max_vector = 32;
+        #[cfg(not(feature = "no-interrupt"))]
+        let max_vector = IDT_ENTRY_COUNT;
+
+        for (idx, idt) in current_idt.iter_mut().enumerate().take(max_vector) {
             idt.set_func(handler_table + idx * 32);
         }
 
