@@ -9,6 +9,7 @@ use scroll::{Pread, Pwrite};
 use td_shim_interface::td_uefi_pi::pi::{self, guid};
 
 pub mod e820;
+#[cfg(not(feature = "no-td-hob"))]
 pub mod event_log;
 pub mod fv;
 pub mod reset_vector;
