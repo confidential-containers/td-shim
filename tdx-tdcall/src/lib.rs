@@ -78,6 +78,7 @@ cfg_if::cfg_if! {
         const TDVMCALL_MMIO: u64 = 0x00030;
         const TDVMCALL_MAPGPA: u64 = 0x10001;
         const TDVMCALL_GETQUOTE: u64 = 0x10002;
+        const TDVMCALL_REPORTFATALERROR: u64 = 0x10003;
         const TDVMCALL_SETUPEVENTNOTIFY: u64 = 0x10004;
         const TDVMCALL_SERVICE: u64 = 0x10005;
         const TDVMCALL_MIGTD: u64 = 0x10006;
