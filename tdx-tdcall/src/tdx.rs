@@ -101,6 +101,25 @@ lazy_static! {
     static ref SHARED_MASK: u64 = td_shared_mask().expect("Fail to get the shared mask of TD");
 }
 
+/// Report a fatal error to the VMM via TDG.VP.VMCALL<ReportFatalError>.
+///
+/// Per GHCI 1.5 section 3.4: informs the host VMM that the TD has experienced
+/// a fatal-error state with a zero-terminated error string in shared memory.
+#[cfg(not(feature = "no-tdvmcall"))]
+pub fn tdvmcall_report_fatal_error(error_code: u32, shared_gpa: Option<u64>) {
+    let r12 = (error_code as u64) | if shared_gpa.is_some() { 1u64 << 63 } else { 0 };
+    let r13 = shared_gpa.unwrap_or(0);
+
+    let mut args = TdVmcallArgs {
+        r11: TDVMCALL_REPORTFATALERROR,
+        r12,
+        r13,
+        ..Default::default()
+    };
+
+    let _ = td_vmcall(&mut args);
+}
+
 /// Used to help perform HLT operation.
 ///
 /// Details can be found in TDX GHCI spec section 'TDG.VP.VMCALL<Instruction.HLT>'
