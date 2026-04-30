@@ -61,6 +61,8 @@ pub fn pre_init(
     // Safety: GDT has been setup
     unsafe { idt::init_idt() };
 
+    // Do not enable APIC interrupts when no-interrupt feature is enabled.
+    #[cfg(not(feature = "no-interrupt"))]
     enable_apic_interrupt();
 }
 
