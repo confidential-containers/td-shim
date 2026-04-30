@@ -3,14 +3,17 @@
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
 use crate::{
-    acpi::init_acpi_tables,
     arch::{gdt, idt},
-    hob::{self, get_hob},
-    mm::{
-        get_usable, heap::init_heap, init_ram, layout::RuntimeLayout,
-        page_table::init_pt_frame_allocator,
-    },
+    mm::{get_usable, heap::init_heap, layout::RuntimeLayout, page_table::init_pt_frame_allocator},
 };
+
+#[cfg(not(feature = "no-td-hob"))]
+use crate::hob;
+#[cfg(not(feature = "no-td-hob"))]
+use crate::mm::init_ram;
+
+#[cfg(not(feature = "no-td-hob"))]
+use crate::{acpi::init_acpi_tables, hob::get_hob};
 
 #[cfg(not(feature = "no-shared-mem"))]
 use crate::mm::shared::{init_shared_memory, init_shared_memory_with_shadow};
@@ -26,12 +29,17 @@ use super::{
 };
 
 pub fn pre_init(
-    hob: u64,
+    #[cfg(not(feature = "no-td-hob"))] hob: u64,
     layout: &RuntimeLayout,
     #[cfg(not(feature = "no-shared-mem"))] use_shared_shadow: bool,
 ) {
-    let hob = hob::init(hob).expect("Invalid payload HOB");
-    let memory_map = init_ram(hob).expect("Failed to parse E820 table from payload HOB");
+    #[cfg(not(feature = "no-td-hob"))]
+    let memory_map = {
+        let hob = hob::init(hob).expect("Invalid payload HOB");
+        init_ram(hob).expect("Failed to parse E820 table from payload HOB")
+    };
+    #[cfg(feature = "no-td-hob")]
+    let memory_map = crate::mm::init_ram_from_metadata();
 
     let page_table = get_usable(layout.page_table_size).expect("Failed to allocate page table");
     init_pt_frame_allocator(page_table, layout.page_table_size);
@@ -65,6 +73,7 @@ pub fn pre_init(
 }
 
 pub fn init(layout: &RuntimeLayout, next: unsafe extern "C" fn()) -> ! {
+    #[cfg(not(feature = "no-td-hob"))]
     init_acpi_tables(get_hob().expect("HOB is not intialized"))
         .expect("Fail to initialize ACPI tables");
 
