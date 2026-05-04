@@ -30,5 +30,9 @@ pub const TD_SHIM_SEC_CORE_INFO_BASE: u32 = {{memory_offset + sec_info_offset | 
 
 // Base Address after Loaded into Memory
 {%-for i in image_regions%}
+{%-if i.has_base_override %}
+pub const TD_SHIM_{{i.name_screaming_snake_case}}_BASE: u32 = {{i.base_override | format_hex }};
+{%-else%}
 pub const TD_SHIM_{{i.name_screaming_snake_case}}_BASE: u32 = {{memory_offset + i.region.start | format_hex }};
+{%-endif%}
 {%-endfor%}

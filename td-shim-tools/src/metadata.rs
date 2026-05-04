@@ -100,6 +100,38 @@ impl MetadataSections {
     pub fn add(&mut self, section: TdxMetadataSection) {
         self.inner.push(section)
     }
+
+    /// Replace any TempMem sections with entries derived from build_time.rs
+    /// constants. This ensures metadata always matches the compiled layout.
+    pub fn inject_temp_mem_from_layout(&mut self) {
+        self.inner
+            .retain(|s| s.r#type != TDX_METADATA_SECTION_TYPE_TEMP_MEM);
+
+        self.inner.push(TdxMetadataSection {
+            data_offset: 0,
+            raw_data_size: 0,
+            memory_address: TD_SHIM_TEMP_STACK_BASE as u64,
+            memory_data_size: TD_SHIM_TEMP_STACK_SIZE as u64,
+            r#type: TDX_METADATA_SECTION_TYPE_TEMP_MEM,
+            attributes: 0,
+        });
+        self.inner.push(TdxMetadataSection {
+            data_offset: 0,
+            raw_data_size: 0,
+            memory_address: TD_SHIM_TEMP_HEAP_BASE as u64,
+            memory_data_size: TD_SHIM_TEMP_HEAP_SIZE as u64,
+            r#type: TDX_METADATA_SECTION_TYPE_TEMP_MEM,
+            attributes: 0,
+        });
+        self.inner.push(TdxMetadataSection {
+            data_offset: 0,
+            raw_data_size: 0,
+            memory_address: TD_SHIM_MAILBOX_BASE as u64,
+            memory_data_size: TD_SHIM_MAILBOX_SIZE as u64,
+            r#type: TDX_METADATA_SECTION_TYPE_TEMP_MEM,
+            attributes: 0,
+        });
+    }
 }
 
 fn basic_metadata_sections(payload_type: PayloadType) -> MetadataSections {

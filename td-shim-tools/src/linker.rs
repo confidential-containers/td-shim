@@ -245,8 +245,10 @@ pub fn build_tdx_metadata(
 ) -> io::Result<TdxMetadata> {
     let sections = if let Some(path) = path {
         let metadata_config = fs::read(path)?;
-        serde_json::from_slice::<MetadataSections>(metadata_config.as_slice())
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?
+        let mut sections = serde_json::from_slice::<MetadataSections>(metadata_config.as_slice())
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+        sections.inject_temp_mem_from_layout();
+        sections
     } else {
         default_metadata_sections(payload_type)
     };
