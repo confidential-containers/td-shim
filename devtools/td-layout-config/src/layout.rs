@@ -16,6 +16,12 @@ pub struct LayoutEntry {
     region: Range<usize>,
     entry_type: String,
     tolm: bool,
+    /// Optional DRAM address override for the BASE constant in build_time.rs.
+    /// Used to place TempMem sections (Mailbox, TempStack, TempHeap) in DRAM
+    /// instead of the ROM firmware region, enabling QEMU 9+ TDX acceptance
+    /// (tdx_init_ram_entries only registers E820_RAM entries, not the ROM area).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dram_base: Option<usize>,
 }
 
 impl LayoutEntry {
@@ -29,6 +35,7 @@ impl LayoutEntry {
             region,
             entry_type,
             tolm,
+            dram_base: None,
         }
     }
 }
@@ -137,6 +144,29 @@ impl LayoutConfig {
     #[allow(unused)]
     pub fn get_layout_region(&self, name: &'static str) -> Option<&LayoutEntry> {
         self.list.iter().find(|v| -> bool { v.name == name })
+    }
+
+    /// Set DRAM base addresses for TempMem sections (Mailbox, TempStack, TempHeap).
+    ///
+    /// `tempmem_base` is the DRAM address for the Mailbox section. TempStack and
+    /// TempHeap get addresses offset from Mailbox, preserving the original layout.
+    /// This keeps TempMem out of the ROM firmware region so QEMU 9+ TDX can accept
+    /// them via E820 RAM entries (tdx_init_ram_entries only uses E820_RAM slots).
+    pub fn set_tempmem_dram_base(&mut self, tempmem_base: usize) {
+        const TEMPMEM_SECTIONS: &[&str] = &["Mailbox", "TempStack", "TempHeap"];
+        // Mailbox image offset is the anchor point for the relative addressing.
+        let mailbox_offset = self
+            .list
+            .iter()
+            .find(|e| e.name == "Mailbox")
+            .map(|e| e.region.start)
+            .unwrap_or(0);
+        for entry in &mut self.list {
+            if TEMPMEM_SECTIONS.contains(&entry.name.as_str()) {
+                // DRAM addr = tempmem_base + (section_offset - mailbox_offset)
+                entry.dram_base = Some(tempmem_base + entry.region.start - mailbox_offset);
+            }
+        }
     }
 }
 
