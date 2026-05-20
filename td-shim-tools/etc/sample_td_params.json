@@ -1,0 +1,14 @@
+{
+    "attributes": "0x0000000000000001",
+    "xfam": "0x0000000000000003",
+    "maxvcpus": 8,
+    "numl2vms": 0,
+    "msrconfigctls": 0,
+    "reserved": 0,
+    "eptpcontrols": "0x0000000000000000",
+    "configflags": "0x0000000000000000",
+    "tscfrequency": 0,
+    "ia32archcapabilitiesconfig": "0x0000000000000000",
+    "mrconfigsvn": 0,
+    "mrownerconfigsvn": 0
+}
