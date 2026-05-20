@@ -90,6 +90,10 @@ jobs:
         run: |
           cargo image --example-payload --release
 
+      - name: E2E custom NRX image pipeline
+        run: |
+          bash sh_script/test_custom_nrx_image_build.sh
+
       - name: Build Debug Elf format payload
         run: |
           cargo image --example-payload
