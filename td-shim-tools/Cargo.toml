@@ -34,6 +34,18 @@ required-features = ["tee"]
 name = "td-payload-reference-calculator"
 required-features = ["calculator"]
 
+[[bin]]
+name = "td-shim-image-layout-gen"
+required-features = ["layout-gen"]
+
+[[bin]]
+name = "td-shim-metadata-gen"
+required-features = ["metadata-gen"]
+
+[[bin]]
+name = "td-shim-patch"
+required-features = ["patcher"]
+
 [dependencies]
 r-efi = "3.2.0"
 argparse = "0.2.2"
@@ -64,12 +76,19 @@ igvm_defs = "0.3.4"
 zerocopy = { version = "0.8.14", features = ["derive"]}
 
 [features]
-default = ["enroller", "linker", "signer", "loader", "tee", "calculator"]
+default = ["enroller", "linker", "signer", "loader", "tee", "calculator", "layout-gen", "metadata-gen", "patcher"]
 enroller = ["clap", "der", "env_logger", "log", "ring", "td-shim/secure-boot"]
 linker = ["clap", "env_logger", "log", "parse_int", "serde_json", "serde", "td-loader"]
 signer = ["clap", "der", "env_logger", "log", "ring", "td-shim/secure-boot"]
 loader = ["clap", "env_logger", "log", "anyhow"]
 tee = ["clap", "env_logger", "log", "serde_json", "serde", "hex", "sha2", "byteorder"]
 calculator = ["clap", "hex", "parse_int", "sha2", "anyhow", "block-padding"]
+layout-gen = ["anyhow", "serde_json", "serde"]
+metadata-gen = ["anyhow", "serde_json", "serde"]
+patcher = ["anyhow", "serde_json", "serde", "hex"]
 exec-payload-section = []
 no-config = []
+
+[dev-dependencies]
+tempfile = "3"
+serde_json = "1.0"

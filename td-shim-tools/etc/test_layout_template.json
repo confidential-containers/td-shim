@@ -1,0 +1,10 @@
+{
+    "TdParams": "0x1000",
+    "TempStack": "0x20000",
+    "TempHeap": "0x20000",
+    "Payload": "0x100000",
+    "TdInfo": "0x1000",
+    "Metadata": "0x1000",
+    "Ipl": "0x2e000",
+    "ResetVector": "0x8000"
+}

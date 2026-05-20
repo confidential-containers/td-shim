@@ -1,0 +1,6 @@
+{
+    "PermMem": [
+        { "address": "0x0", "size": "0x2000000" }
+    ],
+    "TempMem": []
+}

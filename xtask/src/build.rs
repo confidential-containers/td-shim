@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
-use anyhow::{anyhow, Ok, Result};
+use anyhow::{anyhow, Context, Ok, Result};
 use clap::{Parser, ValueEnum};
 use lazy_static::lazy_static;
 use std::{
@@ -139,10 +139,21 @@ impl BuildArgs {
         };
 
         let sh = Shell::new()?;
+        let output_path = PROJECT_ROOT.join("td-layout/src/build_time.rs");
         sh.change_dir(PROJECT_ROOT.join("devtools/td-layout-config"));
-        cmd!(sh, "cargo run -- ")
-            .args(["--config", layout_config.to_str().unwrap()])
-            .arg(PROJECT_ROOT.join("td-layout/src"))
+        cmd!(sh, "cargo run --")
+            .arg(
+                layout_config
+                    .to_str()
+                    .context("layout config path is not valid UTF-8")?,
+            )
+            .args(["-t", "image"])
+            .args([
+                "-o",
+                output_path
+                    .to_str()
+                    .context("output path is not valid UTF-8")?,
+            ])
             .run()?;
         Ok(())
     }

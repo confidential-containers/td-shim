@@ -1,0 +1,20 @@
+{
+    "Sections": [
+        {
+            "DataOffset": "0x0",
+            "RawDataSize": "0x1000",
+            "MemoryAddress": "0xFF000000",
+            "MemoryDataSize": "0x1000",
+            "Type": "BFV",
+            "Attributes": "0x1"
+        },
+        {
+            "DataOffset": "0x0",
+            "RawDataSize": "0x0",
+            "MemoryAddress": "0x800000",
+            "MemoryDataSize": "0x20000",
+            "Type": "TD_HOB",
+            "Attributes": "0x0"
+        }
+    ]
+}

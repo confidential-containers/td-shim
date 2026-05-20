@@ -1,0 +1,12 @@
+{
+    "Sections": [
+        {
+            "DataOffset": "0x0",
+            "RawDataSize": "0x1000",
+            "MemoryAddress": "0xFF000000",
+            "MemoryDataSize": "0x1000",
+            "Type": "InvalidType",
+            "Attributes": "0x0"
+        }
+    ]
+}

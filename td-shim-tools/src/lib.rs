@@ -30,6 +30,9 @@ pub mod read_file;
 #[cfg(feature = "tee")]
 pub mod tee_info_hash;
 
+#[cfg(feature = "patcher")]
+pub mod image;
+
 /// Struct to read input data from a file.
 pub struct InputData {
     data: Vec<u8>,
