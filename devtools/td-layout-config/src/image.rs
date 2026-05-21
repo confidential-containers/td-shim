@@ -30,6 +30,12 @@ struct ImageConfig {
     reset_vector: String,
     #[serde(rename = "ImageSize")]
     image_size: Option<String>,
+    /// Optional base address for TempMem entries (Mailbox, TempStack, TempHeap)
+    /// in guest RAM. When set, these entries get _BASE addresses relative to this
+    /// base instead of the firmware memory range. This allows QEMU to accept
+    /// TempMem pages via E820 RAM entries.
+    #[serde(rename = "TempMemBase")]
+    temp_mem_base: Option<String>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -50,9 +56,14 @@ pub fn parse_image(data: String, metadata: Option<String>) -> String {
     let image_config = serde_json::from_str::<ImageConfig>(&data)
         .expect("Content in configuration file is invalid");
 
+    let temp_mem_base = image_config
+        .temp_mem_base
+        .as_ref()
+        .map(|s| parse_int::parse::<usize>(s).unwrap());
+
     let mut image_size = 0x100_0000 as usize;
-    if image_config.image_size.is_some() {
-        image_size = parse_int::parse::<u32>(&image_config.image_size.unwrap()).unwrap() as usize;
+    if let Some(ref size) = image_config.image_size {
+        image_size = parse_int::parse::<u32>(size).unwrap() as usize;
     }
 
     const MEMORY_4G: usize = 0x1_0000_0000;
@@ -142,6 +153,10 @@ pub fn parse_image(data: String, metadata: Option<String>) -> String {
             parse_int::parse::<u32>(&payload_config).unwrap() as usize,
             "Reserved",
         )
+    }
+
+    if let Some(base) = temp_mem_base {
+        image_layout.relocate_entries(base, &["MAILBOX", "TEMP_STACK", "TEMP_HEAP"]);
     }
 
     render::render_image(&image_layout, fw_top).expect("Render image layout failed!")

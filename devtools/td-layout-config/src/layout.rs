@@ -16,6 +16,10 @@ pub struct LayoutEntry {
     region: Range<usize>,
     entry_type: String,
     tolm: bool,
+    /// Absolute base address override for entries relocated to guest RAM.
+    pub base_override: Option<usize>,
+    /// Whether base_override is set (for template rendering, since Tera treats 0 as falsy).
+    pub has_base_override: bool,
 }
 
 impl LayoutEntry {
@@ -29,6 +33,8 @@ impl LayoutEntry {
             region,
             entry_type,
             tolm,
+            base_override: None,
+            has_base_override: false,
         }
     }
 }
@@ -112,6 +118,18 @@ impl LayoutConfig {
 
     pub fn get_total_usage(&self) -> usize {
         self.top - self.base - (self.free_top() - self.free_base())
+    }
+
+    /// Relocate named entries to a contiguous block starting at `base`.
+    pub fn relocate_entries(&mut self, base: usize, names: &[&str]) {
+        let mut offset = 0usize;
+        for entry in self.list.iter_mut() {
+            if names.contains(&entry.name_screaming_snake_case.as_str()) {
+                entry.base_override = Some(base + offset);
+                entry.has_base_override = true;
+                offset += entry.region.end - entry.region.start;
+            }
+        }
     }
 
     pub fn get_regions(&self) -> &[LayoutEntry] {
