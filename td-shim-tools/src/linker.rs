@@ -89,7 +89,7 @@ impl Default for FvHeaderByte {
 impl FvHeaderByte {
     pub fn build_tdx_payload_fv_header() -> Self {
         let mut hdr = Self::default();
-        let fv_header_size = (size_of::<FvHeader>()) as usize;
+        let fv_header_size = size_of::<FvHeader>();
 
         let mut tdx_payload_fv_header = FvHeader::default();
         tdx_payload_fv_header.fv_header.fv_length = TD_SHIM_PAYLOAD_SIZE as u64;
@@ -98,7 +98,7 @@ impl FvHeaderByte {
         tdx_payload_fv_header.fv_header.revision = FVH_REVISION;
         tdx_payload_fv_header.fv_header.update_checksum();
 
-        tdx_payload_fv_header.fv_block_map[0].num_blocks = (TD_SHIM_PAYLOAD_SIZE as u32) / 0x1000;
+        tdx_payload_fv_header.fv_block_map[0].num_blocks = TD_SHIM_PAYLOAD_SIZE / 0x1000;
         tdx_payload_fv_header.fv_block_map[0].length = 0x1000;
         tdx_payload_fv_header.fv_ext_header.fv_name.copy_from_slice(
             Guid::from_fields(
@@ -164,7 +164,7 @@ impl FvHeaderByte {
     // Build internal payload header
     pub fn build_tdx_ipl_fv_header() -> Self {
         let mut hdr = Self::default();
-        let fv_header_size = (size_of::<FvHeader>()) as usize;
+        let fv_header_size = size_of::<FvHeader>();
 
         let mut tdx_ipl_fv_header = IplFvHeader::default();
         tdx_ipl_fv_header.fv_header.fv_length =
@@ -246,15 +246,12 @@ pub fn build_tdx_metadata(
     let sections = if let Some(path) = path {
         let metadata_config = fs::read(path)?;
         serde_json::from_slice::<MetadataSections>(metadata_config.as_slice())
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?
+            .map_err(io::Error::other)?
     } else {
         default_metadata_sections(payload_type)
     };
 
-    TdxMetadata::new(sections).ok_or(io::Error::new(
-        io::ErrorKind::Other,
-        "Fail to create metadata",
-    ))
+    TdxMetadata::new(sections).ok_or(io::Error::other("Fail to create metadata"))
 }
 
 pub fn build_ovmf_guid_table() -> Vec<u8> {
@@ -315,7 +312,7 @@ impl std::str::FromStr for ImageFormat {
         match s {
             "tdvf" => Ok(ImageFormat::TDVF),
             "igvm" => Ok(ImageFormat::IGVM),
-            _ => return Err(format!("Invalid output file type: {}", s)),
+            _ => Err(format!("Invalid output file type: {s}")),
         }
     }
 }
@@ -339,7 +336,7 @@ impl std::str::FromStr for PayloadType {
         match s {
             "linux" => Ok(PayloadType::Linux),
             "executable" => Ok(PayloadType::Executable),
-            _ => return Err(format!("Invalid payload type: {}", s)),
+            _ => Err(format!("Invalid payload type: {s}")),
         }
     }
 }
@@ -355,14 +352,12 @@ fn insert_igvm_pages(
     for i in 0..num_pages {
         let start = (i * PAGE_SIZE_4K) as usize;
         let end = min(((i + 1) * PAGE_SIZE_4K) as usize, data.len());
-        let page_data = if data.len() == 0 {
+        let page_data = if data.is_empty() {
             vec![]
+        } else if start < end {
+            data[start..end].to_vec()
         } else {
-            if start < end {
-                data[start..end].to_vec()
-            } else {
-                vec![0u8; PAGE_SIZE_4K as usize]
-            }
+            vec![0u8; PAGE_SIZE_4K as usize]
         };
         let mut flags = IgvmPageDataFlags::new();
         if unmeasured {
@@ -371,7 +366,7 @@ fn insert_igvm_pages(
         directive_headers.push(IgvmDirectiveHeader::PageData {
             gpa: base + i * PAGE_SIZE_4K,
             compatibility_mask: 1,
-            flags: flags,
+            flags,
             data_type: IgvmPageDataType::NORMAL,
             data: page_data,
         });
@@ -491,9 +486,7 @@ impl TdShimLinker {
                     &mut payload_reloc_buf,
                     TD_SHIM_PAYLOAD_BASE as usize + payload_header.data.len(),
                 )
-                .ok_or_else(|| {
-                    io::Error::new(io::ErrorKind::Other, "Can not relocate payload content")
-                })?;
+                .ok_or_else(|| io::Error::other("Can not relocate payload content"))?;
                 trace!("shim payload relocated to 0x{:x}", reloc);
                 payload_data.extend_from_slice(&payload_reloc_buf);
             } else {
@@ -520,7 +513,7 @@ impl TdShimLinker {
             &mut ipl_reloc_buf,
             SIZE_1MB as usize,
         )
-        .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "Can not relocate IPL content"))?;
+        .ok_or_else(|| io::Error::other("Can not relocate IPL content"))?;
         trace!(
             "reloc IPL entrypoint - 0x{:x} - base: 0x{:x}",
             reloc.0,
@@ -566,9 +559,9 @@ impl TdShimLinker {
 
         let bfv_size =
             (TD_SHIM_METADATA_SIZE + TD_SHIM_IPL_SIZE + TD_SHIM_RESET_VECTOR_SIZE) as usize;
-        let mut bfv_data = vec![0u8; bfv_size as usize];
+        let mut bfv_data = vec![0u8; bfv_size];
 
-        let start = 0 as usize;
+        let start = 0_usize;
         let end = start + metadata_bytes.len();
         bfv_data.splice(start..end, metadata_bytes);
 
@@ -590,7 +583,7 @@ impl TdShimLinker {
         );
 
         if (TD_SHIM_FIRMWARE_BASE as u64 + TD_SHIM_FIRMWARE_SIZE as u64) < MEMORY_4G {
-            let size = PAGE_SIZE_4K as u64;
+            let size = PAGE_SIZE_4K;
             let base = MEMORY_4G - size;
             let start = bfv_data.len() - size as usize;
             insert_igvm_pages(
@@ -626,11 +619,7 @@ impl TdShimLinker {
         let mut output: Vec<u8> = Vec::new();
         igvm.serialize(&mut output).unwrap();
 
-        let output_file_name = self
-            .output_file_name
-            .as_ref()
-            .map(|v| v.as_str())
-            .unwrap_or("td_shim.igvm");
+        let output_file_name = self.output_file_name.as_deref().unwrap_or("td_shim.igvm");
         let mut file = File::create(output_file_name).unwrap();
         file.write_all(&output).unwrap();
 
@@ -655,11 +644,7 @@ impl TdShimLinker {
             "reset_vector",
         )?;
         let ipl_bin = InputData::new(ipl_name, 0..=MAX_IPL_CONTENT_SIZE, "IPL")?;
-        let output_file_name = self
-            .output_file_name
-            .as_ref()
-            .map(|v| v.as_str())
-            .unwrap_or("td_shim.bin");
+        let output_file_name = self.output_file_name.as_deref().unwrap_or("td_shim.bin");
         let mut output_file = OutputFile::new(output_file_name)?;
 
         let mailbox = TdxMpWakeupMailbox::default();
@@ -686,9 +671,7 @@ impl TdShimLinker {
                     &mut payload_reloc_buf,
                     TD_SHIM_PAYLOAD_BASE as usize + payload_header.data.len(),
                 )
-                .ok_or_else(|| {
-                    io::Error::new(io::ErrorKind::Other, "Can not relocate payload content")
-                })?;
+                .ok_or_else(|| io::Error::other("Can not relocate payload content"))?;
                 trace!("shim payload relocated to 0x{:x}", reloc);
                 output_file.write(&payload_reloc_buf, "payload content")?;
             } else {
@@ -708,9 +691,9 @@ impl TdShimLinker {
         let reloc = elf::relocate_elf_with_per_program_header(
             &ipl_bin.data,
             &mut ipl_reloc_buf,
-            0x100000 as usize,
+            0x100000_usize,
         )
-        .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "Can not relocate IPL content"))?;
+        .ok_or_else(|| io::Error::other("Can not relocate IPL content"))?;
         trace!(
             "reloc IPL entrypoint - 0x{:x} - base: 0x{:x}",
             reloc.0,

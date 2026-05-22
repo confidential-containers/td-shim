@@ -73,7 +73,7 @@ impl<'a> TryFrom<&'a [u8]> for SubjectPublicKeyInfo<'a> {
     type Error = der::Error;
 
     fn try_from(bytes: &'a [u8]) -> Result<Self> {
-        Ok(Self::from_der(bytes)?)
+        Self::from_der(bytes)
     }
 }
 
@@ -104,6 +104,6 @@ impl<'a> TryFrom<&'a [u8]> for RsaPublicKeyInfo<'a> {
     type Error = der::Error;
 
     fn try_from(bytes: &'a [u8]) -> Result<Self> {
-        Ok(Self::from_der(bytes)?)
+        Self::from_der(bytes)
     }
 }

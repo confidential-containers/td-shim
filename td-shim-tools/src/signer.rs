@@ -93,10 +93,10 @@ impl<'a> PayloadSigner<'a> {
                     .sign(&RSA_PSS_SHA384, &rng, &self.signed_image, &mut signature)
                     .map_err(|e| {
                         error!("Failed to sign message with RSA: {}", e);
-                        io::Error::new(io::ErrorKind::Other, "failed to sign message")
+                        io::Error::other("failed to sign message")
                     })?;
 
-                self.signed_image.extend_from_slice(&modulus);
+                self.signed_image.extend_from_slice(modulus);
                 self.signed_image.extend_from_slice(&exp_bytes);
                 self.signed_image.extend_from_slice(signature.as_slice());
             }
@@ -116,7 +116,7 @@ impl<'a> PayloadSigner<'a> {
                     .sign(&rng, self.signed_image.as_slice())
                     .map_err(|e| {
                         error!("Failed to sign message with ECDSA: {}", e);
-                        io::Error::new(io::ErrorKind::Other, "failed to sign message")
+                        io::Error::other("failed to sign message")
                     })?;
 
                 self.signed_image.extend_from_slice(&public_key[1..]);

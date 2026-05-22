@@ -88,6 +88,12 @@ pub struct MetadataSections {
     inner: Vec<TdxMetadataSection>,
 }
 
+impl Default for MetadataSections {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MetadataSections {
     pub fn new() -> Self {
         Self { inner: Vec::new() }
@@ -256,8 +262,8 @@ pub struct TdxMetadata {
 
 impl TdxMetadata {
     pub fn new(sections: MetadataSections) -> Option<Self> {
-        let length = size_of::<TdxMetadataDescriptor>()
-            + sections.as_slice().len() * size_of::<TdxMetadataSection>();
+        let length =
+            size_of::<TdxMetadataDescriptor>() + std::mem::size_of_val(sections.as_slice());
         if length > u32::MAX as usize {
             return None;
         }

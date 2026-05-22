@@ -276,7 +276,7 @@ impl TdInfoStruct {
         let mut desc_offset = 0;
         let descriptor: TdxMetadataDescriptor = desc.pread(desc_offset).unwrap();
         if !(descriptor.is_valid()) {
-            println!("{:?}", descriptor);
+            println!("{descriptor:?}");
             panic!("The descriptor is not valid!\n");
         }
 
@@ -409,14 +409,14 @@ impl TdInfoStruct {
                 if !flags.unmeasured() {
                     // Hash the contents of the 4K page, 256 bytes at a time.
                     let page_data = data;
-                    if (page_data.len() > 0) && (page_data.len() % PAGE_SIZE as usize == 0) {
+                    if (!page_data.is_empty()) && (page_data.len() % PAGE_SIZE as usize == 0) {
                         // Use TDCALL [TDH.MR.EXTEND]
                         for offset in (0..PAGE_SIZE).step_by(TDH_MR_EXTEND_GRANULARITY as usize) {
                             fill_buffer3_128_with_mr_extend_tdvf(
                                 &mut buffer3_128,
                                 gpa + offset,
                                 page_data,
-                                offset as u64,
+                                offset,
                             );
 
                             sha384hasher.update(buffer3_128[0]);
@@ -429,7 +429,7 @@ impl TdInfoStruct {
         }
 
         let hash = sha384hasher.finalize();
-        println!("MRTD Hash: {:x?}", hash);
+        println!("MRTD Hash: {hash:x?}");
         self.mrtd.copy_from_slice(hash.as_slice());
     }
 
@@ -461,7 +461,7 @@ impl TdInfoStruct {
                 if *gpa >= TD_SHIM_CONFIG_BASE.into()
                     && *gpa < ((TD_SHIM_CONFIG_BASE + TD_SHIM_CONFIG_SIZE).into())
                 {
-                    if data.len() > 0 {
+                    if !data.is_empty() {
                         validpages += 1;
                     }
                     offset += 1;
@@ -472,7 +472,7 @@ impl TdInfoStruct {
         let paddingbytes = TD_SHIM_CONFIG_SIZE as usize - (validpages * PAGE_SIZE as usize);
         offset = (fixed_header.variable_header_size + fixed_header.variable_header_offset) as usize;
         cfv = contents[offset..offset + (validpages * PAGE_SIZE as usize)].to_vec();
-        cfv.extend(std::iter::repeat(0).take(paddingbytes));
+        cfv.extend(std::iter::repeat_n(0, paddingbytes));
         cfv
     }
 

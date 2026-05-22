@@ -51,7 +51,7 @@ fn update_checksum(data: &mut [u8]) {
         if offset == FFS_HEADER_FILE_CHECKSUM_OFFSET || offset == FFS_HEADER_FILE_STATE_OFFSET {
             continue;
         } else {
-            sum = sum.wrapping_add(data[offset] as u8);
+            sum = sum.wrapping_add(data[offset]);
         }
     }
 
@@ -121,7 +121,7 @@ fn build_cfv_header() -> FvHeader {
     cfv_header.fv_header.revision = FVH_REVISION;
     cfv_header.fv_header.update_checksum();
 
-    cfv_header.fv_block_map[0].num_blocks = (TD_SHIM_CONFIG_SIZE as u32) / 0x1000;
+    cfv_header.fv_block_map[0].num_blocks = TD_SHIM_CONFIG_SIZE / 0x1000;
     cfv_header.fv_block_map[0].length = 0x1000;
     cfv_header.fv_ext_header.ext_header_size = 0x14;
 
@@ -172,7 +172,7 @@ pub fn enroll_files(
             });
         let mut initialization_headers = Vec::new();
         let igvm =
-            IgvmFile::new_from_binary(&tdshim_bin.as_bytes(), None).expect("file parse error");
+            IgvmFile::new_from_binary(tdshim_bin.as_bytes(), None).expect("file parse error");
         let mut cfv_data;
         let mut offset: u64 = 0;
         let mut pagedataflags;
@@ -205,18 +205,16 @@ pub fn enroll_files(
                 {
                     let start = (offset * PAGE_SIZE_4K) as usize;
                     let end = min(((offset + 1) * PAGE_SIZE_4K) as usize, cfv_data.len());
-                    if cfv_data.len() == 0 {
+                    if cfv_data.is_empty() {
                         page_data = vec![];
-                    } else {
-                        if start < end {
-                            page_data = cfv_data[start..end].to_vec();
-                            if (end - start) < PAGE_SIZE_4K as usize {
-                                let paddingbytes = PAGE_SIZE_4K as usize - (end - start);
-                                page_data.extend(std::iter::repeat(0).take(paddingbytes));
-                            }
-                        } else {
-                            page_data = vec![];
+                    } else if start < end {
+                        page_data = cfv_data[start..end].to_vec();
+                        if (end - start) < PAGE_SIZE_4K as usize {
+                            let paddingbytes = PAGE_SIZE_4K as usize - (end - start);
+                            page_data.extend(std::iter::repeat_n(0, paddingbytes));
                         }
+                    } else {
+                        page_data = vec![];
                     }
                     offset += 1;
                 } else {
@@ -235,7 +233,7 @@ pub fn enroll_files(
         for p in igvm.platforms() {
             let IgvmPlatformHeader::SupportedPlatform(sp) = p;
             if sp.platform_type == IgvmPlatformType::TDX {
-                platform_header = igvm::IgvmPlatformHeader::SupportedPlatform(sp.clone());
+                platform_header = igvm::IgvmPlatformHeader::SupportedPlatform(*sp);
             }
         }
 
@@ -308,17 +306,14 @@ pub fn create_key_file(key_file: &str, hash_alg: &str) -> io::Result<FirmwareRaw
         "SHA384" => &digest::SHA384,
         _ => {
             error!("Unsupported hash algorithm {}", hash_alg);
-            return Err(io::Error::new(
-                io::ErrorKind::Other,
-                "unsupported hash algorithm",
-            ));
+            return Err(io::Error::other("unsupported hash algorithm"));
         }
     };
 
     let key_data = InputData::new(key_file, 1..=PUB_KEY_MAX_SIZE, "public key")?;
     let key = SubjectPublicKeyInfo::try_from(key_data.as_bytes()).map_err(|e| {
         error!("Can not load key from file {}: {}", key_file, e);
-        io::Error::new(io::ErrorKind::Other, "invalid key data")
+        io::Error::other("invalid key data")
     })?;
 
     let mut public_bytes: Vec<u8> = Vec::new();
@@ -327,10 +322,7 @@ pub fn create_key_file(key_file: &str, hash_alg: &str) -> io::Result<FirmwareRaw
             if let Some(curve) = key.algorithm.parameters {
                 if curve.as_bytes() != SECP384R1_OID.as_bytes() {
                     error!("Unsupported Named Curve from file {}", key_file);
-                    return Err(io::Error::new(
-                        io::ErrorKind::Other,
-                        "unsupported Named Curve",
-                    ));
+                    return Err(io::Error::other("unsupported Named Curve"));
                 }
 
                 // The first byte indicates whether the key is compressed or uncompressed. The
@@ -341,34 +333,25 @@ pub fn create_key_file(key_file: &str, hash_alg: &str) -> io::Result<FirmwareRaw
                     || key.subject_public_key.as_bytes()[1..].len() != ECDSA_P384_PUB_KEY_LEN
                 {
                     error!("Invalid SECP384R1 public key from file {}", key_file);
-                    return Err(io::Error::new(
-                        io::ErrorKind::Other,
-                        "Invalid SECP384R1 public key",
-                    ));
+                    return Err(io::Error::other("Invalid SECP384R1 public key"));
                 }
                 public_bytes.extend_from_slice(&key.subject_public_key.as_bytes()[1..]);
             } else {
                 error!("Invalid algorithm parameter from file {}", key_file);
-                return Err(io::Error::new(
-                    io::ErrorKind::Other,
-                    "Invalid key algorithm parameter",
-                ));
+                return Err(io::Error::other("Invalid key algorithm parameter"));
             }
         }
         RSA_PUBKEY_OID => {
             let pubkey =
                 RsaPublicKeyInfo::try_from(key.subject_public_key.as_bytes()).map_err(|e| {
                     error!("Invalid key from file {}: {}", key_file, e);
-                    io::Error::new(io::ErrorKind::Other, "invalid key from file")
+                    io::Error::other("invalid key from file")
                 })?;
             public_bytes.extend_from_slice(pubkey.modulus.as_bytes());
             let mut exp_bytes = [0u8; 8];
             if pubkey.exponents.as_bytes().len() > 8 {
                 error!("Invalid exponent size from key file {}", key_file);
-                return Err(io::Error::new(
-                    io::ErrorKind::Other,
-                    "Invalid exponent size",
-                ));
+                return Err(io::Error::other("Invalid exponent size"));
             }
             exp_bytes[8 - pubkey.exponents.as_bytes().len()..]
                 .copy_from_slice(pubkey.exponents.as_bytes());
@@ -379,14 +362,14 @@ pub fn create_key_file(key_file: &str, hash_alg: &str) -> io::Result<FirmwareRaw
             // As stated in the https://github.com/confidential-containers/td-shim/blob/main/doc/secure_boot.md,
             // use the fixed exponent 0x10001 here.
             if exp != RSA_EXPONENT || pubkey.modulus.as_bytes().len() != RSA_3072_PUB_KEY_MOD_LEN {
-                return Err(io::Error::new(io::ErrorKind::Other, "Invalid exponent"));
+                return Err(io::Error::other("Invalid exponent"));
             }
 
             public_bytes.extend_from_slice(&exp_bytes);
         }
         t => {
             error!("Unsupported key type {} from file {}", t, key_file);
-            return Err(io::Error::new(io::ErrorKind::Other, "unsupported key type"));
+            return Err(io::Error::other("unsupported key type"));
         }
     }
 

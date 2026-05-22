@@ -54,7 +54,7 @@ impl InputData {
                 range.start(),
                 range.end()
             );
-            return Err(io::Error::new(io::ErrorKind::Other, "invalid file size"));
+            return Err(io::Error::other("invalid file size"));
         }
 
         let data = fs::read(name).map_err(|e| {
@@ -73,7 +73,7 @@ impl InputData {
                     range.start(),
                     range.end()
                 );
-                return Err(io::Error::new(io::ErrorKind::Other, "invalid file size"));
+                return Err(io::Error::other("invalid file size"));
             }
         }
 
@@ -150,9 +150,8 @@ impl OutputFile {
         Ok(self
             .file
             .metadata()
-            .map_err(|e| {
+            .inspect_err(|_e| {
                 error!("Can not get size of file {:?}", name.as_os_str());
-                e
             })?
             .len())
     }
