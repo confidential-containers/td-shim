@@ -1,0 +1,15 @@
+[
+  {"name": "num_memory_regions", "type": "u32"},
+  {"name": "flags", "type": "u32"},
+  {"name": "max_vcpus", "type": "u32"},
+  {"name": "page_size", "type": "u32"},
+  {"name": "reserved", "type": "bytes", "size": 16},
+  {"name": "region0_base", "type": "u64"},
+  {"name": "region0_size", "type": "u64"},
+  {"name": "region1_base", "type": "u64"},
+  {"name": "region1_size", "type": "u64"},
+  {"name": "region2_base", "type": "u64"},
+  {"name": "region2_size", "type": "u64"},
+  {"name": "region3_base", "type": "u64"},
+  {"name": "region3_size", "type": "u64"}
+]

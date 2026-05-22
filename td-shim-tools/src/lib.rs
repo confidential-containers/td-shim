@@ -30,7 +30,7 @@ pub mod read_file;
 #[cfg(feature = "tee")]
 pub mod tee_info_hash;
 
-#[cfg(feature = "patcher")]
+#[cfg(any(feature = "patcher", feature = "info"))]
 pub mod image;
 
 /// Struct to read input data from a file.

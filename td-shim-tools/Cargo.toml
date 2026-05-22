@@ -24,6 +24,10 @@ name = "td-shim-checker"
 required-features = ["loader"]
 
 [[bin]]
+name = "td-shim-info"
+required-features = ["info"]
+
+[[bin]]
 name = "td-shim-strip-info"
 
 [[bin]]
@@ -76,7 +80,8 @@ igvm_defs = "0.3.4"
 zerocopy = { version = "0.8.14", features = ["derive"]}
 
 [features]
-default = ["enroller", "linker", "signer", "loader", "tee", "calculator", "layout-gen", "metadata-gen", "patcher"]
+default = ["enroller", "linker", "signer", "loader", "tee", "calculator", "layout-gen", "metadata-gen", "patcher", "info"]
+info = ["anyhow", "serde_json", "serde"]
 enroller = ["clap", "der", "env_logger", "log", "ring", "td-shim/secure-boot"]
 linker = ["clap", "env_logger", "log", "parse_int", "serde_json", "serde", "td-loader"]
 signer = ["clap", "der", "env_logger", "log", "ring", "td-shim/secure-boot"]
