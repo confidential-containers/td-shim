@@ -104,7 +104,7 @@ cargo run -p td-shim-tools --bin td-shim-patch -- td-params \
 cargo run -p td-shim-tools --bin td-shim-patch -- td-info \
     --in target/release/final.bin \
     --out target/release/final.bin \
-    --guid ffffffff-ffff-ffff-ffff-ffffffffffff \
+    --raw-guid ffffffff-ffff-ffff-ffff-ffffffffffff \
     --version 1.0.0 \
     --svn 1 \
     --payload-info path/to/nrx_info.bin
@@ -364,7 +364,7 @@ cargo run -p td-shim-tools --bin td-shim-patch -- td-params \
 cargo run -p td-shim-tools --bin td-shim-patch -- td-info \
     --in target/release/final.bin \
     --out target/release/final.bin \
-    --guid ffffffff-ffff-ffff-ffff-ffffffffffff \
+    --raw-guid ffffffff-ffff-ffff-ffff-ffffffffffff \
     --version 1.0.0 \
     --svn 1 \
     --payload-info path/to/nrx_info.bin
@@ -411,7 +411,7 @@ opaque payload blob into the TD_INFO section. The GUID identifies the TD type;
 the blob format depends on the specific deployment.
 
 ```bash
-td-shim-patch td-info --in <image> --out <image> --guid <guid> \
+td-shim-patch td-info --in <image> --out <image> (--guid <guid> | --raw-guid <guid>) \
     --version <a.b.c> --svn <n> --payload-info <blob>
 ```
 
@@ -419,7 +419,13 @@ td-shim-patch td-info --in <image> --out <image> --guid <guid> \
 |----------|----------|-------------|
 | `--in <path>` | yes | Input firmware image |
 | `--out <path>` | yes | Output firmware image |
-| `--guid <guid>` | yes | TD type GUID (`xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`) |
+| `--guid <guid>` | one of | TD type GUID in UEFI mixed-endian form (data1–data3 LE, data4–data5 BE on the wire) |
+| `--raw-guid <guid>` | one of | TD type GUID as a raw 16-byte sequence (no endian swap) |
 | `--version <a.b.c>` | yes | Release version (major.minor.update) |
 | `--svn <n>` | yes | Security Version Number |
 | `--payload-info <path>` | yes | Binary blob with TD-type-specific info |
+
+Exactly one of `--guid` or `--raw-guid` must be supplied. NRX TD types whose
+identifier is defined as a raw 16-byte sequence (rather than as a UEFI/RFC-4122
+GUID) must use `--raw-guid` so the bytes land in the image in the order the
+spec defines.

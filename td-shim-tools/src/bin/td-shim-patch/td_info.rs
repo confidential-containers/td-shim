@@ -129,6 +129,34 @@ fn parse_guid(s: &str) -> Option<[u8; 16]> {
     Some(guid)
 }
 
+/// Parse a GUID-shaped hex string "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" as
+/// 16 raw bytes (left-to-right, no endian swap). Used for TD types whose
+/// identifier is specified as a raw 16-byte sequence rather than as a
+/// UEFI/RFC-4122 GUID.
+fn parse_guid_raw(s: &str) -> Option<[u8; 16]> {
+    let parts: Vec<&str> = s.split('-').collect();
+    if parts.len() != 5
+        || parts[0].len() != 8
+        || parts[1].len() != 4
+        || parts[2].len() != 4
+        || parts[3].len() != 4
+        || parts[4].len() != 12
+    {
+        return None;
+    }
+
+    let hex: String = parts.concat();
+    if hex.len() != 32 {
+        return None;
+    }
+
+    let mut guid = [0u8; 16];
+    for i in 0..16 {
+        guid[i] = u8::from_str_radix(&hex[2 * i..2 * i + 2], 16).ok()?;
+    }
+    Some(guid)
+}
+
 /// Parse version string "major.minor.update" into packed u32:
 /// (major << 24) | (minor << 16) | update
 fn parse_version(s: &str) -> Option<u32> {
@@ -150,7 +178,11 @@ fn show_help() {
     eprintln!("Usage:");
     eprintln!("    --in <path>              Input firmware image (required).");
     eprintln!("    --out <path>             Output firmware image (required).");
-    eprintln!("    --guid <guid>            TD type GUID, e.g. 6d8415a6-5701-0247-a696-c0420ce3b4e9 (required).");
+    eprintln!("    --guid <guid>            TD type GUID in UEFI mixed-endian form");
+    eprintln!("                             (e.g. F9168C5E-CEB2-4FAA-B6BF-329BF39FA1E4).");
+    eprintln!("    --raw-guid <guid>        TD type GUID as a raw byte sequence (no endian swap)");
+    eprintln!("                             (e.g. 01234567-89AB-CDEF-FEDC-BA9876543210).");
+    eprintln!("                             Exactly one of --guid / --raw-guid is required.");
     eprintln!("    --version <a.b.c>        Release version as major.minor.update (required).");
     eprintln!("    --svn <n>                Security Version Number (required).");
     eprintln!("    --payload-info <path>    Binary blob with TD-type-specific info (required).");
@@ -186,6 +218,10 @@ fn prepare_args(args_list: Vec<String>) -> Option<Args> {
                 }
             }
             "--guid" => {
+                if guid.is_some() {
+                    eprintln!("--guid and --raw-guid are mutually exclusive");
+                    return None;
+                }
                 if let Some(guid_str) = args_list.pop_front() {
                     if let Some(g) = parse_guid(&guid_str) {
                         guid = Some(g);
@@ -195,6 +231,23 @@ fn prepare_args(args_list: Vec<String>) -> Option<Args> {
                     }
                 } else {
                     eprintln!("Parameter to --guid is missing!");
+                    return None;
+                }
+            }
+            "--raw-guid" => {
+                if guid.is_some() {
+                    eprintln!("--guid and --raw-guid are mutually exclusive");
+                    return None;
+                }
+                if let Some(guid_str) = args_list.pop_front() {
+                    if let Some(g) = parse_guid_raw(&guid_str) {
+                        guid = Some(g);
+                    } else {
+                        eprintln!("Failed to parse raw GUID: {guid_str}");
+                        return None;
+                    }
+                } else {
+                    eprintln!("Parameter to --raw-guid is missing!");
                     return None;
                 }
             }

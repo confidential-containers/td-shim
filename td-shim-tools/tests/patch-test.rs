@@ -368,7 +368,8 @@ fn test_patch_td_info_writes_header_and_blob() {
     let patched = std::fs::read(&output_path).unwrap();
     let td_info_offset: usize = 0x0000;
 
-    // GUID (16 bytes): 6d8415a6-5701-0247-a696-c0420ce3b4e9 in mixed-endian
+    // GUID (16 bytes): 6d8415a6-5701-0247-a696-c0420ce3b4e9 parsed with
+    // UEFI mixed-endian semantics (data1..data3 LE, data4..data5 BE).
     let expected_guid: [u8; 16] = [
         0xa6, 0x15, 0x84, 0x6d, // data1 LE
         0x01, 0x57, // data2 LE
@@ -439,6 +440,91 @@ fn test_patch_td_info_blob_too_large() {
     assert!(
         !status.success(),
         "should fail when blob exceeds section capacity"
+    );
+}
+
+#[test]
+fn test_patch_td_info_raw_guid_writes_bytes_verbatim() {
+    let dir = tempfile::tempdir().unwrap();
+    let input_path = dir.path().join("input.bin");
+    let output_path = dir.path().join("output.bin");
+    let blob_path = dir.path().join("payload_info.bin");
+
+    std::fs::write(&input_path, build_test_image()).unwrap();
+    std::fs::write(&blob_path, [0u8; 4]).unwrap();
+
+    // --raw-guid takes the hyphenated GUID string and writes its bytes
+    // left-to-right with no endian swap.
+    let status = Command::new(bin_path())
+        .args([
+            "td-info",
+            "--in",
+            input_path.to_str().unwrap(),
+            "--out",
+            output_path.to_str().unwrap(),
+            "--raw-guid",
+            "01234567-89AB-CDEF-FEDC-BA9876543210",
+            "--version",
+            "1.0.0",
+            "--svn",
+            "0",
+            "--payload-info",
+            blob_path.to_str().unwrap(),
+        ])
+        .status()
+        .expect("failed to run td-shim-patch td-info");
+
+    assert!(
+        status.success(),
+        "td-shim-patch td-info --raw-guid should succeed"
+    );
+
+    let patched = std::fs::read(&output_path).unwrap();
+    let expected_raw: [u8; 16] = [
+        0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32,
+        0x10,
+    ];
+    assert_eq!(
+        &patched[0..16],
+        &expected_raw,
+        "raw GUID bytes should be written verbatim"
+    );
+}
+
+#[test]
+fn test_patch_td_info_guid_and_raw_guid_are_mutually_exclusive() {
+    let dir = tempfile::tempdir().unwrap();
+    let input_path = dir.path().join("input.bin");
+    let output_path = dir.path().join("output.bin");
+    let blob_path = dir.path().join("payload_info.bin");
+
+    std::fs::write(&input_path, build_test_image()).unwrap();
+    std::fs::write(&blob_path, [0u8; 4]).unwrap();
+
+    let status = Command::new(bin_path())
+        .args([
+            "td-info",
+            "--in",
+            input_path.to_str().unwrap(),
+            "--out",
+            output_path.to_str().unwrap(),
+            "--guid",
+            "F9168C5E-CEB2-4FAA-B6BF-329BF39FA1E4",
+            "--raw-guid",
+            "01234567-89AB-CDEF-FEDC-BA9876543210",
+            "--version",
+            "1.0.0",
+            "--svn",
+            "0",
+            "--payload-info",
+            blob_path.to_str().unwrap(),
+        ])
+        .status()
+        .expect("failed to run td-shim-patch td-info");
+
+    assert!(
+        !status.success(),
+        "--guid and --raw-guid together should fail"
     );
 }
 
