@@ -28,7 +28,7 @@ impl CcEventLogWriter<'_> {
     pub fn new(
         area: &mut [u8],
         extender: Box<dyn Fn(&[u8; SHA384_DIGEST_SIZE], u32) -> Result<()>>,
-    ) -> Result<CcEventLogWriter> {
+    ) -> Result<CcEventLogWriter<'_>> {
         let mut cc_event_log = CcEventLogWriter {
             area,
             offset: 0,
@@ -257,7 +257,7 @@ pub struct CcEventLogReader<'a> {
 }
 
 impl CcEventLogReader<'_> {
-    pub fn new(bytes: &[u8]) -> Option<CcEventLogReader> {
+    pub fn new(bytes: &[u8]) -> Option<CcEventLogReader<'_>> {
         let specific_id_event_size =
             size_of::<TcgPcrEventHeader>() + size_of::<TcgEfiSpecIdevent>();
         if bytes.len() < specific_id_event_size {
