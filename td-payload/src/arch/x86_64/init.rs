@@ -18,7 +18,9 @@ use crate::mm::shared::{init_shared_memory, init_shared_memory_with_shadow};
 #[cfg(any(feature = "cet-ibt", feature = "cet-shstk"))]
 use super::cet;
 
-use super::{apic::enable_apic_interrupt, paging};
+#[cfg(not(feature = "no-interrupt"))]
+use super::apic::enable_apic_interrupt;
+use super::paging;
 #[cfg(feature = "stack-guard")]
 use super::{
     guard_page,
