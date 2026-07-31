@@ -1,7 +1,7 @@
 # Copyright (c) 2022 Intel Corporation
 # SPDX-License-Identifier: BSD-2-Clause-Patent
 
-.set TDVMCALL_EXPOSE_REGS_MASK,           0xffec
+.set TDVMCALL_EXPOSE_REGS_MASK,           0xffcc
 .set TDVMCALL,                            0x0
 .set INSTRUCTION_CPUID,                   0xa
 

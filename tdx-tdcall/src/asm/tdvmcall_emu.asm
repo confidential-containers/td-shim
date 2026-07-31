@@ -4,7 +4,7 @@
 .section .text
 
 .equ USE_TDX_EMULATION, 1
-.equ TDVMCALL_EXPOSE_REGS_MASK,       0xffec
+.equ TDVMCALL_EXPOSE_REGS_MASK,       0xffcc
 .equ TDVMCALL,                        0x0
 .equ EXIT_REASON_CPUID,               0xa
 
