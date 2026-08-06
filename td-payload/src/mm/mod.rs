@@ -2,9 +2,11 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
+#[cfg(not(feature = "no-td-hob"))]
 use core::mem::size_of;
 
 use lazy_static::lazy_static;
+#[cfg(not(feature = "no-td-hob"))]
 use scroll::Pread;
 use spin::{Mutex, Once};
 use td_shim::e820::{E820Entry, E820Type};
@@ -15,8 +17,10 @@ use td_shim_interface::td_uefi_pi::{
     hob as hob_lib,
     pi::hob::{GuidExtension, Header, HOB_TYPE_END_OF_HOB_LIST, HOB_TYPE_GUID_EXTENSION},
 };
+#[cfg(not(feature = "no-td-hob"))]
 use zerocopy::FromBytes;
 
+#[cfg(not(feature = "no-td-hob"))]
 use crate::Error;
 
 #[cfg(any(target_os = "none", target_os = "uefi"))]
