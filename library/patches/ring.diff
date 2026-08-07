@@ -73,5 +73,118 @@ index 9843ad8aa..494d8cfc7 100644
      let _ = c
          .arg("-o")
          .arg(out_file.to_str().expect("Invalid path"))
+diff --git a/src/arithmetic/bigint/modulus.rs b/src/arithmetic/bigint/modulus.rs
+index b0cd6d6..7c7c6f4 100644
+--- a/src/arithmetic/bigint/modulus.rs
++++ b/src/arithmetic/bigint/modulus.rs
+@@ -113,7 +113,7 @@ impl<M> OwnedModulus<M> {
+         })
+     }
+ 
+-    pub(crate) fn modulus(&self, cpu_features: cpu::Features) -> Modulus<M> {
++    pub(crate) fn modulus(&self, cpu_features: cpu::Features) -> Modulus<'_, M> {
+         Modulus {
+             limbs: self.inner.limbs(),
+             n0: self.n0,
+diff --git a/src/arithmetic/limbs512/storage.rs b/src/arithmetic/limbs512/storage.rs
+index 210192b..99f2277 100644
+--- a/src/arithmetic/limbs512/storage.rs
++++ b/src/arithmetic/limbs512/storage.rs
+@@ -45,7 +45,7 @@ impl<const N: usize> AlignedStorage<N> {
+         &mut self,
+         num_entries: usize,
+         chunks_per_entry: usize,
+-    ) -> Result<AsChunksMut<Limb, LIMBS_PER_CHUNK>, LenMismatchError> {
++    ) -> Result<AsChunksMut<'_, Limb, LIMBS_PER_CHUNK>, LenMismatchError> {
+         let total_limbs = num_entries * chunks_per_entry * LIMBS_PER_CHUNK;
+         let len = self.0.len();
+         let flattened = self
+diff --git a/src/pkcs8.rs b/src/pkcs8.rs
+index 5ef66fd..39d81f5 100644
+--- a/src/pkcs8.rs
++++ b/src/pkcs8.rs
+@@ -53,7 +53,7 @@ pub(crate) struct Template {
+ 
+ impl Template {
+     #[inline]
+-    fn alg_id_value(&self) -> untrusted::Input {
++    fn alg_id_value(&self) -> untrusted::Input<'_> {
+         untrusted::Input::from(self.alg_id_value_())
+     }
+ 
+@@ -62,7 +62,7 @@ impl Template {
+     }
+ 
+     #[inline]
+-    pub fn curve_oid(&self) -> untrusted::Input {
++    pub fn curve_oid(&self) -> untrusted::Input<'_> {
+         untrusted::Input::from(&self.alg_id_value_()[self.curve_id_index..])
+     }
+ }
+diff --git a/src/polyfill/slice/as_chunks.rs b/src/polyfill/slice/as_chunks.rs
+index bfe5ab5..77df415 100644
+--- a/src/polyfill/slice/as_chunks.rs
++++ b/src/polyfill/slice/as_chunks.rs
+@@ -16,7 +16,7 @@ use super::AsChunksMut;
+ use core::ops;
+ 
+ #[inline(always)]
+-pub fn as_chunks<T, const N: usize>(slice: &[T]) -> (AsChunks<T, N>, &[T]) {
++pub fn as_chunks<T, const N: usize>(slice: &[T]) -> (AsChunks<'_, T, N>, &[T]) {
+     assert!(N != 0, "chunk size must be non-zero");
+     let len = slice.len() / N;
+     let (multiple_of_n, remainder) = slice.split_at(len * N);
+diff --git a/src/polyfill/slice/as_chunks_mut.rs b/src/polyfill/slice/as_chunks_mut.rs
+index ae32f04..d24cdbb 100644
+--- a/src/polyfill/slice/as_chunks_mut.rs
++++ b/src/polyfill/slice/as_chunks_mut.rs
+@@ -15,7 +15,7 @@
+ use super::AsChunks;
+ 
+ #[inline(always)]
+-pub fn as_chunks_mut<T, const N: usize>(slice: &mut [T]) -> (AsChunksMut<T, N>, &mut [T]) {
++pub fn as_chunks_mut<T, const N: usize>(slice: &mut [T]) -> (AsChunksMut<'_, T, N>, &mut [T]) {
+     assert!(N != 0, "chunk size must be non-zero");
+     let len = slice.len() / N;
+     let (multiple_of_n, remainder) = slice.split_at_mut(len * N);
+@@ -52,25 +52,25 @@ impl<T, const N: usize> AsChunksMut<'_, T, N> {
+ 
+     #[cfg(target_arch = "x86_64")]
+     #[inline(always)]
+-    pub fn as_mut(&mut self) -> AsChunksMut<T, N> {
++    pub fn as_mut(&mut self) -> AsChunksMut<'_, T, N> {
+         AsChunksMut(self.0)
+     }
+ 
+     #[inline(always)]
+-    pub fn as_ref(&self) -> AsChunks<T, N> {
++    pub fn as_ref(&self) -> AsChunks<'_, T, N> {
+         AsChunks::<T, N>::from(self)
+     }
+ 
+     // Argument moved from runtime argument to `const` argument so that
+     // `CHUNK_LEN * N` is checked at compile time for overflow.
+     #[inline(always)]
+-    pub fn chunks_mut<const CHUNK_LEN: usize>(&mut self) -> AsChunksMutChunksMutIter<T, N> {
++    pub fn chunks_mut<const CHUNK_LEN: usize>(&mut self) -> AsChunksMutChunksMutIter<'_, T, N> {
+         AsChunksMutChunksMutIter(self.0.chunks_mut(CHUNK_LEN * N))
+     }
+ 
+     #[cfg(target_arch = "x86_64")]
+     #[inline(always)]
+-    pub fn split_at_mut(&mut self, mid: usize) -> (AsChunksMut<T, N>, AsChunksMut<T, N>) {
++    pub fn split_at_mut(&mut self, mid: usize) -> (AsChunksMut<'_, T, N>, AsChunksMut<'_, T, N>) {
+         let (before, after) = self.0.split_at_mut(mid * N);
+         (AsChunksMut(before), AsChunksMut(after))
+     }
+diff --git a/src/rsa/public_modulus.rs b/src/rsa/public_modulus.rs
+index c40e49e..77c41a7 100644
+--- a/src/rsa/public_modulus.rs
++++ b/src/rsa/public_modulus.rs
+@@ -91,3 +91,3 @@ impl PublicModulus {
+-    pub(super) fn value(&self, cpu_features: cpu::Features) -> bigint::Modulus<N> {
++    pub(super) fn value(&self, cpu_features: cpu::Features) -> bigint::Modulus<'_, N> {
+         self.value.modulus(cpu_features)
+     }
 -- 
 2.34.1
