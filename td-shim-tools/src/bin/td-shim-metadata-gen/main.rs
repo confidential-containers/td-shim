@@ -264,20 +264,6 @@ fn generate_from_layout(
         }
     }
 
-    // TdInfo (optional)
-    if let Some((td_info_off, td_info_sz)) = find("TdInfo") {
-        if td_info_sz > 0 {
-            sections.push(SectionConfig {
-                r#type: "TdInfo".to_string(),
-                attributes: "0x0".to_string(),
-                data_offset: format!("0x{:X}", td_info_off),
-                raw_data_size: format!("0x{:X}", td_info_sz),
-                memory_address: "0x0".to_string(),
-                memory_data_size: "0x0".to_string(),
-            });
-        }
-    }
-
     // PermMem (VMM-allocated permanent memory via PAGE_AUG)
     for region in &memory_layout.perm_mem {
         if region.size > 0 {
@@ -288,6 +274,20 @@ fn generate_from_layout(
                 raw_data_size: "0x0".to_string(),
                 memory_address: format!("0x{:X}", region.address),
                 memory_data_size: format!("0x{:X}", region.size),
+            });
+        }
+    }
+
+    // TdInfo must be the last metadata section.
+    if let Some((td_info_off, td_info_sz)) = find("TdInfo") {
+        if td_info_sz > 0 {
+            sections.push(SectionConfig {
+                r#type: "TdInfo".to_string(),
+                attributes: "0x0".to_string(),
+                data_offset: format!("0x{:X}", td_info_off),
+                raw_data_size: format!("0x{:X}", td_info_sz),
+                memory_address: "0x0".to_string(),
+                memory_data_size: "0x0".to_string(),
             });
         }
     }

@@ -125,14 +125,15 @@ fn test_metadata_gen_with_perm_mem() {
     let content = std::fs::read_to_string(&output_path).unwrap();
     let parsed: serde_json::Value = serde_json::from_str(&content).unwrap();
     let sections = parsed["Sections"].as_array().unwrap();
-    // Should have: TdParams, BFV, TempMem, Payload, TdInfo, PermMem
+    // Should have: TdParams, BFV, TempMem, Payload, PermMem, TdInfo
     assert_eq!(sections.len(), 6);
-    assert_eq!(sections[5]["Type"], "PermMem");
-    assert_eq!(sections[5]["Attributes"], "0x2");
-    assert_eq!(sections[5]["MemoryAddress"], "0x0");
-    assert_eq!(sections[5]["MemoryDataSize"], "0x2000000");
-    assert_eq!(sections[5]["DataOffset"], "0x0");
-    assert_eq!(sections[5]["RawDataSize"], "0x0");
+    assert_eq!(sections[4]["Type"], "PermMem");
+    assert_eq!(sections[4]["Attributes"], "0x2");
+    assert_eq!(sections[4]["MemoryAddress"], "0x0");
+    assert_eq!(sections[4]["MemoryDataSize"], "0x2000000");
+    assert_eq!(sections[4]["DataOffset"], "0x0");
+    assert_eq!(sections[4]["RawDataSize"], "0x0");
+    assert_eq!(sections[5]["Type"], "TdInfo");
 }
 
 #[test]
@@ -380,9 +381,10 @@ fn test_metadata_gen_sample_nrx_image_template() {
     let content = std::fs::read_to_string(&output_path).unwrap();
     let parsed: serde_json::Value = serde_json::from_str(&content).unwrap();
     let sections = parsed["Sections"].as_array().unwrap();
-    // TdParams, BFV, TempMem, Payload, TdInfo, PermMem
+    // TdParams, BFV, TempMem, Payload, PermMem, TdInfo
     assert_eq!(sections.len(), 6);
-    assert_eq!(sections[5]["Type"], "PermMem");
+    assert_eq!(sections[4]["Type"], "PermMem");
+    assert_eq!(sections[5]["Type"], "TdInfo");
 }
 
 #[test]
