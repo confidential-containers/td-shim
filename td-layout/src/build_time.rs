@@ -1,4 +1,4 @@
-// Copyright (c) 2021 - 2024  Intel Corporation
+// Copyright (c) 2021 - 2026  Intel Corporation
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
@@ -67,10 +67,12 @@ pub const TD_SHIM_SEC_CORE_INFO_OFFSET: u32 = 0xFFFFAC;
 pub const TD_SHIM_SEC_CORE_INFO_BASE: u32 = 0xFFFFFFAC;
 
 // Base Address after Loaded into Memory
+// Sections with `TempMemBase` set use a DRAM address so QEMU 9+ TDX can accept
+// them via E820 RAM entries (tdx_init_ram_entries only uses E820_RAM slots).
 pub const TD_SHIM_CONFIG_BASE: u32 = 0xFF000000;
-pub const TD_SHIM_MAILBOX_BASE: u32 = 0xFF040000;
-pub const TD_SHIM_TEMP_STACK_BASE: u32 = 0xFF041000;
-pub const TD_SHIM_TEMP_HEAP_BASE: u32 = 0xFF061000;
+pub const TD_SHIM_MAILBOX_BASE: u32 = 0x600000; // DRAM (TempMemBase)
+pub const TD_SHIM_TEMP_STACK_BASE: u32 = 0x601000; // DRAM (TempMemBase)
+pub const TD_SHIM_TEMP_HEAP_BASE: u32 = 0x621000; // DRAM (TempMemBase)
 pub const TD_SHIM_FREE_BASE: u32 = 0xFF081000;
 pub const TD_SHIM_PAYLOAD_BASE: u32 = 0xFF081000;
 pub const TD_SHIM_METADATA_BASE: u32 = 0xFFCAE000;

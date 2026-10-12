@@ -30,6 +30,14 @@ struct ImageConfig {
     reset_vector: String,
     #[serde(rename = "ImageSize")]
     image_size: Option<String>,
+    /// DRAM base address for TempMem sections (Mailbox, TempStack, TempHeap).
+    ///
+    /// When set, these sections are placed at DRAM addresses (starting from this
+    /// base) rather than in the ROM firmware region. This is required for QEMU 9+
+    /// TDX, where tdx_init_ram_entries() only registers E820_RAM entries.
+    /// Backward-compatible: old QEMU also accepts TempMem from DRAM.
+    #[serde(rename = "TempMemBase")]
+    tempmem_base: Option<String>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -142,6 +150,14 @@ pub fn parse_image(data: String, metadata: Option<String>) -> String {
             parse_int::parse::<u32>(&payload_config).unwrap() as usize,
             "Reserved",
         )
+    }
+
+    // If TempMemBase is configured, redirect Mailbox/TempStack/TempHeap to DRAM
+    // so QEMU 9+ TDX can accept them via E820 RAM entries.
+    if let Some(tempmem_base_str) = image_config.tempmem_base {
+        let tempmem_base =
+            parse_int::parse::<usize>(&tempmem_base_str).expect("Invalid TempMemBase");
+        image_layout.set_tempmem_dram_base(tempmem_base);
     }
 
     render::render_image(&image_layout, fw_top).expect("Render image layout failed!")
