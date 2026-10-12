@@ -4,7 +4,9 @@
 
 pub const DEFAULT_HEAP_SIZE: usize = 0x1000000;
 pub const DEFAULT_STACK_SIZE: usize = 0x800000;
-pub const DEFAULT_PAGE_TABLE_SIZE: usize = 0x800000;
+// 16 MiB: enough to identity-map up to ~8 GiB of RAM with 4 KiB pages, which
+// covers the high-memory E820 region QEMU creates when guest RAM > ~3.5 GiB.
+pub const DEFAULT_PAGE_TABLE_SIZE: usize = 0x1000000;
 #[cfg(not(feature = "no-shared-mem"))]
 pub const DEFAULT_SHARED_MEMORY_SIZE: usize = 0x100000;
 #[cfg(feature = "cet-shstk")]
