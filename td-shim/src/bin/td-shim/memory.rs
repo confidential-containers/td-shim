@@ -219,6 +219,17 @@ impl<'a> Memory<'a> {
                 } else {
                     continue;
                 }
+            } else if new.physical_start < TD_SHIM_FIRMWARE_BASE as u64
+                && entry_top > TD_SHIM_FIRMWARE_BASE as u64
+            {
+                // Trim the resource that starts below the image space but extends into it,
+                // and keep the part above 4G if there is any.
+                new.resource_length = TD_SHIM_FIRMWARE_BASE as u64 - new.physical_start;
+                if entry_top > MEMORY_4G {
+                    regions.push(new);
+                    new.physical_start = MEMORY_4G;
+                    new.resource_length = entry_top - MEMORY_4G;
+                }
             }
 
             regions.push(new);
