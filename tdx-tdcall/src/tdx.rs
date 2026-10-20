@@ -286,9 +286,19 @@ pub fn tdvmcall_io_write_32(port: u16, byte: u32) {
 /// Details can be found in TDX GHCI spec section 'TDG.VP.VMCALL<#VE.RequestMMIO>'
 #[cfg(not(feature = "no-tdvmcall"))]
 pub fn tdvmcall_mmio_write<T: Sized>(address: *const T, value: T) {
+    assert!(core::mem::size_of::<T>() <= core::mem::size_of::<u64>());
     let address = address as u64 | *SHARED_MASK;
     fence(Ordering::SeqCst);
-    let val = unsafe { *(core::ptr::addr_of!(value) as *const u64) };
+    // Copy only size_of::<T>() bytes so that no bytes beyond `value` end up in R15,
+    // which is visible to the VMM.
+    let mut val = 0u64;
+    unsafe {
+        core::ptr::copy_nonoverlapping(
+            core::ptr::addr_of!(value) as *const u8,
+            core::ptr::addr_of_mut!(val) as *mut u8,
+            core::mem::size_of::<T>(),
+        )
+    };
 
     let mut args = TdVmcallArgs {
         r11: TDVMCALL_MMIO,
