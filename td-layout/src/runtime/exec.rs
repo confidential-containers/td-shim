@@ -20,6 +20,8 @@ Top of Low Memory: 0x80000000
 +----------------------------------------+ <- 0x7DDDE000
 |                  FREE                  |   (0x7D5BE000) 1.96 GB
 +----------------------------------------+ <- 0x820000
+|             LARGE_PAYLOAD              |   (0x0) 0 B
++----------------------------------------+ <- 0x820000
 |                 TD_HOB                 |   (0x20000) 128 kB
 +----------------------------------------+ <- 0x800000
 |               BOOTLOADER               |   (0x800000) 8 MB
@@ -34,6 +36,8 @@ pub const BOOTLOADER_BASE: usize = 0x0;
 pub const BOOTLOADER_SIZE: usize = 0x800000; // 8 MB
 pub const TD_HOB_BASE: usize = 0x800000;
 pub const TD_HOB_SIZE: usize = 0x20000; // 128 kB
+pub const LARGE_PAYLOAD_BASE: usize = 0x820000;
+pub const LARGE_PAYLOAD_SIZE: usize = 0x0; // 0 B
 pub const ACPI_SIZE: usize = 0x100000; // 1 MB
 pub const PAYLOAD_SIZE: usize = 0x2000000; // 32 MB
 pub const PAYLOAD_PAGE_TABLE_SIZE: usize = 0x20000; // 128 kB
@@ -44,6 +48,7 @@ pub const MEMORY_LAYOUT_CONFIG: &[(&str, usize, &str)] = &[
     // (name of memory region, region size, region type)
     ("Bootloader", 0x800000, "Memory"),
     ("TdHob", 0x20000, "Memory"),
+    ("LargePayload", 0x0, "Memory"),
     ("Acpi", 0x100000, "Acpi"),
     ("Payload", 0x2000000, "Reserved"),
     ("PayloadPageTable", 0x20000, "Reserved"),
