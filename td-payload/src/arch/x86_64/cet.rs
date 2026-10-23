@@ -86,11 +86,13 @@ pub fn enable_cet_ibt() -> bool {
     true
 }
 
+#[allow(unused_unsafe)]
 fn is_shstk_available() -> bool {
     let cpuid = unsafe { core::arch::x86_64::__cpuid_count(CPUID_EXTEND_FEATURES, 0) };
     cpuid.ecx & CPUID_CET_SHSTK != 0
 }
 
+#[allow(unused_unsafe)]
 fn is_ibt_available() -> bool {
     let cpuid = unsafe { core::arch::x86_64::__cpuid_count(CPUID_EXTEND_FEATURES, 0) };
     cpuid.edx & CPUID_CET_IBT != 0
