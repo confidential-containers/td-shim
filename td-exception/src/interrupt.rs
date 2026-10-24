@@ -165,12 +165,11 @@ fn eoi() {
     // routine, sometime before the IRET instruction
     unsafe {
         asm!(
-            "
-            mov rcx, 0x80B
-            mov edx, 0
-            mov eax, 0
-            wrmsr
-        "
+            "wrmsr",
+            in("ecx") 0x80Bu32,
+            in("eax") 0u32,
+            in("edx") 0u32,
+            options(nostack),
         )
     }
 }
