@@ -11,7 +11,7 @@ name: Library Crates
 
 env:
   AS: nasm
-  RUST_TOOLCHAIN: 1.88.0
+  RUST_TOOLCHAIN: 1.99.1
   TOOLCHAIN_PROFILE: minimal
 
 jobs:
