@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 env:
-  RUST_TOOLCHAIN: 1.88.0
+  RUST_TOOLCHAIN: 1.99.1
 
 jobs:
   update:
