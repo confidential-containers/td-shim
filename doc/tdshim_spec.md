@@ -102,6 +102,19 @@ Pages during TD Build Time.
    and only allows the bootstrap processor (BSP) to start the system
    initialization. All application processors (APs) loops with a mailbox and
    wait for the instruction from the BSP.
+
+   SECURITY: the mailbox page is `TEMP_MEM` and therefore unmeasured, so its
+   initial content is supplied by the untrusted VMM. Before an AP consumes any
+   mailbox field as control flow, the measured reset-vector code resets the
+   mailbox to an inert state (command = NOOP, APIC ID = invalid, wakeup vector
+   = 0). This prevents a malicious VMM from pre-planting a `WAKEUP` command and
+   wakeup vector that would run VMM-controlled code inside the TD before the BSP
+   runs while MRTD/RTMR stay genuine. The VMM cannot write TD-private memory
+   after launch, so neutralizing the initial content closes this channel. As
+   defense in depth, APs also refuse any wakeup/stack target that points into
+   the firmware's own unmeasured scratch pages. The relocated (OS-facing)
+   mailbox header is likewise sanitized by the measured BSP before the APs are
+   switched over to it.
  * TD Shim setup stack and starts to run the C code.
  * TD Shim setup exception handler.
  * TD Shim uses TDCALL[TDG.MR.RTMR.EXTEND] to extend the TD_HOB to runtime

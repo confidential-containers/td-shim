@@ -28,6 +28,26 @@
     jmp     %1 %+ OneTimerCallReturn
 %endmacro
 
+; SECURITY: defense-in-depth guard for mailbox-supplied AP entry targets.
+;
+; Reject a wakeup/call target that points into the firmware's own unmeasured
+; scratch pages (mailbox + temp stack + temp heap, which are contiguous in the
+; image layout). No legitimate AP entry point ever lives there, so a target in
+; that range can only be a VMM-planted implant. This is a cheap, zero-risk
+; backstop in addition to the sanitize step in ParkAp; it cannot fully replace
+; it because a malicious VMM may also place an implant in ordinary guest RAM.
+;
+; %1 must be a 32-bit register holding the candidate target address.
+%macro REJECT_FW_SCRATCH_TARGET 1
+    cmp     %1, TD_MAILBOX_BASE
+    jb      %%target_ok
+    cmp     %1, (TEMP_RAM_BASE + TEMP_RAM_SIZE)
+    jae     %%target_ok
+%%target_rejected:
+    jmp     %%target_rejected
+%%target_ok:
+%endmacro
+
 
 CommandOffset                             equ       00h
 ApicidOffset                              equ       04h

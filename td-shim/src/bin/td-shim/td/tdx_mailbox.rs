@@ -272,6 +272,16 @@ pub fn relocate_mailbox(new_mailbox: &mut [u8]) -> Result<(), MailboxError> {
         return Err(MailboxError::Relocation);
     }
 
+    // Put the relocated mailbox header into a known idle state before the APs
+    // start polling it. Only the header is reset: the rest of the page holds
+    // the runtime IDT installed by switch_idt().
+    {
+        let mut relocated = MailBox::new(&mut new_mailbox[..MAILBOX_SIZE]);
+        relocated.set_command(spec::MP_WAKEUP_COMMAND_NOOP);
+        relocated.set_apic_id(spec::MAILBOX_APICID_INVALID);
+        relocated.set_wakeup_vector(0);
+    }
+
     // Safety:
     // the code size is calculated according to the ASM symbol address
     // in the code section
@@ -287,8 +297,18 @@ pub fn relocate_mailbox(new_mailbox: &mut [u8]) -> Result<(), MailboxError> {
         return Err(MailboxError::Relocation);
     }
 
+    let wakeup_vector = new_mailbox_address + MAILBOX_SIZE as u64;
+
+    // SECURITY: refuse to publish a wakeup vector that points into the
+    // firmware's unmeasured scratch pages. This target is firmware-controlled
+    // here, so the check only guards against a layout regression, but it keeps
+    // the Rust path consistent with the reset-vector assembly guard.
+    if td_layout::mailbox::wakeup_vector_in_firmware_scratch(wakeup_vector) {
+        return Err(MailboxError::Relocation);
+    }
+
     // Wakeup APs to complete the relocation of mailbox and AP function
-    mail_box.set_wakeup_vector(new_mailbox_address as u32 + MAILBOX_SIZE as u32);
+    mail_box.set_wakeup_vector(wakeup_vector as u32);
     // Put new mailbox base address to the first FW arg
     mail_box.set_fw_arg(0, new_mailbox_address);
 
