@@ -114,7 +114,10 @@ Pages during TD Build Time.
    defense in depth, APs also refuse any wakeup/stack target that points into
    the firmware's own unmeasured scratch pages. The relocated (OS-facing)
    mailbox header is likewise sanitized by the measured BSP before the APs are
-   switched over to it.
+   switched over to it. After the reset, each AP increments the mailbox
+   arrival counter (offset 0x900), and the BSP waits until all APs have
+   arrived before it issues its first mailbox command, so an AP that starts
+   late cannot overwrite a command that is already in flight.
  * TD Shim setup stack and starts to run the C code.
  * TD Shim setup exception handler.
  * TD Shim uses TDCALL[TDG.MR.RTMR.EXTEND] to extend the TD_HOB to runtime

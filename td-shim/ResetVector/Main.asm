@@ -270,6 +270,14 @@ ParkAp:
     mov     dword[rsp + WakeupVectorOffset], 0
     mov     dword[rsp + WakeupVectorOffset + 4], 0
 
+    ;
+    ; Report that this AP has initialized the mailbox and is parked. The BSP
+    ; waits for all APs to arrive before issuing any command, so a late AP
+    ; cannot overwrite a command that is already in flight. The locked
+    ; instruction orders the stores above before the arrival is visible.
+    ;
+    lock inc dword[rsp + CpuArrivalOffset]
+
 .check_apicid:
     ; Determine if this is a broadcast or directly for my apic-id, if not, ignore
     cmp     dword[rsp + ApicidOffset], MailboxApicidBroadcast
