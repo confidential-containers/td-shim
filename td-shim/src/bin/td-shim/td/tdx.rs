@@ -28,7 +28,8 @@ pub fn accept_memory_resource_range(address: u64, size: u64) {
 
 pub fn relocate_mailbox(new_mailbox: &mut [u8]) {
     #[cfg(not(feature = "no-mailbox"))]
-    super::tdx_mailbox::relocate_mailbox(new_mailbox).expect("Unable to relocate mailbox");
+    super::tdx_mailbox::relocate_mailbox(get_num_vcpus(), new_mailbox)
+        .expect("Unable to relocate mailbox");
 }
 
 pub fn relocate_ap_page_table(page_table_base: u64) {

@@ -248,6 +248,36 @@ ParkAp:
 
     mov     rsp, TD_MAILBOX_BASE     ; base address
 
+    ;
+    ; SECURITY: neutralize VMM-poisoned initial mailbox state.
+    ;
+    ; The mailbox page is declared TEMP_MEM and is therefore NOT measured, so
+    ; its initial content is supplied by the untrusted VMM. A malicious VMM can
+    ; pre-plant command=WAKEUP together with an attacker-controlled
+    ; wakeup_vector and then enter an AP before the BSP runs; the AP would jump
+    ; into VMM-controlled code inside the TD at CPL0 while MRTD/RTMR stay
+    ; byte-identical to a genuine boot (attestation still passes).
+    ;
+    ; The VMM cannot write TD-private memory after the TD is launched, so its
+    ; only injection channel is this initial content. This code runs from the
+    ; measured reset vector before any mailbox field is consumed as control
+    ; flow, so overwriting the VMM-supplied state here makes the poison
+    ; unreachable. All legitimate commands are issued afterwards by the
+    ; measured BSP, so clobbering the initial state is safe.
+    ;
+    mov     dword[rsp + CommandOffset], MpProtectedModeWakeupCommandNoop
+    mov     dword[rsp + ApicidOffset], MailboxApicIdInvalid
+    mov     dword[rsp + WakeupVectorOffset], 0
+    mov     dword[rsp + WakeupVectorOffset + 4], 0
+
+    ;
+    ; Report that this AP has initialized the mailbox and is parked. The BSP
+    ; waits for all APs to arrive before issuing any command, so a late AP
+    ; cannot overwrite a command that is already in flight. The locked
+    ; instruction orders the stores above before the arrival is visible.
+    ;
+    lock inc dword[rsp + CpuArrivalOffset]
+
 .check_apicid:
     ; Determine if this is a broadcast or directly for my apic-id, if not, ignore
     cmp     dword[rsp + ApicidOffset], MailboxApicidBroadcast
@@ -316,6 +346,9 @@ ParkAp:
     ; Read the function address which will be called
     mov     eax, dword[rsp + WakeupVectorOffset]
     ;
+    ; SECURITY: never call into the firmware's unmeasured scratch pages
+    REJECT_FW_SCRATCH_TARGET eax
+    ;
     ; Read the stack address from arguments and set the rsp
     mov     rsi, [rsp + ApWorkingStackStart]
     ;
@@ -343,6 +376,9 @@ ParkAp:
     ; BSP sets these variables before unblocking APs
     mov     rax, 0
     mov     eax, dword[rsp + WakeupVectorOffset]
+    ;
+    ; SECURITY: never jump into the firmware's unmeasured scratch pages
+    REJECT_FW_SCRATCH_TARGET eax
     mov     rbx, [rsp + WakeupArgsRelocatedMailBox]
     nop
     jmp     rax

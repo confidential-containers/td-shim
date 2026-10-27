@@ -8,6 +8,7 @@ use alloc::vec::Vec;
 use core::arch::asm;
 use core::cmp::min;
 use core::ops::RangeInclusive;
+use core::sync::atomic::{AtomicBool, Ordering};
 use td_exception::idt::DescriptorTablePointer;
 use td_layout::memslice::{get_mem_slice_mut, SliceType};
 use tdx_tdcall::{self, tdx::*};
@@ -24,6 +25,8 @@ static AP_TEMP_STACK: [u8; AP_TEMP_STACK_TOTAL_SIZE] = [0; AP_TEMP_STACK_TOTAL_S
 const ACCEPT_CHUNK_SIZE: u64 = 0x2000000;
 const ACCEPT_PAGE_SIZE: u64 = 0x200000;
 const MAILBOX_SIZE: usize = 0x1000;
+
+static APS_PARKED: AtomicBool = AtomicBool::new(false);
 
 #[derive(Debug)]
 pub enum MailboxError {
@@ -126,6 +129,26 @@ fn make_apic_range(end: u32) -> RangeInclusive<u32> {
     RangeInclusive::new(start, end)
 }
 
+// Wait until every AP has initialized the mailbox and entered the mailbox
+// loop. Each AP increments the arrival counter once it is parked, so after
+// this returns no AP can overwrite a command issued by the BSP.
+fn wait_for_aps_parked(cpu_num: u32) {
+    if APS_PARKED.load(Ordering::Acquire) {
+        return;
+    }
+
+    // Safety:
+    // BSP is the owner of the mailbox area, and APs cooperate with BSP to access the mailbox area.
+    let mail_box = unsafe { MailBox::new(get_mem_slice_mut(SliceType::MailBox)) };
+    let ap_num = cpu_num.saturating_sub(1);
+    while mail_box.cpu_arrival() < ap_num {
+        cpu_pause();
+    }
+    x86::fence::mfence();
+
+    APS_PARKED.store(true, Ordering::Release);
+}
+
 // Wait for AP to response the command set by BSP if needed.
 // Typically AP will set the APIC ID field in mailbox to be invalid
 fn wait_for_ap_response(mail_box: &mut MailBox) {
@@ -202,6 +225,8 @@ pub fn accept_memory_resource_range(mut cpu_num: u32, address: u64, size: u64) {
         cpu_num - 1
     };
 
+    wait_for_aps_parked(cpu_num);
+
     let mut align_low = if address & (ACCEPT_PAGE_SIZE - 1) == 0 {
         0
     } else {
@@ -258,7 +283,9 @@ pub fn accept_memory_resource_range(mut cpu_num: u32, address: u64, size: u64) {
     log::info!("mp_accept_memory_resource_range: done\n");
 }
 
-pub fn relocate_mailbox(new_mailbox: &mut [u8]) -> Result<(), MailboxError> {
+pub fn relocate_mailbox(cpu_num: u32, new_mailbox: &mut [u8]) -> Result<(), MailboxError> {
+    wait_for_aps_parked(cpu_num);
+
     // Safety:
     // During this state, all the BSPs/APs are accessing the mailbox in shared immutable mode.
     let mut mail_box = unsafe { MailBox::new(get_mem_slice_mut(SliceType::MailBox)) };
@@ -270,6 +297,16 @@ pub fn relocate_mailbox(new_mailbox: &mut [u8]) -> Result<(), MailboxError> {
     // Ensure that the Mailbox memory can hold the AP loop function
     if func_size as usize > new_mailbox.len() {
         return Err(MailboxError::Relocation);
+    }
+
+    // Put the relocated mailbox header into a known idle state before the APs
+    // start polling it. Only the header is reset: the rest of the page holds
+    // the runtime IDT installed by switch_idt().
+    {
+        let mut relocated = MailBox::new(&mut new_mailbox[..MAILBOX_SIZE]);
+        relocated.set_command(spec::MP_WAKEUP_COMMAND_NOOP);
+        relocated.set_apic_id(spec::MAILBOX_APICID_INVALID);
+        relocated.set_wakeup_vector(0);
     }
 
     // Safety:
@@ -287,8 +324,18 @@ pub fn relocate_mailbox(new_mailbox: &mut [u8]) -> Result<(), MailboxError> {
         return Err(MailboxError::Relocation);
     }
 
+    let wakeup_vector = new_mailbox_address + MAILBOX_SIZE as u64;
+
+    // SECURITY: refuse to publish a wakeup vector that points into the
+    // firmware's unmeasured scratch pages. This target is firmware-controlled
+    // here, so the check only guards against a layout regression, but it keeps
+    // the Rust path consistent with the reset-vector assembly guard.
+    if td_layout::mailbox::wakeup_vector_in_firmware_scratch(wakeup_vector) {
+        return Err(MailboxError::Relocation);
+    }
+
     // Wakeup APs to complete the relocation of mailbox and AP function
-    mail_box.set_wakeup_vector(new_mailbox_address as u32 + MAILBOX_SIZE as u32);
+    mail_box.set_wakeup_vector(wakeup_vector as u32);
     // Put new mailbox base address to the first FW arg
     mail_box.set_fw_arg(0, new_mailbox_address);
 
@@ -330,12 +377,14 @@ fn ap_set_idt(cpu_index: u32, idt_ptr: &DescriptorTablePointer) {
 }
 
 pub fn relocate_page_table(cpu_num: u32, page_table_base: u64) {
+    wait_for_aps_parked(cpu_num);
     for cpu_index in make_apic_range(cpu_num - 1) {
         ap_set_cr3(cpu_index, page_table_base);
     }
 }
 
 pub fn set_idt(cpu_num: u32, idt_ptr: &DescriptorTablePointer) {
+    wait_for_aps_parked(cpu_num);
     for cpu_index in make_apic_range(cpu_num - 1) {
         ap_set_idt(cpu_index, idt_ptr);
     }
