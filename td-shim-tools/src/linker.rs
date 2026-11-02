@@ -450,12 +450,15 @@ impl TdShimLinker {
             cfv_unmeasured,
         );
 
+        let mut mailbox_page = vec![0u8; TD_SHIM_MAILBOX_SIZE as usize];
+        let mailbox = TdxMpWakeupMailbox::default();
+        mailbox_page[..mailbox.as_bytes().len()].copy_from_slice(mailbox.as_bytes());
         insert_igvm_pages(
             &mut directive_headers,
             TD_SHIM_MAILBOX_BASE as u64,
             TD_SHIM_MAILBOX_SIZE as u64,
-            &vec![],
-            true,
+            &mailbox_page,
+            false,
         );
 
         insert_igvm_pages(

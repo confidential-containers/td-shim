@@ -37,7 +37,7 @@ pub const TDX_METADATA_SECTION_TYPE_BFV: u32 = 0;
 pub const TDX_METADATA_SECTION_TYPE_CFV: u32 = 1;
 /// Section type for EFI Hand-off Blob.
 pub const TDX_METADATA_SECTION_TYPE_TD_HOB: u32 = 2;
-/// Section type for stack, heap and mailbox.
+/// Section type for stack and heap.
 pub const TDX_METADATA_SECTION_TYPE_TEMP_MEM: u32 = 3;
 /// Section type for PermMem
 pub const TDX_METADATA_SECTION_TYPE_PERM_MEM: u32 = 4;
@@ -206,8 +206,6 @@ pub enum TdxMetadataError {
 
 pub fn validate_sections(sections: &[TdxMetadataSection]) -> Result<(), TdxMetadataError> {
     let mut bfv_cnt = 0;
-    let mut bfv_start = 0;
-    let mut bfv_end = 0;
     let mut hob_cnt = 0;
     let mut perm_mem_cnt = 0;
     let mut payload_cnt = 0;
@@ -254,9 +252,6 @@ pub fn validate_sections(sections: &[TdxMetadataSection]) -> Result<(), TdxMetad
                     section.memory_data_size,
                 ) {
                     return Err(TdxMetadataError::InvalidSection);
-                } else {
-                    bfv_start = section.data_offset;
-                    bfv_end = bfv_start + section.raw_data_size;
                 }
             }
 
@@ -469,17 +464,21 @@ pub fn validate_sections(sections: &[TdxMetadataSection]) -> Result<(), TdxMetad
         return Err(TdxMetadataError::InvalidSection);
     }
 
-    // TdInfo. If present, it shall be included in BFV section.
-    if td_info_cnt != 0
-        && (td_info_start < bfv_start || td_info_start >= bfv_end || td_info_end > bfv_end)
-    {
+    // TdInfo and TdParams. If present, each shall be included in a BFV section.
+    let in_some_bfv = |start: u32, end: u32| {
+        sections.iter().any(|s| {
+            let bfv_start = s.data_offset as u64;
+            let bfv_end = bfv_start + s.raw_data_size as u64;
+            s.r#type == TDX_METADATA_SECTION_TYPE_BFV
+                && start as u64 >= bfv_start
+                && (start as u64) < bfv_end
+                && end as u64 <= bfv_end
+        })
+    };
+    if td_info_cnt != 0 && !in_some_bfv(td_info_start, td_info_end) {
         return Err(TdxMetadataError::InvalidSection);
     }
-
-    // TdParams. If present, it shall be included in BFV section.
-    if td_params_cnt != 0
-        && (td_params_start < bfv_start || td_params_start >= bfv_end || td_params_end > bfv_end)
-    {
+    if td_params_cnt != 0 && !in_some_bfv(td_params_start, td_params_end) {
         return Err(TdxMetadataError::InvalidSection);
     }
 
@@ -575,6 +574,49 @@ mod tests {
         assert_eq!(TdxMetadataSection::get_type_name(8).unwrap(), "TdParams");
 
         assert!(TdxMetadataSection::get_type_name(9).is_none());
+    }
+
+    #[test]
+    fn test_validate_sections_td_info_in_any_bfv() {
+        let bfv = |data_offset: u32, raw_data_size: u32, memory_address: u64| TdxMetadataSection {
+            data_offset,
+            raw_data_size,
+            memory_address,
+            memory_data_size: raw_data_size as u64,
+            attributes: TDX_METADATA_ATTRIBUTES_EXTENDMR,
+            r#type: TDX_METADATA_SECTION_TYPE_BFV,
+        };
+        let td_hob = TdxMetadataSection {
+            data_offset: 0,
+            raw_data_size: 0,
+            memory_address: 0x820000,
+            memory_data_size: 0x20000,
+            attributes: 0,
+            r#type: TDX_METADATA_SECTION_TYPE_TD_HOB,
+        };
+        let td_info = |data_offset: u32| TdxMetadataSection {
+            data_offset,
+            raw_data_size: 0x100,
+            memory_address: 0,
+            memory_data_size: 0,
+            attributes: 0,
+            r#type: TDX_METADATA_SECTION_TYPE_TD_INFO,
+        };
+
+        // TdInfo inside the first of two BFVs is valid, whatever the BFV order.
+        let main_bfv = bfv(0x82000, 0xf7e000, 0xff082000);
+        let mailbox_bfv = bfv(0x40000, 0x1000, 0xff040000);
+        let sections = [main_bfv, mailbox_bfv, td_hob, td_info(0x82000)];
+        assert!(validate_sections(&sections).is_ok());
+        let sections = [mailbox_bfv, main_bfv, td_hob, td_info(0x82000)];
+        assert!(validate_sections(&sections).is_ok());
+
+        // TdInfo outside every BFV is rejected.
+        let sections = [main_bfv, mailbox_bfv, td_hob, td_info(0x50000)];
+        assert!(validate_sections(&sections).is_err());
+        // TdInfo straddling the end of a BFV is rejected.
+        let sections = [main_bfv, mailbox_bfv, td_hob, td_info(0x40f80)];
+        assert!(validate_sections(&sections).is_err());
     }
 
     #[test]

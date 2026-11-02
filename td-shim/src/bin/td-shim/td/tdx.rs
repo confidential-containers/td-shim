@@ -31,6 +31,11 @@ pub fn relocate_mailbox(new_mailbox: &mut [u8]) {
     super::tdx_mailbox::relocate_mailbox(new_mailbox).expect("Unable to relocate mailbox");
 }
 
+pub fn wait_for_aps_parked() {
+    #[cfg(not(feature = "no-mailbox"))]
+    super::tdx_mailbox::wait_for_aps_parked(get_num_vcpus());
+}
+
 pub fn relocate_ap_page_table(page_table_base: u64) {
     #[cfg(not(feature = "no-mailbox"))]
     super::tdx_mailbox::relocate_page_table(get_num_vcpus(), page_table_base);

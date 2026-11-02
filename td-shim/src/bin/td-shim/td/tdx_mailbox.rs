@@ -7,8 +7,10 @@ extern crate alloc;
 use alloc::vec::Vec;
 use core::arch::asm;
 use core::cmp::min;
+use core::convert::TryInto;
 use core::ops::RangeInclusive;
 use td_exception::idt::DescriptorTablePointer;
+use td_layout::mailbox::{reset_mailbox_os_section, MAILBOX_OS_SECTION_SIZE};
 use td_layout::memslice::{get_mem_slice_mut, SliceType};
 use tdx_tdcall::{self, tdx::*};
 
@@ -124,6 +126,25 @@ fn make_apic_range(end: u32) -> RangeInclusive<u32> {
     let start = 1;
 
     RangeInclusive::new(start, end)
+}
+
+/// Wait until every AP has reset the mailbox header and entered the mailbox
+/// loop. Must be called once by the BSP before its first mailbox command.
+/// See "AP Mailbox" in doc/tdshim_spec.md.
+pub fn wait_for_aps_parked(cpu_num: u32) {
+    // Safety:
+    // BSP is the owner of the mailbox area, and APs cooperate with BSP to access the mailbox area.
+    let mail_box = unsafe { MailBox::new(get_mem_slice_mut(SliceType::MailBox)) };
+    let ap_num = cpu_num.saturating_sub(1);
+
+    // Mailbox accesses are volatile, so they are not reordered with each other,
+    // and x86 does not reorder this load with later loads or stores: no fence.
+    if mail_box.cpu_arrival() < ap_num {
+        log::info!("Waiting for {} APs to park in the mailbox\n", ap_num);
+        while mail_box.cpu_arrival() < ap_num {
+            cpu_pause();
+        }
+    }
 }
 
 // Wait for AP to response the command set by BSP if needed.
@@ -267,10 +288,17 @@ pub fn relocate_mailbox(new_mailbox: &mut [u8]) -> Result<(), MailboxError> {
     let func_addr = ap_relocated_func_addr();
     let func_size = ap_relocated_func_size();
 
-    // Ensure that the Mailbox memory can hold the AP loop function
-    if func_size as usize > new_mailbox.len() {
+    // Ensure that the Mailbox memory can hold the mailbox and the AP loop function
+    if MAILBOX_SIZE + func_size as usize > new_mailbox.len() {
         return Err(MailboxError::Relocation);
     }
+
+    // Put the relocated mailbox into the idle state before the APs poll it. The
+    // firmware section of the page holds the runtime IDT from switch_idt().
+    let os_section = (&mut new_mailbox[..MAILBOX_OS_SECTION_SIZE])
+        .try_into()
+        .map_err(|_| MailboxError::Relocation)?;
+    reset_mailbox_os_section(os_section);
 
     // Safety:
     // the code size is calculated according to the ASM symbol address
@@ -282,13 +310,14 @@ pub fn relocate_mailbox(new_mailbox: &mut [u8]) -> Result<(), MailboxError> {
     // The layout of Mailbox memory: |---Mailbox---|---Relocated function---|
     new_mailbox[MAILBOX_SIZE..MAILBOX_SIZE + ap_func.len()].copy_from_slice(ap_func);
 
+    // APs read the wakeup vector as a 32-bit value
     let new_mailbox_address = new_mailbox.as_ptr() as u64;
-    if new_mailbox_address + MAILBOX_SIZE as u64 > u32::MAX as u64 {
-        return Err(MailboxError::Relocation);
-    }
+    let wakeup_vector: u32 = (new_mailbox_address + MAILBOX_SIZE as u64)
+        .try_into()
+        .map_err(|_| MailboxError::Relocation)?;
 
     // Wakeup APs to complete the relocation of mailbox and AP function
-    mail_box.set_wakeup_vector(new_mailbox_address as u32 + MAILBOX_SIZE as u32);
+    mail_box.set_wakeup_vector(wakeup_vector);
     // Put new mailbox base address to the first FW arg
     mail_box.set_fw_arg(0, new_mailbox_address);
 

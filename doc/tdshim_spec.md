@@ -102,6 +102,8 @@ Pages during TD Build Time.
    and only allows the bootstrap processor (BSP) to start the system
    initialization. All application processors (APs) loops with a mailbox and
    wait for the instruction from the BSP.
+
+   See [AP Mailbox](#ap-mailbox).
  * TD Shim setup stack and starts to run the C code.
  * TD Shim setup exception handler.
  * TD Shim uses TDCALL[TDG.MR.RTMR.EXTEND] to extend the TD_HOB to runtime
@@ -228,6 +230,41 @@ The metadata above may support below use cases as example.
    multiple TempMem, one PermMem, and one Service TD Core as Payload. The TD_HOB is
    removed and the PermMem is added, so that the configuration is static, and
    all measurement registers are predictable at build time.
+
+### AP Mailbox
+
+APs wait in a loop on the TDX MP wakeup mailbox at `TD_SHIM_MAILBOX_BASE` (4 KiB)
+until the BSP sends them a command. The VMM chooses when each VCPU starts, so an
+AP may read the mailbox before the BSP runs.
+
+The TD Shim reports the mailbox page as a BFV section with MR.EXTEND set, so
+the VMM copies its initial content from the image and extends it into MRTD.
+That content is the idle state: Command = 0 (Noop), ApicId = 0xFFFFFFFF
+(invalid), WakeupVector = 0, and all other bytes 0, including the arrival
+counter at offset 0x900. Any other initial content changes MRTD.
+
+Each AP, in the reset vector and before its first read of the mailbox:
+1. writes Command = Noop, ApicId = invalid and WakeupVector = 0;
+2. atomically increments the arrival counter at offset 0x900;
+3. enters the command loop.
+
+Before its first mailbox command, the BSP waits until the arrival counter
+reaches NUM_VCPUS - 1. After that, no AP writes the mailbox header except to
+acknowledge a command, so step 1 cannot overwrite a command from the BSP.
+There is no timeout: if an AP never starts, the BSP waits forever and logs that
+it is waiting for APs. Only the VMM can prevent an AP from starting, and the VMM
+can deny service in other ways too. Continuing without all APs would let a late
+AP overwrite a BSP command.
+
+The firmware arguments (offset 0x800 onwards) are written by the BSP before the
+command that uses them. The temporary stack and heap are TempMem and are not
+measured; the TD Shim writes them before reading them.
+
+Before jumping to the payload, the BSP copies the AP loop into the relocated
+mailbox reported in the [multiprocessor wakeup structure](#acpi-mpws), resets
+its OS section (offset 0 to 0x7FF) to the idle state, and broadcasts a wakeup
+command with the address of the relocated loop. The firmware section of the
+relocated mailbox holds the runtime IDT and is not reset.
 
 ## Part II - VMM / TD Shim Interface
 
