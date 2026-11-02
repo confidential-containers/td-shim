@@ -105,6 +105,9 @@ pub extern "win64" fn _start(
     // First initialize the heap allocator so that we have a normal rust world to live in...
     heap::init();
 
+    // APs must be parked before the BSP sends its first mailbox command.
+    td::wait_for_aps_parked();
+
     // Initialize the static information from the metadata
     let static_info = BootTimeStatic::new().expect("Invalid metadata");
 

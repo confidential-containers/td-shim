@@ -178,14 +178,15 @@ fn basic_metadata_sections(payload_type: PayloadType) -> MetadataSections {
         attributes: 0,
     });
 
-    // MAILBOX
+    // MAILBOX: measured, so that its initial content is the one from the image.
+    // See "AP Mailbox" in doc/tdshim_spec.md.
     metadata_sections.add(TdxMetadataSection {
-        data_offset: 0,
-        raw_data_size: 0,
+        data_offset: TD_SHIM_MAILBOX_OFFSET,
+        raw_data_size: TD_SHIM_MAILBOX_SIZE,
         memory_address: TD_SHIM_MAILBOX_BASE as u64,
         memory_data_size: TD_SHIM_MAILBOX_SIZE as u64,
-        r#type: TDX_METADATA_SECTION_TYPE_TEMP_MEM,
-        attributes: 0,
+        r#type: TDX_METADATA_SECTION_TYPE_BFV,
+        attributes: TDX_METADATA_ATTRIBUTES_EXTENDMR,
     });
 
     metadata_sections
@@ -361,5 +362,40 @@ mod test {
     fn test_deserialize_invalid_metadata() {
         let btyes = EXAMPLE_SECTIONS_INVALID.as_bytes();
         assert!(serde_json::from_slice::<MetadataSections>(btyes).is_err());
+    }
+
+    #[test]
+    fn test_default_metadata_measures_mailbox() {
+        use td_shim_interface::metadata::{validate_sections, TDX_METADATA_ATTRIBUTES_EXTENDMR};
+
+        for payload_type in [PayloadType::Linux, PayloadType::Executable] {
+            let sections = default_metadata_sections(payload_type);
+            let mailbox: Vec<_> = sections
+                .as_slice()
+                .iter()
+                .filter(|s| s.memory_address == TD_SHIM_MAILBOX_BASE as u64)
+                .collect();
+            assert_eq!(mailbox.len(), 1);
+            let mailbox = mailbox[0];
+            assert_eq!(mailbox.r#type, TDX_METADATA_SECTION_TYPE_BFV);
+            assert_eq!(mailbox.attributes, TDX_METADATA_ATTRIBUTES_EXTENDMR);
+            assert_eq!(mailbox.data_offset, TD_SHIM_MAILBOX_OFFSET);
+            assert_eq!(mailbox.raw_data_size, TD_SHIM_MAILBOX_SIZE);
+            assert_eq!(mailbox.memory_data_size, TD_SHIM_MAILBOX_SIZE as u64);
+
+            let sections: Vec<_> = sections
+                .as_slice()
+                .iter()
+                .map(|s| td_shim_interface::metadata::TdxMetadataSection {
+                    data_offset: s.data_offset,
+                    raw_data_size: s.raw_data_size,
+                    memory_address: s.memory_address,
+                    memory_data_size: s.memory_data_size,
+                    r#type: s.r#type,
+                    attributes: s.attributes,
+                })
+                .collect();
+            assert!(validate_sections(&sections).is_ok());
+        }
     }
 }

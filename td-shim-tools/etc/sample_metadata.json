@@ -41,12 +41,12 @@
             "Attributes": "0x0"
         },
         {
-            "DataOffset": "0x0",
-            "RawDataSize": "0x0",
+            "DataOffset": "0x40000",
+            "RawDataSize": "0x1000",
             "MemoryAddress": "0xFF040000",
             "MemoryDataSize": "0x1000",
-            "Type": "TempMem",
-            "Attributes": "0x0"
+            "Type": "BFV",
+            "Attributes": "0x1"
         }
     ]
 }

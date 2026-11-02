@@ -248,6 +248,17 @@ ParkAp:
 
     mov     rsp, TD_MAILBOX_BASE     ; base address
 
+    ;
+    ; Put the mailbox header into the idle state before the first read, then
+    ; report this AP as parked. The BSP issues no command before all APs have
+    ; arrived. See "AP Mailbox" in doc/tdshim_spec.md.
+    ;
+    mov     dword[rsp + CommandOffset], MpProtectedModeWakeupCommandNoop
+    mov     dword[rsp + ApicidOffset], MailboxApicIdInvalid
+    mov     dword[rsp + WakeupVectorOffset], 0
+    mov     dword[rsp + WakeupVectorOffset + 4], 0
+    lock inc dword[rsp + CpuArrivalOffset]
+
 .check_apicid:
     ; Determine if this is a broadcast or directly for my apic-id, if not, ignore
     cmp     dword[rsp + ApicidOffset], MailboxApicidBroadcast
