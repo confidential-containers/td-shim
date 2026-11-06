@@ -118,6 +118,11 @@ impl E820Table {
                     self.entries[idx].size -= length;
                     self.insert_entry(idx + 1, E820Entry::new(start, length, r#type))?;
                 } else {
+                    // Splitting the entry needs two free slots, check it before
+                    // shrinking the entry so that a failure leaves the table intact.
+                    if self.num_entries + 2 > MAX_E820_ENTRY {
+                        return Err(E820Error::TooManyEntries);
+                    }
                     self.entries[idx].size = start - self.entries[idx].addr;
                     self.insert_entry(idx + 1, E820Entry::new(start, length, r#type))?;
                     self.insert_entry(
@@ -256,5 +261,25 @@ mod tests {
         assert_eq!(table.as_slice().len(), 2);
         let result = table.convert_range(E820Type::Memory, 0x800, 0x2000);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_e820_table_convert_range_full() {
+        let mut table = E820Table::new();
+        for i in 0..MAX_E820_ENTRY as u64 - 1 {
+            table
+                .add_range(E820Type::Memory, i * 0x10000, 0x1000)
+                .unwrap();
+        }
+        assert_eq!(table.as_slice().len(), MAX_E820_ENTRY - 1);
+
+        // Splitting an entry in the middle needs two more slots
+        let result = table.convert_range(E820Type::Nvs, 0x400, 0x800);
+        assert!(result.is_err());
+        assert_eq!(table.as_slice().len(), MAX_E820_ENTRY - 1);
+        let first = table.as_slice()[0];
+        assert_eq!({ first.addr }, 0);
+        assert_eq!({ first.size }, 0x1000);
+        assert_eq!({ first.r#type }, E820Type::Memory as u32);
     }
 }
