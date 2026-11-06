@@ -29,6 +29,12 @@ pub const TD_SHIM_SEC_CORE_INFO_OFFSET: u32 = {{sec_info_offset | format_hex }};
 pub const TD_SHIM_SEC_CORE_INFO_BASE: u32 = {{memory_offset + sec_info_offset | format_hex }};
 
 // Base Address after Loaded into Memory
+// Sections with `TempMemBase` set use a DRAM address so QEMU 9+ TDX can accept
+// them via E820 RAM entries (tdx_init_ram_entries only uses E820_RAM slots).
 {%-for i in image_regions%}
+{%- if i.dram_base %}
+pub const TD_SHIM_{{i.name_screaming_snake_case}}_BASE: u32 = {{i.dram_base | format_hex }}; // DRAM (TempMemBase)
+{%- else %}
 pub const TD_SHIM_{{i.name_screaming_snake_case}}_BASE: u32 = {{memory_offset + i.region.start | format_hex }};
+{%- endif %}
 {%-endfor%}
