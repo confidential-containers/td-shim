@@ -146,7 +146,11 @@ impl<'a> Memory<'a> {
         for r in self.layout.regions() {
             let e820_type: E820Type = r.r#type.into();
             if e820_type != E820Type::Memory {
-                table.convert_range(r.r#type.into(), r.base_address as u64, r.size as u64);
+                table
+                    .convert_range(e820_type, r.base_address as u64, r.size as u64)
+                    .unwrap_or_else(|e| {
+                        panic!("Unable to reserve {} region in e820 table: {:?}", r.name, e)
+                    });
             }
         }
 
