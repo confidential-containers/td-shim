@@ -10,6 +10,8 @@ use td_shim_interface::acpi::{self, GenericSdtHeader};
 
 // 255 vCPUs needs 2278 bytes, refer to create_madt().
 const MADT_MAX_SIZE: usize = 0xc00;
+// ACPI header, local interrupt controller address and flags
+const MADT_FIXED_SIZE: usize = size_of::<GenericSdtHeader>() + 8;
 const NUM_8259_IRQS: usize = 16;
 
 const ACPI_1_0_PROCESSOR_LOCAL_APIC: u8 = 0x00;
@@ -77,10 +79,30 @@ pub fn create_madt(vmm_madt: &[u8], mailbox_base: u64) -> Option<Madt> {
     }
 
     // Safe since we have checked the length
-    let len = u32::from_le_bytes(vmm_madt[4..8].try_into().unwrap());
+    let len = u32::from_le_bytes(vmm_madt[4..8].try_into().unwrap()) as usize;
+    if len < MADT_FIXED_SIZE || len > vmm_madt.len() {
+        return None;
+    }
 
     let mut madt = Madt::default();
-    madt.write(&vmm_madt[..len as usize]);
+    madt.write(&vmm_madt[..MADT_FIXED_SIZE]);
+
+    // Copy the interrupt controller structures except any MP wakeup structure
+    // from VMM, the OS uses the first one it finds and it must be ours.
+    let mut offset = MADT_FIXED_SIZE;
+    while offset < len {
+        if len - offset < 2 {
+            return None;
+        }
+        let entry_len = vmm_madt[offset + 1] as usize;
+        if entry_len < 2 || entry_len > len - offset {
+            return None;
+        }
+        if vmm_madt[offset] != ACPI_MADT_MPWK_STRUCT_TYPE {
+            madt.write(&vmm_madt[offset..offset + entry_len]);
+        }
+        offset += entry_len;
+    }
 
     let mpwk = MadtMpwkStruct {
         r#type: ACPI_MADT_MPWK_STRUCT_TYPE,
@@ -154,11 +176,52 @@ mod tests {
         let madt = create_madt_default(255, 0x1000).unwrap();
         assert!(madt.size < MADT_MAX_SIZE);
 
-        let mut vmm_madt = [0u8; size_of::<SdtHeader>()];
+        let mut vmm_madt = [0u8; MADT_FIXED_SIZE];
         assert!(create_madt(&vmm_madt, 0x1000).is_none());
 
         vmm_madt[0..4].copy_from_slice(b"APIC");
-        let madt = create_madt(&vmm_madt, mailbox).unwrap();
+        vmm_madt[4..8].copy_from_slice(&(MADT_FIXED_SIZE as u32).to_le_bytes());
+        let madt = create_madt(&vmm_madt, 0x1000).unwrap();
         assert_eq!(madt.size, vmm_madt.len() + size_of::<MadtMpwkStruct>());
+    }
+
+    #[test]
+    fn test_create_madt_drop_vmm_mpwk() {
+        let vmm_mpwk = MadtMpwkStruct {
+            r#type: ACPI_MADT_MPWK_STRUCT_TYPE,
+            length: size_of::<MadtMpwkStruct>() as u8,
+            mail_box_version: ACPI_MADT_MPWK_MAILBOX_VERSION,
+            reserved: 0,
+            mail_box_address: 0x2000,
+        };
+        let lapic = LocalApic {
+            r#type: ACPI_1_0_PROCESSOR_LOCAL_APIC,
+            length: size_of::<LocalApic>() as u8,
+            processor_id: 0,
+            apic_id: 0,
+            flags: 1,
+        };
+        let mpwk_end = MADT_FIXED_SIZE + size_of::<MadtMpwkStruct>();
+        let mut vmm_madt = [0u8; MADT_FIXED_SIZE + 16 + 8];
+        let len = vmm_madt.len() as u32;
+        vmm_madt[0..4].copy_from_slice(b"APIC");
+        vmm_madt[4..8].copy_from_slice(&len.to_le_bytes());
+        vmm_madt[MADT_FIXED_SIZE..mpwk_end].copy_from_slice(vmm_mpwk.as_bytes());
+        vmm_madt[mpwk_end..].copy_from_slice(lapic.as_bytes());
+
+        // The VMM MP wakeup structure is dropped, ours is the only one
+        let madt = create_madt(&vmm_madt, 0x1000).unwrap();
+        assert_eq!(madt.size, MADT_FIXED_SIZE + 8 + 16);
+        assert_eq!(
+            &madt.data[MADT_FIXED_SIZE..MADT_FIXED_SIZE + 8],
+            lapic.as_bytes()
+        );
+        let mpwk =
+            MadtMpwkStruct::read_from_bytes(&madt.data[MADT_FIXED_SIZE + 8..madt.size]).unwrap();
+        assert_eq!({ mpwk.mail_box_address }, 0x1000);
+
+        // Structure length exceeding the table
+        vmm_madt[mpwk_end + 1] = 9;
+        assert!(create_madt(&vmm_madt, 0x1000).is_none());
     }
 }
