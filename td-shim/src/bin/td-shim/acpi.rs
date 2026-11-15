@@ -49,6 +49,11 @@ impl<'a> AcpiTables<'a> {
             if dsdt != 0 {
                 // The DSDT field of FADT [40..44]
                 dsdt.write_to(&mut fadt[40..44]);
+                // OSPM ignores the DSDT field if X_DSDT [140..148] is non-zero,
+                // so it must point to the installed DSDT as well.
+                if fadt_len >= 148 {
+                    (dsdt as u64).write_to(&mut fadt[140..148]);
+                }
             }
 
             // Update FADT checksum
@@ -181,5 +186,28 @@ mod tests {
             addr,
             0x100000 + 240 + 2 * size_of::<GenericSdtHeader>() as u64
         );
+    }
+
+    #[test]
+    fn test_fadt_x_dsdt() {
+        let mut buff = [0u8; 1024];
+        let mut tables = AcpiTables::new(&mut buff, 0x100000);
+
+        // ACPI 2.0+ FADT carrying a 64-bit X_DSDT address chosen by the VMM
+        let hdr = GenericSdtHeader::new(b"FACP", 244, 6);
+        let mut fadt = [0u8; 244];
+        fadt[0..size_of::<GenericSdtHeader>()].copy_from_slice(hdr.as_bytes());
+        fadt[140..148].copy_from_slice(&0xdead_0000u64.to_le_bytes());
+        tables.install(&fadt);
+
+        let hdr = GenericSdtHeader::new(b"DSDT", size_of::<GenericSdtHeader>() as u32, 2);
+        tables.install(hdr.as_bytes());
+        tables.finish();
+
+        let fadt = &buff[0..244];
+        let dsdt = 0x100000 + 244u64;
+        assert_eq!(fadt[40..44], (dsdt as u32).to_le_bytes());
+        assert_eq!(fadt[140..148], dsdt.to_le_bytes());
+        assert_eq!(calculate_checksum(fadt), 0);
     }
 }
