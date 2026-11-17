@@ -223,23 +223,15 @@ pub fn accept_memory_resource_range(mut cpu_num: u32, address: u64, size: u64) {
         cpu_num - 1
     };
 
-    let mut align_low = if address & (ACCEPT_PAGE_SIZE - 1) == 0 {
+    // Split the range into a 4K-accepted head up to the first 2M boundary, a
+    // 2M-accepted middle and a 4K-accepted tail, so that every page is covered.
+    let align_low = if address & (ACCEPT_PAGE_SIZE - 1) == 0 {
         0
     } else {
         min(size, ACCEPT_PAGE_SIZE - (address & (ACCEPT_PAGE_SIZE - 1)))
     };
-    let mut major_part = size - align_low;
-    let mut align_high = 0u64;
-
-    if size > ACCEPT_PAGE_SIZE {
-        major_part = (size - align_low) & !(ACCEPT_PAGE_SIZE - 1);
-        if major_part < ACCEPT_PAGE_SIZE {
-            align_low += major_part;
-            major_part = 0;
-        } else {
-            align_high = size - align_low - major_part;
-        }
-    }
+    let major_part = (size - align_low) & !(ACCEPT_PAGE_SIZE - 1);
+    let align_high = size - align_low - major_part;
 
     wait_for_ap_arrive(active_ap_cnt);
 
