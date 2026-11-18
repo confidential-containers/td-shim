@@ -54,7 +54,7 @@ impl E820Table {
     ) -> Result<(), E820Error> {
         let mut pos = self.num_entries;
         for (i, e) in self.entries[..self.num_entries].iter().enumerate() {
-            if start >= e.addr && start < e.addr + e.size {
+            if start < e.addr + e.size && start + length > e.addr {
                 return Err(E820Error::RangeAlreadyExists);
             }
             if start + length <= e.addr {
@@ -227,6 +227,25 @@ mod tests {
         assert_eq!(table.as_slice().len(), 2);
         table.add_range(E820Type::Memory, 0x1000, 0x1000).unwrap();
         assert_eq!(table.as_slice().len(), 1);
+    }
+
+    #[test]
+    fn test_e820_table_add_range_overlap() {
+        let mut table = E820Table::new();
+        table.add_range(E820Type::Memory, 0x2000, 0x2000).unwrap();
+
+        // Ranges that start below an existing entry and extend into it
+        assert!(table.add_range(E820Type::Memory, 0x1000, 0x2000).is_err());
+        assert!(table.add_range(E820Type::Memory, 0x0, 0x8000).is_err());
+        assert_eq!(table.as_slice().len(), 1);
+
+        // A reserved range must not stay covered by another RAM entry
+        table.convert_range(E820Type::Nvs, 0x3000, 0x1000).unwrap();
+        for e in table.as_slice() {
+            if e.r#type == E820Type::Memory as u32 {
+                assert!(e.addr + e.size <= 0x3000 || e.addr >= 0x4000);
+            }
+        }
     }
 
     #[test]
