@@ -385,6 +385,10 @@ fn prepare_acpi_tables(acpi_tables: &mut Vec<&[u8]>, mem: &Memory, vcpus: u32) -
         if &header.signature == b"APIC" {
             vmm_madt = Some(table);
             acpi_tables.remove(idx);
+        } else if &header.signature == b"CCEL" {
+            // td-shim adds a CCEL for its own event log, and the OS and payload
+            // use the first CCEL table they find.
+            acpi_tables.remove(idx);
         } else {
             idx += 1;
         }
