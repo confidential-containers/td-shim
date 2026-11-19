@@ -26,6 +26,7 @@ const GDT: [u64; 4] = [
 
 pub enum Error {
     InvalidBzImage,
+    InvalidVmLinux,
     UnknownImageType,
 }
 
@@ -53,6 +54,17 @@ pub fn setup_header(kernel_image: &[u8], kernel_parameter: &[u8]) -> Result<Setu
     setup_header.cmd_line_ptr = kernel_parameter.as_ptr() as u32;
 
     Ok(setup_header)
+}
+
+// The entry point of a raw vmlinux comes from the payload info HOB provided by
+// the VMM, it must be inside the kernel image that has been loaded and measured.
+fn vmlinux_entry_point(kernel_image: &[u8], entry_point: u64) -> Result<u64, Error> {
+    let start = kernel_image.as_ptr() as u64;
+    if entry_point < start || entry_point - start >= kernel_image.len() as u64 {
+        return Err(Error::InvalidVmLinux);
+    }
+
+    Ok(entry_point)
 }
 
 pub fn boot_kernel(
@@ -86,7 +98,7 @@ pub fn boot_kernel(
             params.hdr.kernel_alignment = 0x0100_0000;
             params.hdr.cmd_line_ptr = kernel_parameter.as_ptr() as u32;
             params.hdr.cmdline_size = kernel_parameter.len() as u32;
-            info.entry_point
+            vmlinux_entry_point(kernel, info.entry_point)?
         }
         _ => return Err(Error::UnknownImageType),
     };
@@ -120,4 +132,25 @@ pub fn boot_kernel(
     entry64(0, &params as *const _ as usize);
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_vmlinux_entry_point() {
+        let kernel = [0u8; 0x1000];
+        let start = kernel.as_ptr() as u64;
+
+        assert!(matches!(vmlinux_entry_point(&kernel, start), Ok(e) if e == start));
+        assert!(matches!(
+            vmlinux_entry_point(&kernel, start + 0xfff),
+            Ok(e) if e == start + 0xfff
+        ));
+        assert!(vmlinux_entry_point(&kernel, start - 1).is_err());
+        assert!(vmlinux_entry_point(&kernel, start + 0x1000).is_err());
+        assert!(vmlinux_entry_point(&kernel, 0).is_err());
+        assert!(vmlinux_entry_point(&kernel, u64::MAX).is_err());
+    }
 }
