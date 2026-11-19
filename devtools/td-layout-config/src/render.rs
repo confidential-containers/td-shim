@@ -58,11 +58,15 @@ fn date(value: &Value, args: &HashMap<String, Value>) -> Result<Value> {
                     _ => Offset::UTC,
                 };
                 let dt = ts.to_zoned(TimeZone::fixed(offset));
-                Ok(Value::String(strtime::format(&format, &dt).map_err(format_err)?))
+                Ok(Value::String(
+                    strtime::format(&format, &dt).map_err(format_err)?,
+                ))
             } else {
-                let dt = jiff::civil::DateTime::strptime("%Y-%m-%d %H:%M:%S", s)
-                    .map_err(parse_err)?;
-                Ok(Value::String(strtime::format(&format, dt).map_err(format_err)?))
+                let dt =
+                    jiff::civil::DateTime::strptime("%Y-%m-%d %H:%M:%S", s).map_err(parse_err)?;
+                Ok(Value::String(
+                    strtime::format(&format, dt).map_err(format_err)?,
+                ))
             }
         }
         Value::Number(n) => {
@@ -73,7 +77,9 @@ fn date(value: &Value, args: &HashMap<String, Value>) -> Result<Value> {
                 .map_err(|_| tera::Error::msg("Timestamp out of range"))?
                 .to_zoned(TimeZone::UTC)
                 .datetime();
-            Ok(Value::String(strtime::format(&format, dt).map_err(format_err)?))
+            Ok(Value::String(
+                strtime::format(&format, dt).map_err(format_err)?,
+            ))
         }
         _ => Err(tera::Error::msg(format!(
             "Filter `date` received an invalid value: `{value}`"
