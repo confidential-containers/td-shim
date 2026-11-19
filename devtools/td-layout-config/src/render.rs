@@ -2,8 +2,11 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
-use chrono::Local;
 use humansize::format_size;
+use jiff::fmt::strtime;
+use jiff::fmt::temporal::{Pieces, PiecesOffset};
+use jiff::tz::{Offset, TimeZone};
+use jiff::Timestamp;
 use serde_json::Value;
 use std::collections::HashMap;
 use tera::{Context, Result, Tera};
@@ -24,19 +27,16 @@ fn now(args: &HashMap<String, tera::Value>) -> Result<tera::Value> {
         .get("timestamp")
         .and_then(|v| v.as_bool())
         .unwrap_or(false);
-    if utc {
-        let dt = chrono::Utc::now();
-        if timestamp {
-            return Ok(serde_json::to_value(dt.timestamp()).unwrap());
-        }
-        Ok(serde_json::to_value(dt.to_rfc3339()).unwrap())
-    } else {
-        let dt = Local::now();
-        if timestamp {
-            return Ok(serde_json::to_value(dt.timestamp()).unwrap());
-        }
-        Ok(serde_json::to_value(dt.to_rfc3339()).unwrap())
+    let now = Timestamp::now();
+    if timestamp {
+        return Ok(serde_json::to_value(now.as_second()).unwrap());
     }
+    let offset = if utc {
+        Offset::UTC
+    } else {
+        TimeZone::system().to_offset(now)
+    };
+    Ok(serde_json::to_value(now.display_with_offset(offset).to_string()).unwrap())
 }
 
 fn date(value: &Value, args: &HashMap<String, Value>) -> Result<Value> {
@@ -47,28 +47,33 @@ fn date(value: &Value, args: &HashMap<String, Value>) -> Result<Value> {
             .to_string(),
         None => "%Y-%m-%d".to_string(),
     };
+    let format_err = |e: jiff::Error| tera::Error::msg(format!("Filter `date` failed: {e}"));
     match value {
         Value::String(s) => {
-            use chrono::{DateTime, FixedOffset, NaiveDateTime};
+            let parse_err = |_| tera::Error::msg(format!("Failed to parse datetime `{s}`"));
             if s.contains('T') {
-                let dt: DateTime<FixedOffset> = s
-                    .parse()
-                    .map_err(|_| tera::Error::msg(format!("Failed to parse datetime `{s}`")))?;
-                Ok(Value::String(dt.format(&format).to_string()))
+                let ts: Timestamp = s.parse().map_err(parse_err)?;
+                let offset = match Pieces::parse(s).map_err(parse_err)?.offset() {
+                    Some(PiecesOffset::Numeric(o)) => o.offset(),
+                    _ => Offset::UTC,
+                };
+                let dt = ts.to_zoned(TimeZone::fixed(offset));
+                Ok(Value::String(strtime::format(&format, &dt).map_err(format_err)?))
             } else {
-                let dt = NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S")
-                    .map_err(|_| tera::Error::msg(format!("Failed to parse datetime `{s}`")))?;
-                Ok(Value::String(dt.format(&format).to_string()))
+                let dt = jiff::civil::DateTime::strptime("%Y-%m-%d %H:%M:%S", s)
+                    .map_err(parse_err)?;
+                Ok(Value::String(strtime::format(&format, dt).map_err(format_err)?))
             }
         }
         Value::Number(n) => {
             let i = n.as_i64().ok_or_else(|| {
                 tera::Error::msg(format!("Filter `date` was invoked on a float: {n}"))
             })?;
-            let dt = chrono::DateTime::from_timestamp(i, 0)
-                .ok_or_else(|| tera::Error::msg("Timestamp out of range"))?
-                .naive_utc();
-            Ok(Value::String(dt.format(&format).to_string()))
+            let dt = Timestamp::from_second(i)
+                .map_err(|_| tera::Error::msg("Timestamp out of range"))?
+                .to_zoned(TimeZone::UTC)
+                .datetime();
+            Ok(Value::String(strtime::format(&format, dt).map_err(format_err)?))
         }
         _ => Err(tera::Error::msg(format!(
             "Filter `date` received an invalid value: `{value}`"
