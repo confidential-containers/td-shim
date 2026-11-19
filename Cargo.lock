@@ -32,9 +32,9 @@ dependencies = [
 
 [[package]]
 name = "anstream"
-version = "0.6.15"
+version = "0.6.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "64e15c1ab1f89faffbf04a634d5e1962e9074f2741eef6d97f3c4e322426d526"
+checksum = "43d5b281e737544384e969a5ccad3f1cdd24b48086a0fc1b2a5262a26b8f4f4a"
 dependencies = [
  "anstyle",
  "anstyle-parse 0.2.3",
@@ -254,7 +254,7 @@ version = "4.4.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d6c0db58c659eef1c73e444d298c27322a1b52f6927d2ad470c0c0f96fa7b8fa"
 dependencies = [
- "anstream 0.6.15",
+ "anstream 0.6.21",
  "anstyle",
  "clap_lex",
  "strsim",
