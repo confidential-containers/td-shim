@@ -189,15 +189,17 @@ fn boot_linux_kernel(
     event_log: &mut CcEventLogWriter,
     vcpus: u32,
 ) {
-    // Create an EV_SEPARATOR event to mark the end of the td-shim events
-    event_log.create_seperator();
-
     let image_type = TdPayloadInfoHobType::from(kernel_info.image_type);
     match image_type {
         TdPayloadInfoHobType::ExecutablePayload => return,
         TdPayloadInfoHobType::BzImage | TdPayloadInfoHobType::RawVmLinux => {}
         _ => panic!("Unknown kernel image type {}!!!", kernel_info.image_type),
     };
+
+    // Create an EV_SEPARATOR event to mark the end of the td-shim events. The
+    // image type is checked first so that a payload info HOB asking for the
+    // built-in payload does not get one logged before boot_builtin_payload().
+    event_log.create_seperator();
 
     let rsdp = install_acpi_tables(acpi_tables, mem.get_dynamic_mem_slice_mut(SliceType::Acpi));
     let e820_table = mem.create_e820();
