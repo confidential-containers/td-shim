@@ -99,15 +99,38 @@ impl<'a> Memory<'a> {
             page_table_region.size,
         );
 
+        let (runtime_memory_bottom, runtime_memory_top) = self.runtime_memory_range();
+
         // Create mapping for 0 - base address of runtime layout region
         td_paging::create_mapping(
             &mut self.pt,
             PhysAddr::new(0),
             VirtAddr::new(0),
             td_paging::PAGE_SIZE_DEFAULT as u64,
-            MEMORY_4G,
+            runtime_memory_bottom,
         )
         .expect("Fail to map 0 to runtime memory bottom");
+
+        // Create mapping for runtime layout region, set_page_flags() only
+        // updates 4K pages.
+        td_paging::create_mapping(
+            &mut self.pt,
+            PhysAddr::new(runtime_memory_bottom),
+            VirtAddr::new(runtime_memory_bottom),
+            td_paging::PAGE_SIZE_4K as u64,
+            runtime_memory_top - runtime_memory_bottom,
+        )
+        .expect("Fail to map runtime memory region");
+
+        // Create mapping from top of runtime layout region to 4G
+        td_paging::create_mapping(
+            &mut self.pt,
+            PhysAddr::new(runtime_memory_top),
+            VirtAddr::new(runtime_memory_top),
+            td_paging::PAGE_SIZE_DEFAULT as u64,
+            MEMORY_4G - runtime_memory_top,
+        )
+        .expect("Fail to map runtime memory top to 4G");
 
         // Setup page table only for system memory resources higher than 4G
         for m in &self.regions {
@@ -172,6 +195,28 @@ impl<'a> Memory<'a> {
                 .get_mem_slice_mut(name)
                 .unwrap_or_else(|| panic!("Unable to get {} slice", name))
         }
+    }
+
+    // Range of the runtime layout regions placed below the top of low memory,
+    // rounded to 4K.
+    fn runtime_memory_range(&self) -> (u64, u64) {
+        let page_mask = td_paging::PAGE_SIZE_4K as u64 - 1;
+        let regions = self
+            .layout
+            .regions()
+            .iter()
+            .filter(|r| r.r#type != "Memory");
+        let bottom = regions
+            .clone()
+            .map(|r| r.base_address as u64)
+            .min()
+            .unwrap_or(0);
+        let top = regions
+            .map(|r| (r.base_address + r.size) as u64)
+            .max()
+            .unwrap_or(0);
+
+        (bottom & !page_mask, (top + page_mask) & !page_mask)
     }
 
     pub fn get_layout_region(&self, name: SliceType) -> LayoutRegion {
